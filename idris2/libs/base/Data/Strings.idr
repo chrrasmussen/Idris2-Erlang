@@ -15,11 +15,7 @@ foldl1 f (x::xs) = foldl f x xs
 -- enough room in advance so there's only one allocation, rather than lots!
 export
 fastAppend : List String -> String
-fastAppend xs = unsafePerformIO (schemeCall String "string-append" (toFArgs xs))
-  where
-    toFArgs : List String -> FArgList
-    toFArgs [] = []
-    toFArgs (x :: xs) = x :: toFArgs xs
+fastAppend xs = foldl prim__strAppend "" xs -- TODO: Revert to original version
 
 ||| Splits a character list into a list of whitespace separated character lists.
 |||

@@ -882,11 +882,7 @@ dataDecl fname indents
          pure (PData (MkFC fname start end) vis dat)
 
 stripBraces : String -> String
-stripBraces str = pack (drop '{' (reverse (drop '}' (reverse (unpack str)))))
-  where
-    drop : Char -> List Char -> List Char
-    drop c [] = []
-    drop c (c' :: xs) = if c == c' then drop c xs else c' :: xs
+stripBraces str = substr 3 (length str `minus` (3 * 2)) str
 
 onoff : Rule Bool
 onoff
@@ -1446,7 +1442,7 @@ nonEmptyCommand
          opt <- setOption False
          pure (SetOpt opt)
   <|> do symbol ":"; replCmd ["c", "compile"]
-         n <- unqualifiedName
+         n <- unqualifiedName <|> strLit
          tm <- expr pdef "(interactive)" init
          pure (Compile tm n)
   <|> do symbol ":"; exactIdent "exec"

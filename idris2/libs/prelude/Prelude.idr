@@ -883,15 +883,15 @@ fastPack xs
     toFArgs [] = []
     toFArgs (x :: xs) = x :: toFArgs xs
 
+-- NOTE: The following implementation of `unpack` is faster in Erlang.
+-- The Erlang codegen has an O(n) implementation of `prim__strIndex` in order
+-- to support all unicode characters (which can consist of multiple codepoints).
 public export
 unpack : String -> List Char
-unpack str = unpack' 0 (prim__cast_IntegerInt (natToInteger (length str))) str
-  where
-    unpack' : Int -> Int -> String -> List Char
-    unpack' pos len str
-        = if pos >= len
-             then []
-             else (prim__strIndex str pos) :: unpack' (pos + 1) len str
+unpack str =
+  case strUncons str of
+    Nothing => []
+    Just (x, xs) => x :: unpack xs
 
 
 public export
