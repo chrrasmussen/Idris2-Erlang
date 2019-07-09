@@ -1,0 +1,32 @@
+intTest
+[0, -42, 42]
+integerTest
+[0, -42, 42]
+stringTest
+["", "test", "ab"]
+charTest
+['a', '\n', '\402']
+doubleTest
+[0.1, -42.2, 42.3]
+unitTest
+()
+boolTest
+[True, False]
+listTest
+[[], ["a", "b", "c"]]
+erlAtomTest
+['', 'ok', 'a42']
+erlBinaryTest
+[<<"">>, <<"ok">>, <<"a42">>]
+erlCharlistTest
+[[], [111, 107], [97, 52, 50]]
+erlNilTest
+[]
+erlConsTest
+{[1 | 2], [1 | "a"], [1 | []], [1 | [2 | []]]}
+erlListTest
+{[], ["a" | [10 | ['c' | []]]]}
+erlTuplesTest
+{{}, {1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}}
+1/1: Building Main (Main.idr)
+Main> Main> Bye for now!
