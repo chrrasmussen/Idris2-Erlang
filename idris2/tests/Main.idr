@@ -69,6 +69,14 @@ ideModeTests : List String
 ideModeTests
   =  [ "ideMode001", "ideMode002" ]
 
+erlangTests : List String
+erlangTests
+   = ["erlang001", "erlang002", "erlang003", "erlang004", "erlang005",
+      "erlang006", "erlang007", "erlang008", "erlang009",
+      "chez001", "chez002", "chez003", "chez005", "chez006",
+      "chez007", "chez008", "chez009"]
+      -- chez004 and chez010 is disabled for now
+
 chdir : String -> IO Bool
 chdir dir
     = do ok <- foreign FFI_C "chdir" (String -> IO Int) dir
@@ -136,6 +144,10 @@ runChezTests prog tests
                          traverse (runTest prog) tests)
                chexec
 
+runErlangTests : String -> List String -> IO (List Bool)
+runErlangTests prog tests
+    = traverse (runTest prog) tests
+
 main : IO ()
 main
     = do args <- getArgs
@@ -150,11 +162,15 @@ main
                                     testPaths "typedd-book" typeddTests,
                                     testPaths "ideMode" ideModeTests]
          let filteredChezTests = filterTests (testPaths "chez" chezTests)
+         let filteredErlangTests = filterTests (testPaths "erlang" erlangTests)
          nonCGTestRes <- traverse (runTest idris2) filteredNonCGTests
          chezTestRes <- if length filteredChezTests > 0
               then runChezTests idris2 filteredChezTests
               else pure []
-         let res = nonCGTestRes ++ chezTestRes
+         erlangTestRes <- if length filteredErlangTests > 0
+              then runErlangTests idris2 filteredErlangTests
+              else pure []
+         let res = nonCGTestRes ++ chezTestRes ++ erlangTestRes
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)

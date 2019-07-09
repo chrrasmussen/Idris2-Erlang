@@ -4,6 +4,7 @@ import Compiler.Scheme.Chez
 import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
 import Compiler.Common
+import Compiler.Erlang.Erlang
 
 import Core.AutoSearch
 import Core.CaseTree
@@ -219,6 +220,7 @@ findCG
               Chez => pure codegenChez
               Chicken => pure codegenChicken
               Racket => pure codegenRacket
+              Erlang => pure codegenErlang
 
 export
 compileExp : {auto c : Ref Ctxt Defs} ->

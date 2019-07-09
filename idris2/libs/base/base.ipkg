@@ -33,4 +33,9 @@ modules = Control.Monad.Identity,
           System,
           System.Concurrency.Raw,
           System.File,
-          System.REPL
+          System.REPL,
+
+          Erlang,
+          Erlang.System,
+          Erlang.Debug,
+          Erlang.Data.IORef
