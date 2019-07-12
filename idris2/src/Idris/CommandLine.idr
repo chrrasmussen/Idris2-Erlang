@@ -39,6 +39,8 @@ data CLOpt
   OutputFile String |
    ||| Execute a given function after checking the source file
   ExecFn String |
+   ||| Generate library
+  GenLib String String |
    ||| Use a specific code generator (default chez)
   SetCG String |
    ||| Don't implicitly import Prelude
@@ -90,6 +92,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Specify output file"),
            MkOpt ["--exec", "-x"] ["name"] (\f => [ExecFn f, Quiet])
               (Just "Execute function after checking source file"),
+           MkOpt ["--library"] ["outfile", "entrypoint"] (\outfile, entrypoint => [GenLib outfile entrypoint, Quiet])
+              (Just "Generate library"),
            MkOpt ["--no-prelude"] [] [NoPrelude]
               (Just "Don't implicitly import Prelude"),
            MkOpt ["--codegen", "--cg"] ["backend"] (\f => [SetCG f])

@@ -99,6 +99,10 @@ postOptions (ExecFn str :: rest)
     = do execExp (PRef (MkFC "(script)" (0, 0) (0, 0)) (UN str))
          postOptions rest
          pure False
+postOptions (GenLib outfile entrypoint :: rest)
+    = do genLib outfile entrypoint
+         postOptions rest
+         pure False
 postOptions (CheckOnly :: rest)
     = do postOptions rest
          pure False

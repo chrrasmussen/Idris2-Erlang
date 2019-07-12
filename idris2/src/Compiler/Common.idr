@@ -18,7 +18,7 @@ record Codegen where
   constructor MkCG
   ||| Compile an Idris 2 expression, saving it to a file.
   compileExpr : Ref Ctxt Defs ->
-                ClosedTerm -> (outfile : String) -> Core (Maybe String)
+                ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 
@@ -28,7 +28,7 @@ record Codegen where
 export
 compile : {auto c : Ref Ctxt Defs} ->
           Codegen ->
-          ClosedTerm -> (outfile : String) -> Core (Maybe String)
+          ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
 compile {c} cg = compileExpr cg c
 
 ||| execute

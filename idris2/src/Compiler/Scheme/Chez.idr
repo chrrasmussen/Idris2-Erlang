@@ -331,8 +331,8 @@ compileToSO ssFile
 
 ||| Chez Scheme implementation of the `compileExpr` interface.
 compileExpr : Ref Ctxt Defs ->
-              ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
+              ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
+compileExpr c tm _ outfile
     = do let outSs = outfile ++ ".ss"
          compileToSS c tm outSs
          compileToSO outSs

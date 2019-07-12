@@ -233,7 +233,7 @@ compileExp ctm outfile
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
                                [] ttimp Nothing
          tm_erased <- linearCheck replFC Rig1 True [] tm
-         ok <- compile !findCG tm_erased outfile
+         ok <- compile !findCG tm_erased Nothing outfile
          maybe (pure ())
                (\fname => iputStrLn (outfile ++ " written"))
                ok
@@ -251,6 +251,24 @@ execExp ctm
                                  [] ttimp Nothing
          tm_erased <- linearCheck replFC Rig1 True [] tm
          execute !findCG tm_erased
+
+export
+genLib : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         String -> String -> Core ()
+genLib outfile libEntrypoint = do
+  let entrypointTerm = PRef replFC (UN libEntrypoint)
+  -- NOTE: Make sure `unsafePerformIO` is generated.
+  -- It may be inserted by the codegen and may not be referenced from the user's code.
+  let unsafePerformIOWorkaroundTerm = PApp replFC (PRef replFC (UN "unsafePerformIO")) (PApp replFC (PRef replFC (UN "io_pure")) entrypointTerm)
+  ttimp <- desugar AnyExpr [] unsafePerformIOWorkaroundTerm
+  inidx <- resolveName (UN "[input]")
+  (tm, ty) <- elabTerm inidx InExpr [] (MkNested []) [] ttimp Nothing
+  tm_erased <- linearCheck replFC Rig1 True [] tm
+  ok <- compile !findCG tm_erased (Just libEntrypoint) outfile
+  pure ()
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc

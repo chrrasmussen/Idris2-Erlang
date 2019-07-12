@@ -83,8 +83,8 @@ compileToSCM c tm outfile
          pure ()
 
 compileExpr : Ref Ctxt Defs ->
-              ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
+              ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
+compileExpr c tm _ outfile
     = do tmp <- coreLift $ tmpName
          let outn = tmp ++ ".scm"
          compileToSCM c tm outn
