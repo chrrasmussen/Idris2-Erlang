@@ -44,7 +44,7 @@ header moduleName exportMainFunc = do
     "\n"
 
 mainInit : String
-mainInit = "persistent_term:put('$idris_rts_args', Args), io:setopts([{encoding, unicode}])"
+mainInit = "persistent_term:put('$idris_rts_args', Args), ets:new('$idris_rts_ets', [public, named_table]), io:setopts([{encoding, unicode}])"
 
 compileToErlangExecutable : Opts -> Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
 compileToErlangExecutable (MkOpts moduleName) c tm outfile = do
