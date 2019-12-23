@@ -10,6 +10,7 @@ import Core.TT
 import Utils.Binary
 
 import Data.NameMap
+import Data.IOArray
 
 import System.Info
 
@@ -111,6 +112,37 @@ findUsedNames tm
     primTags t tags [] = tags
     primTags t tags (c :: cs)
         = primTags (t + 1) (insert (UN (show c)) t tags) cs
+
+-- Find all the names, and compile them to CExp form (and update that in the Defs)
+export
+findAllNames : {auto c : Ref Ctxt Defs} -> Term vars -> Core (List Name, NameTags)
+findAllNames tm
+    = do defs <- get Ctxt
+         let cns = filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
+         -- Initialise the type constructor list with explicit names for
+         -- the primitives (this is how we look up the tags)
+         -- Use '1' for '->' constructor
+         let tyconInit = insert (UN "->") 1 $
+                         insert (UN "Type") 2 $
+                            primTags 3 empty
+                                     [IntType, IntegerType, StringType,
+                                      CharType, DoubleType, WorldType]
+         tycontags <- mkNameTags defs tyconInit 100 cns
+         traverse_ (compileDef tycontags) cns
+         traverse_ inlineDef cns
+         pure (cns, tycontags)
+  where
+    primTags : Int -> NameTags -> List Constant -> NameTags
+    primTags t tags [] = tags
+    primTags t tags (c :: cs)
+        = primTags (t + 1) (insert (UN (show c)) t tags) cs
+    skipUnusedNames : Name -> Bool
+    skipUnusedNames (NS _ n) = skipUnusedNames n
+    skipUnusedNames (UN "[input]") = False
+    skipUnusedNames (MN _ _) = False
+    skipUnusedNames (Resolved _) = False
+    skipUnusedNames _ = True
+
 
 -- Some things missing from Prelude.File
 

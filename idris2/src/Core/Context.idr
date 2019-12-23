@@ -239,6 +239,10 @@ record Context where
     inlineOnly : Bool -- only return things with the 'alwaysReduce' flag
 
 export
+getResolvedAs : Context -> NameMap Int
+getResolvedAs = resolvedAs
+
+export
 getContent : Context -> Ref Arr (IOArray ContextEntry)
 getContent = content
 
