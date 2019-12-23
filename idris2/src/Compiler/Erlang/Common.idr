@@ -588,9 +588,9 @@ mutual
   export
   genExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
   genExtPrim i vs CCall [ret, fn, args, world] =
-    throw (InternalError ("Can't compile C FFI calls to Erlang yet"))
+    pure $ "throw(\"Can't compile C FFI calls to Erlang yet\")"
   genExtPrim i vs SchemeCall [ret, fn, args, world] =
-    throw (InternalError ("Can't compile Scheme FFI calls to Erlang yet"))
+    pure $ "throw(\"Can't compile Scheme FFI calls to Erlang yet\")"
   genExtPrim i vs PutStr [arg, world] =
     pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp i vs arg) ++ "), " ++ mkWorld mkUnit ++ " end())"
   genExtPrim i vs GetStr [world] =
