@@ -1,0 +1,14 @@
+*~
+*.ibc
+*.ttc
+*.ttm
+
+idris2
+runtests
+
+docs/_build/
+
+libs/**/build
+tests/**/output
+
+src/YafflePaths.idr
