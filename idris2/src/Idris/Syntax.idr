@@ -257,6 +257,7 @@ data REPLOpt : Type where
      EvalMode : REPLEval -> REPLOpt
      Editor : String -> REPLOpt
      CG : String -> REPLOpt
+     CGOptions : String -> REPLOpt
 
 public export
 data EditCmd : Type where

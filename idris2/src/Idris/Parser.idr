@@ -1359,6 +1359,9 @@ setVarOption
   <|> do exactIdent "cg"
          c <- unqualifiedName
          pure (CG c)
+  <|> do exactIdent "cgopt"
+         args <- strLit
+         pure (CGOptions args)
 
 setOption : Bool -> Rule REPLOpt
 setOption set

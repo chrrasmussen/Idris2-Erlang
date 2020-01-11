@@ -66,6 +66,9 @@ preOptions (SetCG e :: opts)
                  coreLift $ putStrLn $ "Code generators available: " ++
                                  showSep ", " (map fst availableCGs)
                  coreLift $ exit 1
+preOptions (SetCGOptions args :: opts)
+    = do setCGOptions args
+         preOptions opts
 preOptions (PkgPath p :: opts)
     = do addPkgDir p
          preOptions opts

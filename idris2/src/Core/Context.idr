@@ -1663,6 +1663,13 @@ setCG cg
          put Ctxt (record { options->session->codegen = cg } defs)
 
 export
+setCGOptions : {auto c : Ref Ctxt Defs} ->
+               String -> Core ()
+setCGOptions args
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->codegenOptions = args } defs)
+
+export
 getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
 getDirs
     = do defs <- get Ctxt

@@ -212,6 +212,8 @@ setOpt (CG e)
     = case getCG e of
            Just cg => setCG cg
            Nothing => coreLift $ putStrLn "No such code generator available"
+setOpt (CGOptions args)
+    = setCGOptions args
 
 findCG : {auto c : Ref Ctxt Defs} -> Core Codegen
 findCG

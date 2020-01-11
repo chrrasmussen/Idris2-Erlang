@@ -93,6 +93,7 @@ record Session where
   noprelude : Bool
   nobanner : Bool
   codegen : CG
+  codegenOptions : String
   logLevel : Nat
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
@@ -140,7 +141,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False False Chez 0 False False
+defaultSession = MkSessionOpts False False Chez "" 0 False False
 
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True
