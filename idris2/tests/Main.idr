@@ -74,9 +74,9 @@ erlangTests : List String
 erlangTests
    = ["erlang001", "erlang002", "erlang003", "erlang004", "erlang005",
       "erlang006", "erlang007", "erlang008", "erlang009",
-      "chez001", "chez002", "chez003", "chez005", "chez006",
+      "chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009"]
-      -- chez004 and chez010 is disabled for now
+      -- chez010 is disabled for now
 
 chdir : String -> IO Bool
 chdir dir

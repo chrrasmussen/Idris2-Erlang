@@ -1,4 +1,4 @@
-import Data.Buffer
+import Erlang.Data.Buffer
 import System.File
 
 main : IO ()

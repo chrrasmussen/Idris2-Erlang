@@ -38,4 +38,5 @@ modules = Control.Monad.Identity,
           Erlang,
           Erlang.System,
           Erlang.Debug,
+          Erlang.Data.Buffer,
           Erlang.Data.IORef

@@ -216,3 +216,46 @@ idris_rts_file_eof(Handle) ->
       end;
     {error, _} -> ?IDRIS_RTS_TRUE % Error => EOF
   end.
+
+
+% Buffer
+
+idris_rts_buffer_new(Size) ->
+  binary:copy(<<0>>, Size).
+
+idris_rts_buffer_set_byte(Bin, Loc, Value) ->
+  <<Start:Loc/binary, _:8/integer, End/binary>> = Bin,
+  <<Start/binary, Value:8/integer, End/binary>>.
+
+idris_rts_buffer_get_byte(Bin, Loc) ->
+  <<_Start:Loc/binary, Value:8/integer, _End/binary>> = Bin,
+  Value.
+
+idris_rts_buffer_set_int(Bin, Loc, Value) ->
+  <<Start:Loc/binary, _:64/native-integer, End/binary>> = Bin,
+  <<Start/binary, Value:64/native-integer, End/binary>>.
+
+idris_rts_buffer_get_int(Bin, Loc) ->
+  <<_Start:Loc/binary, Value:64/native-integer, _End/binary>> = Bin,
+  Value.
+
+idris_rts_buffer_set_double(Bin, Loc, Value) ->
+  <<Start:Loc/binary, _:64/native-float, End/binary>> = Bin,
+  <<Start/binary, Value:64/native-float, End/binary>>.
+
+idris_rts_buffer_get_double(Bin, Loc) ->
+  <<_Start:Loc/binary, Value:64/native-float, _End/binary>> = Bin,
+  Value.
+
+idris_rts_buffer_set_string(Bin, Loc, Value) ->
+  ValueAsBin = if
+    is_binary(Value) -> Value;
+    true -> unicode:characters_to_binary(Value)
+  end,
+  Size = byte_size(ValueAsBin),
+  <<Start:Loc/binary, _:Size/binary, End/binary>> = Bin,
+  <<Start/binary, ValueAsBin/binary, End/binary>>.
+
+idris_rts_buffer_get_string(Bin, Loc, Len) ->
+  <<_Start:Loc/binary, Value:Len/binary, _End/binary>> = Bin,
+  Value.
