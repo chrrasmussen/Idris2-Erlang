@@ -108,11 +108,20 @@ generateBeam c tm libEntrypoint outdir modName = do
 -- TODO: generateEscript : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
 --coreLift $ chmod outfile 0o755
 
+parseLibrary : String -> Maybe String
+parseLibrary args = parseLibrary' (words args)
+  where
+    parseLibrary' : List String -> Maybe String
+    parseLibrary' ("--library" :: libEntrypoint :: _) = Just libEntrypoint
+    parseLibrary' _ = Nothing
+
 -- TODO: Validate `outfile`
 compileExpr : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tm outfile = do
   let Just (outdir, modName) = erlangModuleName outfile
     | throw (InternalError ("Invalid module name: " ++ outfile))
+  session <- getSession
+  let libEntrypoint = parseLibrary (codegenOptions session)
   case extension outfile of
     Just "erl" => generateErl c tm libEntrypoint outdir modName
     Just "beam" => generateBeam c tm libEntrypoint outdir modName
