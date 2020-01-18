@@ -109,8 +109,8 @@ generateBeam c tm libEntrypoint outdir modName = do
 --coreLift $ chmod outfile 0o755
 
 -- TODO: Validate `outfile`
-compileExpr : Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm libEntrypoint outfile = do
+compileExpr : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compileExpr c tm outfile = do
   let Just (outdir, modName) = erlangModuleName outfile
     | throw (InternalError ("Invalid module name: " ++ outfile))
   case extension outfile of

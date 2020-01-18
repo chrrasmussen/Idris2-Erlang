@@ -21,7 +21,7 @@ record Codegen where
   constructor MkCG
   ||| Compile an Idris 2 expression, saving it to a file.
   compileExpr : Ref Ctxt Defs ->
-                ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
+                ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 
@@ -31,13 +31,13 @@ record Codegen where
 export
 compile : {auto c : Ref Ctxt Defs} ->
           Codegen ->
-          ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (Maybe String)
-compile {c} cg tm libEntrypoint out
+          ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compile {c} cg tm out
     = do makeExecDirectory
          cwd <- coreLift $ currentDir
          d <- getDirs
          coreLift $ changeDir (exec_dir d)
-         fn <- compileExpr cg c tm libEntrypoint out
+         fn <- compileExpr cg c tm out
          coreLift $ changeDir cwd
          pure fn
 
