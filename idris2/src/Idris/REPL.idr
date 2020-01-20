@@ -225,13 +225,13 @@ findCG
               Erlang => pure codegenErlang
 
 export
-compileExp : {auto c : Ref Ctxt Defs} ->
+compileExp' : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              PTerm -> String -> Core ()
-compileExp ctm outfile
+compileExp' ctm outfile
     = do inidx <- resolveName (UN "[input]")
          ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
@@ -241,6 +241,45 @@ compileExp ctm outfile
          maybe (pure ())
                (\fname => iputStrLn (outfile ++ " written"))
                ok
+
+-- TODO: Remove `genLib`, `parseLibrary` and `compileExp`
+export
+genLib : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         String -> String -> Core ()
+genLib outfile libEntrypoint = do
+  let entrypointTerm = PRef replFC (UN libEntrypoint)
+  -- NOTE: Make sure `unsafePerformIO` is generated.
+  -- It may be inserted by the codegen and may not be referenced from the user's code.
+  let unsafePerformIOWorkaroundTerm = PApp replFC (PRef replFC (UN "unsafePerformIO")) (PApp replFC (PRef replFC (UN "io_pure")) entrypointTerm)
+  ttimp <- desugar AnyExpr [] unsafePerformIOWorkaroundTerm
+  inidx <- resolveName (UN "[input]")
+  (tm, ty) <- elabTerm inidx InExpr [] (MkNested []) [] ttimp Nothing
+  tm_erased <- linearCheck replFC Rig1 True [] tm
+  ok <- compile !findCG tm_erased outfile
+  pure ()
+
+parseLibrary : String -> Maybe String
+parseLibrary args = parseLibrary' (words args)
+  where
+    parseLibrary' : List String -> Maybe String
+    parseLibrary' ("--library" :: libEntrypoint :: _) = Just libEntrypoint
+    parseLibrary' _ = Nothing
+
+export
+compileExp : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             {auto m : Ref MD Metadata} ->
+             {auto o : Ref ROpts REPLOpts} ->
+             PTerm -> String -> Core ()
+compileExp ctm outfile
+    = do session <- getSession
+         let Just libEntrypoint = parseLibrary (codegenOptions session)
+           | Nothing => compileExp' ctm outfile
+         genLib outfile libEntrypoint
 
 export
 execExp : {auto c : Ref Ctxt Defs} ->
