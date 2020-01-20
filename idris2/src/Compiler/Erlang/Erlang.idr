@@ -112,7 +112,7 @@ compileToErlangExecutable (MkOpts moduleName) c tm outdir = do
 compileToErlangLibrary : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : String) -> (outfile : String) -> Core (List String)
 compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outdir = do
   let outfile = outdir ++ dirSep ++ moduleName ++ ".erl"
-  (names, tags) <- findUsedNames tm
+  (names, tags) <- findAllNames tm
   defs <- get Ctxt
   let exportsFuncName = NS (currentNS defs) (UN libEntrypoint)
   (exportDirectives, exportFuncs) <- genErlangExports defs exportsFuncName
