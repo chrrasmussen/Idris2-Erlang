@@ -15,6 +15,10 @@ import Data.Vect
 
 %default covering
 
+public export
+Namespace : Type
+Namespace = List String
+
 escapeAtomChars : String -> String
 escapeAtomChars s = concatMap okchar (unpack s)
   where
@@ -48,15 +52,20 @@ genModuleNameFunctionName : Name -> (String, String)
 genModuleNameFunctionName n@(NS ns dcons) = (genModuleName n, genName dcons)
 genModuleNameFunctionName n = (genModuleName n, genName n)
 
-genFunctionCallName : Name -> String
-genFunctionCallName n =
-  let (modName, fnName) = genModuleNameFunctionName n
-  in "'" ++ escapeAtomChars modName ++ "--" ++ escapeAtomChars fnName ++ "'"
+genFunctionCallName : Maybe Namespace -> Name -> String
+genFunctionCallName inNs n =
+  let currentNs = getNamespace n
+      (modName, fnName) = genModuleNameFunctionName n
+      modNameStr = "'" ++ escapeAtomChars modName ++ "'"
+      fnNameStr = "'" ++ escapeAtomChars fnName ++ "'"
+  in if Just currentNs == inNs
+    then fnNameStr
+    else modNameStr ++ ":" ++ fnNameStr
 
 genFunctionDefName : Name -> String
 genFunctionDefName n =
   let (modName, fnName) = genModuleNameFunctionName n
-  in "'" ++ escapeAtomChars modName ++ "--" ++ escapeAtomChars fnName ++ "'"
+  in "'" ++ escapeAtomChars fnName ++ "'"
 
 genVariableName : String -> Int -> String
 genVariableName n i = genName (MN n i)
@@ -362,205 +371,205 @@ mutual
   bindArgs i [] vs = []
   bindArgs i (n :: ns) (v :: vs) = v :: bindArgs (i + 1) ns vs
 
-  genConAltTuple : Int -> SVars vars -> (args : List Name) -> CExp (args ++ vars) -> (arity : Nat) -> Core String
-  genConAltTuple i vs args sc arity = do
+  genConAltTuple : Maybe Namespace -> Int -> SVars vars -> (args : List Name) -> CExp (args ++ vars) -> (arity : Nat) -> Core String
+  genConAltTuple inNs i vs args sc arity = do
     let vs' = extendSVars args vs
-    pure $ "({" ++ showSep ", " (drop arity $ bindArgs 1 args vs') ++ "}) -> " ++ !(genExp i vs' sc)
+    pure $ "({" ++ showSep ", " (drop arity $ bindArgs 1 args vs') ++ "}) -> " ++ !(genExp inNs i vs' sc)
 
   -- Given an Erlang function `ErlangFunc` with arity 2:
   -- 1. Curries this function according to arity: fun(X_0) -> fun(X_1) -> ErlangFunc(X_0, X_1) end end
   -- 2. Transform the inner result with a user-defined function: fun(X_0) -> fun(X_1) -> `Transformer`(ErlangFunc(X_0, X_1)) end end
   -- The transformer is specifically used to lift the value into the IO monad
-  genConAltFun : Int -> SVars vars -> (args : List Name) -> CExp (args ++ vars) -> (arity : Nat) -> (String -> String) -> Core String
-  genConAltFun i vs args sc arity transformer = do
+  genConAltFun : Maybe Namespace -> Int -> SVars vars -> (args : List Name) -> CExp (args ++ vars) -> (arity : Nat) -> (String -> String) -> Core String
+  genConAltFun inNs i vs args sc arity transformer = do
     let vs' = extendSVars args vs
     let tempVars = take arity $ zipWith (\name, idx => name ++ show idx) (repeat "X_") [0..]
-    pure  $ "(Func) -> " ++ mkUncurriedFun (drop (S arity) $ bindArgs 1 args vs') !(genExp i vs' sc) ++ "(" ++ mkCurriedFun tempVars (transformer ("Func(" ++ showSep ", " tempVars ++ ")")) ++ ")"
+    pure  $ "(Func) -> " ++ mkUncurriedFun (drop (S arity) $ bindArgs 1 args vs') !(genExp inNs i vs' sc) ++ "(" ++ mkCurriedFun tempVars (transformer ("Func(" ++ showSep ", " tempVars ++ ")")) ++ ")"
 
-  genConAlt : Int -> SVars vars -> CConAlt vars -> Core String
+  genConAlt : Maybe Namespace -> Int -> SVars vars -> CConAlt vars -> Core String
   -- Unit
-  genConAlt i vs (MkConAlt (NS ["Builtin"] (UN "MkUnit")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Builtin"] (UN "MkUnit")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(" ++ mkUnit ++ ") -> " ++ !(genExp i vs' sc)
+    pure $ "(" ++ mkUnit ++ ") -> " ++ !(genExp inNs i vs' sc)
   -- Bool
-  genConAlt i vs (MkConAlt (NS ["Prelude"] (UN "True")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Prelude"] (UN "True")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(true) -> " ++ !(genExp i vs' sc)
-  genConAlt i vs (MkConAlt (NS ["Prelude"] (UN "False")) tag args sc) = do
+    pure $ "(true) -> " ++ !(genExp inNs i vs' sc)
+  genConAlt inNs i vs (MkConAlt (NS ["Prelude"] (UN "False")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(false) -> " ++ !(genExp i vs' sc)
+    pure $ "(false) -> " ++ !(genExp inNs i vs' sc)
   -- List
-  genConAlt i vs (MkConAlt (NS ["Prelude"] (UN "Nil")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Prelude"] (UN "Nil")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([]) -> " ++ !(genExp i vs' sc)
-  genConAlt i vs (MkConAlt (NS ["Prelude"] (UN "::")) tag args sc) = do
+    pure $ "([]) -> " ++ !(genExp inNs i vs' sc)
+  genConAlt inNs i vs (MkConAlt (NS ["Prelude"] (UN "::")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([" ++ showSep " | " (drop 1 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp i vs' sc)
+    pure $ "([" ++ showSep " | " (drop 1 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp inNs i vs' sc)
   -- Raw
-  genConAlt i vs (MkConAlt (NS ["Idris", "Erlang"] (UN "MkRaw")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Idris", "Erlang"] (UN "MkRaw")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(" ++ !(expectArgAtIndex 1 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp i vs' sc)
+    pure $ "(" ++ !(expectArgAtIndex 1 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp inNs i vs' sc)
   -- ErlAtom
-  genConAlt i vs (MkConAlt (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(Atom) -> fun(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp i vs' sc) ++ " end(atom_to_binary(Atom, utf8))"
+    pure $ "(Atom) -> fun(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp inNs i vs' sc) ++ " end(atom_to_binary(Atom, utf8))"
   -- ErlBinary
-  genConAlt i vs (MkConAlt (NS ["Strings", "Erlang"] (UN "MkErlBinary")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Strings", "Erlang"] (UN "MkErlBinary")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp i vs' sc)
+    pure $ "(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp inNs i vs' sc)
   -- ErlAtom
-  genConAlt i vs (MkConAlt (NS ["Strings", "Erlang"] (UN "MkErlCharlist")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["Strings", "Erlang"] (UN "MkErlCharlist")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp i vs' sc)
+    pure $ "(" ++ !(expectArgAtIndex 0 (bindArgs 1 args vs')) ++ ") -> " ++ !(genExp inNs i vs' sc)
   -- ErlNil
-  genConAlt i vs (MkConAlt (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([]) -> " ++ !(genExp i vs' sc)
+    pure $ "([]) -> " ++ !(genExp inNs i vs' sc)
   -- ErlCons
-  genConAlt i vs (MkConAlt (NS ["MaybeImproperLists", "Erlang"] (UN "::")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["MaybeImproperLists", "Erlang"] (UN "::")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([" ++ showSep " | " (drop 2 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp i vs' sc)
+    pure $ "([" ++ showSep " | " (drop 2 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp inNs i vs' sc)
   -- ErlList
-  genConAlt i vs (MkConAlt (NS ["ProperLists", "Erlang"] (UN "Nil")) tag args sc) = do
+  genConAlt inNs i vs (MkConAlt (NS ["ProperLists", "Erlang"] (UN "Nil")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([]) -> " ++ !(genExp i vs' sc)
-  genConAlt i vs (MkConAlt (NS ["ProperLists", "Erlang"] (UN "::")) tag args sc) = do
+    pure $ "([]) -> " ++ !(genExp inNs i vs' sc)
+  genConAlt inNs i vs (MkConAlt (NS ["ProperLists", "Erlang"] (UN "::")) tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "([" ++ showSep " | " (drop 2 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp i vs' sc)
+    pure $ "([" ++ showSep " | " (drop 2 $ bindArgs 1 args vs') ++ "]) -> " ++ !(genExp inNs i vs' sc)
   -- ErlTuple/A
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) tag args sc) = genConAltTuple i vs args sc 0
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) tag args sc) = genConAltTuple i vs args sc 1
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) tag args sc) = genConAltTuple i vs args sc 2
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) tag args sc) = genConAltTuple i vs args sc 3
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) tag args sc) = genConAltTuple i vs args sc 4
-  genConAlt i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) tag args sc) = genConAltTuple i vs args sc 5
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) tag args sc) = genConAltTuple inNs i vs args sc 0
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) tag args sc) = genConAltTuple inNs i vs args sc 1
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) tag args sc) = genConAltTuple inNs i vs args sc 2
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) tag args sc) = genConAltTuple inNs i vs args sc 3
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) tag args sc) = genConAltTuple inNs i vs args sc 4
+  genConAlt inNs i vs (MkConAlt (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) tag args sc) = genConAltTuple inNs i vs args sc 5
   -- ErlFun/A
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun0")) tag args sc) = genConAltFun i vs args sc 0 id
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun1")) tag args sc) = genConAltFun i vs args sc 1 id
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun2")) tag args sc) = genConAltFun i vs args sc 2 id
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun3")) tag args sc) = genConAltFun i vs args sc 3 id
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun4")) tag args sc) = genConAltFun i vs args sc 4 id
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun5")) tag args sc) = genConAltFun i vs args sc 5 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun0")) tag args sc) = genConAltFun inNs i vs args sc 0 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun1")) tag args sc) = genConAltFun inNs i vs args sc 1 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun2")) tag args sc) = genConAltFun inNs i vs args sc 2 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun3")) tag args sc) = genConAltFun inNs i vs args sc 3 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun4")) tag args sc) = genConAltFun inNs i vs args sc 4 id
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlFun5")) tag args sc) = genConAltFun inNs i vs args sc 5 id
   -- ErlIO/A
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO0")) tag args sc) = genConAltFun i vs args sc 0 mkIOPure
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO1")) tag args sc) = genConAltFun i vs args sc 1 mkIOPure
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO2")) tag args sc) = genConAltFun i vs args sc 2 mkIOPure
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO3")) tag args sc) = genConAltFun i vs args sc 3 mkIOPure
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO4")) tag args sc) = genConAltFun i vs args sc 4 mkIOPure
-  genConAlt i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO5")) tag args sc) = genConAltFun i vs args sc 5 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO0")) tag args sc) = genConAltFun inNs i vs args sc 0 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO1")) tag args sc) = genConAltFun inNs i vs args sc 1 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO2")) tag args sc) = genConAltFun inNs i vs args sc 2 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO3")) tag args sc) = genConAltFun inNs i vs args sc 3 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO4")) tag args sc) = genConAltFun inNs i vs args sc 4 mkIOPure
+  genConAlt inNs i vs (MkConAlt (NS ["Functions", "Erlang"] (UN "MkErlIO5")) tag args sc) = genConAltFun inNs i vs args sc 5 mkIOPure
   -- Other
-  genConAlt i vs (MkConAlt name tag args sc) = do
+  genConAlt inNs i vs (MkConAlt name tag args sc) = do
     let vs' = extendSVars args vs
-    pure $ "({" ++ showSep ", " (genConstructorName name :: bindArgs 1 args vs') ++ "}) -> " ++ !(genExp i vs' sc)
+    pure $ "({" ++ showSep ", " (genConstructorName name :: bindArgs 1 args vs') ++ "}) -> " ++ !(genExp inNs i vs' sc)
 
-  genConstAlt : Int -> SVars vars -> CConstAlt vars -> Core String
-  genConstAlt i vs (MkConstAlt c exp) = pure $ "(" ++ genConstant c ++ ") -> " ++ !(genExp i vs exp)
+  genConstAlt : Maybe Namespace -> Int -> SVars vars -> CConstAlt vars -> Core String
+  genConstAlt inNs i vs (MkConstAlt c exp) = pure $ "(" ++ genConstant c ++ ") -> " ++ !(genExp inNs i vs exp)
 
-  genConTuple : Int -> SVars vars -> List (CExp vars) -> Core String
-  genConTuple i vs args = pure $ "{" ++ showSep ", " !(traverse (genExp i vs) args) ++ "}"
+  genConTuple : Maybe Namespace -> Int -> SVars vars -> List (CExp vars) -> Core String
+  genConTuple inNs i vs args = pure $ "{" ++ showSep ", " !(traverse (genExp inNs i vs) args) ++ "}"
 
   -- Given an Idris function `idrisFun` with arity 2:
   -- 1. Uncurries this function according to arity: fun(X_0, X_1) -> (idrisFun(X_0))(X_1) end
   -- 2. Transform the inner result with a user-defined function: fun(X_0, X_1) -> `transform`((idrisFun(X_0))(X_1)) end
   -- The transformer is specifically used to perform the side-effects of the result (using `unsafePerformIO`)
-  genConFun : Int -> SVars vars -> (arity : Nat) -> CExp vars -> (CExp vars -> CExp vars) -> Core String
-  genConFun i vs arity func transformer = do
+  genConFun : Maybe Namespace -> Int -> SVars vars -> (arity : Nat) -> CExp vars -> (CExp vars -> CExp vars) -> Core String
+  genConFun inNs i vs arity func transformer = do
     let tempVars = take arity $ zipWith (\name, idx => name ++ show idx) (repeat "X_") [0..]
     let tempCRefs = take arity $ zipWith (\name, idx => CRef EmptyFC (MN name idx)) (repeat "X") [0..]
     let body = transformer (applyToArgs func tempCRefs)
-    pure $ mkUncurriedFun tempVars !(genExp i vs body)
+    pure $ mkUncurriedFun tempVars !(genExp inNs i vs body)
 
-  genCon : Int -> SVars vars -> CExp vars -> Core String
+  genCon : Maybe Namespace -> Int -> SVars vars -> CExp vars -> Core String
   -- Unit
-  genCon i vs (CCon fc (NS ["Builtin"] (UN "MkUnit")) _ _) = pure mkUnit
+  genCon inNs i vs (CCon fc (NS ["Builtin"] (UN "MkUnit")) _ _) = pure mkUnit
   -- Bool
-  genCon i vs (CCon fc (NS ["Prelude"] (UN "True")) _ _) = pure "true"
-  genCon i vs (CCon fc (NS ["Prelude"] (UN "False")) _ _) = pure "false"
+  genCon inNs i vs (CCon fc (NS ["Prelude"] (UN "True")) _ _) = pure "true"
+  genCon inNs i vs (CCon fc (NS ["Prelude"] (UN "False")) _ _) = pure "false"
   -- List
-  genCon i vs (CCon fc (NS ["Prelude"] (UN "Nil")) _ _) = pure "[]"
-  genCon i vs (CCon fc (NS ["Prelude"] (UN "::")) _ [_, x, xs]) = pure $ "[" ++ !(genExp i vs x) ++ " | " ++ !(genExp i vs xs) ++ "]"
+  genCon inNs i vs (CCon fc (NS ["Prelude"] (UN "Nil")) _ _) = pure "[]"
+  genCon inNs i vs (CCon fc (NS ["Prelude"] (UN "::")) _ [_, x, xs]) = pure $ "[" ++ !(genExp inNs i vs x) ++ " | " ++ !(genExp inNs i vs xs) ++ "]"
   -- Raw
-  genCon i vs (CCon fc (NS ["Idris", "Erlang"] (UN "MkRaw")) _ [_, x]) = pure $ !(genExp i vs x)
+  genCon inNs i vs (CCon fc (NS ["Idris", "Erlang"] (UN "MkRaw")) _ [_, x]) = pure $ !(genExp inNs i vs x)
   -- ErlAtom
-  genCon i vs (CCon fc (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) _ [x]) = pure $ mkStringToAtom !(genExp i vs x)
+  genCon inNs i vs (CCon fc (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) _ [x]) = pure $ mkStringToAtom !(genExp inNs i vs x)
   -- ErlBinary
-  genCon i vs (CCon fc (NS ["Strings", "Erlang"] (UN "MkErlBinary")) _ [x]) = pure $ "unicode:characters_to_binary(" ++ !(genExp i vs x) ++ ")"
+  genCon inNs i vs (CCon fc (NS ["Strings", "Erlang"] (UN "MkErlBinary")) _ [x]) = pure $ "unicode:characters_to_binary(" ++ !(genExp inNs i vs x) ++ ")"
   -- ErlCharlist
-  genCon i vs (CCon fc (NS ["Strings", "Erlang"] (UN "MkErlCharlist")) _ [x]) = pure $ "unicode:characters_to_list(" ++ !(genExp i vs x) ++ ")"
+  genCon inNs i vs (CCon fc (NS ["Strings", "Erlang"] (UN "MkErlCharlist")) _ [x]) = pure $ "unicode:characters_to_list(" ++ !(genExp inNs i vs x) ++ ")"
   -- ErlNil
-  genCon i vs (CCon fc (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) _ []) = pure "[]"
+  genCon inNs i vs (CCon fc (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) _ []) = pure "[]"
   -- ErlCons
-  genCon i vs (CCon fc (NS ["MaybeImproperLists", "Erlang"] (UN "::")) _ [_, _, x, y]) = pure $ "[" ++ !(genExp i vs x) ++ " | " ++ !(genExp i vs y) ++ "]"
+  genCon inNs i vs (CCon fc (NS ["MaybeImproperLists", "Erlang"] (UN "::")) _ [_, _, x, y]) = pure $ "[" ++ !(genExp inNs i vs x) ++ " | " ++ !(genExp inNs i vs y) ++ "]"
   -- ErlList
-  genCon i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "Nil")) _ []) = pure "[]"
-  genCon i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "::")) _ [_, _, x, xs]) = pure $ "[" ++ !(genExp i vs x) ++ " | " ++ !(genExp i vs xs) ++ "]"
+  genCon inNs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "Nil")) _ []) = pure "[]"
+  genCon inNs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "::")) _ [_, _, x, xs]) = pure $ "[" ++ !(genExp inNs i vs x) ++ " | " ++ !(genExp inNs i vs xs) ++ "]"
   -- ErlTuple/A
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) _ []) = genConTuple i vs []
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) _ args) = genConTuple i vs (drop 1 args)
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) _ args) = genConTuple i vs (drop 2 args)
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) _ args) = genConTuple i vs (drop 3 args)
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) _ args) = genConTuple i vs (drop 4 args)
-  genCon i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) _ args) = genConTuple i vs (drop 5 args)
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) _ []) = genConTuple inNs i vs []
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) _ args) = genConTuple inNs i vs (drop 1 args)
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) _ args) = genConTuple inNs i vs (drop 2 args)
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) _ args) = genConTuple inNs i vs (drop 3 args)
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) _ args) = genConTuple inNs i vs (drop 4 args)
+  genCon inNs i vs (CCon fc (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) _ args) = genConTuple inNs i vs (drop 5 args)
   -- ErlFun/A
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun0")) _ args) = genConFun i vs 0 !(expectArgAtIndex 1 args) id
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun1")) _ args) = genConFun i vs 1 !(expectArgAtIndex 2 args) id
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun2")) _ args) = genConFun i vs 2 !(expectArgAtIndex 3 args) id
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun3")) _ args) = genConFun i vs 3 !(expectArgAtIndex 4 args) id
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun4")) _ args) = genConFun i vs 4 !(expectArgAtIndex 5 args) id
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun5")) _ args) = genConFun i vs 5 !(expectArgAtIndex 6 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun0")) _ args) = genConFun inNs i vs 0 !(expectArgAtIndex 1 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun1")) _ args) = genConFun inNs i vs 1 !(expectArgAtIndex 2 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun2")) _ args) = genConFun inNs i vs 2 !(expectArgAtIndex 3 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun3")) _ args) = genConFun inNs i vs 3 !(expectArgAtIndex 4 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun4")) _ args) = genConFun inNs i vs 4 !(expectArgAtIndex 5 args) id
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlFun5")) _ args) = genConFun inNs i vs 5 !(expectArgAtIndex 6 args) id
   -- ErlIO/A
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO0")) _ args) = genConFun i vs 0 !(expectArgAtIndex 1 args) applyUnsafePerformIO
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO1")) _ args) = genConFun i vs 1 !(expectArgAtIndex 2 args) applyUnsafePerformIO
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO2")) _ args) = genConFun i vs 2 !(expectArgAtIndex 3 args) applyUnsafePerformIO
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO3")) _ args) = genConFun i vs 3 !(expectArgAtIndex 4 args) applyUnsafePerformIO
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO4")) _ args) = genConFun i vs 4 !(expectArgAtIndex 5 args) applyUnsafePerformIO
-  genCon i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO5")) _ args) = genConFun i vs 5 !(expectArgAtIndex 6 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO0")) _ args) = genConFun inNs i vs 0 !(expectArgAtIndex 1 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO1")) _ args) = genConFun inNs i vs 1 !(expectArgAtIndex 2 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO2")) _ args) = genConFun inNs i vs 2 !(expectArgAtIndex 3 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO3")) _ args) = genConFun inNs i vs 3 !(expectArgAtIndex 4 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO4")) _ args) = genConFun inNs i vs 4 !(expectArgAtIndex 5 args) applyUnsafePerformIO
+  genCon inNs i vs (CCon fc (NS ["Functions", "Erlang"] (UN "MkErlIO5")) _ args) = genConFun inNs i vs 5 !(expectArgAtIndex 6 args) applyUnsafePerformIO
   -- Other
-  genCon i vs (CCon fc name tag args) = pure $ genConstructor name !(traverse (genExp i vs) args)
-  genCon i vs tm = throw (InternalError ("Invalid constructor: " ++ show tm))
+  genCon inNs i vs (CCon fc name tag args) = pure $ genConstructor name !(traverse (genExp inNs i vs) args)
+  genCon inNs i vs tm = throw (InternalError ("Invalid constructor: " ++ show tm))
 
   -- oops, no traverse for Vect in Core
-  genArgs : Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
-  genArgs i vs [] = pure []
-  genArgs i vs (arg :: args) = pure $ !(genExp i vs arg) :: !(genArgs i vs args)
+  genArgs : Maybe Namespace -> Int -> SVars vars -> Vect n (CExp vars) -> Core (Vect n String)
+  genArgs inNs i vs [] = pure []
+  genArgs inNs i vs (arg :: args) = pure $ !(genExp inNs i vs arg) :: !(genArgs inNs i vs args)
 
   export
-  genExp : Int -> SVars vars -> CExp vars -> Core String
-  genExp i vs (CLocal fc el) = pure $ lookupSVar el vs
-  genExp i vs (CRef fc (MN n index)) = pure $ genVariableName n index
-  genExp i vs (CRef fc n) = pure $ genFunctionCallName n
-  genExp i vs (CLam fc x sc) = do
+  genExp : Maybe Namespace -> Int -> SVars vars -> CExp vars -> Core String
+  genExp inNs i vs (CLocal fc el) = pure $ lookupSVar el vs
+  genExp inNs i vs (CRef fc (MN n index)) = pure $ genVariableName n index
+  genExp inNs i vs (CRef fc n) = pure $ genFunctionCallName inNs n
+  genExp inNs i vs (CLam fc x sc) = do
     let vs' = extendSVars [x] vs
-    sc' <- genExp i vs' sc
+    sc' <- genExp inNs i vs' sc
     pure $ "fun(" ++ lookupSVar First vs' ++ ") -> " ++ sc' ++ " end"
-  genExp i vs (CLet fc x val sc) = do
+  genExp inNs i vs (CLet fc x val sc) = do
     let vs' = extendSVars [x] vs
-    val' <- genExp i vs val
-    sc' <- genExp i vs' sc
+    val' <- genExp inNs i vs val
+    sc' <- genExp inNs i vs' sc
     pure $ "(fun(" ++ lookupSVar First vs' ++ ") -> " ++ sc' ++ " end(" ++ val' ++ "))"
-  genExp i vs (CApp fc x args) =
-    pure $ "(" ++ !(genExp i vs x) ++ "(" ++ showSep ", " !(traverse (genExp i vs) args) ++ "))"
-  genExp i vs con@(CCon fc x tag args) =
-    genCon i vs con
-  genExp i vs (COp fc op args) =
-    pure $ genOp op !(genArgs i vs args)
-  genExp i vs (CExtPrim fc p args) =
-    genExtPrim i vs (toPrim p) args
-  genExp i vs (CForce fc t) =
-    pure $ "(" ++ !(genExp i vs t) ++ "())" -- TODO: Should use another mechanism to avoid evaluating delayed computation multiple times
-  genExp i vs (CDelay fc t) =
-    pure $ "fun() -> " ++ !(genExp i vs t) ++ " end"
-  genExp i vs (CConCase fc sc alts def) = do
-    tcode <- genExp i vs sc
-    defc <- maybe (pure Nothing) (\v => pure (Just !(genExp i vs v))) def
-    conAlts <- traverse (genConAlt i vs) alts
+  genExp inNs i vs (CApp fc x args) =
+    pure $ "(" ++ !(genExp inNs i vs x) ++ "(" ++ showSep ", " !(traverse (genExp inNs i vs) args) ++ "))"
+  genExp inNs i vs con@(CCon fc x tag args) =
+    genCon inNs i vs con
+  genExp inNs i vs (COp fc op args) =
+    pure $ genOp op !(genArgs inNs i vs args)
+  genExp inNs i vs (CExtPrim fc p args) =
+    genExtPrim inNs i vs (toPrim p) args
+  genExp inNs i vs (CForce fc t) =
+    pure $ "(" ++ !(genExp inNs i vs t) ++ "())" -- TODO: Should use another mechanism to avoid evaluating delayed computation multiple times
+  genExp inNs i vs (CDelay fc t) =
+    pure $ "fun() -> " ++ !(genExp inNs i vs t) ++ " end"
+  genExp inNs i vs (CConCase fc sc alts def) = do
+    tcode <- genExp inNs i vs sc
+    defc <- maybe (pure Nothing) (\v => pure (Just !(genExp inNs i vs v))) def
+    conAlts <- traverse (genConAlt inNs i vs) alts
     pure $ "(fun " ++
       showSep "; " (conAlts ++ genCaseDef defc) ++
       " end(" ++ tcode ++ "))"
-  genExp i vs (CConstCase fc sc alts def) = do
-    defc <- maybe (pure Nothing) (\v => pure (Just !(genExp i vs v))) def
-    tcode <- genExp i vs sc
-    constAlts <- traverse (genConstAlt i vs) alts
+  genExp inNs i vs (CConstCase fc sc alts def) = do
+    defc <- maybe (pure Nothing) (\v => pure (Just !(genExp inNs i vs v))) def
+    tcode <- genExp inNs i vs sc
+    constAlts <- traverse (genConstAlt inNs i vs) alts
     let isMatchingOnString = case head' alts of
       Just (MkConstAlt (Str _) _) => True
       _ => False
@@ -570,81 +579,81 @@ mutual
     pure $ "(fun " ++
       showSep "; " (constAlts ++ genCaseDef defc) ++
       " end(" ++ matchOnValue ++ "))"
-  genExp i vs (CPrimVal fc c) =
+  genExp inNs i vs (CPrimVal fc c) =
     pure $ genConstant c
-  genExp i vs (CErased fc) =
+  genExp inNs i vs (CErased fc) =
     pure mkErased
-  genExp i vs (CCrash fc msg) =
+  genExp inNs i vs (CCrash fc msg) =
     pure $ "throw(\"" ++ msg ++ "\")"
 
   -- Evaluate the outer `ErlList` to figure out the arity of the function call
-  readArgs : Int -> SVars vars -> CExp vars -> Core (List String)
-  readArgs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "Nil")) _ []) = pure []
-  readArgs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "::")) _ [_, _, x, xs]) = pure $ !(genExp i vs x) :: !(readArgs i vs xs)
-  readArgs i vs tm = throw (InternalError ("Unknown argument to foreign call: " ++ show tm))
+  readArgs : Maybe Namespace -> Int -> SVars vars -> CExp vars -> Core (List String)
+  readArgs inNs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "Nil")) _ []) = pure []
+  readArgs inNs i vs (CCon fc (NS ["ProperLists", "Erlang"] (UN "::")) _ [_, _, x, xs]) = pure $ !(genExp inNs i vs x) :: !(readArgs inNs i vs xs)
+  readArgs inNs i vs tm = throw (InternalError ("Unknown argument to foreign call: " ++ show tm))
 
   -- External primitives which are common to the scheme codegens (they can be
   -- overridden)
   export
-  genExtPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  genExtPrim i vs CCall [ret, fn, args, world] =
+  genExtPrim : Maybe Namespace -> Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
+  genExtPrim inNs i vs CCall [ret, fn, args, world] =
     pure $ "throw(\"Can't compile C FFI calls to Erlang yet\")"
-  genExtPrim i vs SchemeCall [ret, fn, args, world] =
+  genExtPrim inNs i vs SchemeCall [ret, fn, args, world] =
     pure $ "throw(\"Can't compile Scheme FFI calls to Erlang yet\")"
-  genExtPrim i vs PutStr [arg, world] =
-    pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp i vs arg) ++ "), " ++ mkWorld mkUnit ++ " end())"
-  genExtPrim i vs GetStr [world] =
+  genExtPrim inNs i vs PutStr [arg, world] =
+    pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp inNs i vs arg) ++ "), " ++ mkWorld mkUnit ++ " end())"
+  genExtPrim inNs i vs GetStr [world] =
     pure $ mkWorld "'Idris.RTS-Internal':io_unicode_get_str(\"\")"
-  genExtPrim i vs FileOpen [file, mode, bin, world] =
-    pure $ mkWorld $ "'Idris.RTS-Internal':file_open(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs mode) ++ ", " ++ !(genExp i vs bin) ++ ")"
-  genExtPrim i vs FileClose [file, world] =
-    pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp i vs file) ++ "), " ++ mkWorld mkUnit ++ " end())"
-  genExtPrim i vs FileReadLine [file, world] =
-    pure $ mkWorld $ "'Idris.RTS-Internal':file_read_line(" ++ !(genExp i vs file) ++ ")"
-  genExtPrim i vs FileWriteLine [file, str, world] =
-    pure $ mkWorld $ "'Idris.RTS-Internal':file_write_line(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs str) ++ ")"
-  genExtPrim i vs FileEOF [file, world] =
-    pure $ mkWorld $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp i vs file) ++ ")"
+  genExtPrim inNs i vs FileOpen [file, mode, bin, world] =
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_open(" ++ !(genExp inNs i vs file) ++ ", " ++ !(genExp inNs i vs mode) ++ ", " ++ !(genExp inNs i vs bin) ++ ")"
+  genExtPrim inNs i vs FileClose [file, world] =
+    pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp inNs i vs file) ++ "), " ++ mkWorld mkUnit ++ " end())"
+  genExtPrim inNs i vs FileReadLine [file, world] =
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_read_line(" ++ !(genExp inNs i vs file) ++ ")"
+  genExtPrim inNs i vs FileWriteLine [file, str, world] =
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_write_line(" ++ !(genExp inNs i vs file) ++ ", " ++ !(genExp inNs i vs str) ++ ")"
+  genExtPrim inNs i vs FileEOF [file, world] =
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp inNs i vs file) ++ ")"
   -- TODO: Implement IORef
-  --genExtPrim i vs NewIORef [_, val, world] =
-  --  pure $ mkWorld $ "(box " ++ !(genExp i vs val) ++ ")"
-  --genExtPrim i vs ReadIORef [_, ref, world] =
-  --  pure $ mkWorld $ "(unbox " ++ !(genExp i vs ref) ++ ")"
-  --genExtPrim i vs WriteIORef [_, ref, val, world] =
-  --  pure $ mkWorld $ "(set-box! " ++ !(genExp i vs ref) ++ " " ++ !(genExp i vs val) ++ ")"
-  genExtPrim i vs Stdin [] =
+  --genExtPrim inNs i vs NewIORef [_, val, world] =
+  --  pure $ mkWorld $ "(box " ++ !(genExp inNs i vs val) ++ ")"
+  --genExtPrim inNs i vs ReadIORef [_, ref, world] =
+  --  pure $ mkWorld $ "(unbox " ++ !(genExp inNs i vs ref) ++ ")"
+  --genExtPrim inNs i vs WriteIORef [_, ref, val, world] =
+  --  pure $ mkWorld $ "(set-box! " ++ !(genExp inNs i vs ref) ++ " " ++ !(genExp inNs i vs val) ++ ")"
+  genExtPrim inNs i vs Stdin [] =
     pure "standard_io"
-  genExtPrim i vs Stdout [] =
+  genExtPrim inNs i vs Stdout [] =
     pure "standard_io"
-  genExtPrim i vs Stderr [] =
+  genExtPrim inNs i vs Stderr [] =
     pure "standard_error"
-  genExtPrim i vs VoidElim [_, _] =
+  genExtPrim inNs i vs VoidElim [_, _] =
     pure "throw(\"Error: Executed 'void'\")"
-  genExtPrim i vs (Unknown n) args =
+  genExtPrim inNs i vs (Unknown n) args =
     throw (InternalError ("Can't compile unknown external primitive " ++ show n))
-  genExtPrim i vs ErlUnsafeCall [_, ret, modName, fnName, args@(CCon _ _ _ _), world] = do
-    parameterList <- readArgs i vs args
-    pure $ mkWorld $ "(" ++ mkStringToAtom !(genExp i vs modName) ++ ":" ++ mkStringToAtom !(genExp i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
-  genExtPrim i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
+  genExtPrim inNs i vs ErlUnsafeCall [_, ret, modName, fnName, args@(CCon _ _ _ _), world] = do
+    parameterList <- readArgs inNs i vs args
+    pure $ mkWorld $ "(" ++ mkStringToAtom !(genExp inNs i vs modName) ++ ":" ++ mkStringToAtom !(genExp inNs i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
+  genExtPrim inNs i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
     pure $ mkWorld "false" -- TODO: Implement?
-  genExtPrim i vs ErlCall [_, modName, fnName, args@(CCon _ _ _ _), world] = do
-    parameterList <- readArgs i vs args
-    pure $ mkWorld $ mkTryCatch $ "(" ++ mkStringToAtom !(genExp i vs modName) ++ ":" ++ mkStringToAtom !(genExp i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
-  genExtPrim i vs ErlCall [_, modName, fnName, args, world] =
+  genExtPrim inNs i vs ErlCall [_, modName, fnName, args@(CCon _ _ _ _), world] = do
+    parameterList <- readArgs inNs i vs args
+    pure $ mkWorld $ mkTryCatch $ "(" ++ mkStringToAtom !(genExp inNs i vs modName) ++ ":" ++ mkStringToAtom !(genExp inNs i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
+  genExtPrim inNs i vs ErlCall [_, modName, fnName, args, world] =
     pure $ mkWorld "false" -- TODO: Implement?
-  genExtPrim i vs ErlCase [_, def, matchers@(CCon _ _ _ _), term] = do
-    clauses <- readMatchers i 0 vs matchers
-    genErlCase i vs def clauses term
-  genExtPrim i vs ErlCase [_, def, matchers, tm] =
+  genExtPrim inNs i vs ErlCase [_, def, matchers@(CCon _ _ _ _), term] = do
+    clauses <- readMatchers inNs i 0 vs matchers
+    genErlCase inNs i vs def clauses term
+  genExtPrim inNs i vs ErlCase [_, def, matchers, tm] =
     pure $ mkWorld "false" -- TODO: Do I need to implement this to make `erlCase` work with variables?
-  genExtPrim i vs ErlReceive [_, timeout, def, matchers@(CCon _ _ _ _), world] = do
-    clauses <- readMatchers i 0 vs matchers
-    genErlReceive i vs timeout def clauses
-  genExtPrim i vs ErlReceive [_, timeout, def, matchers, world] =
+  genExtPrim inNs i vs ErlReceive [_, timeout, def, matchers@(CCon _ _ _ _), world] = do
+    clauses <- readMatchers inNs i 0 vs matchers
+    genErlReceive inNs i vs timeout def clauses
+  genExtPrim inNs i vs ErlReceive [_, timeout, def, matchers, world] =
     pure $ mkWorld "false" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
-  genExtPrim i vs InternalTryCatch [expr] =
-    pure $ mkTryCatch !(genExp i vs expr)
-  genExtPrim i vs prim args =
+  genExtPrim inNs i vs InternalTryCatch [expr] =
+    pure $ mkTryCatch !(genExp inNs i vs expr)
+  genExtPrim inNs i vs prim args =
     throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
   data GuardBinOp = LTE | LT | EQ | GT | GTE
@@ -682,13 +691,13 @@ mutual
   nextGlobal : (global : Int) -> List (ErlClause vars) -> Int
   nextGlobal global clauses = global + cast (length (concatGlobals clauses))
 
-  readMatchers : Int -> (global : Int) -> SVars vars -> CExp vars -> Core (List (ErlClause vars))
-  readMatchers i global vs (CCon fc (NS ["Prelude"] (UN "Nil")) _ _) = pure []
-  readMatchers i global vs (CCon fc (NS ["Prelude"] (UN "::")) _ [_, x, xs]) = do
-    first <- readClause i 0 global vs x
-    rest <- readMatchers i (nextGlobal global [first]) vs xs
+  readMatchers : Maybe Namespace -> Int -> (global : Int) -> SVars vars -> CExp vars -> Core (List (ErlClause vars))
+  readMatchers inNs i global vs (CCon fc (NS ["Prelude"] (UN "Nil")) _ _) = pure []
+  readMatchers inNs i global vs (CCon fc (NS ["Prelude"] (UN "::")) _ [_, x, xs]) = do
+    first <- readClause inNs i 0 global vs x
+    rest <- readMatchers inNs i (nextGlobal global [first]) vs xs
     pure (first :: rest)
-  readMatchers i global vs args =
+  readMatchers inNs i global vs args =
     throw (InternalError ("Expected a list of matchers " ++ show args))
 
   readListLength : Int -> SVars vars -> CExp vars -> Core Nat
@@ -699,144 +708,144 @@ mutual
   readListLength i vs args =
     throw (InternalError ("Expected a list of types " ++ show args))
 
-  createGuardClause : Int -> (local : Int) -> (global : Int) -> SVars vars -> (createGuard : CExp vars -> ErlGuard vars) -> Core (ErlClause vars)
-  createGuardClause i local global vs createGuard = do
+  createGuardClause : Maybe Namespace -> Int -> (local : Int) -> (global : Int) -> SVars vars -> (createGuard : CExp vars -> ErlGuard vars) -> Core (ErlClause vars)
+  createGuardClause inNs i local global vs createGuard = do
     let ref = CRef EmptyFC (MN "C" local)
-    pure $ MkErlClause (local + 1) [] !(genExp i vs ref) (createGuard ref) ref
+    pure $ MkErlClause (local + 1) [] !(genExp inNs i vs ref) (createGuard ref) ref
 
-  readClause : Int -> (local : Int) -> (global : Int) -> SVars vars -> CExp vars -> Core (ErlClause vars)
+  readClause : Maybe Namespace -> Int -> (local : Int) -> (global : Int) -> SVars vars -> CExp vars -> Core (ErlClause vars)
   -- MExact
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MExact")) _ [_, _, matchValue]) = do
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MExact")) _ [_, _, matchValue]) = do
     let localRef = CRef EmptyFC (MN "C" global)
     let globalRef = CRef EmptyFC (MN "G" global)
-    pure $ MkErlClause (local + 1) [matchValue] !(genExp i vs localRef) (IsBinOp EQ localRef globalRef) unitCExp
+    pure $ MkErlClause (local + 1) [matchValue] !(genExp inNs i vs localRef) (IsBinOp EQ localRef globalRef) unitCExp
   -- MAny
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAny")) _ []) = do
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAny")) _ []) = do
     let ref = CRef EmptyFC (MN "C" local)
-    pure $ MkErlClause (local + 1) [] !(genExp i vs ref) IsAny ref
+    pure $ MkErlClause (local + 1) [] !(genExp inNs i vs ref) IsAny ref
   -- Simple guards
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCodepoint")) _ []) = createGuardClause i local global vs
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCodepoint")) _ []) = createGuardClause inNs i local global vs
     (\val => AndAlso (IsInteger val) (AndAlso (IsBinOp GTE val (CPrimVal EmptyFC (BI 0))) (IsBinOp LTE val (CPrimVal EmptyFC (BI 0x10FFFF)))))
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MInteger")) _ []) = createGuardClause i local global vs IsInteger
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MDouble")) _ []) = createGuardClause i local global vs IsDouble
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAtom")) _ []) = createGuardClause i local global vs IsAtom
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MBinary")) _ []) = createGuardClause i local global vs IsBinary
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMap")) _ []) = createGuardClause i local global vs IsMap
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPid")) _ []) = createGuardClause i local global vs IsPid
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MRef")) _ []) = createGuardClause i local global vs IsRef
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPort")) _ []) = createGuardClause i local global vs IsPort
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAnyList")) _ []) = createGuardClause i local global vs IsList
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MInteger")) _ []) = createGuardClause inNs i local global vs IsInteger
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MDouble")) _ []) = createGuardClause inNs i local global vs IsDouble
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAtom")) _ []) = createGuardClause inNs i local global vs IsAtom
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MBinary")) _ []) = createGuardClause inNs i local global vs IsBinary
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMap")) _ []) = createGuardClause inNs i local global vs IsMap
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPid")) _ []) = createGuardClause inNs i local global vs IsPid
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MRef")) _ []) = createGuardClause inNs i local global vs IsRef
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPort")) _ []) = createGuardClause inNs i local global vs IsPort
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAnyList")) _ []) = createGuardClause inNs i local global vs IsList
   -- MNil
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MNil")) _ []) =
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MNil")) _ []) =
     pure $ MkErlClause local [] "[]" IsAny unitCExp
   -- MCons
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCons")) _ [_, _, _, headMatcher, tailMatcher, mapper]) = do
-    headClause <- readClause i local global vs headMatcher
-    tailClause <- readClause i (nextLocal headClause) (nextGlobal global [headClause]) vs tailMatcher
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCons")) _ [_, _, _, headMatcher, tailMatcher, mapper]) = do
+    headClause <- readClause inNs i local global vs headMatcher
+    tailClause <- readClause inNs i (nextLocal headClause) (nextGlobal global [headClause]) vs tailMatcher
     pure $ MkErlClause (nextLocal tailClause) (concatGlobals [headClause, tailClause])
       ("[" ++ pattern headClause ++ " | " ++ pattern tailClause ++ "]")
       (concatGuards [headClause, tailClause])
       (CApp EmptyFC (CApp EmptyFC mapper [body headClause]) [body tailClause])
   -- MList
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MList")) _ [_, _, xs, mapper]) = do
-    clauses <- readClauseErlMatchers i local global vs xs mapper
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MList")) _ [_, _, xs, mapper]) = do
+    clauses <- readClauseErlMatchers inNs i local global vs xs mapper
     let nextLoc = maybe local nextLocal (last' clauses)
     pure $ MkErlClause nextLoc (concatGlobals clauses)
       ("[" ++ showSep ", " (map pattern clauses) ++ "]")
       (concatGuards clauses)
       (applyToArgs mapper (map body clauses))
   -- MTuple
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTuple")) _ [_, _, xs, mapper]) = do
-    clauses <- readClauseErlMatchers i local global vs xs mapper
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTuple")) _ [_, _, xs, mapper]) = do
+    clauses <- readClauseErlMatchers inNs i local global vs xs mapper
     let nextLoc = maybe local nextLocal (last' clauses)
     pure $ MkErlClause nextLoc (concatGlobals clauses)
       ("{" ++ showSep ", " (map pattern clauses) ++ "}")
       (concatGuards clauses)
       (applyToArgs mapper (map body clauses))
   -- MMapSubset
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapSubset")) _ [_, _, xs, mapper]) = do
-    clauses <- readClauseErlMatchers i local global vs xs mapper
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapSubset")) _ [_, _, xs, mapper]) = do
+    clauses <- readClauseErlMatchers inNs i local global vs xs mapper
     let nextLoc = maybe local nextLocal (last' clauses)
     pure $ MkErlClause nextLoc (concatGlobals clauses)
       ("#{" ++ showSep ", " (map pattern clauses) ++ "}")
       (concatGuards clauses)
       (applyToArgs mapper (map body clauses))
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MkErlMapEntry")) _ [_, _, _, key, valueMatcher]) = do
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MkErlMapEntry")) _ [_, _, _, key, valueMatcher]) = do
     let globalRef = CRef EmptyFC (MN "G" global)
-    clause <- readClause i local (global + 1) vs valueMatcher
-    pure $ MkErlClause (nextLocal clause) (key :: globals clause) (!(genExp i vs globalRef) ++ " := " ++ (pattern clause)) (guard clause) (body clause)
+    clause <- readClause inNs i local (global + 1) vs valueMatcher
+    pure $ MkErlClause (nextLocal clause) (key :: globals clause) (!(genExp inNs i vs globalRef) ++ " := " ++ (pattern clause)) (guard clause) (body clause)
   -- MIO
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MIO")) _ [types]) = do
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MIO")) _ [types]) = do
     let ref = CRef EmptyFC (MN "C" local)
     arity <- readListLength i vs types
     let tempVars = take arity $ zipWith (\name, idx => MN name idx) (repeat "M") [0..]
-    pure $ MkErlClause local [] !(genExp i vs ref) (IsFun arity ref) (curryCExp tempVars (ioPureCExp . tryCatchCExp) ref)
+    pure $ MkErlClause local [] !(genExp inNs i vs ref) (IsFun arity ref) (curryCExp tempVars (ioPureCExp . tryCatchCExp) ref)
   -- MError
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MError")) _ [_, matcher]) = do
-    clause <- readClause i local global vs matcher
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MError")) _ [_, matcher]) = do
+    clause <- readClause inNs i local global vs matcher
     pure $ MkErlClause (nextLocal clause) (globals clause) ("{" ++ mkIdrisRtsExceptionAtom ++ ", " ++ pattern clause ++ "}") (guard clause) (body clause)
   -- MMapper
-  readClause i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapper")) _ [_, _, matcher, mapper]) = do
-    clause <- readClause i local global vs matcher
+  readClause inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapper")) _ [_, _, matcher, mapper]) = do
+    clause <- readClause inNs i local global vs matcher
     pure $ MkErlClause (nextLocal clause) (globals clause) (pattern clause) (guard clause) (CApp EmptyFC mapper [body clause])
   -- Other
-  readClause i local global vs matcher =
+  readClause inNs i local global vs matcher =
     throw (InternalError ("Badly formed clause " ++ show matcher))
 
-  readClauseErlMatchers : Int -> (local : Int) -> (global : Int) -> SVars vars -> CExp vars -> (mapper : CExp vars) -> Core (List (ErlClause vars))
-  readClauseErlMatchers i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "Nil")) _ _) mapper = pure []
-  readClauseErlMatchers i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "::")) _ [_, _, _, x, xs]) mapper = do
-    first <- readClause i local global vs x
-    rest <- readClauseErlMatchers i (nextLocal first) (nextGlobal global [first]) vs xs mapper
+  readClauseErlMatchers : Maybe Namespace -> Int -> (local : Int) -> (global : Int) -> SVars vars -> CExp vars -> (mapper : CExp vars) -> Core (List (ErlClause vars))
+  readClauseErlMatchers inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "Nil")) _ _) mapper = pure []
+  readClauseErlMatchers inNs i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "::")) _ [_, _, _, x, xs]) mapper = do
+    first <- readClause inNs i local global vs x
+    rest <- readClauseErlMatchers inNs i (nextLocal first) (nextGlobal global [first]) vs xs mapper
     pure (first :: rest)
-  readClauseErlMatchers i local global vs args mapper =
+  readClauseErlMatchers inNs i local global vs args mapper =
     throw (InternalError ("Badly formed ErlMatchers " ++ show args))
 
-  genGuard : Int -> SVars vars -> ErlGuard vars -> Core String
-  genGuard i vs IsAny = pure "true"
-  genGuard i vs (IsInteger ref) = pure $ "is_integer(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsDouble ref) = pure $ "is_float(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsBinary ref) = pure $ "is_binary(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsList ref) = pure $ "is_list(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsAtom ref) = pure $ "is_atom(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsMap ref) = pure $ "is_map(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsPid ref) = pure $ "is_pid(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsRef ref) = pure $ "is_reference(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsPort ref) = pure $ "is_port(" ++ !(genExp i vs ref) ++ ")"
-  genGuard i vs (IsFun arity ref) = pure $ "is_function(" ++ !(genExp i vs ref) ++ ", " ++ show arity ++ ")"
-  genGuard i vs (IsBinOp LTE ref1 ref2) = pure $ !(genExp i vs ref1) ++ " =< " ++ !(genExp i vs ref2)
-  genGuard i vs (IsBinOp LT ref1 ref2) = pure $ !(genExp i vs ref1) ++ " < " ++ !(genExp i vs ref2)
-  genGuard i vs (IsBinOp EQ ref1 ref2) = pure $ !(genExp i vs ref1) ++ " =:= " ++ !(genExp i vs ref2)
-  genGuard i vs (IsBinOp GT ref1 ref2) = pure $ !(genExp i vs ref1) ++ " > " ++ !(genExp i vs ref2)
-  genGuard i vs (IsBinOp GTE ref1 ref2) = pure $ !(genExp i vs ref1) ++ " >= " ++ !(genExp i vs ref2)
-  genGuard i vs (AndAlso g1 g2) = pure $ "(" ++ !(genGuard i vs g1) ++ " andalso " ++ !(genGuard i vs g2) ++ ")"
-  genGuard i vs (OrElse g1 g2) = pure $ "(" ++ !(genGuard i vs g1) ++ " orelse " ++ !(genGuard i vs g2) ++ ")"
+  genGuard : Maybe Namespace -> Int -> SVars vars -> ErlGuard vars -> Core String
+  genGuard inNs i vs IsAny = pure "true"
+  genGuard inNs i vs (IsInteger ref) = pure $ "is_integer(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsDouble ref) = pure $ "is_float(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsBinary ref) = pure $ "is_binary(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsList ref) = pure $ "is_list(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsAtom ref) = pure $ "is_atom(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsMap ref) = pure $ "is_map(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsPid ref) = pure $ "is_pid(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsRef ref) = pure $ "is_reference(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsPort ref) = pure $ "is_port(" ++ !(genExp inNs i vs ref) ++ ")"
+  genGuard inNs i vs (IsFun arity ref) = pure $ "is_function(" ++ !(genExp inNs i vs ref) ++ ", " ++ show arity ++ ")"
+  genGuard inNs i vs (IsBinOp LTE ref1 ref2) = pure $ !(genExp inNs i vs ref1) ++ " =< " ++ !(genExp inNs i vs ref2)
+  genGuard inNs i vs (IsBinOp LT ref1 ref2) = pure $ !(genExp inNs i vs ref1) ++ " < " ++ !(genExp inNs i vs ref2)
+  genGuard inNs i vs (IsBinOp EQ ref1 ref2) = pure $ !(genExp inNs i vs ref1) ++ " =:= " ++ !(genExp inNs i vs ref2)
+  genGuard inNs i vs (IsBinOp GT ref1 ref2) = pure $ !(genExp inNs i vs ref1) ++ " > " ++ !(genExp inNs i vs ref2)
+  genGuard inNs i vs (IsBinOp GTE ref1 ref2) = pure $ !(genExp inNs i vs ref1) ++ " >= " ++ !(genExp inNs i vs ref2)
+  genGuard inNs i vs (AndAlso g1 g2) = pure $ "(" ++ !(genGuard inNs i vs g1) ++ " andalso " ++ !(genGuard inNs i vs g2) ++ ")"
+  genGuard inNs i vs (OrElse g1 g2) = pure $ "(" ++ !(genGuard inNs i vs g1) ++ " orelse " ++ !(genGuard inNs i vs g2) ++ ")"
 
-  genClause : Int -> SVars vars -> ErlClause vars -> Core String
-  genClause i vs (MkErlClause _ _ pattern guard body) =
-    pure $ "(" ++ pattern ++ ") when " ++ !(genGuard i vs guard) ++ " -> " ++ !(genExp i vs body)
+  genClause : Maybe Namespace -> Int -> SVars vars -> ErlClause vars -> Core String
+  genClause inNs i vs (MkErlClause _ _ pattern guard body) =
+    pure $ "(" ++ pattern ++ ") when " ++ !(genGuard inNs i vs guard) ++ " -> " ++ !(genExp inNs i vs body)
 
-  genErlCase : Int -> SVars vars -> (def : CExp vars) -> List (ErlClause vars) -> (term : CExp vars) -> Core String
-  genErlCase i vs def clauses term = do
-    globalValues <- traverse (genExp i vs) (concatGlobals clauses)
+  genErlCase : Maybe Namespace -> Int -> SVars vars -> (def : CExp vars) -> List (ErlClause vars) -> (term : CExp vars) -> Core String
+  genErlCase inNs i vs def clauses term = do
+    globalValues <- traverse (genExp inNs i vs) (concatGlobals clauses)
     let globalVars = take (length globalValues) $ (zipWith (\name, idx => name ++ show idx) (repeat "G_") [0..])
-    clausesStr <- traverse (genClause i vs) clauses
-    defStr <- pure $ "(_) -> " ++ !(genExp i vs def)
+    clausesStr <- traverse (genClause inNs i vs) clauses
+    defStr <- pure $ "(_) -> " ++ !(genExp inNs i vs def)
     pure $ "(fun(" ++ showSep ", " globalVars ++") -> " ++
       "(fun " ++
       showSep "; " (clausesStr ++ [defStr]) ++
-      " end(" ++ !(genExp i vs term) ++ "))" ++
+      " end(" ++ !(genExp inNs i vs term) ++ "))" ++
       " end(" ++ showSep ", " globalValues ++ "))"
 
-  genErlReceive : Int -> SVars vars -> (timeout : CExp vars) -> (def : CExp vars) -> List (ErlClause vars) -> Core String
-  genErlReceive i vs timeout def clauses = do
-    globalValues <- traverse (genExp i vs) (concatGlobals clauses)
+  genErlReceive : Maybe Namespace -> Int -> SVars vars -> (timeout : CExp vars) -> (def : CExp vars) -> List (ErlClause vars) -> Core String
+  genErlReceive inNs i vs timeout def clauses = do
+    globalValues <- traverse (genExp inNs i vs) (concatGlobals clauses)
     let globalVars = take (length globalValues) $ (zipWith (\name, idx => name ++ show idx) (repeat "G_") [0..])
-    clausesStr <- traverse (genClause i vs) clauses
+    clausesStr <- traverse (genClause inNs i vs) clauses
     pure $ mkWorld $ "(fun(" ++ showSep ", " globalVars ++") -> " ++
       "(receive " ++
       showSep "; " clausesStr ++
-      " after " ++ !(genExp i vs timeout) ++ " -> " ++ !(genExp i vs def) ++ " end)" ++
+      " after " ++ !(genExp inNs i vs timeout) ++ " -> " ++ !(genExp inNs i vs def) ++ " end)" ++
       " end(" ++ showSep ", " globalValues ++ "))"
 
 genArglist : SVars ns -> String
@@ -844,16 +853,24 @@ genArglist [] = ""
 genArglist [x] = x
 genArglist (x :: xs) = x ++ ", " ++ genArglist xs
 
-genDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core String
+genDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core (Maybe (String, String))
 genDef name (MkFun args exp) = do
   let vs = initSVars args
-  pure $ genFunctionDefName !(getFullName name) ++ "(" ++ genArglist vs ++ ") -> " ++ !(genExp 0 vs exp) ++ ".\n"
-genDef name (MkError exp) =
-  pure $ genFunctionDefName !(getFullName name) ++ "() -> " ++ !(genExp 0 [] exp) ++ ".\n"
+  n <- getFullName name
+  let inNs = Just (getNamespace n)
+  let modName = genModuleName n
+  let def = genFunctionDefName n ++ "(" ++ genArglist vs ++ ") -> " ++ !(genExp inNs 0 vs exp) ++ ".\n"
+  pure $ Just (modName, def)
+genDef name (MkError exp) = do
+  n <- getFullName name
+  let inNs = Just (getNamespace n)
+  let modName = genModuleName n
+  let def = genFunctionDefName n ++ "() -> " ++ !(genExp inNs 0 [] exp) ++ ".\n"
+  pure $ Just (modName, def)
 genDef name (MkForeign _ _ _) =
-  pure "" -- compiled by specific back end
+  pure Nothing -- compiled by specific back end
 genDef name (MkCon t a) =
-  pure "" -- Nothing to compile here
+  pure Nothing -- Nothing to compile here
 
 data InternalArity = Value | Arity Nat
 
@@ -877,21 +894,21 @@ externalArity : InternalArity -> Nat
 externalArity Value = 0
 externalArity (Arity arity) = arity
 
-genExports : Int -> SVars vars -> CExp vars -> Core (List (String, Nat, String))
-genExports i vs (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) _ [_, exprTy, name, expr]) = do
+genExports : Maybe Namespace -> Int -> SVars vars -> CExp vars -> Core (List (String, Nat, String))
+genExports inNs i vs (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) _ [_, exprTy, name, expr]) = do
   let intArity = internalArity exprTy
   let extArity = externalArity intArity
-  let funcName = stripErlangString !(genExp i vs name)
+  let funcName = stripErlangString !(genExp inNs i vs name)
   let vars = take extArity $ zipWith (\name, idx => name ++ show idx) (repeat "E_") [0..]
   let invocation =
     case intArity of
       Value => ""
       Arity => "(" ++ showSep ", " vars ++ ")"
-  let funcDecl = funcName ++ "(" ++ showSep ", " vars ++ ") -> " ++ !(genExp i vs expr) ++ invocation ++ "."
+  let funcDecl = funcName ++ "(" ++ showSep ", " vars ++ ") -> " ++ !(genExp inNs i vs expr) ++ invocation ++ "."
   pure $ [(funcName, extArity, funcDecl)]
-genExports i vs (CCon fc (NS ["IO", "Erlang"] (UN "Combine")) _ [exports1, exports2]) =
-  pure $ !(genExports i vs exports1) ++ !(genExports i vs exports2)
-genExports i vs tm = throw (InternalError ("Invalid export: " ++ show tm))
+genExports inNs i vs (CCon fc (NS ["IO", "Erlang"] (UN "Combine")) _ [exports1, exports2]) =
+  pure $ !(genExports inNs i vs exports1) ++ !(genExports inNs i vs exports2)
+genExports inNs i vs tm = throw (InternalError ("Invalid export: " ++ show tm))
 
 getCompileExpr : Defs -> Name -> Core CDef
 getCompileExpr defs name = do
@@ -904,7 +921,7 @@ getCompileExpr defs name = do
 -- Convert the name to Erlang code
 -- (There may be no code generated, for example if it's a constructor)
 export
-genErlang : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core String
+genErlang : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core (Maybe (String, String))
 genErlang defs name = do
   expr <- getCompileExpr defs name
   genDef name expr
@@ -915,7 +932,7 @@ genErlangExports defs name = do
   MkFun args expr <- getCompileExpr defs name
     | throw (InternalError ("Expected function definition for " ++ show name)) 
   let vs = initSVars args
-  exports <- genExports 0 vs expr
+  exports <- genExports Nothing 0 vs expr
   let exportDirectives = "-export([" ++ showSep ", " (map (\(name, arity, _) => name ++ "/" ++ show arity) exports) ++ "]).\n"
   let exportFuncs = showSep "\n" (map (\(_, _, funcDef) => funcDef) exports)
   pure (exportDirectives, exportFuncs)

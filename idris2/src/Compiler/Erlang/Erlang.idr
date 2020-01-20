@@ -40,6 +40,7 @@ header moduleName exportMainFunc = do
   "-module('" ++ moduleName ++ "').\n" ++
     -- "-mode(compile).\n" ++ -- TODO: Make mode into a flag
     "-compile([nowarn_unused_function, nowarn_unused_vars]).\n" ++
+    "-compile(export_all).\n" ++
     exportDirective ++
     "\n"
 
@@ -68,36 +69,67 @@ copyIdrisRtsToDir outDir = do
     | Left err => throw (FileErr outFile err)
   pure ()
 
-compileToErlangExecutable : Opts -> Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
-compileToErlangExecutable (MkOpts moduleName) c tm outfile = do
-  (names, tags) <- findUsedNames tm
-  defs <- get Ctxt
-  compdefs <- traverse (genErlang defs) names
-  let code = concat compdefs
-  main <- genExp 0 [] !(CompileExpr.compileExp tags tm)
-  let scm = header moduleName IncludeMain ++ code ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
+groupBy : (a -> a -> Bool) -> List a -> List (List a)
+groupBy _ [] = []
+groupBy p list@(x :: xs) =
+  let (matches, remaining) = partition (p x) list
+  in matches :: groupBy p (assert_smaller list remaining)
+
+defsPerModule : List (String, String) -> List (String, List String)
+defsPerModule defs =
+  let modules = groupBy (\(modName1, _), (modName2, _) => modName1 == modName2) defs
+  in mapMaybe extractModuleName modules
+    where
+      extractModuleName : List (String, String) -> Maybe (String, List String)
+      extractModuleName defsInModule =
+        case map fst (head' defsInModule) of
+          Nothing => Nothing
+          Just modName => Just (modName, map snd defsInModule)
+
+generateErlangModule : Ref Ctxt Defs -> String -> (String, List String) -> Core ()
+generateErlangModule c targetDir (moduleName, defs) = do
+  let scm = header moduleName ExcludeMain ++ concat defs ++ "\n"
+  let outfile = targetDir ++ dirSep ++ moduleName ++ ".erl"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
   pure ()
 
-compileToErlangLibrary : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : String) -> (outfile : String) -> Core ()
-compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outfile = do
+compileToErlangExecutable : Opts -> Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core (List String)
+compileToErlangExecutable (MkOpts moduleName) c tm outdir = do
+  let outfile = outdir ++ dirSep ++ moduleName ++ ".erl"
+  (names, tags) <- findUsedNames tm
+  defs <- get Ctxt
+  compdefs <- traverse (genErlang defs) names
+  let validCompdefs = mapMaybe id compdefs
+  let modules = defsPerModule validCompdefs
+  traverse_ (generateErlangModule c outdir) modules
+  main <- genExp Nothing 0 [] !(CompileExpr.compileExp tags tm)
+  let scm = header moduleName IncludeMain ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
+  Right () <- coreLift $ writeFile outfile scm
+    | Left err => throw (FileErr outfile err)
+  pure (moduleName :: map fst modules)
+
+compileToErlangLibrary : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : String) -> (outfile : String) -> Core (List String)
+compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outdir = do
+  let outfile = outdir ++ dirSep ++ moduleName ++ ".erl"
   (names, tags) <- findUsedNames tm
   defs <- get Ctxt
   let exportsFuncName = NS (currentNS defs) (UN libEntrypoint)
   (exportDirectives, exportFuncs) <- genErlangExports defs exportsFuncName
   compdefs <- traverse (genErlang defs) names
-  let code = concat compdefs
-  let scm = header moduleName ExcludeMain ++ exportDirectives ++ code ++ exportFuncs ++ "\n"
+  let validCompdefs = mapMaybe id compdefs
+  let modules = defsPerModule validCompdefs
+  traverse_ (generateErlangModule c outdir) modules
+  let scm = header moduleName ExcludeMain ++ exportDirectives ++ exportFuncs ++ "\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
-  pure ()
+  pure (moduleName :: map fst modules)
 
-compileToErlang : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core ()
-compileToErlang opts c tm libEntrypoint outfile =
+compileToErlang : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (List String)
+compileToErlang opts c tm libEntrypoint outdir =
   case libEntrypoint of
-    Nothing => compileToErlangExecutable opts c tm outfile
-    Just entrypoint => compileToErlangLibrary opts c tm entrypoint outfile
+    Nothing => compileToErlangExecutable opts c tm outdir
+    Just entrypoint => compileToErlangLibrary opts c tm entrypoint outdir
 
 erlangModuleName : (outfile : String) -> Maybe (String, String)
 erlangModuleName outfile = do
@@ -106,13 +138,12 @@ erlangModuleName outfile = do
   pure (outdir, modName)
 
 -- TODO: Add error handling
-generateErl : Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outdir : String) -> (modName : String) -> Core ()
+generateErl : Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outdir : String) -> (modName : String) -> Core (List String)
 generateErl c tm libEntrypoint outdir modName = do
-  let outfile = outdir ++ dirSep ++ modName ++ ".erl"
   let opts = MkOpts modName
-  compileToErlang opts c tm libEntrypoint outfile
+  generatedModules <- compileToErlang opts c tm libEntrypoint outdir
   copyIdrisRtsToDir outdir
-  pure ()
+  pure generatedModules
 
 -- TODO: Add error handling
 -- TODO: Add options to `erlc`
@@ -121,10 +152,10 @@ generateBeam c tm libEntrypoint outdir modName = do
   erlc <- coreLift findErlangCompiler
   tmpDir <- coreLift $ tmpName
   coreLift $ system ("mkdir -p " ++ quoted tmpDir)
-  generateErl c tm libEntrypoint tmpDir modName
-  let generatedFile = tmpDir ++ dirSep ++ modName ++ ".erl"
+  generatedModules <- generateErl c tm libEntrypoint tmpDir modName
+  let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".erl") generatedModules
   idrisRtsPath <- findIdrisRtsPath
-  coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ quoted generatedFile ++ " " ++ quoted idrisRtsPath)
+  coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ showSep " " (map quoted (idrisRtsPath :: generatedFiles)))
   pure ()
 
 -- TODO: generateEscript : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
@@ -145,9 +176,14 @@ compileExpr c tm outfile = do
   session <- getSession
   let libEntrypoint = parseLibrary (codegenOptions session)
   case extension outfile of
-    Just "erl" => generateErl c tm libEntrypoint outdir modName
-    Just "beam" => generateBeam c tm libEntrypoint outdir modName
-    _ => throw (InternalError ("Unknown file type: " ++ outfile))
+    Just "erl" => do
+      generateErl c tm libEntrypoint outdir modName
+      pure ()
+    Just "beam" => do
+      generateBeam c tm libEntrypoint outdir modName
+      pure ()
+    _ =>
+      throw (InternalError ("Unknown file type: " ++ outfile))
   pure (Just outfile)
 
 -- TODO: Add error handling
