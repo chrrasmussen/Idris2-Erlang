@@ -76,7 +76,7 @@ compileToSCM c tm outfile
          let code = concat compdefs
          main <- schExp chickenPrim chickenString 0 [] !(compileExp tags tm)
          support <- readDataFile "chicken/support.scm"
-         let scm = schHeader ds ++ support ++ code ++ main ++ schFooter
+         let scm = schHeader (map snd ds) ++ support ++ code ++ main ++ schFooter
          Right () <- coreLift $ writeFile outfile scm
             | Left err => throw (FileErr outfile err)
          coreLift $ chmod outfile 0o755

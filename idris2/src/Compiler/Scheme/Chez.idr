@@ -271,7 +271,7 @@ compileToSS : Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core ()
 compileToSS c tm outfile
     = do ds <- getDirectives Chez
-         libs <- findLibs ds
+         libs <- findLibs (map snd ds)
          traverse_ copyLib libs
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt

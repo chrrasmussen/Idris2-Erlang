@@ -757,7 +757,7 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
-  cgdirectives : List (CG, String)
+  cgdirectives : List (List String, CG, String)
      -- ^ Code generator directives, which are free form text and thus to
      -- be interpreted however the specific code generator requires
   toCompile : List Name
@@ -1442,17 +1442,17 @@ addDirective c str
               Nothing => -- warn, rather than fail, because the CG may exist
                          -- but be unknown to this particular instance
                          coreLift $ putStrLn $ "Unknown code generator " ++ c
-              Just cg => put Ctxt (record { cgdirectives $= ((cg, str) ::) } defs)
+              Just cg => put Ctxt (record { cgdirectives $= ((currentNS defs, cg, str) ::) } defs)
 
 export
 getDirectives : {auto c : Ref Ctxt Defs} ->
-                CG -> Core (List String)
+                CG -> Core (List (List String, String))
 getDirectives cg
     = do defs <- get Ctxt
          pure (mapMaybe getDir (cgdirectives defs))
   where
-    getDir : (CG, String) -> Maybe String
-    getDir (x', str) = if cg == x' then Just str else Nothing
+    getDir : (List String, CG, String) -> Maybe (List String, String)
+    getDir (ns, x', str) = if cg == x' then Just (ns, str) else Nothing
 
 getNextTypeTag : {auto c : Ref Ctxt Defs} ->
                  Core Int

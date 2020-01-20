@@ -58,7 +58,7 @@ record TTCFile extra where
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
   namedirectives : List (Name, List String)
-  cgdirectives : List (CG, String)
+  cgdirectives : List (List String, CG, String)
   extraData : extra
 
 HasNames a => HasNames (List a) where
@@ -364,7 +364,7 @@ updateNameDirectives ((t, ns) :: nds)
 
 export
 updateCGDirectives : {auto c : Ref Ctxt Defs} ->
-                     List (CG, String) -> Core ()
+                     List (List String, CG, String) -> Core ()
 updateCGDirectives cgs
     = do defs <- get Ctxt
          put Ctxt (record { cgdirectives $= (cgs ++) } defs)
