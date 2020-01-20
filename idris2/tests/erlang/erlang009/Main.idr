@@ -7,19 +7,19 @@ import Erlang
 
 getValidCharlists : IO (List ErlTerm)
 getValidCharlists =
-  erlUnsafeCall (List ErlTerm) "test_support:get_valid_charlists" []
+  erlUnsafeCall (List ErlTerm) "test_support" "get_valid_charlists" []
 
 getInvalidCharlists : IO (List ErlTerm)
 getInvalidCharlists =
-  erlUnsafeCall (List ErlTerm) "test_support:get_invalid_charlists" []
+  erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_charlists" []
 
 getValidIOLists : IO (List ErlTerm)
 getValidIOLists =
-  erlUnsafeCall (List ErlTerm) "test_support:get_valid_io_lists" []
+  erlUnsafeCall (List ErlTerm) "test_support" "get_valid_io_lists" []
 
 getInvalidIOLists : IO (List ErlTerm)
 getInvalidIOLists =
-  erlUnsafeCall (List ErlTerm) "test_support:get_invalid_io_lists" []
+  erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_io_lists" []
 
 
 -- Tests

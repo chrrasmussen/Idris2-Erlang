@@ -622,10 +622,10 @@ mutual
     pure "throw(\"Error: Executed 'void'\")"
   genExtPrim i vs (Unknown n) args =
     throw (InternalError ("Can't compile unknown external primitive " ++ show n))
-  genExtPrim i vs ErlUnsafeCall [_, ret, CPrimVal fc (Str fn), args, world] = do
+  genExtPrim i vs ErlUnsafeCall [_, ret, modName, fnName, args@(CCon _ _ _ _), world] = do
     parameterList <- readArgs i vs args
-    pure $ mkWorld $ "(" ++ fn ++ "(" ++ showSep ", " parameterList ++ "))"
-  genExtPrim i vs ErlUnsafeCall [_, ret, fn, args, world] =
+    pure $ mkWorld $ "(" ++ mkStringToAtom !(genExp i vs modName) ++ ":" ++ mkStringToAtom !(genExp i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
+  genExtPrim i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
     pure $ mkWorld "false" -- TODO: Implement?
   genExtPrim i vs ErlCall [_, modName, fnName, args@(CCon _ _ _ _), world] = do
     parameterList <- readArgs i vs args

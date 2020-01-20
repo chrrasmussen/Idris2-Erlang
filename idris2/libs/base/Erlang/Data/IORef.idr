@@ -16,7 +16,7 @@ newIORef val = do
 export
 readIORef : IORef a -> IO a
 readIORef (MkIORef ref) = do
-  MkRaw val <- erlUnsafeCall (Raw a) "ets:lookup_element" [MkErlAtom "$idris_rts_ets", ref, 2]
+  MkRaw val <- erlUnsafeCall (Raw a) "ets" "lookup_element" [MkErlAtom "$idris_rts_ets", ref, 2]
   pure val
 
 export

@@ -235,7 +235,7 @@ namespace CaseExpr
 
 namespace IO
   -- Creates an Erlang function call similar to: `fn`(`args...`)
-  %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> ErlList xs -> (1 x : %World) -> IORes ret
+  %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
 
   -- Creates an Erlang function call similar to: catch (binary_to_atom(`mod`)):(binary_to_atom(`fn`))(`args...`)
   %extern prim__erlCall : String -> String -> ErlList xs -> (1 x : %World) -> IORes ErlTerm
@@ -243,9 +243,10 @@ namespace IO
   export %inline
   erlUnsafeCall : (0 ret : Type) -> {auto ret_prf : ErlType ret} ->
                   String ->
+                  String ->
                   ErlList xs -> {auto inp_prf : ErlTypes xs} ->
                   IO ret
-  erlUnsafeCall ret fn args = primIO (prim__erlUnsafeCall ret fn args)
+  erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
 
   export %inline
   erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO ErlTerm
@@ -267,11 +268,11 @@ namespace IO
 namespace Concurrency
   export
   erlSelf : IO ErlPid
-  erlSelf = erlUnsafeCall ErlPid "erlang:self" []
+  erlSelf = erlUnsafeCall ErlPid "erlang" "self" []
 
   export
   erlSpawnLink : IO () -> IO ErlPid
-  erlSpawnLink action = erlUnsafeCall ErlPid "erlang:spawn_link" [MkErlIO0 action]
+  erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkErlIO0 action]
 
   -- TODO: Support more receivers than just `ErlPid`
   export
@@ -291,25 +292,25 @@ namespace Concurrency
 namespace Maps
   export
   empty : ErlMap
-  empty = unsafePerformIO $ erlUnsafeCall ErlMap "maps:new" []
+  empty = unsafePerformIO $ erlUnsafeCall ErlMap "maps" "new" []
 
   -- TODO: Return type may not match the actual content
   export
   unsafeLookup : ErlType key => key -> (0 ret : Type) -> {auto prf : ErlType ret} -> ErlMap -> Maybe ret
   unsafeLookup key ty m = unsafePerformIO $ do
-    result <- erlUnsafeCall ErlTerm "maps:find" [key, m]
+    result <- erlUnsafeCall ErlTerm "maps" "find" [key, m]
     pure $ erlCase Nothing [MTuple [MExact (MkErlAtom "ok"), MAny] (\ok, value => Just (erlUnsafeCast ty value))] result
 
   export
   insert : (ErlType key, ErlType value) => key -> value -> ErlMap -> ErlMap
-  insert key value m = unsafePerformIO $ erlUnsafeCall ErlMap "maps:put" [key, value, m]
+  insert key value m = unsafePerformIO $ erlUnsafeCall ErlMap "maps" "put" [key, value, m]
 
   export
   delete : ErlType key => key -> ErlMap -> ErlMap
-  delete key m = unsafePerformIO $ erlUnsafeCall ErlMap "maps:remove" [key, m]
+  delete key m = unsafePerformIO $ erlUnsafeCall ErlMap "maps" "remove" [key, m]
 
   size : ErlMap -> Integer
-  size m = unsafePerformIO $ erlUnsafeCall Integer "maps:size" [m]
+  size m = unsafePerformIO $ erlUnsafeCall Integer "maps" "size" [m]
 
 
 namespace StringConversions
@@ -479,19 +480,19 @@ Show ErlTerm where
 export
 Show ErlPid where
   show x = unsafePerformIO $ do
-    MkErlCharlist str <- erlUnsafeCall ErlCharlist "pid_to_list" [x]
+    MkErlCharlist str <- erlUnsafeCall ErlCharlist "erlang" "pid_to_list" [x]
     pure ("#Pid" ++ str)
 
 export
 Show ErlRef where
   show x = unsafePerformIO $ do
-    MkErlCharlist str <- erlUnsafeCall ErlCharlist "ref_to_list" [x]
+    MkErlCharlist str <- erlUnsafeCall ErlCharlist "erlang" "ref_to_list" [x]
     pure str
 
 export
 Show ErlPort where
   show x = unsafePerformIO $ do
-    MkErlCharlist str <- erlUnsafeCall ErlCharlist "port_to_list" [x]
+    MkErlCharlist str <- erlUnsafeCall ErlCharlist "erlang" "port_to_list" [x]
     pure str
 
 export
