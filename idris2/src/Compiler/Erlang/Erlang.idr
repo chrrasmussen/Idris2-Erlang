@@ -48,21 +48,19 @@ mainInit = "persistent_term:put('$idris_rts_args', Args), ets:new('$idris_rts_et
 
 compileToErlangExecutable : Opts -> Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
 compileToErlangExecutable (MkOpts moduleName) c tm outfile = do
-  ds <- getDirectives Erlang
   (names, tags) <- findUsedNames tm
   defs <- get Ctxt
   compdefs <- traverse (genErlang defs) names
   let code = concat compdefs
   main <- genExp 0 [] !(CompileExpr.compileExp tags tm)
   support <- readDataFile ("erlang" ++ dirSep ++ "support.erl")
-  let scm = header moduleName IncludeMain ++ unlines ds ++ support ++ code ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
+  let scm = header moduleName IncludeMain ++ support ++ code ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
   pure ()
 
 compileToErlangLibrary : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : String) -> (outfile : String) -> Core ()
 compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outfile = do
-  ds <- getDirectives Erlang
   (names, tags) <- findUsedNames tm
   defs <- get Ctxt
   let exportsFuncName = NS (currentNS defs) (UN libEntrypoint)
@@ -70,7 +68,7 @@ compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outfile = do
   compdefs <- traverse (genErlang defs) names
   let code = concat compdefs
   support <- readDataFile ("erlang" ++ dirSep ++ "support.erl")
-  let scm = header moduleName ExcludeMain ++ exportDirectives ++ unlines ds ++ support ++ code ++ exportFuncs ++ "\n"
+  let scm = header moduleName ExcludeMain ++ exportDirectives ++ support ++ code ++ exportFuncs ++ "\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
   pure ()

@@ -85,12 +85,9 @@ cgDirective
     = exact "%cg" <+>
       ((some space <+>
            some (pred isAlphaNum) <+> many space <+>
-           quote tripleQuotes any)
+           is '{' <+> many (isNot '}') <+>
+           is '}')
          <|> many (isNot '\n'))
-  where
-    tripleQuotes : Lexer
-    tripleQuotes = is '"' <+> is '"' <+> is '"'
-
 
 mkDirective : String -> Token
 mkDirective str = CGDirective (trim (substr 3 (length str) str))

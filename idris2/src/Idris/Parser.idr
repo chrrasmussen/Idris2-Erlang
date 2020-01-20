@@ -882,7 +882,11 @@ dataDecl fname indents
          pure (PData (MkFC fname start end) vis dat)
 
 stripBraces : String -> String
-stripBraces str = substr 3 (length str `minus` (3 * 2)) str
+stripBraces str = pack (drop '{' (reverse (drop '}' (reverse (unpack str)))))
+  where
+    drop : Char -> List Char -> List Char
+    drop c [] = []
+    drop c (c' :: xs) = if c == c' then drop c xs else c' :: xs
 
 onoff : Rule Bool
 onoff
