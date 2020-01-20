@@ -31,7 +31,7 @@ export
 newBuffer : Int -> IO Buffer
 newBuffer size = do
   ref <- erlCall "erlang" "make_ref" []
-  emptyBinary <- erlUnsafeCall ErlBinary "idris_rts_buffer_new" [size]
+  emptyBinary <- erlUnsafeCall ErlBinary "'Idris.RTS-Internal':buffer_new" [size]
   erlCall "ets" "insert" [etsKey, MkErlTuple2 ref emptyBinary]
   pure (MkBuffer ref size 0)
 
@@ -52,13 +52,13 @@ setByte buf loc val = do
   updateBinary buf (unsafePerformIO . erlSetByte)
   where
     erlSetByte : ErlBinary -> IO ErlBinary
-    erlSetByte binary = erlUnsafeCall ErlBinary "idris_rts_buffer_set_byte" [binary, loc, val]
+    erlSetByte binary = erlUnsafeCall ErlBinary "'Idris.RTS-Internal':buffer_set_byte" [binary, loc, val]
 
 export
 getByte : Buffer -> (loc : Int) -> IO Int
 getByte buf loc = do
   binary <- getBinary buf
-  erlUnsafeCall Int "idris_rts_buffer_get_byte" [binary, loc]
+  erlUnsafeCall Int "'Idris.RTS-Internal':buffer_get_byte" [binary, loc]
 
 export
 setInt : Buffer -> (loc : Int) -> (val : Int) -> IO ()
@@ -66,13 +66,13 @@ setInt buf loc val = do
   updateBinary buf (unsafePerformIO . erlSetInt)
   where
     erlSetInt : ErlBinary -> IO ErlBinary
-    erlSetInt binary = erlUnsafeCall ErlBinary "idris_rts_buffer_set_int" [binary, loc, val]
+    erlSetInt binary = erlUnsafeCall ErlBinary "'Idris.RTS-Internal':buffer_set_int" [binary, loc, val]
 
 export
 getInt : Buffer -> (loc : Int) -> IO Int
 getInt buf loc = do
   binary <- getBinary buf
-  erlUnsafeCall Int "idris_rts_buffer_get_int" [binary, loc]
+  erlUnsafeCall Int "'Idris.RTS-Internal':buffer_get_int" [binary, loc]
 
 export
 setDouble : Buffer -> (loc : Int) -> (val : Double) -> IO ()
@@ -80,13 +80,13 @@ setDouble buf loc val = do
   updateBinary buf (unsafePerformIO . erlSetDouble)
   where
     erlSetDouble : ErlBinary -> IO ErlBinary
-    erlSetDouble binary = erlUnsafeCall ErlBinary "idris_rts_buffer_set_double" [binary, loc, val]
+    erlSetDouble binary = erlUnsafeCall ErlBinary "'Idris.RTS-Internal':buffer_set_double" [binary, loc, val]
 
 export
 getDouble : Buffer -> (loc : Int) -> IO Double
 getDouble buf loc = do
   binary <- getBinary buf
-  erlUnsafeCall Double "idris_rts_buffer_get_double" [binary, loc]
+  erlUnsafeCall Double "'Idris.RTS-Internal':buffer_get_double" [binary, loc]
 
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
@@ -94,13 +94,13 @@ setString buf loc val = do
   updateBinary buf (unsafePerformIO . erlSetString)
   where
     erlSetString : ErlBinary -> IO ErlBinary
-    erlSetString binary = erlUnsafeCall ErlBinary "idris_rts_buffer_set_string" [binary, loc, val]
+    erlSetString binary = erlUnsafeCall ErlBinary "'Idris.RTS-Internal':buffer_set_string" [binary, loc, val]
 
 export
 getString : Buffer -> (loc : Int) -> (len : Int) -> IO String
 getString buf loc len = do
   binary <- getBinary buf
-  erlUnsafeCall String "idris_rts_buffer_get_string" [binary, loc, len]
+  erlUnsafeCall String "'Idris.RTS-Internal':buffer_get_string" [binary, loc, len]
 
 export
 bufferData : Buffer -> IO (List Int)

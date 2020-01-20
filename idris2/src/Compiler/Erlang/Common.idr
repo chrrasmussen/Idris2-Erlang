@@ -109,10 +109,10 @@ boolToInt : String -> String
 boolToInt condition = "case " ++ condition ++ " of false -> 0; _ -> 1 end"
 
 genOp : PrimFn arity -> Vect arity String -> String
-genOp (Add IntType) [x, y] = op "idris_rts_int_add" [x, y, "63"]
-genOp (Sub IntType) [x, y] = op "idris_rts_int_sub" [x, y, "63"]
-genOp (Mul IntType) [x, y] = op "idris_rts_int_mult" [x, y, "63"]
-genOp (Div IntType) [x, y] = op "idris_rts_int_div" [x, y, "63"]
+genOp (Add IntType) [x, y] = op "'Idris.RTS-Internal':int_add" [x, y, "63"]
+genOp (Sub IntType) [x, y] = op "'Idris.RTS-Internal':int_sub" [x, y, "63"]
+genOp (Mul IntType) [x, y] = op "'Idris.RTS-Internal':int_mult" [x, y, "63"]
+genOp (Div IntType) [x, y] = op "'Idris.RTS-Internal':int_div" [x, y, "63"]
 genOp (Add ty) [x, y] = infixop "+" x y
 genOp (Sub ty) [x, y] = infixop "-" x y
 genOp (Mul ty) [x, y] = infixop "*" x y
@@ -122,24 +122,24 @@ genOp (Mod ty) [x, y] = infixop "rem" x y -- NOTE: Is allowed to be partial -- T
 genOp (Neg ty) [x] = op "-" [x]
 genOp (ShiftL ty) [x, y] = infixop "bsl" x y
 genOp (ShiftR ty) [x, y] = infixop "bsr" x y
-genOp (LT StringType) [x, y] = op "idris_rts_unicode_string_lt" [x, y]
-genOp (LTE StringType) [x, y] = op "idris_rts_unicode_string_lte" [x, y]
-genOp (EQ StringType) [x, y] = op "idris_rts_unicode_string_eq" [x, y]
-genOp (GTE StringType) [x, y] = op "idris_rts_unicode_string_gte" [x, y]
-genOp (GT StringType) [x, y] = op "idris_rts_unicode_string_gt" [x, y]
+genOp (LT StringType) [x, y] = op "'Idris.RTS-Internal':unicode_string_lt" [x, y]
+genOp (LTE StringType) [x, y] = op "'Idris.RTS-Internal':unicode_string_lte" [x, y]
+genOp (EQ StringType) [x, y] = op "'Idris.RTS-Internal':unicode_string_eq" [x, y]
+genOp (GTE StringType) [x, y] = op "'Idris.RTS-Internal':unicode_string_gte" [x, y]
+genOp (GT StringType) [x, y] = op "'Idris.RTS-Internal':unicode_string_gt" [x, y]
 genOp (LT ty) [x, y] = boolToInt (infixop "<" x y)
 genOp (LTE ty) [x, y] = boolToInt (infixop "=<" x y)
 genOp (EQ ty) [x, y] = boolToInt (infixop "=:=" x y)
 genOp (GTE ty) [x, y] = boolToInt (infixop ">=" x y)
 genOp (GT ty) [x, y] = boolToInt (infixop ">" x y)
-genOp StrLength [x] = op "idris_rts_unicode_string_length" [x]
-genOp StrHead [x] = op "idris_rts_unicode_string_head" [x]
-genOp StrTail [x] = op "idris_rts_unicode_string_tail" [x]
-genOp StrIndex [x, i] = op "idris_rts_unicode_string_index" [x, i]
-genOp StrCons [x, y] = op "idris_rts_unicode_string_cons" [x, y]
-genOp StrAppend [x, y] = op "idris_rts_unicode_string_append" [x, y]
-genOp StrReverse [x] = op "idris_rts_unicode_string_reverse" [x]
-genOp StrSubstr [x, y, z] = op "idris_rts_unicode_string_substr" [x, y, z]
+genOp StrLength [x] = op "'Idris.RTS-Internal':unicode_string_length" [x]
+genOp StrHead [x] = op "'Idris.RTS-Internal':unicode_string_head" [x]
+genOp StrTail [x] = op "'Idris.RTS-Internal':unicode_string_tail" [x]
+genOp StrIndex [x, i] = op "'Idris.RTS-Internal':unicode_string_index" [x, i]
+genOp StrCons [x, y] = op "'Idris.RTS-Internal':unicode_string_cons" [x, y]
+genOp StrAppend [x, y] = op "'Idris.RTS-Internal':unicode_string_append" [x, y]
+genOp StrReverse [x] = op "'Idris.RTS-Internal':unicode_string_reverse" [x]
+genOp StrSubstr [x, y, z] = op "'Idris.RTS-Internal':unicode_string_substr" [x, y, z]
 
 -- `e` is Euler's number, which approximates to: 2.718281828459045
 genOp DoubleExp [x] = op "math:pow" ["2.718281828459045", x] -- TODO: Hard coded constant
@@ -154,26 +154,26 @@ genOp DoubleSqrt [x] = op "math:sqrt" [x]
 genOp DoubleFloor [x] = op "floor" [x]
 genOp DoubleCeiling [x] = op "ceil" [x]
 
-genOp (Cast IntegerType IntType) [x] = op "idris_rts_integer_to_int" [x]
-genOp (Cast IntegerType DoubleType) [x] = op "idris_rts_integer_to_double" [x]
-genOp (Cast IntegerType StringType) [x] = op "idris_rts_integer_to_string" [x]
+genOp (Cast IntegerType IntType) [x] = op "'Idris.RTS-Internal':integer_to_int" [x]
+genOp (Cast IntegerType DoubleType) [x] = op "'Idris.RTS-Internal':integer_to_double" [x]
+genOp (Cast IntegerType StringType) [x] = op "'Idris.RTS-Internal':integer_to_string" [x]
 
-genOp (Cast IntType IntegerType) [x] = op "idris_rts_int_to_integer" [x]
-genOp (Cast IntType DoubleType) [x] = op "idris_rts_int_to_double" [x]
-genOp (Cast IntType CharType) [x] = op "idris_rts_int_to_char" [x]
-genOp (Cast IntType StringType) [x] = op "idris_rts_int_to_string" [x]
+genOp (Cast IntType IntegerType) [x] = op "'Idris.RTS-Internal':int_to_integer" [x]
+genOp (Cast IntType DoubleType) [x] = op "'Idris.RTS-Internal':int_to_double" [x]
+genOp (Cast IntType CharType) [x] = op "'Idris.RTS-Internal':int_to_char" [x]
+genOp (Cast IntType StringType) [x] = op "'Idris.RTS-Internal':int_to_string" [x]
 
-genOp (Cast DoubleType IntegerType) [x] = op "idris_rts_double_to_integer" [x]
-genOp (Cast DoubleType IntType) [x] = op "idris_rts_double_to_int" [x]
-genOp (Cast DoubleType StringType) [x] = op "idris_rts_double_to_string" [x]
+genOp (Cast DoubleType IntegerType) [x] = op "'Idris.RTS-Internal':double_to_integer" [x]
+genOp (Cast DoubleType IntType) [x] = op "'Idris.RTS-Internal':double_to_int" [x]
+genOp (Cast DoubleType StringType) [x] = op "'Idris.RTS-Internal':double_to_string" [x]
 
-genOp (Cast CharType IntegerType) [x] = op "idris_rts_char_to_integer" [x]
-genOp (Cast CharType IntType) [x] = op "idris_rts_char_to_int" [x]
-genOp (Cast CharType StringType) [x] = op "idris_rts_char_to_string" [x]
+genOp (Cast CharType IntegerType) [x] = op "'Idris.RTS-Internal':char_to_integer" [x]
+genOp (Cast CharType IntType) [x] = op "'Idris.RTS-Internal':char_to_int" [x]
+genOp (Cast CharType StringType) [x] = op "'Idris.RTS-Internal':char_to_string" [x]
 
-genOp (Cast StringType IntegerType) [x] = op "idris_rts_string_to_integer" [x]
-genOp (Cast StringType IntType) [x] = op "idris_rts_string_to_int" [x]
-genOp (Cast StringType DoubleType) [x] = op "idris_rts_string_to_double" [x]
+genOp (Cast StringType IntegerType) [x] = op "'Idris.RTS-Internal':string_to_integer" [x]
+genOp (Cast StringType IntType) [x] = op "'Idris.RTS-Internal':string_to_int" [x]
+genOp (Cast StringType DoubleType) [x] = op "'Idris.RTS-Internal':string_to_double" [x]
 
 genOp (Cast from to) [x] = "throw(\"Invalid cast " ++ show from ++ "->" ++ show to ++ "\")"
 
@@ -592,19 +592,19 @@ mutual
   genExtPrim i vs SchemeCall [ret, fn, args, world] =
     throw (InternalError ("Can't compile Scheme FFI calls to Erlang yet"))
   genExtPrim i vs PutStr [arg, world] =
-    pure $ "(fun() -> idris_rts_io_unicode_put_str(" ++ !(genExp i vs arg) ++ "), " ++ mkWorld mkUnit ++ " end())"
+    pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp i vs arg) ++ "), " ++ mkWorld mkUnit ++ " end())"
   genExtPrim i vs GetStr [world] =
-    pure $ mkWorld "idris_rts_io_unicode_get_str(\"\")"
+    pure $ mkWorld "'Idris.RTS-Internal':io_unicode_get_str(\"\")"
   genExtPrim i vs FileOpen [file, mode, bin, world] =
-    pure $ mkWorld $ "idris_rts_file_open(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs mode) ++ ", " ++ !(genExp i vs bin) ++ ")"
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_open(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs mode) ++ ", " ++ !(genExp i vs bin) ++ ")"
   genExtPrim i vs FileClose [file, world] =
-    pure $ "(fun() -> idris_rts_file_close(" ++ !(genExp i vs file) ++ "), " ++ mkWorld mkUnit ++ " end())"
+    pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp i vs file) ++ "), " ++ mkWorld mkUnit ++ " end())"
   genExtPrim i vs FileReadLine [file, world] =
-    pure $ mkWorld $ "idris_rts_file_read_line(" ++ !(genExp i vs file) ++ ")"
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_read_line(" ++ !(genExp i vs file) ++ ")"
   genExtPrim i vs FileWriteLine [file, str, world] =
-    pure $ mkWorld $ "idris_rts_file_write_line(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs str) ++ ")"
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_write_line(" ++ !(genExp i vs file) ++ ", " ++ !(genExp i vs str) ++ ")"
   genExtPrim i vs FileEOF [file, world] =
-    pure $ mkWorld $ "idris_rts_file_eof(" ++ !(genExp i vs file) ++ ")"
+    pure $ mkWorld $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp i vs file) ++ ")"
   -- TODO: Implement IORef
   --genExtPrim i vs NewIORef [_, val, world] =
   --  pure $ mkWorld $ "(box " ++ !(genExp i vs val) ++ ")"

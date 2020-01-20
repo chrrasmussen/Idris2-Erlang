@@ -46,6 +46,28 @@ header moduleName exportMainFunc = do
 mainInit : String
 mainInit = "persistent_term:put('$idris_rts_args', Args), ets:new('$idris_rts_ets', [public, named_table]), io:setopts([{encoding, unicode}])"
 
+idrisRtsFilename : String
+idrisRtsFilename = "Idris.RTS-Internal.erl"
+
+findIdrisRtsPath : {auto c : Ref Ctxt Defs} -> Core String
+findIdrisRtsPath = do
+  d <- getDirs
+  let idrisRtsPath = "erlang" ++ dirSep ++ idrisRtsFilename
+  let fs = map (\p => p ++ dirSep ++ idrisRtsPath) (data_dirs d)
+  Just f <- firstAvailable fs
+    | Nothing => throw (InternalError ("Can't find data file " ++ idrisRtsPath))
+  pure f
+
+copyIdrisRtsToDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+copyIdrisRtsToDir outDir = do
+  f <- findIdrisRtsPath
+  Right contents <- coreLift $ readFile f
+    | Left err => throw (FileErr f err)
+  let outFile = outDir ++ dirSep ++ idrisRtsFilename
+  Right () <- coreLift $ writeFile outFile contents
+    | Left err => throw (FileErr outFile err)
+  pure ()
+
 compileToErlangExecutable : Opts -> Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
 compileToErlangExecutable (MkOpts moduleName) c tm outfile = do
   (names, tags) <- findUsedNames tm
@@ -53,8 +75,7 @@ compileToErlangExecutable (MkOpts moduleName) c tm outfile = do
   compdefs <- traverse (genErlang defs) names
   let code = concat compdefs
   main <- genExp 0 [] !(CompileExpr.compileExp tags tm)
-  support <- readDataFile ("erlang" ++ dirSep ++ "support.erl")
-  let scm = header moduleName IncludeMain ++ support ++ code ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
+  let scm = header moduleName IncludeMain ++ code ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
   pure ()
@@ -67,8 +88,7 @@ compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outfile = do
   (exportDirectives, exportFuncs) <- genErlangExports defs exportsFuncName
   compdefs <- traverse (genErlang defs) names
   let code = concat compdefs
-  support <- readDataFile ("erlang" ++ dirSep ++ "support.erl")
-  let scm = header moduleName ExcludeMain ++ exportDirectives ++ support ++ code ++ exportFuncs ++ "\n"
+  let scm = header moduleName ExcludeMain ++ exportDirectives ++ code ++ exportFuncs ++ "\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
   pure ()
@@ -91,6 +111,7 @@ generateErl c tm libEntrypoint outdir modName = do
   let outfile = outdir ++ dirSep ++ modName ++ ".erl"
   let opts = MkOpts modName
   compileToErlang opts c tm libEntrypoint outfile
+  copyIdrisRtsToDir outdir
   pure ()
 
 -- TODO: Add error handling
@@ -102,7 +123,8 @@ generateBeam c tm libEntrypoint outdir modName = do
   coreLift $ system ("mkdir -p " ++ quoted tmpDir)
   generateErl c tm libEntrypoint tmpDir modName
   let generatedFile = tmpDir ++ dirSep ++ modName ++ ".erl"
-  coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ quoted generatedFile)
+  idrisRtsPath <- findIdrisRtsPath
+  coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ quoted generatedFile ++ " " ++ quoted idrisRtsPath)
   pure ()
 
 -- TODO: generateEscript : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core ()
@@ -137,7 +159,10 @@ executeExpr c tm = do
   let modName = "main"
   generateBeam c tm Nothing tmpDir modName
   let compiledFile = tmpDir ++ dirSep ++ modName ++ ".beam"
+  cwd <- coreLift $ currentDir
+  coreLift $ changeDir tmpDir
   coreLift $ system (escript ++ " " ++ quoted compiledFile)
+  coreLift $ changeDir cwd
   pure ()
 
 export
