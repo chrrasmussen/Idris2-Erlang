@@ -1,9 +1,5 @@
 module Main
 
-%cg erlang """
--mode(compile).
--compile(inline).
-"""
 
 mkList : Int -> Int -> List Int
 mkList seed 0 = []

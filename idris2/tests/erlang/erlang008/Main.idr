@@ -2,54 +2,41 @@ module Main
 
 import Erlang
 
-%cg erlang """
-get_map_empty() -> #{}.
-get_map_ex1() -> #{<<"first">> => <<"ex1">>}.
-get_map_ex2() -> #{<<"first">> => <<"ex2">>, <<"second">> => 42}.
-get_pid() -> list_to_pid("<0.4.1>").
-get_ref() -> list_to_ref("#Ref<0.4192537678.4073193475.71181>").
-get_port() -> list_to_port("#Port<0.4>").
-get_binary() -> <<"hello">>.
-get_fun0() -> fun() -> 42 end.
-get_fun1() -> fun(X) -> X end.
-get_fun2() -> fun(X, Y) -> X + Y end.
-get_fun_div() -> fun(X) -> 42.0 / X end.
-"""
 
 -- Wrappers around Erlang functions
 
 mapEmpty : ErlMap
-mapEmpty = unsafePerformIO $ erlUnsafeCall ErlMap "get_map_empty" []
+mapEmpty = unsafePerformIO $ erlUnsafeCall ErlMap "test_support:get_map_empty" []
 
 mapEx1 : ErlMap
-mapEx1 = unsafePerformIO $ erlUnsafeCall ErlMap "get_map_ex1" []
+mapEx1 = unsafePerformIO $ erlUnsafeCall ErlMap "test_support:get_map_ex1" []
 
 mapEx2 : ErlMap
-mapEx2 = unsafePerformIO $ erlUnsafeCall ErlMap "get_map_ex2" []
+mapEx2 = unsafePerformIO $ erlUnsafeCall ErlMap "test_support:get_map_ex2" []
 
 pidEx : ErlPid
-pidEx = unsafePerformIO $ erlUnsafeCall ErlPid "get_pid" []
+pidEx = unsafePerformIO $ erlUnsafeCall ErlPid "test_support:get_pid" []
 
 refEx : ErlRef
-refEx = unsafePerformIO $ erlUnsafeCall ErlRef "get_ref" []
+refEx = unsafePerformIO $ erlUnsafeCall ErlRef "test_support:get_ref" []
 
 portEx : ErlPort
-portEx = unsafePerformIO $ erlUnsafeCall ErlPort "get_port" []
+portEx = unsafePerformIO $ erlUnsafeCall ErlPort "test_support:get_port" []
 
 binaryEx : ErlBinary
-binaryEx = unsafePerformIO $ erlUnsafeCall ErlBinary "get_binary" []
+binaryEx = unsafePerformIO $ erlUnsafeCall ErlBinary "test_support:get_binary" []
 
 fun0Ex : ErlTerm
-fun0Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "get_fun0" []
+fun0Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "test_support:get_fun0" []
 
 fun1Ex : ErlTerm
-fun1Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "get_fun1" []
+fun1Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "test_support:get_fun1" []
 
 fun2Ex : ErlTerm
-fun2Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "get_fun2" []
+fun2Ex = unsafePerformIO $ erlUnsafeCall ErlTerm "test_support:get_fun2" []
 
 funDivEx : ErlTerm
-funDivEx = unsafePerformIO $ erlUnsafeCall ErlTerm "get_fun_div" []
+funDivEx = unsafePerformIO $ erlUnsafeCall ErlTerm "test_support:get_fun_div" []
 
 
 -- Helper functions

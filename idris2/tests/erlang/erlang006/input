@@ -1,2 +1,2 @@
-:exec main
+:c "main.beam" main
 :q
