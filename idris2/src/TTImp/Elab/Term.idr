@@ -183,6 +183,12 @@ checkTerm rig elabinfo nest env (IType fc) exp
 
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc str exp
+checkTerm rig elabinfo nest env (IUnifyLog fc tm) exp
+    = do ust <- get UST
+         put UST (record { logging = True } ust)
+         r <- check rig elabinfo nest env tm exp
+         put UST ust
+         pure r
 checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
     = do nm <- genName "_"
          expty <- getTerm gexpty
@@ -195,7 +201,7 @@ checkTerm rig elabinfo nest env (Implicit fc b) (Just gexpty)
                put EST (addBindIfUnsolved nm rig Explicit env metaval expty est)
          pure (metaval, gexpty)
 checkTerm rig elabinfo nest env (Implicit fc b) Nothing
-    = do nmty <- genName "impTy"
+    = do nmty <- genName "implicit_type"
          ty <- metaVar fc Rig0 env nmty (TType fc)
          nm <- genName "_"
          metaval <- metaVar fc rig env nm ty

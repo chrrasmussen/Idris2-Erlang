@@ -92,7 +92,7 @@ findCons n lhs
                       Nothing => pure (SplitFail (CantSplitThis n
                                          ("Can't find type of " ++ show n ++ " in LHS")))
                       Just tyn =>
-                          do Just (TCon _ _ _ _ _ _ cons) <-
+                          do Just (TCon _ _ _ _ _ _ cons _) <-
                                       lookupDefExact tyn (gamma defs)
                                 | res => pure (SplitFail
                                             (CantSplitThis n
@@ -154,7 +154,7 @@ getArgNames defs allvars env (NBind fc x (Pi _ p ty) sc)
     = do ns <- case p of
                     Explicit => pure [!(getArgName defs x allvars ty)]
                     _ => pure []
-         sc' <- sc defs (toClosure defaultOpts env (Erased fc))
+         sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
          pure $ ns ++ !(getArgNames defs (map UN ns ++ allvars) env sc')
 getArgNames defs allvars env val = pure []
 
@@ -163,7 +163,7 @@ getEnvArgNames : {auto c : Ref Ctxt Defs} ->
                  Defs -> Nat -> NF [] -> Core (List String)
 getEnvArgNames defs Z sc = getArgNames defs [] [] sc
 getEnvArgNames defs (S k) (NBind fc n _ sc)
-    = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc)))
+    = getEnvArgNames defs k !(sc defs (toClosure defaultOpts [] (Erased fc False)))
 getEnvArgNames defs n ty = pure []
 
 expandCon : {auto c : Ref Ctxt Defs} ->
@@ -290,8 +290,11 @@ mkCase {c} {u} fn orig lhs_raw
          defs <- branch
          ust <- get UST
          handleUnify
-           (do (lhs, _) <- elabTerm {c} {m} {u}
-                                    fn (InLHS Rig1) [] (MkNested [])
+           (do -- Use 'Rig0' since it might be a type level function, or it might
+               -- be an erased name in a case block (which will be bound elsewhere
+               -- once split and turned into a pattern)
+               (lhs, _) <- elabTerm {c} {m} {u}
+                                    fn (InLHS Rig0) [] (MkNested [])
                                     [] (IBindHere (getFC lhs_raw) PATTERN lhs_raw)
                                     Nothing
                put Ctxt defs -- reset the context, we don't want any updates
@@ -335,6 +338,7 @@ getSplitsLHS fc envlen lhs_in n
          let usedns = findAllVars lhs
 
          defs <- get Ctxt
+
          OK (fn, tyn, cons) <- findCons n lhs
             | SplitFail err => pure (SplitFail err)
 

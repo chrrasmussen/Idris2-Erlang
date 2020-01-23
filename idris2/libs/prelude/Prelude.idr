@@ -67,7 +67,8 @@ the : (0 a : Type) -> (1 x : a) -> a
 the _ x = x
 
 public export %inline
-id : (x : a) -> a
+id : (1 x : a) -> a           -- Hopefully linearity annotation won't
+                              -- break equality proofs involving id
 id x = x
 
 public export %inline
@@ -106,7 +107,7 @@ public export
 -------------------
 
 public export
-cong : (f : t -> u) -> a = b -> f a = f b
+cong : (f : t -> u) -> (1 p : a = b) -> f a = f b
 cong f Refl = Refl
 
 public export
@@ -115,7 +116,7 @@ interface Uninhabited t where
 
 %extern
 public export
-void : Void -> a
+void : (0 x : Void) -> a
 
 export
 Uninhabited Void where
@@ -137,17 +138,17 @@ public export
 data Bool = True | False
 
 public export
-not : Bool -> Bool
+not : (1 b : Bool) -> Bool
 not True = False
 not False = True
 
 public export
-(&&) : Bool -> Lazy Bool -> Bool
+(&&) : (1 b : Bool) -> Lazy Bool -> Bool
 (&&) True x = x
 (&&) False x = False
 
 public export
-(||) : Bool -> Lazy Bool -> Bool
+(||) : (1 b : Bool) -> Lazy Bool -> Bool
 (||) True x = True
 (||) False x = x
 
@@ -435,7 +436,7 @@ shiftR : Int -> Int -> Int
 shiftR = prim__shr_Int
 
 ---------------------------------
--- FUNCTOR, APPLICATIVE, MONAD --
+-- FUNCTOR, APPLICATIVE, ALTERNATIVE, MONAD --
 ---------------------------------
 
 public export
@@ -445,6 +446,10 @@ interface Functor f where
 public export
 (<$>) : Functor f => (func : a -> b) -> f a -> f b
 (<$>) func x = map func x
+
+public export
+ignore : Functor f => f a -> f ()
+ignore = map (const ())
 
 public export
 interface Functor f => Applicative f where
@@ -465,8 +470,8 @@ a *> b = map (const id) a <*> b
 
 public export
 interface Applicative f => Alternative f where
-    empty : f a
-    (<|>) : f a -> f a -> f a
+  empty : f a
+  (<|>) : f a -> f a -> f a
 
 public export
 interface Applicative m => Monad m where
@@ -544,6 +549,35 @@ public export
 for_ : (Foldable t, Applicative f) => t a -> (a -> f b) -> f ()
 for_ = flip traverse_
 
+||| Fold using Alternative
+|||
+||| If you have a left-biased alternative operator `<|>`, then `choice`
+||| performs left-biased choice from a list of alternatives, which means that
+||| it evaluates to the left-most non-`empty` alternative.
+|||
+||| If the list is empty, or all values in it are `empty`, then it
+||| evaluates to `empty`.
+|||
+||| Example:
+|||
+||| ```
+||| -- given a parser expression like:
+||| expr = literal <|> keyword <|> funcall
+|||
+||| -- choice lets you write this as:
+||| expr = choice [literal, keyword, funcall]
+||| ```
+|||
+||| Note: In Haskell, `choice` is called `asum`.
+public export
+choice : (Foldable t, Alternative f) => t (f a) -> f a
+choice = foldr (<|>) empty
+
+||| A fused version of `choice` and `map`.
+public export
+choiceMap : (Foldable t, Alternative f) => (a -> f b) -> t a -> f b
+choiceMap f = foldr (\e, a => f e <|> a) empty
+
 public export
 interface (Functor t, Foldable t) => Traversable (t : Type -> Type) where
   ||| Map each element of a structure to a computation, evaluate those
@@ -578,18 +612,18 @@ integerToNat x
 
 -- Define separately so we can spot the name when optimising Nats
 public export
-plus : Nat -> Nat -> Nat
+plus : (1 x : Nat) -> (1 y : Nat) -> Nat
 plus Z y = y
 plus (S k) y = S (plus k y)
 
 public export
-minus : Nat -> Nat -> Nat
+minus : (1 left : Nat) -> Nat -> Nat
 minus Z        right     = Z
 minus left     Z         = left
 minus (S left) (S right) = minus left right
 
 public export
-mult : Nat -> Nat -> Nat
+mult : (1 x : Nat) -> Nat -> Nat
 mult Z y = Z
 mult (S k) y = plus y (mult k y)
 
@@ -616,7 +650,22 @@ Ord Nat where
 public export
 natToInteger : Nat -> Integer
 natToInteger Z = 0
-natToInteger (S k) = 1 + natToInteger k
+natToInteger (S k) = 1 + natToInteger k 
+                         -- integer (+) may be non-linear in second
+                         -- argument
+
+
+-----------
+-- PAIRS --
+-----------
+
+public export
+Functor (Pair a) where
+  map f (x, y) = (x, f y)
+
+public export
+mapFst : (a -> c) -> (a, b) -> (c, b)
+mapFst f (x, y) = (f x, y)
 
 -----------
 -- MAYBE --
@@ -763,7 +812,7 @@ Ord a => Ord (List a) where
 
 namespace List
   public export
-  (++) : List a -> List a -> List a
+  (++) : (1 xs : List a) -> List a -> List a
   [] ++ ys = ys
   (x :: xs) ++ ys = x :: xs ++ ys
 
@@ -834,7 +883,7 @@ tail : Stream a -> Stream a
 tail (x :: xs) = xs
 
 public export
-take : Nat -> Stream a -> List a
+take : (1 n : Nat) -> Stream a -> List a
 take Z xs = []
 take (S k) (x :: xs) = x :: take k xs
 
@@ -1003,7 +1052,7 @@ interface Show ty where
   showPrec : (d : Prec) -> (x : ty) -> String
   showPrec _ x = show x
 
-showParens : (b : Bool) -> String -> String
+showParens : (1 b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 

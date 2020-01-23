@@ -188,11 +188,11 @@ mutual
     fromBuf b
         = case !getTag of
                0 => do c <- fromBuf b; x <- fromBuf b; ty <- fromBuf b; pure (Lam c x ty)
-               1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC))
+               1 => do c <- fromBuf b; x <- fromBuf b; pure (Let c x (Erased emptyFC False))
                2 => do c <- fromBuf b; x <- fromBuf b; y <- fromBuf b; pure (Pi c x y)
                3 => do c <- fromBuf b; p <- fromBuf b; ty <- fromBuf b; pure (PVar c p ty)
-               4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC))
-               5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC))
+               4 => do c <- fromBuf b; x <- fromBuf b; pure (PLet c x (Erased emptyFC False))
+               5 => do c <- fromBuf b; pure (PVTy c (Erased emptyFC False))
                _ => corrupt "Binder"
 
 
@@ -238,7 +238,7 @@ mutual
     toBuf b (PrimVal fc c)
         = do tag 9;
              toBuf b c
-    toBuf b (Erased fc)
+    toBuf b (Erased fc _)
         = tag 10
     toBuf b (TType fc)
         = tag 11
@@ -271,7 +271,7 @@ mutual
                        pure (TForce emptyFC lr tm)
                9 => do c <- fromBuf b
                        pure (PrimVal emptyFC c)
-               10 => pure (Erased emptyFC)
+               10 => pure (Erased emptyFC False)
                11 => pure (TType emptyFC)
                idxp => do c <- fromBuf b
                           name <- fromBuf b
@@ -339,7 +339,7 @@ mutual
         = case !getTag of
                0 => do name <- fromBuf b; idx <- fromBuf b
                        xs <- fromBuf b
-                       pure (Case {name} idx (mkPrf idx) (Erased emptyFC) xs)
+                       pure (Case {name} idx (mkPrf idx) (Erased emptyFC False) xs)
                1 => do x <- fromBuf b
                        pure (STerm x)
                2 => do msg <- fromBuf b
@@ -745,9 +745,10 @@ TTC Def where
   toBuf b (Builtin a)
       = throw (InternalError "Trying to serialise a Builtin")
   toBuf b (DCon t arity) = do tag 4; toBuf b t; toBuf b arity
-  toBuf b (TCon t arity parampos detpos u ms datacons)
+  toBuf b (TCon t arity parampos detpos u ms datacons dets)
       = do tag 5; toBuf b t; toBuf b arity; toBuf b parampos
            toBuf b detpos; toBuf b u; toBuf b ms; toBuf b datacons
+           toBuf b dets
   toBuf b (Hole locs p)
       = do tag 6; toBuf b locs; toBuf b p
   toBuf b (BySearch c depth def)
@@ -776,7 +777,8 @@ TTC Def where
                      ps <- fromBuf b; dets <- fromBuf b;
                      u <- fromBuf b
                      ms <- fromBuf b; cs <- fromBuf b
-                     pure (TCon t a ps dets u ms cs)
+                     detags <- fromBuf b
+                     pure (TCon t a ps dets u ms cs detags)
              6 => do l <- fromBuf b
                      p <- fromBuf b
                      pure (Hole l p)
@@ -855,6 +857,7 @@ TTC GlobalDef where
               do toBuf b (location gdef)
                  toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
+                 toBuf b (safeErase gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -873,16 +876,17 @@ TTC GlobalDef where
            if isUserName name
               then do loc <- fromBuf b;
                       ty <- fromBuf b; eargs <- fromBuf b;
+                      seargs <- fromBuf b
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs mul vars vis
+                      pure (MkGlobalDef loc name ty eargs seargs mul vars vis
                                         tot fl refs inv c True def cdef sc)
               else do let fc = emptyFC
-                      pure (MkGlobalDef fc name (Erased fc) []
+                      pure (MkGlobalDef fc name (Erased fc False) [] []
                                         RigW [] Public unchecked [] refs
                                         False False True def cdef [])
 

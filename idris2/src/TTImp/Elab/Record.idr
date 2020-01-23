@@ -37,7 +37,7 @@ toRHS loc (Constr con args)
 findConName : Defs -> Name -> Core (Maybe Name)
 findConName defs tyn
     = case !(lookupDefExact tyn (gamma defs)) of
-           Just (TCon _ _ _ _ _ _ [con]) => pure (Just con)
+           Just (TCon _ _ _ _ _ _ [con] _) => pure (Just con)
            _ => pure Nothing
 
 findFields : Defs -> Name -> Core (Maybe (List (String, Maybe Name)))
@@ -48,7 +48,7 @@ findFields defs con
   where
     getExpNames : NF [] -> Core (List (String, Maybe Name))
     getExpNames (NBind fc x (Pi _ p ty) sc)
-        = do rest <- getExpNames !(sc defs (toClosure defaultOpts [] (Erased fc)))
+        = do rest <- getExpNames !(sc defs (toClosure defaultOpts [] (Erased fc False)))
              case p of
                   Explicit => pure $ (nameRoot x, getRecordType [] ty) :: rest
                   _ => pure rest

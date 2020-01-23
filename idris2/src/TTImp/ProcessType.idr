@@ -22,7 +22,7 @@ import Data.NameMap
 
 getRetTy : Defs -> NF [] -> Core Name
 getRetTy defs (NBind fc _ (Pi _ _ _) sc)
-    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc)))
+    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc False)))
 getRetTy defs (NTCon _ n _ _ _) = pure n
 getRetTy defs ty
     = throw (GenericMsg (getLoc ty)
@@ -124,10 +124,11 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
 
          def <- initDef n env ty opts
          let fullty = abstractEnvType tfc env ty
-         erased <- findErased fullty
+         (erased, dterased) <- findErased fullty
 
          addDef (Resolved idx)
-                (record { eraseArgs = erased }
+                (record { eraseArgs = erased,
+                          safeErase = dterased }
                         (newDef fc n rig vars fullty vis def))
          -- Flag it as checked, because we're going to check the clauses
          -- from the top level.
@@ -135,7 +136,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          -- level check so don't set the flag.
          when (not (InCase `elem` eopts)) $ setLinearCheck idx True
 
-         log 1 $ "Setting options for " ++ show n ++ ": " ++ show opts
+         log 2 $ "Setting options for " ++ show n ++ ": " ++ show opts
          traverse (processFnOpt fc (Resolved idx)) opts
 
          -- Add to the interactive editing metadata

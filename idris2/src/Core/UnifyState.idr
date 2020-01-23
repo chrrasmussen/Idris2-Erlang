@@ -13,6 +13,7 @@ import Utils.Binary
 
 import Data.IntMap
 import Data.NameMap
+import Data.StringMap
 
 %default covering
 
@@ -81,10 +82,11 @@ record UState where
                 -- successfully yet.
                 -- The 'Int' is the resolved name. Delays can't be nested,
                 -- so we just process them in order.
+  logging : Bool
 
 export
 initUState : UState
-initUState = MkUState empty empty empty empty empty [] 0 0 []
+initUState = MkUState empty empty empty empty empty [] 0 0 [] False
 
 export
 data UST : Type where
@@ -468,7 +470,8 @@ tryErrorUnify elab
                    commit
                    pure (Right res))
                (\err => do put UST ust
-                           put Ctxt defs
+                           defs' <- get Ctxt
+                           put Ctxt (record { timings = timings defs' } defs)
                            pure (Left err))
 
 export

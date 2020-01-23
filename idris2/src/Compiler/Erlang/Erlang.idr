@@ -126,7 +126,7 @@ compileExpr c tm outfile = do
     Just "erl" => generateErl c tm libEntrypoint outdir modName
     Just "beam" => generateBeam c tm libEntrypoint outdir modName
     _ => throw (InternalError ("Unknown file type: " ++ outfile))
-  pure (Just "") -- TODO: String value is not used. Replace with `Bool` in `Compiler.Common.Codegen`?
+  pure (Just outfile)
 
 -- TODO: Add error handling
 executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()

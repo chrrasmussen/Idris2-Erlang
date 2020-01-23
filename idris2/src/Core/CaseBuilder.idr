@@ -8,6 +8,8 @@ import Core.Normalise
 import Core.TT
 import Core.Value
 
+import Data.LengthMatch
+
 %default covering
 
 public export
@@ -84,7 +86,7 @@ updatePats env nf (p :: ps)
 
 mkEnv : FC -> (vs : List Name) -> Env Term vs
 mkEnv fc [] = []
-mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc) :: mkEnv fc ns
+mkEnv fc (n :: ns) = PVar RigW Explicit (Erased fc False) :: mkEnv fc ns
 
 substInPatInfo : {auto c : Ref Ctxt Defs} ->
                  FC -> Name -> Term vars -> PatInfo pvar vars ->
@@ -186,17 +188,6 @@ substInClause : {auto c : Ref Ctxt Defs} ->
 substInClause {vars} {a} fc (MkPatClause pvars (MkInfo pat pprf fty :: pats) rhs)
     = do pats' <- substInPats fc a (mkTerm vars pat) pats
          pure (MkPatClause pvars (MkInfo pat pprf fty :: pats') rhs)
-
-data LengthMatch : List a -> List b -> Type where
-     NilMatch : LengthMatch [] []
-     ConsMatch : LengthMatch xs ys -> LengthMatch (x :: xs) (y :: ys)
-
-checkLengthMatch : (xs : List a) -> (ys : List b) -> Maybe (LengthMatch xs ys)
-checkLengthMatch [] [] = Just NilMatch
-checkLengthMatch [] (x :: xs) = Nothing
-checkLengthMatch (x :: xs) [] = Nothing
-checkLengthMatch (x :: xs) (y :: ys)
-    = Just (ConsMatch !(checkLengthMatch xs ys))
 
 data Partitions : List (PatClause vars todo) -> Type where
      ConClauses : (cs : List (PatClause vars todo)) ->
@@ -352,7 +343,7 @@ nextNames {vars} fc root (p :: pats) fty
           fa_tys <- the (Core (Maybe (NF vars), ArgType vars)) $
               case fty of
                    Nothing => pure (Nothing, Unknown)
-                   Just (NBind pfc _ (Pi c _ (NErased _)) fsc) =>
+                   Just (NBind pfc _ (Pi c _ (NErased _ _)) fsc) =>
                       pure (Just !(fsc defs (toClosure defaultOpts env (Ref pfc Bound n))),
                         Unknown)
                    Just (NBind pfc _ (Pi c _ farg) fsc) =>
@@ -423,11 +414,11 @@ groupCons fc fn pvars cs
     addConG {todo} n tag pargs pats rhs []
         = do cty <- the (Core (NF vars)) $ if n == UN "->"
                       then pure $ NBind fc (MN "_" 0) (Pi RigW Explicit (NType fc)) $
-                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc))
+                              (\d, a => pure $ NBind fc (MN "_" 1) (Pi RigW Explicit (NErased fc False))
                                 (\d, a => pure $ NType fc))
                       else do defs <- get Ctxt
                               Just t <- lookupTyExact n (gamma defs)
-                                   | Nothing => pure (NErased fc)
+                                   | Nothing => pure (NErased fc False)
                               nf defs (mkEnv fc vars) (embed t)
              (patnames ** newargs) <- nextNames {vars} fc "e" pargs (Just cty)
              -- Update non-linear names in remaining patterns (to keep
@@ -525,8 +516,10 @@ groupCons fc fn pvars cs
     -- variable we're doing the case split on
     addGroup (PAs fc n p) pprf pats rhs acc
          = addGroup p pprf pats (substName n (Local fc (Just True) _ pprf) rhs) acc
-    addGroup (PCon _ n t a pargs) pprf pats rhs acc
-         = addConG n t pargs pats rhs acc
+    addGroup (PCon cfc n t a pargs) pprf pats rhs acc
+         = if a == length pargs
+              then addConG n t pargs pats rhs acc
+              else throw (CaseCompile cfc fn (NotFullyApplied n))
     addGroup (PTyCon _ n a pargs) pprf pats rhs acc
          = addConG n 0 pargs pats rhs acc
     addGroup (PArrow _ _ s t) pprf pats rhs acc
@@ -723,6 +716,8 @@ mutual
   match {todo = []} fc fn phase [] err
        = maybe (pure (Unmatched "No patterns"))
                pure err
+  match {todo = []} fc fn phase ((MkPatClause pvars [] (Erased _ True)) :: _) err
+       = pure Impossible
   match {todo = []} fc fn phase ((MkPatClause pvars [] rhs) :: _) err
        = pure $ STerm rhs
 
@@ -918,25 +913,29 @@ getPMDef fc phase fn ty []
     getArgs : Int -> NF [] -> Core (List Name)
     getArgs i (NBind fc x (Pi _ _ _) sc)
         = do defs <- get Ctxt
-             sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+             sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
              pure (MN "arg" i :: !(getArgs i sc'))
     getArgs i _ = pure []
 getPMDef fc phase fn ty clauses
     = do defs <- get Ctxt
-         let cs = map (toClosed defs) clauses
+         let cs = map (toClosed defs) (labelPat 0 clauses)
          simpleCase fc phase fn ty Nothing cs
   where
-    mkSubstEnv : Int -> Env Term vars -> SubstEnv vars []
-    mkSubstEnv i [] = Nil
-    mkSubstEnv i (v :: vs)
-       = Ref fc Bound (MN "pat" i) :: mkSubstEnv (i + 1) vs
+    labelPat : Int -> List a -> List (String, a)
+    labelPat i [] = []
+    labelPat i (x :: xs) = ("pat" ++ show i ++ ":", x) :: labelPat (i + 1) xs
 
-    close : Env Term vars -> Term vars -> ClosedTerm
-    close {vars} env tm
-        = substs (mkSubstEnv 0 env)
+    mkSubstEnv : Int -> String -> Env Term vars -> SubstEnv vars []
+    mkSubstEnv i pname [] = Nil
+    mkSubstEnv i pname (v :: vs)
+       = Ref fc Bound (MN pname i) :: mkSubstEnv (i + 1) pname vs
+
+    close : Env Term vars -> String -> Term vars -> ClosedTerm
+    close {vars} env pname tm
+        = substs (mkSubstEnv 0 pname env)
               (rewrite appendNilRightNeutral vars in tm)
 
-    toClosed : Defs -> Clause -> (ClosedTerm, ClosedTerm)
-    toClosed defs (MkClause env lhs rhs)
-          = (close env lhs, close env rhs)
+    toClosed : Defs -> (String, Clause) -> (ClosedTerm, ClosedTerm)
+    toClosed defs (pname, MkClause env lhs rhs)
+          = (close env pname lhs, close env pname rhs)
 

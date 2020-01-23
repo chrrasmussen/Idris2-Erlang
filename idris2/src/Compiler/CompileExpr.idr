@@ -182,7 +182,7 @@ mutual
             if t == 0
                then pure $ CPrimVal fc c
                else pure $ CCon fc (UN (show c)) t []
-  toCExpTm tags n (Erased fc) = pure $ CErased fc
+  toCExpTm tags n (Erased fc _) = pure $ CErased fc
   toCExpTm tags n (TType fc) = pure $ CCon fc (UN "Type") 2 []
 
   toCExp : {auto c : Ref Ctxt Defs} ->
@@ -297,7 +297,7 @@ nfToCFType (NPrimVal _ WorldType) = pure CFWorld
 nfToCFType (NBind fc _ (Pi _ _ ty) sc)
     = do defs <- get Ctxt
          sty <- nfToCFType ty
-         sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+         sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
          tty <- nfToCFType sc'
          pure (CFFun sty tty)
 nfToCFType (NTCon fc n _ _ args)
@@ -321,7 +321,7 @@ getCFTypes : {auto c : Ref Ctxt Defs} ->
 getCFTypes args (NBind fc _ (Pi _ _ ty) sc)
     = do aty <- nfToCFType ty
          defs <- get Ctxt
-         sc' <- sc defs (toClosure defaultOpts [] (Erased fc))
+         sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
          getCFTypes (aty :: args) sc'
 getCFTypes args t
     = pure (reverse args, !(nfToCFType t))
@@ -359,7 +359,7 @@ toCDef tags n ty (Builtin {arity} op)
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
 toCDef tags n _ (DCon tag arity)
     = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
-toCDef tags n _ (TCon tag arity _ _ _ _ _)
+toCDef tags n _ (TCon tag arity _ _ _ _ _ _)
     = pure $ MkCon (fromMaybe tag $ lookup n tags) arity
 -- We do want to be able to compile these, but also report an error at run time
 -- (and, TODO: warn at compile time)

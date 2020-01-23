@@ -89,6 +89,9 @@ mutual
        -- A stream range [x,y..]
        PRangeStream : FC -> PTerm -> Maybe PTerm -> PTerm
 
+       -- Debugging
+       PUnifyLog : FC -> PTerm -> PTerm
+
        -- TODO: Ranges, idiom brackets (?),
        -- 'with' disambiguation
 
@@ -249,6 +252,12 @@ data REPLEval : Type where
      NormaliseAll : REPLEval -- Normalise everything (default)
      Execute : REPLEval -- Evaluate then pass to an executer
 
+export
+Show REPLEval where
+  show EvalTC = "typecheck"
+  show NormaliseAll = "normalise"
+  show Execute = "execute"
+
 public export
 data REPLOpt : Type where
      ShowImplicits : Bool -> REPLOpt
@@ -258,6 +267,17 @@ data REPLOpt : Type where
      Editor : String -> REPLOpt
      CG : String -> REPLOpt
      CGOptions : String -> REPLOpt
+
+export
+Show REPLOpt where
+  show (ShowImplicits impl) = "showimplicits = " ++ show impl
+  show (ShowNamespace ns) = "shownamespace = " ++ show ns
+  show (ShowTypes typs) = "showtypes = " ++ show typs
+  show (EvalMode mod) = "eval = " ++ show mod
+  show (Editor editor) = "editor = " ++ show editor
+  show (CG str) = "cg = " ++ str
+  show (CGOptions args) = "cgopt = " ++ args
+
 
 public export
 data EditCmd : Type where
@@ -283,6 +303,7 @@ data REPLCmd : Type where
      ProofSearch : Name -> REPLCmd
      DebugInfo : Name -> REPLCmd
      SetOpt : REPLOpt -> REPLCmd
+     GetOpts : REPLCmd
      CD : String -> REPLCmd
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
@@ -452,6 +473,7 @@ mutual
         = "[" ++ showPrec d start ++ " .. ]"
     showPrec d (PRangeStream _ start (Just next))
         = "[" ++ showPrec d start ++ ", " ++ showPrec d next ++ " .. ]"
+    showPrec d (PUnifyLog _ tm) = showPrec d tm
 
 public export
 record IFaceInfo where
@@ -575,5 +597,3 @@ initSyntax
 -- A label for Syntax info in the global state
 export
 data Syn : Type where
-
-

@@ -30,6 +30,7 @@ import Yaffle.Main
 import YafflePaths
 
 %default covering
+%flag C "-g"
 
 findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
@@ -100,7 +101,7 @@ banner : String
 banner = "     ____    __     _         ___                                           \n" ++
          "    /  _/___/ /____(_)____   |__ \\                                          \n" ++
          "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion version ++ "\n" ++
-         "  _/ // /_/ / /  / (__  )   / __/      http://www.idris-lang.org            \n" ++
+         "  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           \n" ++
          " /___/\\__,_/_/  /_/____/   /____/                                           \n" ++
          "\n" ++
          "Welcome to Idris 2.  Enjoy yourself!"
@@ -146,7 +147,7 @@ stMain opts
                                    when (not $ noprelude session) $
                                      readPrelude
                       Just f => logTime "Loading main file" $
-                                   loadMainFile f
+                                   (loadMainFile f >>= displayErrors)
 
                  doRepl <- postOptions opts
                  if doRepl
@@ -174,6 +175,7 @@ stMain opts
                       -- exit with an error code if there was an error, otherwise
                       -- just exit
                     do ropts <- get ROpts
+                       showTimeRecord
                        case errorLine ropts of
                          Nothing => pure ()
                          Just _ => coreLift $ exit 1

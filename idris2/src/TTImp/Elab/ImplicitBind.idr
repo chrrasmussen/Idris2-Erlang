@@ -49,7 +49,7 @@ mutual
       = TDelay fc x (embedSub sub t) (embedSub sub y)
   embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
   embedSub sub (PrimVal fc c) = PrimVal fc c
-  embedSub sub (Erased fc) = Erased fc
+  embedSub sub (Erased fc i) = Erased fc i
   embedSub sub (TType fc) = TType fc
 
 -- Make a hole for an unbound implicit in the outer environment
@@ -75,7 +75,7 @@ mkOuterHole loc rig n topenv Nothing
     = do est <- get EST
          let sub = subEnv est
          let env = outerEnv est
-         nm <- genName "impty"
+         nm <- genName ("type_of_" ++ nameRoot n)
          ty <- metaVar loc Rig0 env nm (TType loc)
          log 10 $ "Made metavariable for type of " ++ show n ++ ": " ++ show nm
          put EST (addBindIfUnsolved nm rig Explicit topenv (embedSub sub ty) (TType loc) est)
@@ -204,7 +204,7 @@ swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
 swapVars (TDelay fc x ty tm) = TDelay fc x (swapVars ty) (swapVars tm)
 swapVars (TForce fc r tm) = TForce fc r (swapVars tm)
 swapVars (PrimVal fc c) = PrimVal fc c
-swapVars (Erased fc) = Erased fc
+swapVars (Erased fc i) = Erased fc i
 swapVars (TType fc) = TType fc
 
 -- Push an explicit pi binder as far into a term as it'll go. That is,
@@ -435,7 +435,6 @@ checkBindVar rig elabinfo nest env fc str topexp
                         PI _ => setInvertible fc n
                         _ => pure ()
                    log 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
-                   defs <- get Ctxt
                    est <- get EST
                    put EST (record { boundNames $= ((n, NameBinding rig Explicit tm exp) ::),
                                      toBind $= ((n, NameBinding rig Explicit tm bty) :: ) } est)
@@ -447,7 +446,6 @@ checkBindVar rig elabinfo nest env fc str topexp
                    combine (UN str) rig (bindingRig bty)
                    let tm = bindingTerm bty
                    let ty = bindingType bty
-                   defs <- get Ctxt
                    addNameType fc (UN str) env ty
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
   where

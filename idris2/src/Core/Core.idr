@@ -2,6 +2,7 @@ module Core.Core
 
 import Core.Env
 import Core.TT
+import Data.Vect
 import Parser.Support
 
 import public Control.Catchable
@@ -21,6 +22,7 @@ public export
 data CaseError = DifferingArgNumbers
                | DifferingTypes
                | MatchErased (vars ** (Env Term vars, Term vars))
+               | NotFullyApplied Name
                | UnknownType
 
 -- All possible errors, carrying a location
@@ -210,6 +212,8 @@ Show Error where
   show (CaseCompile fc n (MatchErased (_ ** (env, tm))))
       = show fc ++ ":Attempt to match on erased argument " ++ show tm ++
                    " in " ++ show n
+  show (CaseCompile fc n (NotFullyApplied c))
+      = show fc ++ ":Constructor " ++ show c ++ " is not fully applied"
   show (MatchTooSpecific fc env tm)
       = show fc ++ ":Can't match on " ++ show tm ++ " as it is has a polymorphic type"
   show (BadDotPattern fc env reason x y)
@@ -353,6 +357,10 @@ export %inline
 map : (a -> b) -> Core a -> Core b
 map f (MkCore a) = MkCore (map (map f) a)
 
+export %inline
+(<$>) : (a -> b) -> Core a -> Core b
+(<$>) f (MkCore a) = MkCore (map (map f) a)
+
 -- Monad (specialised)
 export %inline
 (>>=) : Core a -> (a -> Core b) -> Core b
@@ -394,6 +402,11 @@ traverse' f (x :: xs) acc
 export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
+
+export
+traverseVect : (a -> Core b) -> Vect n a -> Core (Vect n b)
+traverseVect f [] = pure []
+traverseVect f (x :: xs) = [| f x :: traverseVect f xs |]
 
 export
 traverseOpt : (a -> Core b) -> Maybe a -> Core (Maybe b)

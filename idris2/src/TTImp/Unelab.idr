@@ -72,7 +72,7 @@ mutual
 
       nthArg : FC -> Nat -> Term vars -> Term vars
       nthArg fc drop (App afc f a) = getNth drop (App afc f a)
-      nthArg fc drop tm = Erased fc
+      nthArg fc drop tm = Erased fc False
 
       mkClause : FC -> Nat ->
                  (vs ** (Env Term vs, Term vs, Term vs)) ->
@@ -136,11 +136,12 @@ mutual
            pure (IVar fc !(getFullName n), gnf env (embed ty))
   unelabTy' umode env (Meta fc n i args)
       = do defs <- get Ctxt
+           let mkn = nameRoot n
            Just ty <- lookupTyExact (Resolved i) (gamma defs)
                | Nothing => case umode of
                                  ImplicitHoles => pure (Implicit fc True, gErased fc)
-                                 _ => pure (IHole fc (nameRoot n), gErased fc)
-           pure (IHole fc (nameRoot n), gnf env (embed ty))
+                                 _ => pure (IHole fc mkn, gErased fc)
+           pure (IHole fc mkn, gnf env (embed ty))
   unelabTy' umode env (Bind fc x b sc)
       = do (sc', scty) <- unelabTy umode (b :: env) sc
            unelabBinder umode fc env x b sc sc' !(getTerm scty)
@@ -181,7 +182,7 @@ mutual
            defs <- get Ctxt
            pure (IForce fc tm', gErased fc)
   unelabTy' umode env (PrimVal fc c) = pure (IPrimVal fc c, gErased fc)
-  unelabTy' umode env (Erased fc) = pure (Implicit fc False, gErased fc)
+  unelabTy' umode env (Erased fc _) = pure (Implicit fc False, gErased fc)
   unelabTy' umode env (TType fc) = pure (IType fc, gType fc)
   unelabTy' umode _ tm
       = let fc = getLoc tm in
@@ -236,6 +237,21 @@ unelabNoPatvars env tm
 export
 unelab : {auto c : Ref Ctxt Defs} ->
          Env Term vars -> Term vars -> Core RawImp
+unelab env (Meta fc n i args)
+    = do let mkn = nameRoot n ++ showScope args
+         pure (IHole fc mkn)
+  where
+    toName : Term vars -> Maybe Name
+    toName (Local {name=UN n} _ _ _ _) = Just (UN n)
+    toName _ = Nothing
+
+    showNScope : List Name -> String
+    showNScope [] = "[no locals in scope]"
+    showNScope ns = "[locals in scope: " ++ showSep ", " (map show (nub ns)) ++ "]"
+
+    showScope : List (Term vars) -> String
+    showScope ts = " " ++ showNScope (mapMaybe toName ts)
+
 unelab env tm
     = do tm' <- unelabTy Full env tm
          pure $ fst tm'

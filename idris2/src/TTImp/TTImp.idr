@@ -92,6 +92,7 @@ mutual
        IType : FC -> RawImp
        IHole : FC -> String -> RawImp
 
+       IUnifyLog : FC -> RawImp -> RawImp
        -- An implicit value, solved by unification, but which will also be
        -- bound (either as a pattern variable or a type variable) if unsolved
        -- at the end of elaborator
@@ -155,6 +156,7 @@ mutual
       show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
+      show (IUnifyLog _ x) = "(%unifyLog " ++ show x ++ ")"
       show (IType fc) = "%type"
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
@@ -457,17 +459,17 @@ implicitsAs defs ns tm = setAs (map Just (ns ++ map UN (findIBinds tm))) tm
 
         findImps : List (Maybe Name) -> NF [] -> Core (List (Name, PiInfo))
         findImps ns (NBind fc x (Pi _ Explicit _) sc)
-            = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
+            = findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         -- if the implicit was given, skip it
         findImps ns (NBind fc x (Pi _ AutoImplicit _) sc)
             = case updateNs x ns of
                    Nothing => -- didn't find explicit call
-                      pure $ (x, AutoImplicit) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
-                   Just ns' => findImps ns' !(sc defs (toClosure defaultOpts [] (Erased fc)))
+                      pure $ (x, AutoImplicit) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
+                   Just ns' => findImps ns' !(sc defs (toClosure defaultOpts [] (Erased fc False)))
         findImps ns (NBind fc x (Pi _ p _) sc)
             = if Just x `elem` ns
-                 then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc)))
-                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc))))
+                 then findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+                 else pure $ (x, p) :: !(findImps ns !(sc defs (toClosure defaultOpts [] (Erased fc False))))
         findImps _ _ = pure []
 
         impAs : FC -> List (Name, PiInfo) -> RawImp -> RawImp
@@ -525,6 +527,7 @@ getFC (IRewrite x _ _) = x
 getFC (ICoerced x _) = x
 getFC (IPrimVal x _) = x
 getFC (IHole x _) = x
+getFC (IUnifyLog x _) = x
 getFC (IType x) = x
 getFC (IBindVar x _) = x
 getFC (IBindHere x _ _) = x
@@ -619,6 +622,7 @@ mutual
         = do tag 26; toBuf b fc
     toBuf b (IHole fc y)
         = do tag 27; toBuf b fc; toBuf b y
+    toBuf b (IUnifyLog fc x) = toBuf b x
 
     toBuf b (Implicit fc i)
         = do tag 28; toBuf b fc; toBuf b i
