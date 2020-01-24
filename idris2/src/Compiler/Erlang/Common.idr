@@ -42,6 +42,7 @@ genName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 genName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
 genName (Resolved i) = "fn--" ++ show i
 
+export
 moduleNameFromNS : List String -> String
 moduleNameFromNS ns = showSep "." ("Idris" :: reverse ns)
 
@@ -853,20 +854,18 @@ genArglist [] = ""
 genArglist [x] = x
 genArglist (x :: xs) = x ++ ", " ++ genArglist xs
 
-genDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core (Maybe (String, String))
+genDef : {auto c : Ref Ctxt Defs} -> Name -> CDef -> Core (Maybe (Namespace, String))
 genDef name (MkFun args exp) = do
   let vs = initSVars args
   n <- getFullName name
-  let inNs = Just (getNamespace n)
-  let modName = genModuleName n
-  let def = genFunctionDefName n ++ "(" ++ genArglist vs ++ ") -> " ++ !(genExp inNs 0 vs exp) ++ ".\n"
-  pure $ Just (modName, def)
+  let ns = getNamespace n
+  let def = genFunctionDefName n ++ "(" ++ genArglist vs ++ ") -> " ++ !(genExp (Just ns) 0 vs exp) ++ ".\n"
+  pure $ Just (ns, def)
 genDef name (MkError exp) = do
   n <- getFullName name
-  let inNs = Just (getNamespace n)
-  let modName = genModuleName n
-  let def = genFunctionDefName n ++ "() -> " ++ !(genExp inNs 0 [] exp) ++ ".\n"
-  pure $ Just (modName, def)
+  let ns = getNamespace n
+  let def = genFunctionDefName n ++ "() -> " ++ !(genExp (Just ns) 0 [] exp) ++ ".\n"
+  pure $ Just (ns, def)
 genDef name (MkForeign _ _ _) =
   pure Nothing -- compiled by specific back end
 genDef name (MkCon t a) =
@@ -921,7 +920,7 @@ getCompileExpr defs name = do
 -- Convert the name to Erlang code
 -- (There may be no code generated, for example if it's a constructor)
 export
-genErlang : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core (Maybe (String, String))
+genErlang : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core (Maybe (Namespace, String))
 genErlang defs name = do
   expr <- getCompileExpr defs name
   genDef name expr

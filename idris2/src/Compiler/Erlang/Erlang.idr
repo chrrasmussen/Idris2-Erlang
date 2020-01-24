@@ -75,20 +75,40 @@ groupBy p list@(x :: xs) =
   let (matches, remaining) = partition (p x) list
   in matches :: groupBy p (assert_smaller list remaining)
 
-defsPerModule : List (String, String) -> List (String, List String)
+defsPerModule : List (Namespace, String) -> List (Namespace, List String)
 defsPerModule defs =
-  let modules = groupBy (\(modName1, _), (modName2, _) => modName1 == modName2) defs
+  let modules = groupBy (\(ns1, _), (ns2, _) => ns1 == ns2) defs
   in mapMaybe extractModuleName modules
     where
-      extractModuleName : List (String, String) -> Maybe (String, List String)
+      extractModuleName : List (Namespace, String) -> Maybe (Namespace, List String)
       extractModuleName defsInModule =
         case map fst (head' defsInModule) of
           Nothing => Nothing
-          Just modName => Just (modName, map snd defsInModule)
+          Just ns => Just (ns, map snd defsInModule)
 
-generateErlangModule : Ref Ctxt Defs -> String -> (String, List String) -> Core ()
-generateErlangModule c targetDir (moduleName, defs) = do
-  let scm = header moduleName ExcludeMain ++ concat defs ++ "\n"
+genExports : Defs -> Maybe Name -> Core (String, String)
+genExports _ Nothing = pure ("", "")
+genExports defs (Just n) = genErlangExports defs n
+
+parseExport : String -> Maybe String
+parseExport directive = parseExport' (words directive)
+  where
+    parseExport' : List String -> Maybe String
+    parseExport' ("export" :: exportsFuncStr :: _) = Just exportsFuncStr
+    parseExport' _ = Nothing
+
+getExportsDirective : List (Namespace, String) -> Namespace -> Maybe Name
+getExportsDirective ds targetNs = do
+  let onlyRelevantDs = filter ((== targetNs) . fst) ds
+  exportsFuncName <- head' (mapMaybe (parseExport . snd) onlyRelevantDs)
+  pure (NS targetNs (UN exportsFuncName))
+
+generateErlangModule : Defs -> List (Namespace, String) -> String -> (Namespace, List String) -> Core ()
+generateErlangModule defs ds targetDir (ns, funcDecls) = do
+  let exportsFuncName = getExportsDirective ds ns
+  (exportDirectives, exportFuncs) <- genExports defs exportsFuncName
+  let moduleName = moduleNameFromNS ns
+  let scm = header moduleName ExcludeMain ++ exportDirectives ++ concat funcDecls ++ exportFuncs ++ "\n"
   let outfile = targetDir ++ dirSep ++ moduleName ++ ".erl"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
@@ -102,28 +122,25 @@ compileToErlangExecutable (MkOpts moduleName) c tm outdir = do
   compdefs <- traverse (genErlang defs) names
   let validCompdefs = mapMaybe id compdefs
   let modules = defsPerModule validCompdefs
-  traverse_ (generateErlangModule c outdir) modules
+  ds <- getDirectives Erlang
+  traverse_ (generateErlangModule defs ds outdir) modules
   main <- genExp Nothing 0 [] !(CompileExpr.compileExp tags tm)
   let scm = header moduleName IncludeMain ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
   Right () <- coreLift $ writeFile outfile scm
     | Left err => throw (FileErr outfile err)
-  pure (moduleName :: map fst modules)
+  pure (moduleName :: map (moduleNameFromNS . fst) modules)
 
 compileToErlangLibrary : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : String) -> (outfile : String) -> Core (List String)
 compileToErlangLibrary (MkOpts moduleName) c tm libEntrypoint outdir = do
   let outfile = outdir ++ dirSep ++ moduleName ++ ".erl"
   (names, tags) <- findAllNames tm
   defs <- get Ctxt
-  let exportsFuncName = NS (currentNS defs) (UN libEntrypoint)
-  (exportDirectives, exportFuncs) <- genErlangExports defs exportsFuncName
   compdefs <- traverse (genErlang defs) names
   let validCompdefs = mapMaybe id compdefs
   let modules = defsPerModule validCompdefs
-  traverse_ (generateErlangModule c outdir) modules
-  let scm = header moduleName ExcludeMain ++ exportDirectives ++ exportFuncs ++ "\n"
-  Right () <- coreLift $ writeFile outfile scm
-    | Left err => throw (FileErr outfile err)
-  pure (moduleName :: map fst modules)
+  ds <- getDirectives Erlang
+  traverse_ (generateErlangModule defs ds outdir) modules
+  pure (map (moduleNameFromNS . fst) modules)
 
 compileToErlang : Opts -> Ref Ctxt Defs -> ClosedTerm -> (libEntrypoint : Maybe String) -> (outfile : String) -> Core (List String)
 compileToErlang opts c tm libEntrypoint outdir =
