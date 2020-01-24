@@ -438,15 +438,8 @@ genLib : {auto c : Ref Ctxt Defs} ->
          {auto m : Ref MD Metadata} ->
          String -> String -> Core REPLResult
 genLib outfile libEntrypoint = do
-  let entrypointTerm = PRef replFC (UN libEntrypoint)
-  -- NOTE: Make sure `unsafePerformIO` is generated.
-  -- It may be inserted by the codegen and may not be referenced from the user's code.
-  let unsafePerformIOWorkaroundTerm = PApp replFC (PRef replFC (UN "unsafePerformIO")) (PApp replFC (PRef replFC (UN "io_pure")) entrypointTerm)
-  ttimp <- desugar AnyExpr [] unsafePerformIOWorkaroundTerm
-  inidx <- resolveName (UN "[input]")
-  (tm, ty) <- elabTerm inidx InExpr [] (MkNested []) [] ttimp Nothing
-  tm_erased <- linearCheck replFC Rig1 True [] tm
-  ok <- compile !findCG tm_erased outfile
+  let dummyTerm = PrimVal replFC (I 0)
+  ok <- compile !findCG dummyTerm outfile
   maybe (pure CompilationFailed)
         (pure . Compiled)
         ok
