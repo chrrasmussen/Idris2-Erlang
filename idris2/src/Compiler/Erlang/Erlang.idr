@@ -162,11 +162,54 @@ namespace MainEntrypoint
         generateBeam tm outdir modName
         pure ()
 
+
 namespace Library
+  isExported : Visibility -> Bool
+  isExported Public = True
+  isExported Export = True
+  isExported Private = False
+
+  exportedName : (Name, Maybe GlobalDef) -> Maybe Name
+  exportedName (n, Just gd) = if isExported (visibility gd)
+    then Just n
+    else Nothing
+  exportedName _ = Nothing
+
+  -- Find all the exported names in namespace, and compile them to CExp form (and update that in the Defs)
+  findExportedNames : {auto c : Ref Ctxt Defs} -> (Name -> Bool) -> List Name -> Core (List Name, NameTags)
+  findExportedNames shouldCompileName extraNames = do
+      defs <- get Ctxt
+      let cns = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
+      cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) cns
+      let visibleCns = mapMaybe exportedName cnsWithGlobalDef
+      natHackNames' <- traverse toResolvedNames natHackNames
+      allNs <- getAllDesc (natHackNames' ++ visibleCns ++ extraNames) empty defs
+      allCns' <- traverse toFullNames (keys allNs)
+      let allCns = nub (filter skipUnusedNames allCns')
+      -- Initialise the type constructor list with explicit names for
+      -- the primitives (this is how we look up the tags)
+      -- Use '1' for '->' constructor
+      let tyconInit = insert (UN "->") 1 $
+        insert (UN "Type") 2 $
+        primTags 3 empty [IntType, IntegerType, StringType, CharType, DoubleType, WorldType]
+      tycontags <- mkNameTags defs tyconInit 100 allCns
+      traverse_ (compileDef tycontags) allCns
+      traverse_ inlineDef allCns
+      pure (allCns, tycontags)
+    where
+      primTags : Int -> NameTags -> List Constant -> NameTags
+      primTags t tags [] = tags
+      primTags t tags (c :: cs) = primTags (t + 1) (insert (UN (show c)) t tags) cs
+      skipUnusedNames : Name -> Bool
+      skipUnusedNames (NS _ n) = skipUnusedNames n
+      skipUnusedNames (MN _ _) = False
+      skipUnusedNames (Resolved _) = False
+      skipUnusedNames _ = True
+
   -- TODO: Add error handling
   generateErl : {auto c : Ref Ctxt Defs} -> (outdir : String) -> Core (List String)
   generateErl outdir = do
-    (names, tags) <- findAllNames
+    (names, tags) <- findExportedNames
     defs <- get Ctxt
     compdefs <- traverse (genErlang defs) names
     let validCompdefs = mapMaybe id compdefs

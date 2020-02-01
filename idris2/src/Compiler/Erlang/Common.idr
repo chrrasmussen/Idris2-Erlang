@@ -27,6 +27,7 @@ escapeAtomChars s = concatMap okchar (unpack s)
     okchar '\'' = "\\'"
     okchar c = cast c
 
+export
 getNamespace : Name -> List String
 getNamespace (NS ns _) = ns
 getNamespace n = []

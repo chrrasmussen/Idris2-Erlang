@@ -10,7 +10,6 @@ import Core.TT
 import Utils.Binary
 
 import Data.NameMap
-import Data.IOArray
 
 import System.Info
 
@@ -51,6 +50,7 @@ execute : {auto c : Ref Ctxt Defs} ->
 execute {c} cg = executeExpr cg c
 
 -- ||| Recursively get all calls in a function definition
+export
 getAllDesc : List Name -> -- calls to check
              NameMap () ->  -- all descendants so far
              Defs -> Core (NameMap ())
@@ -68,6 +68,7 @@ getAllDesc (n :: rest) ns defs
 
 -- Calculate a unique tag for each type constructor name we're compiling
 -- This is so that type constructor names get globally unique tags
+export
 mkNameTags : Defs -> NameTags -> Int -> List Name -> Core NameTags
 mkNameTags defs tags t [] = pure tags
 mkNameTags defs tags t (n :: ns)
@@ -76,6 +77,7 @@ mkNameTags defs tags t (n :: ns)
               => mkNameTags defs (insert n t tags) (t + 1) ns
            _ => mkNameTags defs tags t ns
 
+export
 natHackNames : List Name
 natHackNames
     = [UN "prim__add_Integer",
@@ -112,37 +114,6 @@ findUsedNames tm
     primTags t tags [] = tags
     primTags t tags (c :: cs)
         = primTags (t + 1) (insert (UN (show c)) t tags) cs
-
--- Find all the names, and compile them to CExp form (and update that in the Defs)
-export
-findAllNames : {auto c : Ref Ctxt Defs} -> Core (List Name, NameTags)
-findAllNames
-    = do defs <- get Ctxt
-         let cns = filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
-         -- Initialise the type constructor list with explicit names for
-         -- the primitives (this is how we look up the tags)
-         -- Use '1' for '->' constructor
-         let tyconInit = insert (UN "->") 1 $
-                         insert (UN "Type") 2 $
-                            primTags 3 empty
-                                     [IntType, IntegerType, StringType,
-                                      CharType, DoubleType, WorldType]
-         tycontags <- mkNameTags defs tyconInit 100 cns
-         traverse_ (compileDef tycontags) cns
-         traverse_ inlineDef cns
-         pure (cns, tycontags)
-  where
-    primTags : Int -> NameTags -> List Constant -> NameTags
-    primTags t tags [] = tags
-    primTags t tags (c :: cs)
-        = primTags (t + 1) (insert (UN (show c)) t tags) cs
-    skipUnusedNames : Name -> Bool
-    skipUnusedNames (NS _ n) = skipUnusedNames n
-    skipUnusedNames (UN "[input]") = False
-    skipUnusedNames (MN _ _) = False
-    skipUnusedNames (Resolved _) = False
-    skipUnusedNames _ = True
-
 
 -- Some things missing from Prelude.File
 
