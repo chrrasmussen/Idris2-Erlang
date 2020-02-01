@@ -76,7 +76,7 @@ impossibleErrOK defs (CantSolveEq fc env l r)
          logTerm 10 "    ...and" !(normalise defs env r)
          impossibleOK defs !(nf defs env l)
                            !(nf defs env r)
-impossibleErrOK defs (BadDotPattern _ _ "Erased argument" _ _) = pure True
+impossibleErrOK defs (BadDotPattern _ _ ErasedArg _ _) = pure True
 impossibleErrOK defs (CyclicMeta _ _) = pure True
 impossibleErrOK defs (AllFailed errs)
     = anyM (impossibleErrOK defs) (map snd errs)
@@ -218,10 +218,10 @@ checkLHS : {vars : _} ->
 checkLHS {vars} mult hashit n opts nest env fc lhs_in
     = do defs <- get Ctxt
          lhs_raw <- lhsInCurrentNS nest lhs_in
-         autoimp <- isAutoImplicits
-         autoImplicits True
+         autoimp <- isUnboundImplicits
+         setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
-         autoImplicits autoimp
+         setUnboundImplicits autoimp
          lhs <- implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
@@ -309,10 +309,10 @@ hasEmptyPat defs env _ = pure False
 -- For checking with blocks as nested names
 applyEnv : {auto c : Ref Ctxt Defs} ->
            Env Term vars -> Name ->
-           Core (Name, (Maybe Name, FC -> NameType -> Term vars))
+           Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vars))
 applyEnv env withname
     = do n' <- resolveName withname
-         pure (withname, (Just withname,
+         pure (withname, (Just withname, lengthNoLet env,
                   \fc, nt => applyTo fc
                          (Ref fc nt (Resolved n')) env))
 
@@ -334,10 +334,10 @@ checkClause : {vars : _} ->
 checkClause mult hashit n opts nest env (ImpossibleClause fc lhs)
     = do lhs_raw <- lhsInCurrentNS nest lhs
          handleUnify
-           (do autoimp <- isAutoImplicits
-               autoImplicits True
+           (do autoimp <- isUnboundImplicits
+               setUnboundImplicits True
                (_, lhs) <- bindNames False lhs_raw
-               autoImplicits autoimp
+               setUnboundImplicits autoimp
 
                log 5 $ "Checking " ++ show lhs
                logEnv 5 "In env" env

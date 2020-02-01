@@ -36,7 +36,7 @@ processParams {vars} {c} {m} {u} nest env fc ps ds
          -- then read off the environment from the elaborated type. This way
          -- we'll get all the implicit names we need
          let pty_raw = mkParamTy ps
-         pty_imp <- bindTypeNames vars (IBindHere fc (PI Rig0) pty_raw)
+         pty_imp <- bindTypeNames [] vars (IBindHere fc (PI Rig0) pty_raw)
          log 10 $ "Checking " ++ show pty_imp
          pty <- checkTerm (-1) InType []
                           nest env pty_imp (gType fc)
@@ -57,9 +57,9 @@ processParams {vars} {c} {m} {u} nest env fc ps ds
        = IPi fc RigW Explicit (Just n) ty (mkParamTy ps)
 
     applyEnv : Env Term vs -> Name ->
-               Core (Name, (Maybe Name, FC -> NameType -> Term vs))
+               Core (Name, (Maybe Name, Nat, FC -> NameType -> Term vs))
     applyEnv env n
           = do n' <- resolveName n -- it'll be Resolved by expandAmbigName
-               pure (Resolved n', (Nothing,
+               pure (Resolved n', (Nothing, lengthNoLet env,
                         \fc, nt => applyTo fc
                                (Ref fc nt (Resolved n')) env))

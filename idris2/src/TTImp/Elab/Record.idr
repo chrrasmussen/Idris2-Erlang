@@ -10,6 +10,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.Elab.Check
+import TTImp.Elab.Delayed
 import TTImp.TTImp
 
 %default covering
@@ -158,6 +159,15 @@ recUpdate rigc elabinfo loc nest env flds rec grecty
     mkClause : Rec -> ImpClause
     mkClause rec = PatClause loc (toLHS loc rec) (toRHS loc rec)
 
+needType : Error -> Bool
+needType (RecordTypeNeeded _ _) = True
+needType (InType _ _ err) = needType err
+needType (InCon _ _ err) = needType err
+needType (InLHS _ _ err) = needType err
+needType (InRHS _ _ err) = needType err
+needType (WhenUnifying _ _ _ _ err) = needType err
+needType _ = False
+
 export
 checkUpdate : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -174,6 +184,19 @@ checkUpdate rig elabinfo nest env fc upds rec expected
                        _ => do (_, ty) <- checkImp rig elabinfo
                                                    nest env rec Nothing
                                pure ty
-         rcase <- recUpdate rig elabinfo fc nest env upds rec recty
-         log 5 $ "Record update: " ++ show rcase
-         check rig elabinfo nest env rcase expected
+         let solvemode = case elabMode elabinfo of
+                              InLHS c => InLHS
+                              _ => InTerm
+         delayOnFailure fc rig env recty needType $
+           \delayed =>
+             do solveConstraints solvemode Normal
+                exp <- getTerm recty
+                -- We can't just use the old NF on the second attempt,
+                -- because we might know more now, so recalculate it
+                let recty' = if delayed
+                                then gnf env exp
+                                else recty
+                logGlueNF 5 (show delayed ++ " record type " ++ show rec) env recty'
+                rcase <- recUpdate rig elabinfo fc nest env upds rec recty'
+                log 5 $ "Record update: " ++ show rcase
+                check rig elabinfo nest env rcase expected

@@ -11,6 +11,8 @@ import Core.TT
 import Data.List
 import Data.Vect
 
+import System.Info
+
 %default covering
 
 export
@@ -88,6 +90,9 @@ schOp (Mod ty) [x, y] = op "remainder" [x, y]
 schOp (Neg ty) [x] = op "-" [x]
 schOp (ShiftL ty) [x, y] = op "blodwen-shl" [x, y]
 schOp (ShiftR ty) [x, y] = op "blodwen-shr" [x, y]
+schOp (BAnd ty) [x, y] = op "blodwen-and" [x, y]
+schOp (BOr ty) [x, y] = op "blodwen-or" [x, y]
+schOp (BXOr ty) [x, y] = op "blodwen-xor" [x, y]
 schOp (LT CharType) [x, y] = boolop "char<?" [x, y]
 schOp (LTE CharType) [x, y] = boolop "char<=?" [x, y]
 schOp (EQ CharType) [x, y] = boolop "char=?" [x, y]
@@ -155,8 +160,11 @@ public export
 data ExtPrim = CCall | SchemeCall | PutStr | GetStr
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
+             | NewArray | ArrayGet | ArraySet
              | Stdin | Stdout | Stderr
-             | VoidElim | Unknown Name
+             | VoidElim
+             | SysOS | SysCodegen
+             | Unknown Name
 
 export
 Show ExtPrim where
@@ -172,10 +180,15 @@ Show ExtPrim where
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
+  show NewArray = "NewArray"
+  show ArrayGet = "ArrayGet"
+  show ArraySet = "ArraySet"
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
   show VoidElim = "VoidElim"
+  show SysOS = "SysOS"
+  show SysCodegen = "SysCodegen"
   show (Unknown n) = "Unknown " ++ show n
 
 ||| Match on a user given name to get the scheme primitive
@@ -193,10 +206,15 @@ toPrim pn@(NS _ n)
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
+            (n == UN "prim__newArray", NewArray),
+            (n == UN "prim__arrayGet", ArrayGet),
+            (n == UN "prim__arraySet", ArraySet),
             (n == UN "prim__stdin", Stdin),
             (n == UN "prim__stdout", Stdout),
             (n == UN "prim__stderr", Stderr),
-            (n == UN "void", VoidElim)
+            (n == UN "void", VoidElim),
+            (n == UN "prim__os", SysOS),
+            (n == UN "prim__codegen", SysCodegen)
             ]
            (Unknown pn)
 toPrim pn = Unknown pn
@@ -341,8 +359,20 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = pure $ mkWorld $ "(set-box! "
                            ++ !(schExp i vs ref) ++ " "
                            ++ !(schExp i vs val) ++ ")"
+  schExtCommon i vs NewArray [_, size, val, world]
+      = pure $ mkWorld $ "(make-vector " ++ !(schExp i vs size) ++ " "
+                                         ++ !(schExp i vs val) ++ ")"
+  schExtCommon i vs ArrayGet [_, arr, pos, world]
+      = pure $ mkWorld $ "(vector-ref " ++ !(schExp i vs arr) ++ " "
+                                        ++ !(schExp i vs pos) ++ ")"
+  schExtCommon i vs ArraySet [_, arr, pos, val, world]
+      = pure $ mkWorld $ "(vector-set! " ++ !(schExp i vs arr) ++ " "
+                                         ++ !(schExp i vs pos) ++ " "
+                                         ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs VoidElim [_, _]
       = pure "(display \"Error: Executed 'void'\")"
+  schExtCommon i vs SysOS []
+      = pure $ show os
   schExtCommon i vs (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   schExtCommon i vs Stdin [] = pure "(current-input-port)"

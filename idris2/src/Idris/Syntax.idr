@@ -77,6 +77,8 @@ mutual
        -- Syntactic sugar
 
        PDoBlock : FC -> List PDo -> PTerm
+       PBang : FC -> PTerm -> PTerm
+       PIdiom : FC -> PTerm -> PTerm
        PList : FC -> List PTerm -> PTerm
        PPair : FC -> PTerm -> PTerm -> PTerm
        PDPair : FC -> PTerm -> PTerm -> PTerm -> PTerm
@@ -92,8 +94,7 @@ mutual
        -- Debugging
        PUnifyLog : FC -> PTerm -> PTerm
 
-       -- TODO: Ranges, idiom brackets (?),
-       -- 'with' disambiguation
+       -- TODO: 'with' disambiguation
 
   public export
   data PFieldUpdate : Type where
@@ -105,8 +106,8 @@ mutual
        DoExp : FC -> PTerm -> PDo
        DoBind : FC -> Name -> PTerm -> PDo
        DoBindPat : FC -> PTerm -> PTerm -> List PClause -> PDo
-       DoLet : FC -> Name -> RigCount -> PTerm -> PDo
-       DoLetPat : FC -> PTerm -> PTerm -> List PClause -> PDo
+       DoLet : FC -> Name -> RigCount -> PTerm -> PTerm -> PDo
+       DoLetPat : FC -> PTerm -> PTerm -> PTerm -> List PClause -> PDo
        DoLetLocal : FC -> List PDecl -> PDo
        DoRewrite : FC -> PTerm -> PDo
 
@@ -115,8 +116,8 @@ mutual
   getLoc (DoExp fc _) = fc
   getLoc (DoBind fc _ _) = fc
   getLoc (DoBindPat fc _ _ _) = fc
-  getLoc (DoLet fc _ _ _) = fc
-  getLoc (DoLetPat fc _ _ _) = fc
+  getLoc (DoLet fc _ _ _ _) = fc
+  getLoc (DoLetPat fc _ _ _ _) = fc
   getLoc (DoLetLocal fc _) = fc
   getLoc (DoRewrite fc _) = fc
 
@@ -149,6 +150,7 @@ mutual
        Hide : Name -> Directive
        Logging : Nat -> Directive
        LazyOn : Bool -> Directive
+       UnboundImplicits : Bool -> Directive
        PairNames : Name -> Name -> Name -> Directive
        RewriteName : Name -> Name -> Directive
        PrimInteger : Name -> Directive
@@ -195,6 +197,7 @@ mutual
        PDef : FC -> List PClause -> PDecl
        PData : FC -> Visibility -> PDataDecl -> PDecl
        PParameters : FC -> List (Name, PTerm) -> List PDecl -> PDecl
+       PUsing : FC -> List (Maybe Name, PTerm) -> List PDecl -> PDecl
        PReflect : FC -> PTerm -> PDecl
        PInterface : FC ->
                     Visibility ->
@@ -243,6 +246,7 @@ definedIn [] = []
 definedIn (PClaim _ _ _ _ (MkPTy _ n _) :: ds) = n :: definedIn ds
 definedIn (PData _ _ d :: ds) = definedInData d ++ definedIn ds
 definedIn (PParameters _ _ pds :: ds) = definedIn pds ++ definedIn ds
+definedIn (PUsing _ _ pds :: ds) = definedIn pds ++ definedIn ds
 definedIn (PNamespace _ _ ns :: ds) = definedIn ns ++ definedIn ds
 definedIn (_ :: ds) = definedIn ds
 
@@ -346,8 +350,8 @@ mutual
   showDo (DoBind _ n tm) = show n ++ " <- " ++ show tm
   showDo (DoBindPat _ l tm alts)
       = show l ++ " <- " ++ show tm ++ concatMap showAlt alts
-  showDo (DoLet _ l rig tm) = "let " ++ show l ++ " = " ++ show tm
-  showDo (DoLetPat _ l tm alts)
+  showDo (DoLet _ l rig _ tm) = "let " ++ show l ++ " = " ++ show tm
+  showDo (DoLetPat _ l _ tm alts)
       = "let " ++ show l ++ " = " ++ show tm ++ concatMap showAlt alts
   showDo (DoLetLocal _ ds)
       -- We'll never see this when displaying a normal form...
@@ -441,6 +445,8 @@ mutual
     showPrec d (PBracketed _ tm) = "(" ++ showPrec d tm ++ ")"
     showPrec d (PDoBlock _ ds)
         = "do " ++ showSep " ; " (map showDo ds)
+    showPrec d (PBang _ tm) = "!" ++ showPrec d tm
+    showPrec d (PIdiom _ tm) = "[|" ++ showPrec d tm ++ "|]"
     showPrec d (PList _ xs)
         = "[" ++ showSep ", " (map (showPrec d) xs) ++ "]"
     showPrec d (PPair _ l r) = "(" ++ showPrec d l ++ ", " ++ showPrec d r ++ ")"
@@ -514,6 +520,7 @@ record SyntaxInfo where
   ifaces : ANameMap IFaceInfo
   bracketholes : List Name -- hole names in argument position (so need
                            -- to be bracketed when solved)
+  usingImpl : List (Maybe Name, RawImp)
   startExpr : RawImp
 
 export
@@ -547,7 +554,7 @@ TTC SyntaxInfo where
            bhs <- fromBuf b
            start <- fromBuf b
            pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs)
-                          bhs start)
+                          bhs [] start)
 
 HasNames IFaceInfo where
   full gam iface
@@ -591,6 +598,7 @@ initSyntax
     = MkSyntax (insert "=" (Infix, 0) empty)
                (insert "-" 10 empty)
                empty
+               []
                []
                (IVar (MkFC "(default)" (0, 0) (0, 0)) (UN "main"))
 

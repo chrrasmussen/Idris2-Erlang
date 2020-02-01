@@ -77,11 +77,12 @@ getVarType : {vars : _} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> NestedNames vars -> Env Term vars ->
              FC -> Name ->
-             Core (Term vars, Glued vars)
+             Core (Term vars, Nat, Glued vars)
 getVarType rigc nest env fc x
     = case lookup x (names nest) of
-           Nothing => getNameType rigc env fc x
-           Just (nestn, tmf) =>
+           Nothing => do (tm, ty) <- getNameType rigc env fc x
+                         pure (tm, 0, ty)
+           Just (nestn, arglen, tmf) =>
               do defs <- get Ctxt
                  let n' = maybe x id nestn
                  case !(lookupCtxtExact n' (gamma defs)) of
@@ -98,7 +99,7 @@ getVarType rigc nest env fc x
                              do checkVisibleNS fc (fullname ndef) (visibility ndef)
                                 logTerm 10 ("Type of " ++ show n') tyenv
                                 logTerm 10 ("Expands to") tm
-                                pure (tm, gnf env tyenv)
+                                pure (tm, arglen, gnf env tyenv)
     where
       useVars : List (Term vars) -> Term vars -> Term vars
       useVars [] sc = sc
@@ -283,7 +284,7 @@ mutual
                  Implicit _ _ => tm
                  IAs _ _ _ (IBindVar _ _) => tm
                  IAs _ _ _ (Implicit _ _) => tm
-                 _ => IMustUnify (getFC tm) "Erased argument" tm
+                 _ => IMustUnify (getFC tm) ErasedArg tm
   dotErased _ _ _ r tm = pure $ tm
 
   -- Check the rest of an application given the argument type and the
@@ -316,7 +317,7 @@ mutual
                    then pure True
                    else do sc' <- sc defs (toClosure defaultOpts env (Erased fc False))
                            concrete defs env sc'
-          if !(needsDelay (elabMode elabinfo) kr arg) then do
+          if !(needsDelay (elabMode elabinfo) kr arg_in) then do
              nm <- genMVName x
              empty <- clearDefs defs
              metaty <- quote empty env aty
@@ -524,7 +525,7 @@ checkApp rig elabinfo nest env fc (IApp fc' fn arg) expargs impargs exp
 checkApp rig elabinfo nest env fc (IImplicitApp fc' fn nm arg) expargs impargs exp
    = checkApp rig elabinfo nest env fc' fn expargs ((nm, arg) :: impargs) exp
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
-   = do (ntm, nty_in) <- getVarType rig nest env fc n
+   = do (ntm, arglen, nty_in) <- getVarType rig nest env fc n
         nty <- getNF nty_in
         elabinfo <- updateElabInfo (elabMode elabinfo) n expargs elabinfo
         logC 10 (do defs <- get Ctxt
@@ -534,11 +535,12 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs impargs exp
                                                  etynf <- normaliseHoles defs env ety
                                                  pure (Just !(toFullNames etynf)))
                                        exp
-                    pure ("Checking application of " ++ show !(getFullName n) ++
+                    pure ("Checking application of " ++ show !(getFullName n) ++ 
+                          " (" ++ show n ++ ")" ++
                           " to " ++ show expargs ++ "\n\tFunction type " ++
                           (show !(toFullNames fnty)) ++ "\n\tExpected app type "
                                 ++ show exptyt))
-        checkAppWith rig elabinfo nest env fc ntm nty (Just n, 0) expargs impargs False exp
+        checkAppWith rig elabinfo nest env fc ntm nty (Just n, arglen) expargs impargs False exp
   where
     isPrimName : List Name -> Name -> Bool
     isPrimName [] fn = False

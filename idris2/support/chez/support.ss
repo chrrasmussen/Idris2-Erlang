@@ -10,6 +10,9 @@
 
 (define blodwen-shl (lambda (x y) (ash x y)))
 (define blodwen-shr (lambda (x y) (ash x (- y))))
+(define blodwen-and (lambda (x y) (logand x y)))
+(define blodwen-or (lambda (x y) (logor x y)))
+(define blodwen-xor (lambda (x y) (logxor x y)))
 
 (define cast-num 
   (lambda (x) 
@@ -74,6 +77,9 @@
 (define (blodwen-buffer-getdouble buf loc)
   (bytevector-ieee-double-ref buf loc (native-endianness)))
 
+(define (blodwen-stringbytelen str)
+  (bytevector-length (string->utf8 str)))
+
 (define (blodwen-buffer-setstring buf loc val)
   (let* [(strvec (string->utf8 val))
          (len (bytevector-length strvec))]
@@ -84,9 +90,16 @@
     (bytevector-copy! buf loc newvec 0 len)
     (utf8->string newvec)))
 
-(define (blodwen-readbuffer h buf loc max)
+(define (blodwen-buffer-copydata buf start len dest loc)
+  (bytevector-copy! buf start dest loc len))
+
+(define (blodwen-readbuffer-bytes h buf loc max)
   (guard (x (#t -1))
     (get-bytevector-n! h buf loc max)))
+
+(define (blodwen-readbuffer h)
+  (guard (x (#t (bytevector)))
+    (get-bytevector-all h)))
 
 (define (blodwen-writebuffer h buf loc max)
   (guard (x (#t -1))
@@ -104,7 +117,7 @@
         ((i/o-write-error? x) 2)
         ((i/o-file-does-not-exist-error? x) 3)
         ((i/o-file-protection-error? x) 4)
-        (else (+ x 256))))
+        (else 255)))
 
 ;; If the file operation raises an error, catch it and return an appropriate
 ;; error code
@@ -143,10 +156,26 @@
             (string-append str "\n"))
         ""))
 
+(define (blodwen-file-size p)
+    (port-length p))
+
 (define (blodwen-eof p)
     (if (port-eof? p)
         1
         0))
+
+;; Directories
+
+(define (blodwen-current-directory)
+  (current-directory))
+
+(define (blodwen-change-directory dir)
+  (if (file-directory? dir)
+      (begin (current-directory dir) 1)
+      0))
+
+(define (blodwen-create-directory dir)
+  (blodwen-file-op (lambda () (mkdir dir) 0)))
 
 ;; Threads
 

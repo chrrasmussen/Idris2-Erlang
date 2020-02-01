@@ -25,7 +25,7 @@ checkDot : {vars : _} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo ->
            NestedNames vars -> Env Term vars ->
-           FC -> String -> RawImp -> Maybe (Glued vars) ->
+           FC -> DotReason -> RawImp -> Maybe (Glued vars) ->
            Core (Term vars, Glued vars)
 checkDot rig elabinfo nest env fc reason tm Nothing
     = throw (GenericMsg fc ("Dot pattern not valid here (unknown type) "
@@ -33,7 +33,7 @@ checkDot rig elabinfo nest env fc reason tm Nothing
 checkDot rig elabinfo nest env fc reason tm (Just gexpty)
     = case elabMode elabinfo of
         InLHS _ =>
-          do (wantedTm, wantedTy) <- checkImp rig
+          do (wantedTm, wantedTy) <- check rig
                                               (record { elabMode = InExpr }
                                                   elabinfo)
                                               nest env

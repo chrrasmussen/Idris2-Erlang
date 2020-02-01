@@ -85,7 +85,7 @@ public export
 record ElabDirectives where
   constructor MkElabDirectives
   lazyActive : Bool
-  autoImplicits : Bool
+  unboundImplicits : Bool
 
 public export
 record Session where

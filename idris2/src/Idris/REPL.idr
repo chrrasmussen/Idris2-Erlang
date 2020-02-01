@@ -1,7 +1,7 @@
 module Idris.REPL
 
 import Compiler.Scheme.Chez
-import Compiler.Scheme.Chicken
+-- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
 import Compiler.Common
 import Compiler.Erlang.Erlang
@@ -232,7 +232,8 @@ findCG
     = do defs <- get Ctxt
          case codegen (session (options defs)) of
               Chez => pure codegenChez
-              Chicken => pure codegenChicken
+              Chicken => throw (InternalError "Chicken CG not available")
+                         -- pure codegenChicken
               Racket => pure codegenRacket
               Erlang => pure codegenErlang
 
@@ -476,7 +477,7 @@ loadMainFile f
          Right res <- coreLift (readFile f)
             | Left err => do setSource ""
                              pure (ErrorLoadingFile f err)
-         errs <- buildDeps f
+         errs <- logTime "Build deps" $ buildDeps f
          updateErrorLine errs
          setSource res
          case errs of
@@ -767,7 +768,7 @@ mutual
   displayResult  (FoundHoles xs) = printResult $ show (length xs) ++ " holes: " ++
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
-  displayResult  (VersionIs x) = printResult $ showVersion x
+  displayResult  (VersionIs x) = printResult $ showVersion True x
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
   displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)

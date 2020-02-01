@@ -159,7 +159,8 @@ mutual
            arg <- implicitArg fname indents
            pure (ImpArg (fst arg) (snd arg))
     <|> if withOK q
-           then do symbol "|"
+           then do continue indents
+                   symbol "|"
                    arg <- expr (record { withOK = False} q) fname indents
                    pure (WithArg arg)
            else fail "| not allowed here"
@@ -346,6 +347,17 @@ mutual
            symbol "["
            listExpr fname start indents
     <|> do start <- location
+           symbol "!"
+           e <- simpleExpr fname indents
+           end <- location
+           pure (PBang (MkFC fname start end) e)
+    <|> do start <- location
+           symbol "[|"
+           e <- expr pdef fname indents
+           symbol "|]"
+           end <- location
+           pure (PIdiom (MkFC fname start end) e)
+    <|> do start <- location
            symbol "%"; exactIdent "unifyLog"
            e <- expr pdef fname indents
            end <- location
@@ -477,40 +489,44 @@ mutual
            = PLam fc rig Explicit pat ty (bindAll fc rest scope)
 
   letBinder : FileName -> IndentInfo ->
-              Rule (FilePos, FilePos, RigCount, PTerm, PTerm, List PClause)
+              Rule (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause)
   letBinder fname indents
       = do start <- location
            rigc <- multiplicity
            pat <- expr plhs fname indents
+           tyend <- location
+           ty <- option (PImplicit (MkFC fname start tyend))
+                        (do symbol ":"
+                            typeExpr (pnoeq pdef) fname indents)
            symbol "="
            val <- expr pnowith fname indents
            alts <- block (patAlt fname)
            end <- location
            rig <- getMult rigc
-           pure (start, end, rig, pat, val, alts)
+           pure (start, end, rig, pat, ty, val, alts)
 
   buildLets : FileName ->
-              List (FilePos, FilePos, RigCount, PTerm, PTerm, List PClause) ->
+              List (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause) ->
               PTerm -> PTerm
   buildLets fname [] sc = sc
-  buildLets fname ((start, end, rig, pat, val, alts) :: rest) sc
+  buildLets fname ((start, end, rig, pat, ty, val, alts) :: rest) sc
       = let fc = MkFC fname start end in
-            PLet fc rig pat (PImplicit fc) val
+            PLet fc rig pat ty val
                  (buildLets fname rest sc) alts
 
   buildDoLets : FileName ->
-                List (FilePos, FilePos, RigCount, PTerm, PTerm, List PClause) ->
+                List (FilePos, FilePos, RigCount, PTerm, PTerm, PTerm, List PClause) ->
                 List PDo
   buildDoLets fname [] = []
-  buildDoLets fname ((start, end, rig, PRef fc' (UN n), val, []) :: rest)
+  buildDoLets fname ((start, end, rig, PRef fc' (UN n), ty, val, []) :: rest)
       = let fc = MkFC fname start end in
             if lowerFirst n
-               then DoLet fc (UN n) rig val :: buildDoLets fname rest
-               else DoLetPat fc (PRef fc' (UN n)) val []
+               then DoLet fc (UN n) rig ty val :: buildDoLets fname rest
+               else DoLetPat fc (PRef fc' (UN n)) ty val []
                          :: buildDoLets fname rest
-  buildDoLets fname ((start, end, rig, pat, val, alts) :: rest)
+  buildDoLets fname ((start, end, rig, pat, ty, val, alts) :: rest)
       = let fc = MkFC fname start end in
-            DoLetPat fc pat val alts :: buildDoLets fname rest
+            DoLetPat fc pat ty val alts :: buildDoLets fname rest
 
   let_ : FileName -> IndentInfo -> Rule PTerm
   let_ fname indents
@@ -923,6 +939,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (LazyOn b)
+  <|> do exactIdent "unbound_implicits"
+         b <- onoff
+         atEnd indents
+         pure (UnboundImplicits b)
   <|> do exactIdent "pair"
          ty <- name
          f <- name
@@ -1010,6 +1030,24 @@ paramDecls fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
          pure (PParameters (MkFC fname start end) ps (collectDefs (concat ds)))
+
+usingDecls : FileName -> IndentInfo -> Rule PDecl
+usingDecls fname indents
+    = do start <- location
+         keyword "using"
+         commit
+         symbol "("
+         us <- sepBy (symbol ",")
+                     (do n <- option Nothing
+                                (do x <- unqualifiedName
+                                    symbol ":"
+                                    pure (Just (UN x)))
+                         ty <- typeExpr pdef fname indents
+                         pure (n, ty))
+         symbol ")"
+         ds <- assert_total (nonEmptyBlock (topDecl fname))
+         end <- location
+         pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
 
 fnOpt : Rule PFnOpt
 fnOpt
@@ -1259,6 +1297,8 @@ topDecl fname indents
   <|> do d <- mutualDecls fname indents
          pure [d]
   <|> do d <- paramDecls fname indents
+         pure [d]
+  <|> do d <- usingDecls fname indents
          pure [d]
   <|> do d <- directiveDecl fname indents
          pure [d]

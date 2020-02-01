@@ -347,11 +347,12 @@ record ElabInfo where
   constructor MkElabInfo
   elabMode : ElabMode
   implicitMode : BindMode
+  topLevel : Bool
   bindingVars : Bool
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False
+initElabInfo m = MkElabInfo m NONE False True
 
 export
 tryError : {vars : _} ->
@@ -531,17 +532,18 @@ convertWithLazy withLazy fc elabinfo env x y
                        InLHS _ => InLHS
                        _ => InTerm in
           catch
-            (do logGlueNF 5 "Unifying" env x
+            (do let lazy = !isLazyActive && withLazy
+                logGlueNF 5 "Unifying" env x
                 logGlueNF 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x
                                  ytm <- getTerm y
-                                 if withLazy
+                                 if lazy
                                     then unifyWithLazy umode fc env xtm ytm
                                     else unify umode fc env xtm ytm
                          else do xnf <- getNF x
                                  ynf <- getNF y
-                                 if withLazy
+                                 if lazy
                                     then unifyWithLazy umode fc env xnf ynf
                                     else unify umode fc env xnf ynf
                 when (holesSolved vs) $

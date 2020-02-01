@@ -7,15 +7,22 @@ data Buffer : Type where
      MkBuffer : AnyPtr -> (size : Int) -> (loc : Int) -> Buffer
 
 export
-newBuffer : Int -> IO Buffer
-newBuffer size
-    = do buf <- schemeCall AnyPtr "blodwen-new-buffer" [size]
-         pure (MkBuffer buf size 0)
-
-export
 rawSize : Buffer -> IO Int
 rawSize (MkBuffer buf _ _)
     = schemeCall Int "blodwen-buffer-size" [buf]
+
+export
+newBuffer : Int -> IO (Maybe Buffer)
+newBuffer size
+    = do buf <- schemeCall AnyPtr "blodwen-new-buffer" [size]
+         sz <- schemeCall Int "blodwen-buffer-size" [buf]
+         if sz == 0
+            then pure Nothing
+            else pure $ Just $ MkBuffer buf size 0
+
+export
+resetBuffer : Buffer -> Buffer
+resetBuffer (MkBuffer ptr s l) = MkBuffer ptr s 0
 
 export
 size : Buffer -> Int
@@ -52,6 +59,11 @@ getDouble : Buffer -> (loc : Int) -> IO Double
 getDouble (MkBuffer buf _ _) loc
     = schemeCall Double "blodwen-buffer-getdouble" [buf, loc]
 
+-- Get the length of a string in bytes, rather than characters
+export
+%foreign "scheme:blodwen-stringbytelen"
+stringByteLength : String -> Int
+
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
 setString (MkBuffer buf _ _) loc val
@@ -75,12 +87,29 @@ bufferData buf
              unpackTo (val :: acc) (loc - 1)
 
 export
+copyData : (src : Buffer) -> (start, len : Int) ->
+           (dest : Buffer) -> (loc : Int) -> IO ()
+copyData (MkBuffer src _ _) start len (MkBuffer dest _ _) loc
+    = schemeCall () "blodwen-buffer-copydata" [src,start,len,dest,loc]
+
+export
 readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) ->
                      IO (Either FileError Buffer)
 readBufferFromFile (FHandle h) (MkBuffer buf size loc) max
-    = do read <- schemeCall Int "blodwen-readbuffer" [h, buf, loc, max]
+    = do read <- schemeCall Int "blodwen-readbuffer-bytes" [h, buf, loc, max]
          if read >= 0
             then pure (Right (MkBuffer buf size (loc + read)))
+            else pure (Left FileReadError)
+
+-- Create a new buffer by reading all the contents from the given file
+-- Fails if no bytes can be read or buffer can't be created
+export
+createBufferFromFile : BinaryFile -> IO (Either FileError Buffer)
+createBufferFromFile (FHandle h)
+    = do buf <- schemeCall AnyPtr "blodwen-readbuffer" [h]
+         sz <- schemeCall Int "blodwen-buffer-size" [buf]
+         if sz >= 0
+            then pure (Right (MkBuffer buf sz sz))
             else pure (Left FileReadError)
 
 export
@@ -93,3 +122,15 @@ writeBufferToFile (FHandle h) (MkBuffer buf size loc) max
          if written == max'
             then pure (Right (MkBuffer buf size (loc + max')))
             else pure (Left FileWriteError)
+
+export
+resizeBuffer : Buffer -> Int -> IO (Maybe Buffer)
+resizeBuffer old newsize
+    = do Just buf <- newBuffer newsize
+              | Nothing => pure Nothing
+         -- If the new buffer is smaller than the old one, just copy what
+         -- fits
+         let oldsize = size old
+         let len = if newsize < oldsize then newsize else oldsize
+         copyData old 0 len buf 0
+         pure (Just buf)
