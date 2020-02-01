@@ -926,12 +926,12 @@ genErlang defs name = do
   genDef name expr
 
 export
-genErlangExports : Defs -> Name -> Core (String, String)
-genErlangExports defs name = do
+genErlangExports : Defs -> Maybe Namespace -> Name -> Core (String, String)
+genErlangExports defs inNs name = do
   MkFun args expr <- getCompileExpr defs name
     | throw (InternalError ("Expected function definition for " ++ show name)) 
   let vs = initSVars args
-  exports <- genExports Nothing 0 vs expr
+  exports <- genExports inNs 0 vs expr
   let exportDirectives = "-export([" ++ showSep ", " (map (\(name, arity, _) => name ++ "/" ++ show arity) exports) ++ "]).\n"
   let exportFuncs = showSep "\n" (map (\(_, _, funcDef) => funcDef) exports)
   pure (exportDirectives, exportFuncs)

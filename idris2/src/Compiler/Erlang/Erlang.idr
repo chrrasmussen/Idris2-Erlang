@@ -86,9 +86,9 @@ defsPerModule defs =
           Nothing => Nothing
           Just ns => Just (ns, map snd defsInModule)
 
-genExports : Defs -> Maybe Name -> Core (String, String)
-genExports _ Nothing = pure ("", "")
-genExports defs (Just n) = genErlangExports defs n
+genExports : Defs -> Namespace -> Maybe Name -> Core (String, String)
+genExports _ _ Nothing = pure ("", "")
+genExports defs inNs (Just n) = genErlangExports defs (Just inNs) n
 
 parseExport : String -> Maybe String
 parseExport directive = parseExport' (words directive)
@@ -106,7 +106,7 @@ getExportsDirective ds targetNs = do
 generateErlangModule : Defs -> List (Namespace, String) -> String -> (Namespace, List String) -> Core ()
 generateErlangModule defs ds targetDir (ns, funcDecls) = do
   let exportsFuncName = getExportsDirective ds ns
-  (exportDirectives, exportFuncs) <- genExports defs exportsFuncName
+  (exportDirectives, exportFuncs) <- genExports defs ns exportsFuncName
   let moduleName = moduleNameFromNS ns
   let scm = header moduleName ExcludeMain ++ exportDirectives ++ concat funcDecls ++ exportFuncs ++ "\n"
   let outfile = targetDir ++ dirSep ++ moduleName ++ ".erl"
