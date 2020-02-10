@@ -115,8 +115,8 @@ findUsedNames tm
 
 -- Find all the names, and compile them to CExp form (and update that in the Defs)
 export
-findAllNames : {auto c : Ref Ctxt Defs} -> Term vars -> Core (List Name, NameTags)
-findAllNames tm
+findAllNames : {auto c : Ref Ctxt Defs} -> Core (List Name, NameTags)
+findAllNames
     = do defs <- get Ctxt
          let cns = filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
          -- Initialise the type constructor list with explicit names for

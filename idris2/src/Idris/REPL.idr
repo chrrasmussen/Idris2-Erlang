@@ -5,6 +5,7 @@ import Compiler.Scheme.Chez
 import Compiler.Scheme.Racket
 import Compiler.Common
 import Compiler.Erlang.Erlang
+import Compiler.Erlang.Opts
 
 import Core.AutoSearch
 import Core.CaseTree
@@ -431,26 +432,20 @@ compileExp' ctm outfile
                (pure . Compiled)
                ok
 
--- TODO: Remove `genLib`, `parseLibrary` and `compileExp`
+-- TODO: Need a version of `compileExp` that does not require a `PTerm` to support generating library.
+-- (Should remove `genLib` and `compileExp` in favor of `compileExp'`)
 export
 genLib : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          {auto s : Ref Syn SyntaxInfo} ->
          {auto m : Ref MD Metadata} ->
-         String -> String -> Core REPLResult
-genLib outfile libEntrypoint = do
+         String -> Core REPLResult
+genLib outfile = do
   let dummyTerm = PrimVal replFC (I 0)
   ok <- compile !findCG dummyTerm outfile
   maybe (pure CompilationFailed)
         (pure . Compiled)
         ok
-
-parseLibrary : String -> Maybe String
-parseLibrary args = parseLibrary' (words args)
-  where
-    parseLibrary' : List String -> Maybe String
-    parseLibrary' ("--library" :: libEntrypoint :: _) = Just libEntrypoint
-    parseLibrary' _ = Nothing
 
 export
 compileExp : {auto c : Ref Ctxt Defs} ->
@@ -459,11 +454,12 @@ compileExp : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              PTerm -> String -> Core REPLResult
-compileExp ctm outfile
-    = do session <- getSession
-         let Just libEntrypoint = parseLibrary (codegenOptions session)
-           | Nothing => compileExp' ctm outfile
-         genLib outfile libEntrypoint
+compileExp ctm outfile = do
+  session <- getSession
+  let erlOpts = Erlang.Opts.parseOpts (codegenOptions session)
+  if generateAsLibrary erlOpts
+    then genLib outfile
+    else compileExp' ctm outfile
 
 export
 loadMainFile : {auto c : Ref Ctxt Defs} ->

@@ -1494,7 +1494,7 @@ nonEmptyCommand
          opt <- setOption False
          pure (SetOpt opt)
   <|> do symbol ":"; replCmd ["c", "compile"]
-         n <- unqualifiedName <|> strLit
+         n <- unqualifiedName
          tm <- expr pdef "(interactive)" init
          pure (Compile tm n)
   <|> do symbol ":"; exactIdent "exec"
