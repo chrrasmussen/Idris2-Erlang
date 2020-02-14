@@ -44,13 +44,13 @@ header modName exportMainFunc = do
 mainInit : String
 mainInit = "persistent_term:put('$idris_rts_args', Args), ets:new('$idris_rts_ets', [public, named_table]), io:setopts([{encoding, unicode}])"
 
-idrisRtsFilename : String
-idrisRtsFilename = "Idris.RTS-Internal.erl"
+idrisRtsModuleName : String
+idrisRtsModuleName = "Idris.RTS-Internal"
 
 findIdrisRtsPath : {auto c : Ref Ctxt Defs} -> Core String
 findIdrisRtsPath = do
   d <- getDirs
-  let idrisRtsPath = "erlang" ++ dirSep ++ idrisRtsFilename
+  let idrisRtsPath = "erlang" ++ dirSep ++ idrisRtsModuleName ++ ".erl"
   let fs = map (\p => p ++ dirSep ++ idrisRtsPath) (data_dirs d)
   Just f <- firstAvailable fs
     | Nothing => throw (InternalError ("Can't find data file " ++ idrisRtsPath))
@@ -61,7 +61,7 @@ copyIdrisRtsToDir outDir = do
   f <- findIdrisRtsPath
   Right contents <- coreLift $ readFile f
     | Left err => throw (FileErr f err)
-  let outFile = outDir ++ dirSep ++ idrisRtsFilename
+  let outFile = outDir ++ dirSep ++ idrisRtsModuleName ++ ".erl"
   Right () <- coreLift $ writeFile outFile contents
     | Left err => throw (FileErr outFile err)
   pure ()
@@ -128,7 +128,7 @@ namespace MainEntrypoint
     Right () <- coreLift $ writeFile outfile scm
       | Left err => throw (FileErr outfile err)
     copyIdrisRtsToDir outdir
-    pure (modName :: map (moduleNameFromNS . fst) modules)
+    pure (modName :: idrisRtsModuleName :: map (moduleNameFromNS . fst) modules)
 
   -- TODO: Add error handling
   -- TODO: Add options to `erlc`
@@ -139,8 +139,7 @@ namespace MainEntrypoint
     coreLift $ system ("mkdir -p " ++ quoted tmpDir)
     generatedModules <- generateErl tm tmpDir modName
     let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".erl") generatedModules
-    idrisRtsPath <- findIdrisRtsPath
-    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ showSep " " (map quoted (idrisRtsPath :: generatedFiles)))
+    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ showSep " " (map quoted generatedFiles))
     pure ()
 
   erlangModuleName : (outfile : String) -> Maybe (String, String)
@@ -175,7 +174,7 @@ namespace Library
     ds <- getDirectives Erlang
     traverse_ (generateErlangModule defs ds outdir) modules
     copyIdrisRtsToDir outdir
-    pure (map (moduleNameFromNS . fst) modules)
+    pure (idrisRtsModuleName :: map (moduleNameFromNS . fst) modules)
 
   -- TODO: Add error handling
   -- TODO: Add options to `erlc`
@@ -186,8 +185,7 @@ namespace Library
     coreLift $ system ("mkdir -p " ++ quoted tmpDir)
     generatedModules <- generateErl tmpDir
     let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".erl") generatedModules
-    idrisRtsPath <- findIdrisRtsPath
-    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ showSep " " (map quoted (idrisRtsPath :: generatedFiles)))
+    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ showSep " " (map quoted generatedFiles))
     pure ()
   
   export
