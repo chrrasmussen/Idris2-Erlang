@@ -76,7 +76,7 @@ searchIfHole fc defaults trying ispair (S depth) def top env arg
 
          argdef <- searchType fc rig defaults trying depth def False top' env
                               !(normaliseScope defs env (argType arg))
-         vs <- unify InTerm fc env (metaApp arg) argdef
+         vs <- unify (InTerm True) fc env (metaApp arg) argdef
          let [] = constraints vs
               | _ => throw (CantSolveGoal fc [] top)
          pure ()
@@ -244,7 +244,7 @@ searchLocalWith {vars} fc rigc defaults trying depth def top env ((prf, ty) :: r
         = do (args, appTy) <- mkArgs fc rigc env ty
              logNF 10 "Trying" env ty
              logNF 10 "For target" env target
-             ures <- unify InTerm fc env target appTy
+             ures <- unify (InTerm True) fc env target appTy
              let [] = constraints ures
                  | _ => throw (CantSolveGoal fc [] top)
              -- We can only use the local if its type is not an unsolved hole
@@ -345,7 +345,7 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          nty <- nf defs env (embed ty)
          logNF 10 ("Searching Name " ++ show n) env nty
          (args, appTy) <- mkArgs fc rigc env nty
-         ures <- unify InTerm fc env target appTy
+         ures <- unify (InTerm True) fc env target appTy
          let [] = constraints ures
              | _ => throw (CantSolveGoal fc [] top)
          ispair <- isPairNF env nty defs
@@ -442,6 +442,8 @@ checkConcreteDets fc defaults env top (NTCon tfc tyn t a args)
                               concreteDets fc defaults env top 0 (detArgs sd) args
             else
               do sd <- getSearchData fc defaults tyn
+                 log 10 $ "Determining arguments for " ++ show !(toFullNames tyn)
+                              ++ " " ++ show (detArgs sd)
                  concreteDets fc defaults env top 0 (detArgs sd) args
 checkConcreteDets fc defaults env top _
     = pure ()
@@ -479,9 +481,11 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
                              when checkdets $
                                  checkConcreteDets fc defaults env top
                                                    (NTCon tfc tyn t a args)
-                             tryUnify
-                               (searchLocal fc rigc defaults trying' depth def top env nty)
-                               (tryGroups Nothing nty (hintGroups sd))
+                             if defaults
+                                then tryGroups Nothing nty (hintGroups sd)
+                                else tryUnify
+                                       (searchLocal fc rigc defaults trying' depth def top env nty)
+                                       (tryGroups Nothing nty (hintGroups sd))
                      else throw (CantSolveGoal fc [] top)
               _ => do logNF 10 "Next target: " env nty
                       searchLocal fc rigc defaults trying' depth def top env nty

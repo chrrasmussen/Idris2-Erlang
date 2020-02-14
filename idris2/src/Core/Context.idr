@@ -496,8 +496,8 @@ HasNames (Term vars) where
       = pure (Bind fc x !(traverse (full gam) b) !(full gam scope))
   full gam (App fc fn arg)
       = pure (App fc !(full gam fn) !(full gam arg))
-  full gam (As fc p tm)
-      = pure (As fc !(full gam p) !(full gam tm))
+  full gam (As fc s p tm)
+      = pure (As fc s !(full gam p) !(full gam tm))
   full gam (TDelayed fc x y)
       = pure (TDelayed fc x !(full gam y))
   full gam (TDelay fc x t y)
@@ -519,8 +519,8 @@ HasNames (Term vars) where
       = pure (Bind fc x !(traverse (resolved gam) b) !(resolved gam scope))
   resolved gam (App fc fn arg)
       = pure (App fc !(resolved gam fn) !(resolved gam arg))
-  resolved gam (As fc p tm)
-      = pure (As fc !(resolved gam p) !(resolved gam tm))
+  resolved gam (As fc s p tm)
+      = pure (As fc s !(resolved gam p) !(resolved gam tm))
   resolved gam (TDelayed fc x y)
       = pure (TDelayed fc x !(resolved gam y))
   resolved gam (TDelay fc x t y)
@@ -753,7 +753,7 @@ record Defs where
      -- ^ interface hashes of imported modules
   imported : List (List String, Bool, List String)
      -- ^ imported modules, whether to rexport, as namespace
-  allImported : List (String, (List String, List String))
+  allImported : List (String, (List String, Bool, List String))
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
@@ -1609,6 +1609,13 @@ setVisible : {auto c : Ref Ctxt Defs} ->
 setVisible nspace
     = do defs <- get Ctxt
          put Ctxt (record { gamma->visibleNS $= (nspace ::) } defs)
+
+export
+getVisible : {auto c : Ref Ctxt Defs} ->
+             Core (List (List String))
+getVisible
+    = do defs <- get Ctxt
+         pure (visibleNS (gamma defs))
 
 -- Return True if the given namespace is visible in the context (meaning
 -- the namespace itself, and any namespace it's nested inside)

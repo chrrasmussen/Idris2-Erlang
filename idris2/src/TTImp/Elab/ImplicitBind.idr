@@ -42,8 +42,8 @@ mutual
       = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
   embedSub sub (App fc fn arg)
       = App fc (embedSub sub fn) (embedSub sub arg)
-  embedSub sub (As fc nm pat)
-      = As fc (embedSub sub nm) (embedSub sub pat)
+  embedSub sub (As fc s nm pat)
+      = As fc s (embedSub sub nm) (embedSub sub pat)
   embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
   embedSub sub (TDelay fc x t y)
       = TDelay fc x (embedSub sub t) (embedSub sub y)
@@ -172,7 +172,7 @@ bindUnsolved {vars} fc elabmode _
              logTerm 5 ("Added unbound implicit") bindtm
              unify (case elabmode of
                          InLHS _ => InLHS
-                         _ => InTerm)
+                         _ => InTerm False)
                    fc env tm bindtm
              pure ()
 
@@ -199,7 +199,7 @@ swapVars (Meta fc n i xs) = Meta fc n i (map swapVars xs)
 swapVars {vs} (Bind fc x b scope)
     = Bind fc x (map swapVars b) (swapVars {vs = x :: vs} scope)
 swapVars (App fc fn arg) = App fc (swapVars fn) (swapVars arg)
-swapVars (As fc nm pat) = As fc (swapVars nm) (swapVars pat)
+swapVars (As fc s nm pat) = As fc s (swapVars nm) (swapVars pat)
 swapVars (TDelayed fc x tm) = TDelayed fc x (swapVars tm)
 swapVars (TDelay fc x ty tm) = TDelay fc x (swapVars ty) (swapVars tm)
 swapVars (TForce fc r tm) = TForce fc r (swapVars tm)
@@ -325,11 +325,11 @@ getToBind fc elabmode NONE env excepts
 getToBind {vars} fc elabmode impmode env excepts
     = do solveConstraints (case elabmode of
                                 InLHS _ => InLHS
-                                _ => InTerm) Normal
+                                _ => InTerm False) Normal
          bindUnsolved fc elabmode impmode
          solveConstraints (case elabmode of
                                 InLHS _ => InLHS
-                                _ => InTerm) Normal
+                                _ => InTerm False) Normal
          defs <- get Ctxt
          est <- get EST
          let tob = reverse $ filter (\x => not (fst x `elem` excepts)) $
@@ -422,7 +422,7 @@ checkBindVar rig elabinfo nest env fc str topexp
                | _ => check rig elabinfo nest env (IVar fc (UN str)) topexp
          est <- get EST
          let n = PV (UN str) (defining est)
-         noteLHSPatVar elabmode str
+         noteLHSPatVar elabmode (UN str)
          notePatVar n
          est <- get EST
          case lookup n (boundNames est) of
@@ -497,10 +497,10 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                              nest env tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
-                                _ => InTerm) Normal
+                                _ => InTerm False) Normal
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
-                                _ => InTerm) Defaults
+                                _ => InTerm False) Defaults
          ust <- get UST
          catch (retryDelayed (delayedElab ust))
                (\err =>

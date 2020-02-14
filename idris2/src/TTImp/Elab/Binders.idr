@@ -91,7 +91,7 @@ inferLambda rig elabinfo nest env fc rigl info n argTy scope expTy
          logGlue 5 "Inferred lambda type" env lamty
          maybe (pure ())
                (logGlueNF 5 "Expected lambda type" env) expTy
-         checkExp rig elabinfo env fc
+         checkExpP rig True elabinfo env fc
                   (Bind fc n (Lam rigb info tyv) scopev)
                   lamty expTy
 
@@ -131,7 +131,7 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                                         argTy (Just (gType fc))
                     let rigb = min rigl c
                     let env' : Env Term (n :: _) = Lam rigb info tyv :: env
-                    convert fc elabinfo env (gnf env tyv) (gnf env pty)
+                    convertP True fc elabinfo env (gnf env tyv) (gnf env pty)
                     let nest' = weaken (dropName n nest)
                     (scopev, scopet) <-
                        inScope fc env' (\e' =>
@@ -139,7 +139,7 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                                 (Just (gnf env' (renameTop n psc))))
                     logTermNF 10 "Lambda type" env exptynf
                     logGlueNF 10 "Got scope type" env' scopet
-                    checkExp rig elabinfo env fc
+                    checkExpP rig True elabinfo env fc
                              (Bind fc n (Lam rigb info tyv) scopev)
                              (gnf env
                                   (Bind fc n (Pi rigb info tyv) !(getTerm scopet)))
@@ -174,7 +174,8 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
          -- try checking at Rig1 (meaning that we're using a linear variable
          -- so the resulting binding should be linear)
          (valv, valt, rigb) <- handle
-              (do c <- check (rigMult rigl rigc) elabinfo
+              (do c <- check (rigMult rigl rigc)
+                             (record { preciseInf = True } elabinfo)
                              nest env nVal (Just (gnf env tyv))
                   pure (fst c, snd c, rigMult rigl rigc))
               (\err => case err of
@@ -182,7 +183,10 @@ checkLet rigc_in elabinfo nest env fc rigl n nTy nVal scope expty
                               => do c <- check Rig1 elabinfo
                                                nest env nVal (Just (gnf env tyv))
                                     pure (fst c, snd c, Rig1)
-                            e => throw e)
+                            e => do c <- check (rigMult rigl rigc)
+                                               elabinfo -- without preciseInf
+                                               nest env nVal (Just (gnf env tyv))
+                                    pure (fst c, snd c, rigMult rigl rigc))
          let env' : Env Term (n :: _) = Lam rigb Explicit tyv :: env
          let nest' = weaken (dropName n nest)
          expScope <- weakenExp env' expty

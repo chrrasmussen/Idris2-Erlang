@@ -62,7 +62,7 @@ Hashable String where
 export
 Hashable Name where
   hashWithSalt h (MN s _) = hashWithSalt h s
-  hashWithSalt h (Resolved i) = i
+  hashWithSalt h (Resolved i) = hashWithSalt h i
   hashWithSalt h n = hashWithSalt h (show n)
 
 export
@@ -108,7 +108,7 @@ mutual
         = h `hashWithSalt` 3 `hashWithSalt` b `hashWithSalt` scope
     hashWithSalt h (App fc fn arg)
         = h `hashWithSalt` 4 `hashWithSalt` fn `hashWithSalt` arg
-    hashWithSalt h (As fc nm pat)
+    hashWithSalt h (As fc _ nm pat)
         = h `hashWithSalt` 5 `hashWithSalt` nm `hashWithSalt` pat
     hashWithSalt h (TDelayed fc x y)
         = h `hashWithSalt` 6 `hashWithSalt` y
