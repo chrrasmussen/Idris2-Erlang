@@ -21,12 +21,13 @@ Note that this project is still **work in progress**. Feedback and contributions
 ### Currently Supported Functionality
 
 - Compile and run any plain Idris 2 programs (i.e. not using any unsupported FFI)
+- Each Idris module/namespace is generated into its own Erlang module.
 - Reading/writing files using Idris 2's `base` library.
-- Convert all[1] native Erlang data types, back and forth.
+- Convert most[1] native Erlang data types, back and forth.
   - Supports a type-safe way to convert an untyped Erlang term into a typed Idris value (it leverages Erlang case expressions with guards).
 - Call named Erlang functions.
   - Also supports a type-safe way to call Erlang functions.
-- Export named Erlang functions.
+- Export named Erlang functions per Idris module/namespace.
 - Convert anonymous functions, back and forth (both pure and IO).
 
 
@@ -88,7 +89,7 @@ Run the Idris program via generated Erlang code: `idris2 --cg erlang --exec main
 | --------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Int`     | integer                  | `Int` is mapped to Erlang integers of arbitrary precision. Some operations on `Int` may still be capped at a certain precsion., e.g. `+`, `-`.                                                                                 |
 | `Integer` | integer                  |
-| `String`  | IO list                  | IO list is not a primitive data type in Erlang, <...>. Some Erlang functions may require an Erlang binary or and Erlang charlist; in these cases one should use the more specific string types (`ErlBinary` or `ErlCharlist`). |
+| `String`  | IO data                  | IO data is not a primitive data type in Erlang. Some Erlang functions may require an Erlang binary or and Erlang charlist; in these cases one should use the more specific string types (`ErlBinary` or `ErlCharlist`). |
 | `Char`    | integer / list(integers) | An integer represents a single codepoint. To support all Unicode characters (some may consist of multiple codepoints) the `Char` may either be an integer or a list of integers.                                               |
 | `Double`  | float                    |
 
@@ -102,10 +103,11 @@ Differences between `erlCall` and `erlUnsafeCall`:
 `erlCall`:
 - `erlCall` will always return a value of type `ErlTerm` (which is the safest option). These `ErlTerm`s can be converted to a typed Idris value using `erlCase` (See [Erlang Case Expressions](#erlang-case-expressions)).
 - `erlCall` takes two `String`s which are the module and function names respectively. Both of these strings are converted to atoms using `binary_to_atom/2`, which means that you don't need to include apostrophes (`'`), i.e. `erlCall "Elixir.Jason" "decode" ["42"]`.
-- `erlCall` wraps the function call in a catch block to make sure that any runtime exceptions will be converted to an Erlang term.
+- `erlCall` wraps the Erlang function call in a catch block to make sure that any runtime exceptions will be converted to an Erlang term.
 
 `erlUnsafeCall`:
-- `erlUnsafeCall` takes a single `String`, which is the raw string that will be put into the generated Erlang source code. This means that you might need to wrap the module or function names in apostrophes (`'`) to make them valid atoms.
+- `erlUnsafeCall` takes a type as an argument which decide the return type.
+- `erlUnsafeCall` does not wrap the Erlang function call in a catch block.
 
 
 ### Erlang Case Expressions
@@ -124,12 +126,7 @@ Differences between `erlCall` and `erlUnsafeCall`:
 
 ### Changes to the Idris 2 Compiler
 
-Currently this repository has a few changes to the Idris 2 compiler, most notably it adds the `--library` flag for exporting named Erlang functions. I will try to upstream any changes that can benefit the Idris 2 project.
-
-
-### Potential Future Functionality
-
-- Make Idris 2 compile each file (or namespace) into its own Erlang module. This could drastically improve code generation time and compile-time on the Erlang side.
+Currently this repository includes a few changes to the Idris 2 compiler, e.g. it adds a `--cg-opt` flag to pass arguments to the code generator. I will try to upstream any changes that can benefit the Idris 2 project.
 
 
 ### Missing Functionality
