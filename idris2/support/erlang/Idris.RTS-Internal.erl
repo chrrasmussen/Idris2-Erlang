@@ -9,7 +9,7 @@
 -export([char_to_integer/1, char_to_int/1, char_to_string/1]).
 -export([string_to_integer/1, string_to_int/1, string_to_double/1]).
 -export([io_unicode_put_str/1, io_unicode_get_str/1]).
--export([file_open/3, file_close/1, file_read_line/1, file_write_line/2, file_eof/1]).
+-export([file_open/5, file_close/1, file_read_line/3, file_write_line/4, file_eof/1]).
 -export([buffer_new/1, buffer_set_byte/3, buffer_get_byte/2, buffer_set_int/3, buffer_get_int/2, buffer_set_double/3, buffer_get_double/2, buffer_set_string/3, buffer_get_string/3]).
 
 
@@ -30,19 +30,6 @@
 -spec bool_to_idris_bool(boolean()) -> idris_bool().
 bool_to_idris_bool(false) -> ?IDRIS_FALSE;
 bool_to_idris_bool(_) -> ?IDRIS_TRUE.
-
-
-% Either
-% TODO: Hard-coded data constructor
-% Must match the behavior of `Compiler.Erlang.Common.genConstructor` and `Compiler.Erlang.Common.genName`
-
--type idris_either(Left, Right) :: {'Idris.Prelude.Left', erased, erased, Left} | {'Idris.Prelude.Right', erased, erased, Right}.
-
--spec idris_either_left(any()) -> idris_either(any(), any()).
-idris_either_left(X) -> {'Idris.Prelude.Left', erased, erased, X}.
-
--spec idris_either_right(any()) -> idris_either(any(), any()).
-idris_either_right(X) -> {'Idris.Prelude.Right', erased, erased, X}.
 
 
 % Arithmetic
@@ -190,12 +177,12 @@ file_bin_flags(Bin) ->
     _ -> []
   end.
 
--spec file_open(file:name_all(), iolist(), idris_bool()) -> idris_either(idris_error_code(), idris_handle()).
-file_open(File, Mode, Bin) ->
+-spec file_open(any(), any(), file:name_all(), iolist(), idris_bool()) -> any(). % idris_either(idris_error_code(), idris_handle()).
+file_open(BuildLeft, BuildRight, File, Mode, Bin) ->
   Flags = file_mode_flags(Mode) ++ file_bin_flags(Bin),
   case file:open(File, Flags) of
-    {ok, Pid} -> idris_either_right(Pid);
-    _ -> idris_either_left(?IDRIS_ERROR_CODE_UNKNOWN)
+    {ok, Pid} -> BuildRight(Pid);
+    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
   end.
 
 -spec file_close(idris_handle()) -> idris_unit().
@@ -203,19 +190,19 @@ file_close(Pid) ->
   file:close(Pid),
   ?IDRIS_UNIT.
 
--spec file_read_line(idris_handle()) -> idris_either(idris_error_code(), binary()).
-file_read_line(Pid) ->
+-spec file_read_line(any(), any(), idris_handle()) -> any(). % idris_either(idris_error_code(), binary()).
+file_read_line(BuildLeft, BuildRight, Pid) ->
   case file:read_line(Pid) of
-    {ok, Line} -> idris_either_right(Line);
-    eof -> idris_either_right(<<>>);
-    _ -> idris_either_left(?IDRIS_ERROR_CODE_UNKNOWN)
+    {ok, Line} -> BuildRight(Line);
+    eof -> BuildRight(<<>>);
+    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
   end.
 
--spec file_write_line(idris_handle(), binary()) -> idris_either(idris_error_code(), idris_unit()).
-file_write_line(Pid, Bytes) ->
+-spec file_write_line(any(), any(), idris_handle(), binary()) -> any(). % idris_either(idris_error_code(), idris_unit()).
+file_write_line(BuildLeft, BuildRight, Pid, Bytes) ->
   case file:write(Pid, Bytes) of
-    ok -> idris_either_right(?IDRIS_UNIT);
-    _ -> idris_either_left(?IDRIS_ERROR_CODE_UNKNOWN)
+    ok -> BuildRight(?IDRIS_UNIT);
+    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
   end.
 
 % COPIED FROM: https://github.com/lenary/idris-erlang/blob/master/irts/idris_erlang_rts.erl
