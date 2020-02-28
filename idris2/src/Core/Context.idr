@@ -21,10 +21,25 @@ import System
 %default covering
 
 public export
+data HoleInfo
+        = NotHole
+        | SolvedHole Nat
+
+public export
+record PMDefInfo where
+  constructor MkPMDefInfo
+  holeInfo : HoleInfo -- data if it comes from a solved hole
+  alwaysReduce : Bool -- always reduce, even when quoting etc
+                 -- typically for inlinable metavariable solutions
+
+export
+defaultPI : PMDefInfo
+defaultPI = MkPMDefInfo NotHole False
+
+public export
 data Def : Type where
     None : Def -- Not yet defined
-    PMDef : (alwaysReduce : Bool) -> -- always reduce, even when quoting etc
-                 -- typically for inlinable metavariable solutions
+    PMDef : (pminfo : PMDefInfo) ->
             (args : List Name) ->
             (treeCT : CaseTree args) ->
             (treeRT : CaseTree args) ->
@@ -108,9 +123,6 @@ data Clause : Type where
                 (lhs : Term vars) -> (rhs : Term vars) -> Clause
 
 public export
-data TotalReq = Total | CoveringOnly | PartialOK
-
-public export
 data DefFlag
     = Inline
     | Invertible -- assume safe to cancel arguments in unification
@@ -126,13 +138,6 @@ data DefFlag
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
     | Macro
-
-export
-Eq TotalReq where
-    (==) Total Total = True
-    (==) CoveringOnly CoveringOnly = True
-    (==) PartialOK PartialOK = True
-    (==) _ _ = False
 
 export
 Eq DefFlag where
@@ -340,7 +345,10 @@ returnDef : Bool -> Int -> GlobalDef -> Maybe (Int, GlobalDef)
 returnDef False idx def = Just (idx, def)
 returnDef True idx def
     = case definition def of
-           PMDef True _ _ _ _ => Just (idx, def)
+           PMDef pi _ _ _ _ =>
+                 if alwaysReduce pi
+                    then Just (idx, def)
+                    else Nothing
            _ => Nothing
 
 export
@@ -1793,6 +1801,13 @@ setUnboundImplicits a
          put Ctxt (record { options->elabDirectives->unboundImplicits = a } defs)
 
 export
+setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
+                TotalReq -> Core ()
+setDefaultTotalityOption tot
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->totality = tot } defs)
+
+export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
                Core Bool
 isLazyActive
@@ -1805,6 +1820,13 @@ isUnboundImplicits : {auto c : Ref Ctxt Defs} ->
 isUnboundImplicits
     = do defs <- get Ctxt
          pure (unboundImplicits (elabDirectives (options defs)))
+
+export
+getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
+                  Core TotalReq
+getDefaultTotalityOption
+    = do defs <- get Ctxt
+         pure (totality (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->

@@ -46,7 +46,7 @@ atom fname
          end <- location
          pure (PPrimVal (MkFC fname start end) x)
   <|> do start <- location
-         keyword "Type"
+         exactIdent "Type"
          end <- location
          pure (PType (MkFC fname start end))
   <|> do start <- location
@@ -377,7 +377,7 @@ mutual
   getMult Nothing = pure RigW
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
-  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, PTerm) ->
+  pibindAll : FC -> PiInfo PTerm -> List (RigCount, Maybe Name, PTerm) ->
               PTerm -> PTerm
   pibindAll fc p [] scope = scope
   pibindAll fc p ((rig, n, ty) :: rest) scope
@@ -414,7 +414,7 @@ mutual
                     rig <- getMult rigc
                     pure (rig, Just n, ty))
 
-  bindSymbol : Rule PiInfo
+  bindSymbol : Rule (PiInfo PTerm)
   bindSymbol
       = do symbol "->"
            pure Explicit
@@ -445,6 +445,20 @@ mutual
            scope <- typeExpr pdef fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) AutoImplicit binders scope)
+
+  defaultImplicitPi : FileName -> IndentInfo -> Rule PTerm
+  defaultImplicitPi fname indents
+      = do start <- location
+           symbol "{"
+           keyword "default"
+           commit
+           t <- simpleExpr fname indents
+           binders <- pibindList fname start indents
+           symbol "}"
+           symbol "->"
+           scope <- typeExpr pdef fname indents
+           end <- location
+           pure (pibindAll (MkFC fname start end) (DefImplicit t) binders scope)
 
   forall_ : FileName -> IndentInfo -> Rule PTerm
   forall_ fname indents
@@ -685,22 +699,22 @@ mutual
   lazy : FileName -> IndentInfo -> Rule PTerm
   lazy fname indents
       = do start <- location
-           keyword "Lazy"
+           exactIdent "Lazy"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelayed (MkFC fname start end) LLazy tm)
     <|> do start <- location
-           keyword "Inf"
+           exactIdent "Inf"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelayed (MkFC fname start end) LInf tm)
     <|> do start <- location
-           keyword "Delay"
+           exactIdent "Delay"
            tm <- simpleExpr fname indents
            end <- location
            pure (PDelay (MkFC fname start end) tm)
     <|> do start <- location
-           keyword "Force"
+           exactIdent "Force"
            tm <- simpleExpr fname indents
            end <- location
            pure (PForce (MkFC fname start end) tm)
@@ -709,6 +723,7 @@ mutual
   binder fname indents
       = let_ fname indents
     <|> autoImplicitPi fname indents
+    <|> defaultImplicitPi fname indents
     <|> forall_ fname indents
     <|> implicitPi fname indents
     <|> explicitPi fname indents
@@ -726,7 +741,7 @@ mutual
                pure (mkPi start end arg rest))
              <|> pure arg
     where
-      mkPi : FilePos -> FilePos -> PTerm -> List (PiInfo, PTerm) -> PTerm
+      mkPi : FilePos -> FilePos -> PTerm -> List (PiInfo PTerm, PTerm) -> PTerm
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
             = PPi (MkFC fname start end) RigW exp Nothing arg
@@ -921,6 +936,15 @@ extension
     = do exactIdent "Borrowing"
          pure Borrowing
 
+totalityOpt : Rule TotalReq
+totalityOpt
+    = do keyword "partial"
+         pure PartialOK
+  <|> do keyword "total"
+         pure Total
+  <|> do keyword "covering"
+         pure CoveringOnly
+
 directive : FileName -> IndentInfo -> Rule Directive
 directive fname indents
     = do exactIdent "hide"
@@ -983,6 +1007,10 @@ directive fname indents
          e <- extension
          atEnd indents
          pure (Extension e)
+  <|> do keyword "default"
+         tot <- totalityOpt
+         atEnd indents
+         pure (DefaultTotality tot)
 
 fix : Rule Fixity
 fix
@@ -1048,16 +1076,11 @@ usingDecls fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          end <- location
          pure (PUsing (MkFC fname start end) us (collectDefs (concat ds)))
-
+         
 fnOpt : Rule PFnOpt
-fnOpt
-    = do keyword "partial"
-         pure $ IFnOpt PartialOK
-  <|> do keyword "total"
-         pure $ IFnOpt Total
-  <|> do keyword "covering"
-         pure $ IFnOpt Covering
-
+fnOpt = do x <- totalityOpt          
+           pure $ IFnOpt (Totality x)
+           
 fnDirectOpt : FileName -> Rule PFnOpt
 fnDirectOpt fname
     = do exactIdent "hint"
@@ -1177,12 +1200,15 @@ implDecl fname indents
          cons <- constraints fname indents
          n <- name
          params <- many (simpleExpr fname indents)
+         nusing <- option [] (do keyword "using"
+                                 names <- some name
+                                 pure names)
          body <- optional (do keyword "where"
                               blockAfter col (topDecl fname))
          atEnd indents
          end <- location
          pure (PImplementation (MkFC fname start end)
-                         vis Single impls cons n params iname
+                         vis Single impls cons n params iname nusing
                          (map (collectDefs . concat) body))
 
 fieldDecl : FileName -> IndentInfo -> Rule (List PField)
@@ -1197,7 +1223,7 @@ fieldDecl fname indents
            atEnd indents
            pure fs
   where
-    fieldBody : PiInfo -> Rule (List PField)
+    fieldBody : PiInfo PTerm -> Rule (List PField)
     fieldBody p
         = do start <- location
              m <- multiplicity
@@ -1437,38 +1463,46 @@ editCmd
          n <- name
          pure (TypeAt (fromInteger line) (fromInteger col) n)
   <|> do replCmd ["cs"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          col <- intLit
          n <- name
-         pure (CaseSplit (fromInteger line) (fromInteger col) n)
+         pure (CaseSplit upd (fromInteger line) (fromInteger col) n)
   <|> do replCmd ["ac"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (AddClause (fromInteger line) n)
+         pure (AddClause upd (fromInteger line) n)
   <|> do replCmd ["ps", "proofsearch"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (ExprSearch (fromInteger line) n [] False)
+         pure (ExprSearch upd (fromInteger line) n [] False)
   <|> do replCmd ["psall"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (ExprSearch (fromInteger line) n [] True)
+         pure (ExprSearch upd (fromInteger line) n [] True)
   <|> do replCmd ["gd"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (GenerateDef (fromInteger line) n)
+         pure (GenerateDef upd (fromInteger line) n)
   <|> do replCmd ["ml", "makelemma"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeLemma (fromInteger line) n)
+         pure (MakeLemma upd (fromInteger line) n)
   <|> do replCmd ["mc", "makecase"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeCase (fromInteger line) n)
+         pure (MakeCase upd (fromInteger line) n)
   <|> do replCmd ["mw", "makewith"]
+         upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (MakeWith (fromInteger line) n)
+         pure (MakeWith upd (fromInteger line) n)
   <|> fatalError "Unrecognised command"
 
 nonEmptyCommand : Rule REPLCmd

@@ -37,9 +37,9 @@ Eq ElabOpt where
 -- or a binding of an @-pattern which has an associated pattern.
 public export
 data ImplBinding : List Name -> Type where
-     NameBinding : RigCount -> PiInfo -> (elabAs : Term vars) -> (expTy : Term vars) ->
+     NameBinding : RigCount -> PiInfo (Term vars) -> (elabAs : Term vars) -> (expTy : Term vars) ->
                    ImplBinding vars
-     AsBinding : RigCount -> PiInfo -> (elabAs : Term vars) -> (expTy : Term vars) ->
+     AsBinding : RigCount -> PiInfo (Term vars) -> (elabAs : Term vars) -> (expTy : Term vars) ->
                  (pat : Term vars) ->
                  ImplBinding vars
 
@@ -77,7 +77,7 @@ bindingRig (NameBinding c _ _ _) = c
 bindingRig (AsBinding c _ _ _ _) = c
 
 export
-bindingPiInfo : ImplBinding vars -> PiInfo
+bindingPiInfo : ImplBinding vars -> PiInfo (Term vars)
 bindingPiInfo (NameBinding _ p _ _) = p
 bindingPiInfo (AsBinding _ p _ _ _) = p
 
@@ -100,9 +100,9 @@ record EState (vars : List Name) where
                   -- bound yet. Record how they're bound (auto-implicit bound
                   -- pattern vars need to be dealt with in with-application on
                   -- the RHS)
-  bindIfUnsolved : List (Name, RigCount, PiInfo,
-                          (vars' ** (Env Term vars', Term vars', Term vars',
-                                          SubVars outer vars')))
+  bindIfUnsolved : List (Name, RigCount,
+                          (vars' ** (Env Term vars', PiInfo (Term vars'),
+                                     Term vars', Term vars', SubVars outer vars')))
                   -- names to add as unbound implicits if they are still holes
                   -- when unbound implicits are added
   lhsPatVars : List Name
@@ -114,17 +114,25 @@ record EState (vars : List Name) where
                   -- once we're done elaborating
   allowDelay : Bool -- Delaying elaborators is okay. We can't nest delays.
   linearUsed : List (Var vars)
+  saveHoles : NameMap () -- things we'll need to save to TTC, even if solved
 
 export
 data EST : Type where
 
 export
 initEStateSub : Int -> Env Term outer -> SubVars outer vars -> EState vars
-initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True []
+initEStateSub n env sub = MkEState n env sub [] [] [] [] [] True [] empty
 
 export
 initEState : Int -> Env Term vars -> EState vars
 initEState n env = initEStateSub n env SubRefl
+
+export
+saveHole : {auto e : Ref EST (EState vars)} ->
+           Name -> Core ()
+saveHole n
+    = do est <- get EST
+         put EST (record { saveHoles $= insert n () } est)
 
 weakenedEState : {auto e : Ref EST (EState vars)} ->
                  Core (Ref EST (EState (n :: vars)))
@@ -140,14 +148,16 @@ weakenedEState {e}
                               (lhsPatVars est)
                               (allPatVars est)
                               (allowDelay est)
-                              (map weaken (linearUsed est)))
+                              (map weaken (linearUsed est))
+                              (saveHoles est))
          pure eref
   where
     wknTms : (Name, ImplBinding vs) ->
              (Name, ImplBinding (n :: vs))
-    wknTms (f, NameBinding c p x y) = (f, NameBinding c p (weaken x) (weaken y))
+    wknTms (f, NameBinding c p x y)
+        = (f, NameBinding c (map weaken p) (weaken x) (weaken y))
     wknTms (f, AsBinding c p x y z)
-        = (f, AsBinding c p (weaken x) (weaken y) (weaken z))
+        = (f, AsBinding c (map weaken p) (weaken x) (weaken y) (weaken z))
 
 strengthenedEState : Ref Ctxt Defs ->
                      Ref EST (EState (n :: vars)) ->
@@ -169,7 +179,8 @@ strengthenedEState {n} {vars} c e fc env
                         (lhsPatVars est)
                         (allPatVars est)
                         (allowDelay est)
-                        (mapMaybe dropTop (linearUsed est)))
+                        (mapMaybe dropTop (linearUsed est))
+                        (saveHoles est))
   where
     dropSub : SubVars xs (y :: ys) -> Core (SubVars xs ys)
     dropSub (DropCons sub) = pure sub
@@ -207,18 +218,22 @@ strengthenedEState {n} {vars} c e fc env
     strTms defs (f, NameBinding c p x y)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
-             case (removeArg xnf,
+             case (shrinkPi p (DropCons SubRefl),
+                   removeArg xnf,
                    shrinkTerm ynf (DropCons SubRefl)) of
-               (Just x', Just y') => pure (f, NameBinding c p x' y')
+               (Just p', Just x', Just y') =>
+                    pure (f, NameBinding c p' x' y')
                _ => throw (BadUnboundImplicit fc env f y)
     strTms defs (f, AsBinding c p x y z)
         = do xnf <- normaliseHoles defs env x
              ynf <- normaliseHoles defs env y
              znf <- normaliseHoles defs env z
-             case (shrinkTerm xnf (DropCons SubRefl),
+             case (shrinkPi p (DropCons SubRefl),
+                   shrinkTerm xnf (DropCons SubRefl),
                    shrinkTerm ynf (DropCons SubRefl),
                    shrinkTerm znf (DropCons SubRefl)) of
-               (Just x', Just y', Just z') => pure (f, AsBinding c p x' y' z')
+               (Just p', Just x', Just y', Just z') =>
+                    pure (f, AsBinding c p' x' y' z')
                _ => throw (BadUnboundImplicit fc env f y)
 
     dropTop : (Var (n :: vs)) -> Maybe (Var vs)
@@ -240,7 +255,9 @@ inScope {c} {e} fc env elab
 
 export
 updateEnv : Env Term new -> SubVars new vars ->
-            List (Name, RigCount, PiInfo, (vars' ** (Env Term vars', Term vars', Term vars', SubVars new vars'))) ->
+            List (Name, RigCount,
+                   (vars' ** (Env Term vars', PiInfo (Term vars'),
+                              Term vars', Term vars', SubVars new vars'))) ->
             EState vars -> EState vars
 updateEnv env sub bif st
     = MkEState (defining st) env sub
@@ -249,20 +266,22 @@ updateEnv env sub bif st
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 export
-addBindIfUnsolved : Name -> RigCount -> PiInfo ->
+addBindIfUnsolved : Name -> RigCount -> PiInfo (Term vars) ->
                     Env Term vars -> Term vars -> Term vars ->
                     EState vars -> EState vars
 addBindIfUnsolved hn r p env tm ty st
     = MkEState (defining st)
                (outerEnv st) (subEnv st)
                (boundNames st) (toBind st)
-               ((hn, r, p, (_ ** (env, tm, ty, subEnv st))) :: bindIfUnsolved st)
+               ((hn, r, (_ ** (env, p, tm, ty, subEnv st))) :: bindIfUnsolved st)
                (lhsPatVars st)
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 clearBindIfUnsolved : EState vars -> EState vars
 clearBindIfUnsolved st
@@ -273,6 +292,7 @@ clearBindIfUnsolved st
                (allPatVars st)
                (allowDelay st)
                (linearUsed st)
+               (saveHoles st)
 
 -- Clear the 'toBind' list, except for the names given
 export

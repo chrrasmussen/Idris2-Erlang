@@ -31,8 +31,10 @@ idrisTests
        "basic021", "basic022", "basic023", "basic024", "basic025",
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034", "basic035",
+       "basic036",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
+       "coverage005",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -46,7 +48,7 @@ idrisTests
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
-       "interface013", "interface014",
+       "interface013", "interface014", "interface015",
        -- Miscellaneous REPL
        "interpreter001",
        -- Implicit laziness, lazy evaluation
@@ -63,14 +65,14 @@ idrisTests
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        -- Packages and ipkg files
-       "pkg001",
+       "pkg001", "pkg002",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
-       "real001",
+       "real001", "real002",
        -- Records, access and dependent update
        "record001", "record002",
        -- Miscellaneous regressions
-       "reg001", "reg002",
+       "reg001", "reg002", "reg003", "reg004", "reg005",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",

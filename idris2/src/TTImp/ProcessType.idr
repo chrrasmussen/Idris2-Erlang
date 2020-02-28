@@ -46,12 +46,8 @@ processFnOpt fc ndef (ForeignFn _)
     = setFlag fc ndef Inline -- if externally defined, inline when compiling
 processFnOpt fc ndef Invertible
     = setFlag fc ndef Invertible
-processFnOpt fc ndef Total
-    = setFlag fc ndef (SetTotal Total)
-processFnOpt fc ndef Covering
-    = setFlag fc ndef (SetTotal CoveringOnly)
-processFnOpt fc ndef PartialOK
-    = setFlag fc ndef (SetTotal PartialOK)
+processFnOpt fc ndef (Totality tot)
+    = setFlag fc ndef (SetTotal tot)
 processFnOpt fc ndef Macro
     = setFlag fc ndef Macro
 
@@ -103,7 +99,6 @@ processType : {vars : _} ->
               List FnOpt -> ImpTy -> Core ()
 processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
     = do n <- inCurrentNS n_in
-         ty_raw <- bindTypeNames [] vars ty_raw
 
          log 1 $ "Processing " ++ show n
          log 5 $ "Checking type decl " ++ show n ++ " : " ++ show ty_raw

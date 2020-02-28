@@ -96,15 +96,13 @@ mkDirective str = CGDirective (trim (substr 3 (length str) str))
 -- Reserved words
 keywords : List String
 keywords = ["data", "module", "where", "let", "in", "do", "record",
-            "auto", "implicit", "mutual", "namespace", "parameters",
-            "with", "impossible", "case", "of",
+            "auto", "default", "implicit", "mutual", "namespace",
+            "parameters", "with", "impossible", "case", "of",
             "if", "then", "else", "forall", "rewrite",
             "using", "interface", "implementation", "open", "import",
             "public", "export", "private",
             "infixl", "infixr", "infix", "prefix",
-            "Type", "Int", "Integer", "String", "Char", "Double",
-            "total", "partial", "covering",
-            "Lazy", "Inf", "Delay", "Force"]
+            "total", "partial", "covering"]
 
 -- Reserved words for internal syntax
 special : List String

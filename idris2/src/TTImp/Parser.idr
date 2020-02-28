@@ -20,7 +20,7 @@ atom fname
          end <- location
          pure (IPrimVal (MkFC fname start end) x)
   <|> do start <- location
-         keyword "Type"
+         exactIdent "Type"
          end <- location
          pure (IType (MkFC fname start end))
   <|> do start <- location
@@ -65,14 +65,18 @@ visibility
     = visOption
   <|> pure Private
 
-fnOpt : Rule FnOpt
-fnOpt
+totalityOpt : Rule TotalReq
+totalityOpt
     = do keyword "partial"
          pure PartialOK
   <|> do keyword "total"
          pure Total
   <|> do keyword "covering"
-         pure Covering
+         pure CoveringOnly
+
+fnOpt : Rule FnOpt
+fnOpt = do x <- totalityOpt          
+           pure $ Totality x
 
 fnDirectOpt : Rule FnOpt
 fnDirectOpt
@@ -112,7 +116,7 @@ getRight : Either a b -> Maybe b
 getRight (Left _) = Nothing
 getRight (Right v) = Just v
 
-bindSymbol : Rule PiInfo
+bindSymbol : Rule (PiInfo RawImp)
 bindSymbol
     = do symbol "->"
          pure Explicit
@@ -201,7 +205,7 @@ mutual
   getMult Nothing = pure RigW
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
-  pibindAll : FC -> PiInfo -> List (RigCount, Maybe Name, RawImp) ->
+  pibindAll : FC -> PiInfo RawImp -> List (RigCount, Maybe Name, RawImp) ->
               RawImp -> RawImp
   pibindAll fc p [] scope = scope
   pibindAll fc p ((rig, n, ty) :: rest) scope
@@ -396,22 +400,22 @@ mutual
   lazy : FileName -> IndentInfo -> Rule RawImp
   lazy fname indents
       = do start <- location
-           keyword "Lazy"
+           exactIdent "Lazy"
            tm <- simpleExpr fname indents
            end <- location
            pure (IDelayed (MkFC fname start end) LLazy tm)
     <|> do start <- location
-           keyword "Inf"
+           exactIdent "Inf"
            tm <- simpleExpr fname indents
            end <- location
            pure (IDelayed (MkFC fname start end) LInf tm)
     <|> do start <- location
-           keyword "Delay"
+           exactIdent "Delay"
            tm <- simpleExpr fname indents
            end <- location
            pure (IDelay (MkFC fname start end) tm)
     <|> do start <- location
-           keyword "Force"
+           exactIdent "Force"
            tm <- simpleExpr fname indents
            end <- location
            pure (IForce (MkFC fname start end) tm)
@@ -438,7 +442,7 @@ mutual
                pure (mkPi start end arg rest))
              <|> pure arg
     where
-      mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo, RawImp) -> RawImp
+      mkPi : FilePos -> FilePos -> RawImp -> List (PiInfo RawImp, RawImp) -> RawImp
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
             = IPi (MkFC fname start end) RigW exp Nothing arg
@@ -571,7 +575,7 @@ fieldDecl fname indents
            atEnd indents
            pure fs
   where
-    fieldBody : PiInfo -> Rule (List IField)
+    fieldBody : PiInfo RawImp -> Rule (List IField)
     fieldBody p
         = do start <- location
              ns <- sepBy1 (symbol ",") unqualifiedName

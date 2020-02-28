@@ -85,16 +85,18 @@ TTC RigCount where
              _ => corrupt "RigCount"
 
 export
-TTC PiInfo where
+TTC t => TTC (PiInfo t) where
   toBuf b Implicit = tag 0
   toBuf b Explicit = tag 1
   toBuf b AutoImplicit = tag 2
+  toBuf b (DefImplicit r) = do tag 3; toBuf b r
 
   fromBuf b
       = case !getTag of
              0 => pure Implicit
              1 => pure Explicit
              2 => pure AutoImplicit
+             3 => do t <- fromBuf b; pure (DefImplicit t)
              _ => corrupt "PiInfo"
 
 export
@@ -749,12 +751,32 @@ TTC PrimNames where
            c <- fromBuf b
            pure (MkPrimNs i str c)
 
+export
+TTC HoleInfo where
+  toBuf b NotHole = tag 0
+  toBuf b (SolvedHole n) = do tag 1; toBuf b n
+
+  fromBuf b
+      = case !getTag of
+             0 => pure NotHole
+             1 => do n <- fromBuf b; pure (SolvedHole n)
+             _ => corrupt "HoleInfo"
+
+export
+TTC PMDefInfo where
+  toBuf b l
+      = do toBuf b (holeInfo l)
+           toBuf b (alwaysReduce l)
+  fromBuf b
+      = do h <- fromBuf b
+           r <- fromBuf b
+           pure (MkPMDefInfo h r)
 
 export
 TTC Def where
   toBuf b None = tag 0
-  toBuf b (PMDef r args ct rt pats)
-      = do tag 1; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
+  toBuf b (PMDef pi args ct rt pats)
+      = do tag 1; toBuf b pi; toBuf b args; toBuf b ct; toBuf b rt; toBuf b pats
   toBuf b (ExternDef a)
       = do tag 2; toBuf b a
   toBuf b (ForeignDef a cs)
@@ -778,11 +800,12 @@ TTC Def where
   fromBuf b
       = case !getTag of
              0 => pure None
-             1 => do args <- fromBuf b
+             1 => do pi <- fromBuf b
+                     args <- fromBuf b
                      ct <- fromBuf b
                      rt <- fromBuf b
                      pats <- fromBuf b
-                     pure (PMDef False args ct rt pats)
+                     pure (PMDef pi args ct rt pats)
              2 => do a <- fromBuf b
                      pure (ExternDef a)
              3 => do a <- fromBuf b
@@ -870,9 +893,9 @@ TTC GlobalDef where
            toBuf b (definition gdef)
            toBuf b (compexpr gdef)
            toBuf b (map toList (refersToM gdef))
+           toBuf b (location gdef)
            when (isUserName (fullname gdef)) $
-              do toBuf b (location gdef)
-                 toBuf b (type gdef)
+              do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
                  toBuf b (multiplicity gdef)
@@ -888,11 +911,11 @@ TTC GlobalDef where
       = do name <- fromBuf b
            def <- fromBuf b
            cdef <- fromBuf b
-           refsList <- fromBuf b;
+           refsList <- fromBuf b
            let refs = map fromList refsList
+           loc <- fromBuf b
            if isUserName name
-              then do loc <- fromBuf b;
-                      ty <- fromBuf b; eargs <- fromBuf b;
+              then do ty <- fromBuf b; eargs <- fromBuf b;
                       seargs <- fromBuf b
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
@@ -902,10 +925,9 @@ TTC GlobalDef where
                       sc <- fromBuf b
                       pure (MkGlobalDef loc name ty eargs seargs mul vars vis
                                         tot fl refs inv c True def cdef sc)
-              else do let fc = emptyFC
-                      pure (MkGlobalDef fc name (Erased fc False) [] []
-                                        RigW [] Public unchecked [] refs
-                                        False False True def cdef [])
+              else pure (MkGlobalDef loc name (Erased loc False) [] []
+                                     RigW [] Public unchecked [] refs
+                                     False False True def cdef [])
 
 TTC Transform where
   toBuf b (MkTransform {vars} env lhs rhs)

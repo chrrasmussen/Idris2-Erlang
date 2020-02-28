@@ -316,12 +316,13 @@ instantiate : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               {newvars : _} ->
               FC -> UnifyMode -> Env Term vars ->
-              (metavar : Name) -> (mref : Int) -> (mdef : GlobalDef) ->
+              (metavar : Name) -> (mref : Int) -> (numargs : Nat) ->
+              (mdef : GlobalDef) ->
               List (Var newvars) -> -- Variable each argument maps to
               Term vars -> -- original, just for error message
               Term newvars -> -- shrunk environment
               Core ()
-instantiate {newvars} loc mode env mname mref mdef locs otm tm
+instantiate {newvars} loc mode env mname mref num mdef locs otm tm
     = do logTerm 5 ("Instantiating in " ++ show newvars) tm
 --          let Hole _ _ = definition mdef
 --              | def => ufail {a=()} loc (show mname ++ " already resolved as " ++ show def)
@@ -339,7 +340,7 @@ instantiate {newvars} loc mode env mname mref mdef locs otm tm
          logTerm 5 ("Instantiated: " ++ show mname) ty
          log 5 ("From vars: " ++ show newvars)
          logTerm 5 "Definition" rhs
-         let simpleDef = isSimple rhs
+         let simpleDef = MkPMDefInfo (SolvedHole num) (isSimple rhs)
          let newdef = record { definition =
                                  PMDef simpleDef [] (STerm rhs) (STerm rhs) []
                              } mdef
@@ -430,7 +431,7 @@ solveIfUndefined env (Meta fc mname idx args) soln
                        Just stm =>
                           do Just hdef <- lookupCtxtExact (Resolved idx) (gamma defs)
                                   | Nothing => throw (InternalError "Can't happen: no definition")
-                             instantiate fc (InTerm True) env mname idx hdef locs soln stm
+                             instantiate fc (InTerm True) env mname idx (length args) hdef locs soln stm
                              pure True
 solveIfUndefined env metavar soln
     = pure False
@@ -628,7 +629,7 @@ mutual
                    -- metavariables)
                    do Just hdef <- lookupCtxtExact (Resolved mref) (gamma defs)
                            | Nothing => throw (InternalError ("Can't happen: Lost hole " ++ show mname))
-                      instantiate loc mode env mname mref hdef locs solfull stm
+                      instantiate loc mode env mname mref (length margs) hdef locs solfull stm
                       pure $ solvedHole mref
     where
       -- Only need to check the head metavar is the same, we've already
@@ -824,7 +825,7 @@ mutual
                     Core UnifyResult
   unifyBothBinders mode loc env xfc x (Pi cx ix tx) scx yfc y (Pi cy iy ty) scy
       = do defs <- get Ctxt
-           if ix /= iy || not (subRig cx cy)
+           if not (subRig cx cy)
              then convertError loc env
                     (NBind xfc x (Pi cx ix tx) scx)
                     (NBind yfc y (Pi cy iy ty) scy)
@@ -836,7 +837,7 @@ mutual
                   ct <- unify mode loc env tx ty
                   xn <- genVarName "x"
                   let env' : Env Term (x :: _)
-                           = Pi cy ix tx' :: env
+                           = Pi cy Explicit tx' :: env
                   case constraints ct of
                       [] => -- No constraints, check the scope
                          do tscx <- scx defs (toClosure defaultOpts env (Ref loc Bound xn))
@@ -861,7 +862,7 @@ mutual
                             pure (union ct cs')
   unifyBothBinders mode loc env xfc x (Lam cx ix tx) scx yfc y (Lam cy iy ty) scy
       = do defs <- get Ctxt
-           if ix /= iy || not (subRig cx cy)
+           if not (subRig cx cy)
              then convertError loc env
                     (NBind xfc x (Lam cx ix tx) scx)
                     (NBind yfc y (Lam cy iy ty) scy)
@@ -871,7 +872,7 @@ mutual
                   ct <- unify mode loc env tx ty
                   xn <- genVarName "x"
                   let env' : Env Term (x :: _)
-                           = Lam cx ix tx' :: env
+                           = Lam cx Explicit tx' :: env
                   txtm <- quote empty env tx
                   tytm <- quote empty env ty
 
@@ -1017,7 +1018,7 @@ mutual
                         case ety of
                              Just argty =>
                                do etay <- nf defs env
-                                             (Bind xfc x (Lam cx ix argty)
+                                             (Bind xfc x (Lam cx Explicit argty)
                                                      (App xfc
                                                           (weaken !(quote empty env tmy))
                                                           (Local xfc Nothing 0 First)))
@@ -1035,7 +1036,7 @@ mutual
                         case ety of
                              Just argty =>
                                do etax <- nf defs env
-                                             (Bind yfc y (Lam cy iy argty)
+                                             (Bind yfc y (Lam cy Explicit argty)
                                                      (App yfc
                                                           (weaken !(quote empty env tmx))
                                                           (Local yfc Nothing 0 First)))
@@ -1160,7 +1161,7 @@ retryGuess mode smode (hid, (loc, hname))
                   handleUnify
                      (do tm <- search loc rig (smode == Defaults) depth defining
                                       (type def) []
-                         let gdef = record { definition = PMDef False [] (STerm tm) (STerm tm) [] } def
+                         let gdef = record { definition = PMDef defaultPI [] (STerm tm) (STerm tm) [] } def
                          logTermNF 5 ("Solved " ++ show hname) [] tm
                          addDef (Resolved hid) gdef
                          removeGuess hid
@@ -1189,7 +1190,8 @@ retryGuess mode smode (hid, (loc, hname))
                                            AddDelay r =>
                                               do ty <- getType [] tm
                                                  pure $ delayMeta r envb !(getTerm ty) tm
-                                  let gdef = record { definition = PMDef True [] (STerm tm') (STerm tm') [] } def
+                                  let gdef = record { definition = PMDef (MkPMDefInfo NotHole True)
+                                                                         [] (STerm tm') (STerm tm') [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm'
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
@@ -1207,7 +1209,8 @@ retryGuess mode smode (hid, (loc, hname))
                          -- All constraints resolved, so turn into a
                          -- proper definition and remove it from the
                          -- hole list
-                         [] => do let gdef = record { definition = PMDef True [] (STerm tm) (STerm tm) [] } def
+                         [] => do let gdef = record { definition = PMDef (MkPMDefInfo NotHole True)
+                                                                         [] (STerm tm) (STerm tm) [] } def
                                   logTerm 5 ("Resolved " ++ show hname) tm
                                   addDef (Resolved hid) gdef
                                   removeGuess hid
