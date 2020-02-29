@@ -95,10 +95,11 @@ getExportInNamespace ds targetNs = do
   let onlyRelevantDs = filter ((== targetNs) . fst) ds
   head' (mapMaybe parseExport onlyRelevantDs)
 
-generateErlangModule : Opts -> Defs -> List (Namespace, String) -> String -> (Namespace, List String) -> Core ()
-generateErlangModule opts defs ds targetDir (ns, funcDecls) = do
+generateErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, String) -> String -> (Namespace, List String) -> Core ()
+generateErlangModule opts ds targetDir (ns, funcDecls) = do
   let exportsFuncName = getExportInNamespace ds ns
-  (exportDirectives, exportFuncs) <- maybe (pure ("", "")) (genErlangExports defs (MkNamespaceInfo (prefix opts) (Just ns))) exportsFuncName
+  defs <- get Ctxt
+  (exportDirectives, exportFuncs) <- maybe (pure ("", "")) (genErlangExports (MkNamespaceInfo (prefix opts) (Just ns))) exportsFuncName
   let modName = moduleNameFromNS (prefix opts) ns
   let scm = header modName ExcludeMain ++ exportDirectives ++ concat funcDecls ++ exportFuncs ++ "\n"
   let outfile = targetDir ++ dirSep ++ modName ++ ".erl"
@@ -113,11 +114,11 @@ namespace MainEntrypoint
     let outfile = outdir ++ dirSep ++ modName ++ ".erl"
     (names, tags) <- findUsedNames tm
     defs <- get Ctxt
-    compdefs <- traverse (genErlang defs (prefix opts)) names
+    compdefs <- traverse (genErlang (prefix opts)) names
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     ds <- getDirectives Erlang
-    traverse_ (generateErlangModule opts defs ds outdir) modules
+    traverse_ (generateErlangModule opts ds outdir) modules
     main <- genExp (MkNamespaceInfo (prefix opts) Nothing) 0 [] !(CompileExpr.compileExp tags tm)
     let scm = header modName IncludeMain ++ "main(Args) -> " ++ mainInit ++ ", " ++ main ++ ".\n"
     Right () <- coreLift $ writeFile outfile scm
@@ -214,10 +215,10 @@ namespace Library
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: exportFuncs
     (names, tags) <- findExportedNames (shouldCompileName namespacesToCompile) extraNames
     defs <- get Ctxt
-    compdefs <- traverse (genErlang defs (prefix opts)) (filter (shouldCompileName namespacesToCompile) names)
+    compdefs <- traverse (genErlang (prefix opts)) (filter (shouldCompileName namespacesToCompile) names)
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
-    traverse_ (generateErlangModule opts defs ds outdir) modules
+    traverse_ (generateErlangModule opts ds outdir) modules
     copyIdrisRtsToDir outdir
     pure (idrisRtsModuleName :: map (moduleNameFromNS (prefix opts) . fst) modules)
 

@@ -930,8 +930,9 @@ genExports namespaceInfo i vs (CCon fc (NS ["IO", "Erlang"] (UN "Combine")) _ [e
   pure $ !(genExports namespaceInfo i vs exports1) ++ !(genExports namespaceInfo i vs exports2)
 genExports namespaceInfo i vs tm = throw (InternalError ("Invalid export: " ++ show tm))
 
-getCompileExpr : Defs -> Name -> Core CDef
-getCompileExpr defs name = do
+getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
+getCompileExpr name = do
+  defs <- get Ctxt
   Just globalDef <- lookupCtxtExact name (gamma defs)
     | throw (InternalError ("Compiling undefined name " ++ show name))
   let Just expr = compexpr globalDef
@@ -941,15 +942,15 @@ getCompileExpr defs name = do
 -- Convert the name to Erlang code
 -- (There may be no code generated, for example if it's a constructor)
 export
-genErlang : {auto c : Ref Ctxt Defs} -> Defs -> (prefix : String) -> Name -> Core (Maybe (Namespace, String))
-genErlang defs prefix name = do
-  expr <- getCompileExpr defs name
+genErlang : {auto c : Ref Ctxt Defs} -> (prefix : String) -> Name -> Core (Maybe (Namespace, String))
+genErlang prefix name = do
+  expr <- getCompileExpr name
   genDef prefix name expr
 
 export
-genErlangExports : Defs -> NamespaceInfo -> Name -> Core (String, String)
-genErlangExports defs namespaceInfo name = do
-  MkFun args expr <- getCompileExpr defs name
+genErlangExports : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Name -> Core (String, String)
+genErlangExports namespaceInfo name = do
+  MkFun args expr <- getCompileExpr name
     | throw (InternalError ("Expected function definition for " ++ show name)) 
   let vs = initSVars args
   exports <- genExports namespaceInfo 0 vs expr
