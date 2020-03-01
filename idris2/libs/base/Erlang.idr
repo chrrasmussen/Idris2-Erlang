@@ -248,6 +248,16 @@ namespace IO
                   IO ret
   erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
 
+  public export
+  ErlException : Type
+  ErlException = ErlTuple3 ErlAtom ErlTerm ErlTerm
+
+  %extern prim__erlTryCatch : IO a -> (1 x : %World) -> IORes (Either ErlException a)
+
+  export
+  erlTryCatch : IO a -> IO (Either ErlException a)
+  erlTryCatch action = primIO (prim__erlTryCatch action)
+
   export %inline
   erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO ErlTerm
   erlCall modName fnName args = primIO (prim__erlCall modName fnName args)

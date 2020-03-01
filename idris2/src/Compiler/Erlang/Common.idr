@@ -208,7 +208,7 @@ data ExtPrim
   | NewIORef | ReadIORef | WriteIORef
   | Stdin | Stdout | Stderr
   | VoidElim | Unknown Name
-  | ErlUnsafeCall | ErlCall | ErlCase | ErlReceive | ErlModule
+  | ErlUnsafeCall | ErlCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
   | InternalTryCatch
 
 export
@@ -232,6 +232,7 @@ Show ExtPrim where
   show (Unknown n) = "Unknown " ++ show n
   show ErlUnsafeCall = "ErlUnsafeCall"
   show ErlCall = "ErlCall"
+  show ErlTryCatch = "ErlTryCatch"
   show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
@@ -257,6 +258,7 @@ toPrim pn@(NS _ n) = cond [
   (n == UN "void", VoidElim),
   (n == UN "prim__erlUnsafeCall", ErlUnsafeCall),
   (n == UN "prim__erlCall", ErlCall),
+  (n == UN "prim__erlTryCatch", ErlTryCatch),
   (n == UN "prim__erlCase", ErlCase),
   (n == UN "prim__erlReceive", ErlReceive),
   (n == UN "prim__erlModule", ErlModule),
@@ -666,6 +668,8 @@ mutual
     pure $ mkWorld namespaceInfo $ mkTryCatch $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
   genExtPrim namespaceInfo i vs ErlCall [_, modName, fnName, args, world] =
     pure $ mkWorld namespaceInfo "false" -- TODO: Implement?
+  genExtPrim namespaceInfo i vs ErlTryCatch [_, action, world] =
+    pure $ mkWorld namespaceInfo $ "(fun() -> try " ++ !(genExp namespaceInfo i vs (applyUnsafePerformIO action)) ++ " of Result -> " ++ mkEither namespaceInfo (Right "Result") ++ " catch Class:Reason:Stacktrace -> " ++ mkEither namespaceInfo (Left "{Class, Reason, Stacktrace}") ++ " end end())"
   genExtPrim namespaceInfo i vs ErlCase [_, def, matchers@(CCon _ _ _ _), term] = do
     clauses <- readMatchers namespaceInfo i 0 vs matchers
     genErlCase namespaceInfo i vs def clauses term
