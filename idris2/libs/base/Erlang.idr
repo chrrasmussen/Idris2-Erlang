@@ -175,6 +175,85 @@ mutual
     ETErlTypesCons  : (ErlType x, ErlTypes xs) => ErlTypes (x :: xs)
 
 
+----------
+-- CAST --
+----------
+
+-- ErlType a -> ErlTerm
+-- (Allow all supported Erlang types to be type erased)
+
+export
+ErlType a => Cast a ErlTerm where
+  cast x = believe_me x
+
+
+-- Unit <-> ErlTuple0
+
+export
+Cast () ErlTuple0 where
+  cast MkUnit = MkErlTuple0
+
+export
+Cast ErlTuple0 () where
+  cast MkErlTuple0 = MkUnit
+
+
+-- Bool -> ErlAtom
+
+export
+Cast Bool ErlAtom where
+  cast True = MkErlAtom "true"
+  cast False = MkErlAtom "false"
+
+
+-- ErlNil/ErlCons -> List
+
+export
+Cast ErlNil (List a) where
+  cast [] = []
+
+export
+Cast b (List a) => Cast (ErlCons a b) (List a) where
+  cast (x :: y) = x :: cast y
+
+
+-- ErlNil/ErlCons -> ErlList
+
+export
+Cast ErlNil (ErlList []) where
+  cast [] = []
+
+export
+Cast b (ErlList bs) => Cast (ErlCons a b) (ErlList (a :: bs)) where
+  cast (x :: y) = x :: cast y
+
+
+-- ErlList -> List
+
+export
+Cast (ErlList []) (List a) where
+  cast [] = []
+
+export
+Cast (ErlList as) (List a) => Cast (ErlList (a :: as)) (List a) where
+  cast (x :: xs) = x :: cast xs
+
+
+-- ErlList -> ErlNil/ErlCons
+
+export
+Cast (ErlList []) ErlNil where
+  cast [] = []
+
+export
+Cast (ErlList [a]) (ErlCons a ErlNil) where
+  cast (x :: xs) = x :: cast xs
+
+export
+Cast (ErlList as) (ErlCons b c) => Cast (ErlList (a :: as)) (ErlCons a (ErlCons b c)) where
+  cast (x :: xs) = x :: cast xs
+
+
 namespace CaseExpr
   public export
   TypesToFunc : List Type -> Type -> Type
@@ -400,85 +479,6 @@ namespace ListConversions
   listToErlList : (xs : List a) -> ErlList (ListToTypes xs)
   listToErlList [] = []
   listToErlList (x :: xs) = x :: listToErlList xs
-
-
-----------
--- CAST --
-----------
-
--- ErlType a -> ErlTerm
--- (Allow all supported Erlang types to be type erased)
-
-export
-ErlType a => Cast a ErlTerm where
-  cast x = believe_me x
-
-
--- Unit <-> ErlTuple0
-
-export
-Cast () ErlTuple0 where
-  cast MkUnit = MkErlTuple0
-
-export
-Cast ErlTuple0 () where
-  cast MkErlTuple0 = MkUnit
-
-
--- Bool -> ErlAtom
-
-export
-Cast Bool ErlAtom where
-  cast True = MkErlAtom "true"
-  cast False = MkErlAtom "false"
-
-
--- ErlNil/ErlCons -> List
-
-export
-Cast ErlNil (List a) where
-  cast [] = []
-
-export
-Cast b (List a) => Cast (ErlCons a b) (List a) where
-  cast (x :: y) = x :: cast y
-
-
--- ErlNil/ErlCons -> ErlList
-
-export
-Cast ErlNil (ErlList []) where
-  cast [] = []
-
-export
-Cast b (ErlList bs) => Cast (ErlCons a b) (ErlList (a :: bs)) where
-  cast (x :: y) = x :: cast y
-
-
--- ErlList -> List
-
-export
-Cast (ErlList []) (List a) where
-  cast [] = []
-
-export
-Cast (ErlList as) (List a) => Cast (ErlList (a :: as)) (List a) where
-  cast (x :: xs) = x :: cast xs
-
-
--- ErlList -> ErlNil/ErlCons
-
-export
-Cast (ErlList []) ErlNil where
-  cast [] = []
-
-export
-Cast (ErlList [a]) (ErlCons a ErlNil) where
-  cast (x :: xs) = x :: cast xs
-
-export
-Cast (ErlList as) (ErlCons b c) => Cast (ErlList (a :: as)) (ErlCons a (ErlCons b c)) where
-  cast (x :: xs) = x :: cast xs
 
 
 ----------
