@@ -208,7 +208,7 @@ data ExtPrim
   | NewIORef | ReadIORef | WriteIORef
   | Stdin | Stdout | Stderr
   | VoidElim | Unknown Name
-  | ErlUnsafeCall | ErlCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
+  | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
   | InternalTryCatch
 
 export
@@ -231,7 +231,6 @@ Show ExtPrim where
   show VoidElim = "VoidElim"
   show (Unknown n) = "Unknown " ++ show n
   show ErlUnsafeCall = "ErlUnsafeCall"
-  show ErlCall = "ErlCall"
   show ErlTryCatch = "ErlTryCatch"
   show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
@@ -257,7 +256,6 @@ toPrim pn@(NS _ n) = cond [
   (n == UN "prim__stderr", Stderr),
   (n == UN "void", VoidElim),
   (n == UN "prim__erlUnsafeCall", ErlUnsafeCall),
-  (n == UN "prim__erlCall", ErlCall),
   (n == UN "prim__erlTryCatch", ErlTryCatch),
   (n == UN "prim__erlCase", ErlCase),
   (n == UN "prim__erlReceive", ErlReceive),
@@ -662,11 +660,6 @@ mutual
     parameterList <- readArgs namespaceInfo i vs args
     pure $ mkWorld namespaceInfo $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
   genExtPrim namespaceInfo i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
-    pure $ mkWorld namespaceInfo "false" -- TODO: Implement?
-  genExtPrim namespaceInfo i vs ErlCall [_, modName, fnName, args@(CCon _ _ _ _), world] = do
-    parameterList <- readArgs namespaceInfo i vs args
-    pure $ mkWorld namespaceInfo $ mkTryCatch $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
-  genExtPrim namespaceInfo i vs ErlCall [_, modName, fnName, args, world] =
     pure $ mkWorld namespaceInfo "false" -- TODO: Implement?
   genExtPrim namespaceInfo i vs ErlTryCatch [_, action, world] =
     pure $ mkWorld namespaceInfo $ "(fun() -> try " ++ !(genExp namespaceInfo i vs (applyUnsafePerformIO action)) ++ " of Result -> " ++ mkEither namespaceInfo (Right "Result") ++ " catch Class:Reason:Stacktrace -> " ++ mkEither namespaceInfo (Left "{Class, Reason, Stacktrace}") ++ " end end())"

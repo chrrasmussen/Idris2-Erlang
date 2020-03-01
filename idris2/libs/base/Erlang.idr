@@ -316,9 +316,6 @@ namespace IO
   -- Creates an Erlang function call similar to: `fn`(`args...`)
   %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
 
-  -- Creates an Erlang function call similar to: catch (binary_to_atom(`mod`)):(binary_to_atom(`fn`))(`args...`)
-  %extern prim__erlCall : String -> String -> ErlList xs -> (1 x : %World) -> IORes ErlTerm
-
   export %inline
   erlUnsafeCall : (0 ret : Type) -> {auto ret_prf : ErlType ret} ->
                   String ->
@@ -339,7 +336,10 @@ namespace IO
 
   export %inline
   erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO ErlTerm
-  erlCall modName fnName args = primIO (prim__erlCall modName fnName args)
+  erlCall modName fnName args = do
+    Right result <- erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
+      | Left exception => pure $ cast (MkErlTuple2 (MkErlAtom "$idris_rts_exception") exception)
+    pure result
 
   export
   erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
