@@ -275,15 +275,16 @@ mkErased = "erased"
 mkUnit : String
 mkUnit = "{}"
 
--- TODO: Hard-coded data constructor. Must match the behavior of `genConstructor`
-mkEitherBuilder : String -> String
-mkEitherBuilder tag = "fun(X) -> {'" ++ escapeAtomChars tag ++ "', erased, erased, X} end"
+mkEither : NamespaceInfo -> Either String String -> String
+mkEither namespaceInfo value =
+  let name =
+      case value of
+        Right _ => NS ["Prelude"] (UN "Right")
+        Left _ => NS ["Prelude"] (UN "Left")
+  in genConstructor namespaceInfo name [mkErased, mkErased, either id id value]
 
-mkLeftBuilder : NamespaceInfo -> String
-mkLeftBuilder namespaceInfo = mkEitherBuilder (prefix namespaceInfo ++ ".Prelude.Left")
-
-mkRightBuilder : NamespaceInfo -> String
-mkRightBuilder namespaceInfo = mkEitherBuilder (prefix namespaceInfo ++ ".Prelude.Right")
+mkEitherBuilder : NamespaceInfo -> Bool -> String
+mkEitherBuilder namespaceInfo isRight = "fun(X) -> " ++ mkEither namespaceInfo (if isRight then Right "X" else Left "X") ++ " end"
 
 -- PrimIO.MkIORes : {0 a : Type} -> a -> (1 x : %World) -> IORes a
 export
@@ -629,13 +630,13 @@ mutual
   genExtPrim namespaceInfo i vs GetStr [world] =
     pure $ mkWorld namespaceInfo "'Idris.RTS-Internal':io_unicode_get_str(\"\")"
   genExtPrim namespaceInfo i vs FileOpen [file, mode, bin, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_open(" ++ mkLeftBuilder namespaceInfo ++ ", " ++ mkRightBuilder namespaceInfo ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs mode) ++ ", " ++ !(genExp namespaceInfo i vs bin) ++ ")"
+    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_open(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs mode) ++ ", " ++ !(genExp namespaceInfo i vs bin) ++ ")"
   genExtPrim namespaceInfo i vs FileClose [file, world] =
     pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp namespaceInfo i vs file) ++ "), " ++ mkWorld namespaceInfo mkUnit ++ " end())"
   genExtPrim namespaceInfo i vs FileReadLine [file, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_read_line(" ++ mkLeftBuilder namespaceInfo ++ ", " ++ mkRightBuilder namespaceInfo ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ")"
+    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_read_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ")"
   genExtPrim namespaceInfo i vs FileWriteLine [file, str, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_write_line(" ++ mkLeftBuilder namespaceInfo ++ ", " ++ mkRightBuilder namespaceInfo ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs str) ++ ")"
+    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_write_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs str) ++ ")"
   genExtPrim namespaceInfo i vs FileEOF [file, world] =
     pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp namespaceInfo i vs file) ++ ")"
   -- TODO: Implement IORef
