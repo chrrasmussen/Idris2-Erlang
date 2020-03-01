@@ -313,7 +313,6 @@ namespace CaseExpr
 
 
 namespace IO
-  -- Creates an Erlang function call similar to: `fn`(`args...`)
   %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
 
   export %inline
@@ -345,7 +344,6 @@ namespace IO
   erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
   erlUnsafeCast to term = believe_me term
 
-  -- Get the name of the current module
   %extern prim__erlModule : ErlAtom
 
   export %inline
