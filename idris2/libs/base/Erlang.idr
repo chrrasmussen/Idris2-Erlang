@@ -256,6 +256,13 @@ namespace IO
   erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
   erlUnsafeCast to term = believe_me term
 
+  -- Get the name of the current module
+  %extern prim__erlModule : ErlAtom
+
+  export %inline
+  erlModule : ErlAtom
+  erlModule = prim__erlModule
+
   public export
   data ErlExport : Type where
     Fun : ErlType t => (name : String) -> (expr : t) -> ErlExport
