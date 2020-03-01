@@ -257,12 +257,12 @@ namespace IO
   erlUnsafeCast to term = believe_me term
 
   public export
-  data ErlExports : Type where
-    Fun : ErlType t => (name : String) -> (expr : t) -> ErlExports
-    Combine : ErlExports -> ErlExports -> ErlExports
+  data ErlExport : Type where
+    Fun : ErlType t => (name : String) -> (expr : t) -> ErlExport
+    Combine : ErlExport -> ErlExport -> ErlExport
 
   public export %inline
-  (<+>) : ErlExports -> ErlExports -> ErlExports
+  (<+>) : ErlExport -> ErlExport -> ErlExport
   (<+>) = Combine
 
 namespace Concurrency
