@@ -246,8 +246,6 @@ testMError = do
     Just funDiv_crashes => do
       funDiv_crashes_res <- funDiv_crashes 0.0
       putStrLn (erlCase "did not match on error" [MError (MTuple [MAtom, MAtom, MAny] (\class, reason, stacktrace => unwrapAtom reason))] funDiv_crashes_res)
-  result <- erlCall "missing" "fun" []
-  putStrLn (erlCase "did not match on error" [map (const "matched on error") (MError MAny)] result)
 
 
 main : IO ()

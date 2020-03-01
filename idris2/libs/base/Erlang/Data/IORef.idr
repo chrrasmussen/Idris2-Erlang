@@ -9,7 +9,7 @@ data IORef : Type -> Type where
 export
 newIORef : a -> IO (IORef a)
 newIORef val = do
-  ref <- erlCall "erlang" "make_ref" []
+  ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   erlCall "ets" "insert" [MkErlAtom "$idris_rts_ets", MkErlTuple2 ref (MkRaw val)]
   pure (MkIORef ref)
 

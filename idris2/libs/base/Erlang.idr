@@ -334,11 +334,8 @@ namespace IO
   erlTryCatch action = primIO (prim__erlTryCatch action)
 
   export %inline
-  erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO ErlTerm
-  erlCall modName fnName args = do
-    Right result <- erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
-      | Left exception => pure $ cast (MkErlTuple2 (MkErlAtom "$idris_rts_exception") exception)
-    pure result
+  erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
+  erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
 
   export
   erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to

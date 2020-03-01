@@ -30,7 +30,7 @@ updateBinary buf updateFn = do
 export
 newBuffer : Int -> IO Buffer
 newBuffer size = do
-  ref <- erlCall "erlang" "make_ref" []
+  ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   emptyBinary <- erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_new" [size]
   erlCall "ets" "insert" [etsKey, MkErlTuple2 ref emptyBinary]
   pure (MkBuffer ref size 0)
@@ -121,7 +121,8 @@ export
 readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO (Either FileError Buffer)
 readBufferFromFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
-  result <- erlCall "file" "read" [filePtrToErlTerm h, maxBytes]
+  Right result <- erlCall "file" "read" [filePtrToErlTerm h, maxBytes]
+    | Left _ => pure (Left FileReadError)
   let Just (MkErlBinary str) = erlCase Nothing [map Just (MTuple [MExact (MkErlAtom "ok"), MBinary] (\ok, binary => binary))] result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
@@ -138,6 +139,8 @@ writeBufferToFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
   let max' = if remainingBytesInBuffer < maxBytes then remainingBytesInBuffer else maxBytes
   binary <- getBinary buf
-  binaryToBeWritten <- erlCall "binary" "part" [binary, MkErlTuple2 loc max']
-  result <- erlCall "file" "write" [filePtrToErlTerm h, binaryToBeWritten]
+  Right binaryToBeWritten <- erlCall "binary" "part" [binary, MkErlTuple2 loc max']
+    | Left _ => pure (Left FileWriteError)
+  Right result <- erlCall "file" "write" [filePtrToErlTerm h, binaryToBeWritten]
+    | Left _ => pure (Left FileWriteError)
   pure $ erlCase (Left FileWriteError) [map (const (Right (MkBuffer ref size (loc + max')))) (MExact (MkErlAtom "ok"))] result

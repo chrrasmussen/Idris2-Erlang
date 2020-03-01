@@ -12,5 +12,6 @@ sleep sec = do
 export
 getArgs : IO (List String)
 getArgs = do
-  result <- erlCall "persistent_term" "get" [MkErlAtom "$idris_rts_args"]
+  Right result <- erlCall "persistent_term" "get" [MkErlAtom "$idris_rts_args"]
+    | Left _ => pure []
   pure $ erlCase [] [map (erlUnsafeCast (List String)) MAnyList] result
