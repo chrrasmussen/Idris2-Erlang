@@ -646,19 +646,19 @@ mutual
     parameterList <- readArgs namespaceInfo i vs args
     pure $ mkWorld namespaceInfo $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
   genExtPrim namespaceInfo i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
-    pure $ mkWorld namespaceInfo "false" -- TODO: Implement?
+    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Implement?
   genExtPrim namespaceInfo i vs ErlTryCatch [_, action, world] =
     pure $ mkWorld namespaceInfo $ "(fun() -> try " ++ !(genExp namespaceInfo i vs (applyUnsafePerformIO action)) ++ " of Result -> " ++ mkEither namespaceInfo (Right "Result") ++ " catch Class:Reason:Stacktrace -> " ++ mkEither namespaceInfo (Left "{Class, Reason, Stacktrace}") ++ " end end())"
   genExtPrim namespaceInfo i vs ErlCase [_, def, matchers@(CCon _ _ _ _), term] = do
     clauses <- readMatchers namespaceInfo i 0 vs matchers
     genErlCase namespaceInfo i vs def clauses term
   genExtPrim namespaceInfo i vs ErlCase [_, def, matchers, tm] =
-    pure $ mkWorld namespaceInfo "false" -- TODO: Do I need to implement this to make `erlCase` work with variables?
+    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlCase` work with variables?
   genExtPrim namespaceInfo i vs ErlReceive [_, timeout, def, matchers@(CCon _ _ _ _), world] = do
     clauses <- readMatchers namespaceInfo i 0 vs matchers
     genErlReceive namespaceInfo i vs timeout def clauses
   genExtPrim namespaceInfo i vs ErlReceive [_, timeout, def, matchers, world] =
-    pure $ mkWorld namespaceInfo "false" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
+    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
   genExtPrim namespaceInfo i vs ErlModule [] =
     pure "?MODULE"
   genExtPrim namespaceInfo i vs InternalTryCatch [expr] =
