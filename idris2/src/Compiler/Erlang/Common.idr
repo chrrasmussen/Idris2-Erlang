@@ -312,8 +312,8 @@ mkEitherBuilder namespaceInfo isRight = "fun(X) -> " ++ mkEither namespaceInfo (
 
 -- PrimIO.MkIORes : {0 a : Type} -> a -> (1 x : %World) -> IORes a
 export
-mkWorld : NamespaceInfo -> String -> String
-mkWorld namespaceInfo res = genConstructor namespaceInfo (NS ["PrimIO"] (UN "MkIORes")) [mkErased, res, genConstant WorldVal]
+mkIORes : NamespaceInfo -> String -> String
+mkIORes namespaceInfo res = genConstructor namespaceInfo (NS ["PrimIO"] (UN "MkIORes")) [mkErased, res, genConstant WorldVal]
 
 -- io_pure : {0 a : Type} -> a -> IO a
 -- io_pure {a} x = MkIO {a} (\1 w : %World => (MkIORes {a} x w))
@@ -616,19 +616,19 @@ mutual
   genExtPrim namespaceInfo i vs SchemeCall [ret, fn, args, world] =
     pure $ "throw(\"Can't compile Scheme FFI calls to Erlang yet\")"
   genExtPrim namespaceInfo i vs PutStr [arg, world] =
-    pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp namespaceInfo i vs arg) ++ "), " ++ mkWorld namespaceInfo mkUnit ++ " end())"
+    pure $ "(fun() -> 'Idris.RTS-Internal':io_unicode_put_str(" ++ !(genExp namespaceInfo i vs arg) ++ "), " ++ mkIORes namespaceInfo mkUnit ++ " end())"
   genExtPrim namespaceInfo i vs GetStr [world] =
-    pure $ mkWorld namespaceInfo "'Idris.RTS-Internal':io_unicode_get_str(\"\")"
+    pure $ mkIORes namespaceInfo "'Idris.RTS-Internal':io_unicode_get_str(\"\")"
   genExtPrim namespaceInfo i vs FileOpen [file, mode, bin, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_open(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs mode) ++ ", " ++ !(genExp namespaceInfo i vs bin) ++ ")"
+    pure $ mkIORes namespaceInfo $ "'Idris.RTS-Internal':file_open(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs mode) ++ ", " ++ !(genExp namespaceInfo i vs bin) ++ ")"
   genExtPrim namespaceInfo i vs FileClose [file, world] =
-    pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp namespaceInfo i vs file) ++ "), " ++ mkWorld namespaceInfo mkUnit ++ " end())"
+    pure $ "(fun() -> 'Idris.RTS-Internal':file_close(" ++ !(genExp namespaceInfo i vs file) ++ "), " ++ mkIORes namespaceInfo mkUnit ++ " end())"
   genExtPrim namespaceInfo i vs FileReadLine [file, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_read_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ")"
+    pure $ mkIORes namespaceInfo $ "'Idris.RTS-Internal':file_read_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ")"
   genExtPrim namespaceInfo i vs FileWriteLine [file, str, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_write_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs str) ++ ")"
+    pure $ mkIORes namespaceInfo $ "'Idris.RTS-Internal':file_write_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs str) ++ ")"
   genExtPrim namespaceInfo i vs FileEOF [file, world] =
-    pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp namespaceInfo i vs file) ++ ")"
+    pure $ mkIORes namespaceInfo $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp namespaceInfo i vs file) ++ ")"
   genExtPrim namespaceInfo i vs Stdin [] =
     pure "standard_io"
   genExtPrim namespaceInfo i vs Stdout [] =
@@ -641,21 +641,21 @@ mutual
     throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   genExtPrim namespaceInfo i vs ErlUnsafeCall [_, ret, modName, fnName, args@(CCon _ _ _ _), world] = do
     parameterList <- readArgs namespaceInfo i vs args
-    pure $ mkWorld namespaceInfo $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
+    pure $ mkIORes namespaceInfo $ "(" ++ mkStringToAtom !(genExp namespaceInfo i vs modName) ++ ":" ++ mkStringToAtom !(genExp namespaceInfo i vs fnName) ++ "(" ++ showSep ", " parameterList ++ "))"
   genExtPrim namespaceInfo i vs ErlUnsafeCall [_, ret, modName, fnName, args, world] =
-    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Implement?
+    pure $ mkIORes namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Implement?
   genExtPrim namespaceInfo i vs ErlTryCatch [_, action, world] =
-    pure $ mkWorld namespaceInfo $ "(fun() -> try " ++ !(genExp namespaceInfo i vs (applyUnsafePerformIO action)) ++ " of Result -> " ++ mkEither namespaceInfo (Right "Result") ++ " catch Class:Reason:Stacktrace -> " ++ mkEither namespaceInfo (Left "{Class, Reason, Stacktrace}") ++ " end end())"
+    pure $ mkIORes namespaceInfo $ "(fun() -> try " ++ !(genExp namespaceInfo i vs (applyUnsafePerformIO action)) ++ " of Result -> " ++ mkEither namespaceInfo (Right "Result") ++ " catch Class:Reason:Stacktrace -> " ++ mkEither namespaceInfo (Left "{Class, Reason, Stacktrace}") ++ " end end())"
   genExtPrim namespaceInfo i vs ErlCase [_, def, matchers@(CCon _ _ _ _), term] = do
     clauses <- readMatchers namespaceInfo i 0 vs matchers
     genErlCase namespaceInfo i vs def clauses term
   genExtPrim namespaceInfo i vs ErlCase [_, def, matchers, tm] =
-    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlCase` work with variables?
+    pure $ mkIORes namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlCase` work with variables?
   genExtPrim namespaceInfo i vs ErlReceive [_, timeout, def, matchers@(CCon _ _ _ _), world] = do
     clauses <- readMatchers namespaceInfo i 0 vs matchers
     genErlReceive namespaceInfo i vs timeout def clauses
   genExtPrim namespaceInfo i vs ErlReceive [_, timeout, def, matchers, world] =
-    pure $ mkWorld namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
+    pure $ mkIORes namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
   genExtPrim namespaceInfo i vs ErlModule [] =
     pure "?MODULE"
   genExtPrim namespaceInfo i vs InternalTryCatch [expr] =
@@ -849,7 +849,7 @@ mutual
     globalValues <- traverse (genExp namespaceInfo i vs) (concatGlobals clauses)
     let globalVars = take (length globalValues) $ (zipWith (\name, idx => name ++ show idx) (repeat "G_") [0..])
     clausesStr <- traverse (genClause namespaceInfo i vs) clauses
-    pure $ mkWorld namespaceInfo $ "(fun(" ++ showSep ", " globalVars ++") -> " ++
+    pure $ mkIORes namespaceInfo $ "(fun(" ++ showSep ", " globalVars ++") -> " ++
       "(receive " ++
       showSep "; " clausesStr ++
       " after " ++ !(genExp namespaceInfo i vs timeout) ++ " -> " ++ !(genExp namespaceInfo i vs def) ++ " end)" ++
