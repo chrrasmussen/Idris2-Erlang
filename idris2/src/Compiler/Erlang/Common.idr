@@ -15,6 +15,37 @@ import Data.Vect
 
 %default covering
 
+
+showErlChar : Char -> String -> String
+showErlChar '\\' = ("\\\\" ++)
+showErlChar c =
+  if c < chr 32 || c > chr 126
+    then (("\\x{" ++ asHex (cast c) ++ "}") ++)
+    else strCons c
+
+showErlString : List Char -> String -> String
+showErlString [] = id
+showErlString ('"' :: cs) = ("\\\"" ++) . showErlString cs
+showErlString (c :: cs) = (showErlChar c) . showErlString cs
+
+erlString : String -> String
+erlString cs = strCons '"' (showErlString (unpack cs) "\"")
+
+genConstant : Constant -> String
+genConstant (I x) = show x
+genConstant (BI x) = show x
+genConstant (Str x) = "<<" ++ erlString x ++ "/utf8>>"
+genConstant (Ch x) = show $ cast {to=Int} x
+genConstant (Db x) = show x
+genConstant WorldVal = "world_val"
+genConstant IntType = "int_type"
+genConstant IntegerType = "integer_type"
+genConstant StringType = "string_type"
+genConstant CharType = "char_type"
+genConstant DoubleType = "double_type"
+genConstant WorldType = "world_type"
+
+
 public export
 Namespace : Type
 Namespace = List String
@@ -282,7 +313,7 @@ mkEitherBuilder namespaceInfo isRight = "fun(X) -> " ++ mkEither namespaceInfo (
 -- PrimIO.MkIORes : {0 a : Type} -> a -> (1 x : %World) -> IORes a
 export
 mkWorld : NamespaceInfo -> String -> String
-mkWorld namespaceInfo res = genConstructor namespaceInfo (NS ["PrimIO"] (UN "MkIORes")) [mkErased, res, "false"]
+mkWorld namespaceInfo res = genConstructor namespaceInfo (NS ["PrimIO"] (UN "MkIORes")) [mkErased, res, genConstant WorldVal]
 
 -- io_pure : {0 a : Type} -> a -> IO a
 -- io_pure {a} x = MkIO {a} (\1 w : %World => (MkIORes {a} x w))
@@ -306,44 +337,12 @@ mkStringToAtom str = "(binary_to_atom(unicode:characters_to_binary(" ++ str ++ "
 mkTryCatch : String -> String
 mkTryCatch str = "(fun() -> try " ++ str ++ " of Result -> Result catch Class:Reason:Stacktrace -> {" ++ mkIdrisRtsExceptionAtom ++ ", {Class, Reason, Stacktrace}} end end())"
 
--- TODO: Not a great workaround :-/
--- Will fail if the input string is not a string literal
-stripErlangString : String -> String
-stripErlangString str =
-  pack (reverse (drop 8 (reverse (drop 3 (unpack str)))))
 
-showErlChar : Char -> String -> String
-showErlChar '\\' = ("\\\\" ++)
-showErlChar c =
-  if c < chr 32 || c > chr 126
-    then (("\\x{" ++ asHex (cast c) ++ "}") ++)
-    else strCons c
-
-showErlString : List Char -> String -> String
-showErlString [] = id
-showErlString ('"' :: cs) = ("\\\"" ++) . showErlString cs
-showErlString (c :: cs) = (showErlChar c) . showErlString cs
-
-erlString : String -> String
-erlString cs = strCons '"' (showErlString (unpack cs) "\"")
-
-genConstant : Constant -> String
-genConstant (I x) = show x
-genConstant (BI x) = show x
-genConstant (Str x) = "<<" ++ erlString x ++ "/utf8>>"
-genConstant (Ch x) = show $ cast {to=Int} x
-genConstant (Db x) = show x
-genConstant WorldVal = "false" -- TODO: What is the point of `false` here, and `true` for the rest of the cases?
-genConstant IntType = "true"
-genConstant IntegerType = "true"
-genConstant StringType = "true"
-genConstant CharType = "true"
-genConstant DoubleType = "true"
-genConstant WorldType = "true"
-
-genCaseDef : Maybe String -> List String
-genCaseDef Nothing = []
-genCaseDef (Just tm) = ["(_) -> " ++ tm]
+expectArgAtIndex : (n : Nat) -> List a -> Core a
+expectArgAtIndex n xs =
+  case index' n xs of
+    Just val => pure val
+    Nothing => throw (InternalError ("Missing expected argument at index " ++ show n ++ " in list"))
 
 
 applyUnsafePerformIO : CExp vars -> CExp vars
@@ -352,13 +351,6 @@ applyUnsafePerformIO expr = CApp EmptyFC (CRef EmptyFC (NS ["PrimIO"] (UN "unsaf
 applyToArgs : CExp vars -> List (CExp vars) -> CExp vars
 applyToArgs expr [] = expr
 applyToArgs expr (x :: xs) = applyToArgs (CApp EmptyFC expr [x]) xs
-
-expectArgAtIndex : (n : Nat) -> List a -> Core a
-expectArgAtIndex n xs =
-  case index' n xs of
-    Just val => pure val
-    Nothing => throw (InternalError ("Missing expected argument at index " ++ show n ++ " in list"))
-
 
 unitCExp : CExp vars
 unitCExp =
@@ -382,6 +374,11 @@ curryCExp allNames transformer expr = wrapLambda allNames (transformer (CApp Emp
     args : (names : List Name) -> List (CExp (names ++ vars))
     args [] = []
     args (x :: xs) = CLocal EmptyFC First :: map weaken (args xs)
+
+
+genCaseDef : Maybe String -> List String
+genCaseDef Nothing = []
+genCaseDef (Just tm) = ["(_) -> " ++ tm]
 
 
 mutual
@@ -901,6 +898,12 @@ internalArity _ = Value
 externalArity : InternalArity -> Nat
 externalArity Value = 0
 externalArity (Arity arity) = arity
+
+-- TODO: Not a great workaround :-/
+-- Will fail if the input string is not a string literal
+stripErlangString : String -> String
+stripErlangString str =
+  pack (reverse (drop 8 (reverse (drop 3 (unpack str)))))
 
 genExports : NamespaceInfo -> Int -> SVars vars -> CExp vars -> Core (List (String, Nat, String))
 genExports namespaceInfo i vs (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) _ [_, exprTy, name, expr]) = do
