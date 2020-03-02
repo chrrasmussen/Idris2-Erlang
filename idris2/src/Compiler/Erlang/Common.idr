@@ -205,7 +205,6 @@ data ExtPrim
   = CCall | SchemeCall -- TODO: Remove these
   | PutStr | GetStr
   | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
-  | NewIORef | ReadIORef | WriteIORef
   | Stdin | Stdout | Stderr
   | VoidElim | Unknown Name
   | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
@@ -222,9 +221,6 @@ Show ExtPrim where
   show FileReadLine = "FileReadLine"
   show FileWriteLine = "FileWriteLine"
   show FileEOF = "FileEOF"
-  show NewIORef = "NewIORef"
-  show ReadIORef = "ReadIORef"
-  show WriteIORef = "WriteIORef"
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
@@ -248,9 +244,6 @@ toPrim pn@(NS _ n) = cond [
   (n == UN "prim__readLine", FileReadLine),
   (n == UN "prim__writeLine", FileWriteLine),
   (n == UN "prim__eof", FileEOF),
-  (n == UN "prim__newIORef", NewIORef),
-  (n == UN "prim__readIORef", ReadIORef),
-  (n == UN "prim__writeIORef", WriteIORef),
   (n == UN "prim__stdin", Stdin),
   (n == UN "prim__stdout", Stdout),
   (n == UN "prim__stderr", Stderr),
@@ -639,13 +632,6 @@ mutual
     pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_write_line(" ++ mkEitherBuilder namespaceInfo False ++ ", " ++ mkEitherBuilder namespaceInfo True ++ ", " ++ !(genExp namespaceInfo i vs file) ++ ", " ++ !(genExp namespaceInfo i vs str) ++ ")"
   genExtPrim namespaceInfo i vs FileEOF [file, world] =
     pure $ mkWorld namespaceInfo $ "'Idris.RTS-Internal':file_eof(" ++ !(genExp namespaceInfo i vs file) ++ ")"
-  -- TODO: Implement IORef
-  --genExtPrim namespaceInfo i vs NewIORef [_, val, world] =
-  --  pure $ mkWorld namespaceInfo $ "(box " ++ !(genExp namespaceInfo i vs val) ++ ")"
-  --genExtPrim namespaceInfo i vs ReadIORef [_, ref, world] =
-  --  pure $ mkWorld namespaceInfo $ "(unbox " ++ !(genExp namespaceInfo i vs ref) ++ ")"
-  --genExtPrim namespaceInfo i vs WriteIORef [_, ref, val, world] =
-  --  pure $ mkWorld namespaceInfo $ "(set-box! " ++ !(genExp namespaceInfo i vs ref) ++ " " ++ !(genExp namespaceInfo i vs val) ++ ")"
   genExtPrim namespaceInfo i vs Stdin [] =
     pure "standard_io"
   genExtPrim namespaceInfo i vs Stdout [] =
