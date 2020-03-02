@@ -254,6 +254,51 @@ Cast (ErlList as) (ErlCons b c) => Cast (ErlList (a :: as)) (ErlCons a (ErlCons 
   cast (x :: xs) = x :: cast xs
 
 
+namespace IO
+  %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
+
+  export %inline
+  erlUnsafeCall : (0 ret : Type) -> {auto ret_prf : ErlType ret} ->
+                  String ->
+                  String ->
+                  ErlList xs -> {auto inp_prf : ErlTypes xs} ->
+                  IO ret
+  erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
+
+  public export
+  ErlException : Type
+  ErlException = ErlTuple3 ErlAtom ErlTerm ErlTerm
+
+  %extern prim__erlTryCatch : IO a -> (1 x : %World) -> IORes (Either ErlException a)
+
+  export
+  erlTryCatch : IO a -> IO (Either ErlException a)
+  erlTryCatch action = primIO (prim__erlTryCatch action)
+
+  export %inline
+  erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
+  erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
+
+  export
+  erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
+  erlUnsafeCast to term = believe_me term
+
+  %extern prim__erlModule : ErlAtom
+
+  export %inline
+  erlModule : ErlAtom
+  erlModule = prim__erlModule
+
+  public export
+  data ErlExport : Type where
+    Fun : ErlType t => (name : String) -> (expr : t) -> ErlExport
+    Combine : ErlExport -> ErlExport -> ErlExport
+
+  public export %inline
+  (<+>) : ErlExport -> ErlExport -> ErlExport
+  (<+>) = Combine
+
+
 namespace CaseExpr
   public export
   TypesToFunc : List Type -> Type -> Type
@@ -311,50 +356,6 @@ namespace CaseExpr
   map : (a -> b) -> ErlMatcher a -> ErlMatcher b
   map func matcher = MMapper matcher func
 
-
-namespace IO
-  %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
-
-  export %inline
-  erlUnsafeCall : (0 ret : Type) -> {auto ret_prf : ErlType ret} ->
-                  String ->
-                  String ->
-                  ErlList xs -> {auto inp_prf : ErlTypes xs} ->
-                  IO ret
-  erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
-
-  public export
-  ErlException : Type
-  ErlException = ErlTuple3 ErlAtom ErlTerm ErlTerm
-
-  %extern prim__erlTryCatch : IO a -> (1 x : %World) -> IORes (Either ErlException a)
-
-  export
-  erlTryCatch : IO a -> IO (Either ErlException a)
-  erlTryCatch action = primIO (prim__erlTryCatch action)
-
-  export %inline
-  erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
-  erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
-
-  export
-  erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
-  erlUnsafeCast to term = believe_me term
-
-  %extern prim__erlModule : ErlAtom
-
-  export %inline
-  erlModule : ErlAtom
-  erlModule = prim__erlModule
-
-  public export
-  data ErlExport : Type where
-    Fun : ErlType t => (name : String) -> (expr : t) -> ErlExport
-    Combine : ErlExport -> ErlExport -> ErlExport
-
-  public export %inline
-  (<+>) : ErlExport -> ErlExport -> ErlExport
-  (<+>) = Combine
 
 namespace Concurrency
   export
