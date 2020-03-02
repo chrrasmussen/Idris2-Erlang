@@ -239,7 +239,6 @@ data ExtPrim
   | Stdin | Stdout | Stderr
   | VoidElim | Unknown Name
   | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
-  | InternalTryCatch
 
 export
 Show ExtPrim where
@@ -262,7 +261,6 @@ Show ExtPrim where
   show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
-  show InternalTryCatch = "InternalTryCatch"
 
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n) = cond [
@@ -283,8 +281,7 @@ toPrim pn@(NS _ n) = cond [
   (n == UN "prim__erlTryCatch", ErlTryCatch),
   (n == UN "prim__erlCase", ErlCase),
   (n == UN "prim__erlReceive", ErlReceive),
-  (n == UN "prim__erlModule", ErlModule),
-  (n == UN "internal__tryCatch", InternalTryCatch)
+  (n == UN "prim__erlModule", ErlModule)
   ]
   (Unknown pn)
 toPrim pn = Unknown pn
@@ -334,9 +331,6 @@ mkUncurriedFun xs body = "fun(" ++ showSep ", " xs ++ ") -> " ++ body ++ " end"
 mkStringToAtom : String -> String
 mkStringToAtom str = "(binary_to_atom(unicode:characters_to_binary(" ++ str ++ "), utf8))"
 
-mkTryCatch : String -> String
-mkTryCatch str = "(fun() -> try " ++ str ++ " of Result -> Result catch Class:Reason:Stacktrace -> {" ++ mkIdrisRtsExceptionAtom ++ ", {Class, Reason, Stacktrace}} end end())"
-
 
 expectArgAtIndex : (n : Nat) -> List a -> Core a
 expectArgAtIndex n xs =
@@ -366,7 +360,7 @@ ioPureCExp expr =
 
 tryCatchCExp : CExp vars -> CExp vars
 tryCatchCExp expr =
-  CExtPrim EmptyFC (NS [] (UN "internal__tryCatch")) [expr]
+  mkIOCExp $ CLam EmptyFC (MN "World" 0) $ CExtPrim EmptyFC (NS [] (UN "prim__erlTryCatch")) [CErased EmptyFC, weaken expr, CLocal EmptyFC First]
 
 curryCExp : List Name -> ({innerVars : List Name} -> CExp innerVars -> CExp innerVars) -> CExp vars -> CExp vars
 curryCExp allNames transformer expr = wrapLambda allNames (transformer (CApp EmptyFC (weakenNs allNames expr) (reverse (args allNames))))
@@ -662,8 +656,6 @@ mutual
     pure $ mkIORes namespaceInfo "throw(\"Error: Not implemented\")" -- TODO: Do I need to implement this to make `erlReceive` work with variables?
   genExtPrim namespaceInfo i vs ErlModule [] =
     pure "?MODULE"
-  genExtPrim namespaceInfo i vs InternalTryCatch [expr] =
-    pure $ mkTryCatch !(genExp namespaceInfo i vs expr)
   genExtPrim namespaceInfo i vs prim args =
     throw (InternalError ("Badly formed external primitive " ++ show prim ++ " " ++ show args))
 
@@ -790,7 +782,7 @@ mutual
     let ref = CRef EmptyFC (MN "C" local)
     arity <- readListLength i vs types
     let tempVars = take arity $ zipWith (\name, idx => MN name idx) (repeat "M") [0..]
-    pure $ MkErlClause local [] !(genExp namespaceInfo i vs ref) (IsFun arity ref) (curryCExp tempVars (ioPureCExp . tryCatchCExp) ref)
+    pure $ MkErlClause local [] !(genExp namespaceInfo i vs ref) (IsFun arity ref) (curryCExp tempVars (tryCatchCExp . ioPureCExp) ref)
   -- MError
   readClause namespaceInfo i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MError")) _ [_, matcher]) = do
     clause <- readClause namespaceInfo i local global vs matcher

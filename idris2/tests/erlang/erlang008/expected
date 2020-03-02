@@ -102,8 +102,8 @@ not found
 42
 79
 42.0
-not a double
+exception
 testMError
 matched on error
 not found
-badarith
+exception

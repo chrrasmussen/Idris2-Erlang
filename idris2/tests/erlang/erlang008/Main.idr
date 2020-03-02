@@ -208,32 +208,38 @@ testMIO = do
   case erlCase Nothing [map Just (MIO [])] fun0Ex of
     Nothing => putStrLn "not found"
     Just fun0 => do
-      fun0_res <- fun0
+      Right fun0_res <- fun0
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not an integer" [map show MInteger] fun0_res)
   case erlCase Nothing [map Just (MIO [])] (cast {to=ErlTerm} "not a function") of
     Nothing => putStrLn "not found"
     Just fun0_notFound => do
-      fun0_notFound_res <- fun0_notFound
+      Right fun0_notFound_res <- fun0_notFound
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not an integer" [map show MInteger] fun0_notFound_res)
   case erlCase Nothing [map Just (MIO [Int])] fun1Ex of
     Nothing => putStrLn "not found"
     Just fun1 => do
-      fun1_res <- fun1 42
+      Right fun1_res <- fun1 42
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not an integer" [map show MInteger] fun1_res)
   case erlCase Nothing [map Just (MIO [Int, Int])] fun2Ex of
     Nothing => putStrLn "not found"
     Just fun2 => do
-      fun2_res <- fun2 42 37
+      Right fun2_res <- fun2 42 37
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not an integer" [map show MInteger] fun2_res)
   case erlCase Nothing [map Just (MIO [Double])] funDivEx of
     Nothing => putStrLn "not found"
     Just funDiv_works => do
-      funDiv_works_res <- funDiv_works 1.0
+      Right funDiv_works_res <- funDiv_works 1.0
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not a double" [map show MDouble] funDiv_works_res)
   case erlCase Nothing [map Just (MIO [Double])] funDivEx of
     Nothing => putStrLn "not found"
     Just funDiv_crashes => do
-      funDiv_crashes_res <- funDiv_crashes 0.0
+      Right funDiv_crashes_res <- funDiv_crashes 0.0
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "not a double" [map show MDouble] funDiv_crashes_res)
 
 testMError : IO ()
@@ -244,7 +250,8 @@ testMError = do
   case erlCase Nothing [map Just (MIO [Double])] funDivEx of
     Nothing => putStrLn "not found"
     Just funDiv_crashes => do
-      funDiv_crashes_res <- funDiv_crashes 0.0
+      Right funDiv_crashes_res <- funDiv_crashes 0.0
+        | Left _ => putStrLn "exception"
       putStrLn (erlCase "did not match on error" [MError (MTuple [MAtom, MAtom, MAny] (\class, reason, stacktrace => unwrapAtom reason))] funDiv_crashes_res)
 
 
