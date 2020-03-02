@@ -287,9 +287,6 @@ toPrim pn@(NS _ n) = cond [
 toPrim pn = Unknown pn
 
 
-mkIdrisRtsExceptionAtom : String
-mkIdrisRtsExceptionAtom = "'$idris_rts_exception'"
-
 mkErased : String
 mkErased = "erased"
 
@@ -783,10 +780,6 @@ mutual
     arity <- readListLength i vs types
     let tempVars = take arity $ zipWith (\name, idx => MN name idx) (repeat "M") [0..]
     pure $ MkErlClause local [] !(genExp namespaceInfo i vs ref) (IsFun arity ref) (curryCExp tempVars (tryCatchCExp . ioPureCExp) ref)
-  -- MError
-  readClause namespaceInfo i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MError")) _ [_, matcher]) = do
-    clause <- readClause namespaceInfo i local global vs matcher
-    pure $ MkErlClause (nextLocal clause) (globals clause) ("{" ++ mkIdrisRtsExceptionAtom ++ ", " ++ pattern clause ++ "}") (guard clause) (body clause)
   -- MMapper
   readClause namespaceInfo i local global vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapper")) _ [_, _, matcher, mapper]) = do
     clause <- readClause namespaceInfo i local global vs matcher

@@ -242,18 +242,6 @@ testMIO = do
         | Left _ => putStrLn "exception"
       putStrLn (erlCase "not a double" [map show MDouble] funDiv_crashes_res)
 
-testMError : IO ()
-testMError = do
-  putStrLn "testMError"
-  putStrLn (erlCase "not found" [map (const "matched on error") (MError MAny)] (cast (MkErlTuple2 (MkErlAtom "$idris_rts_exception") "error")))
-  putStrLn (erlCase "not found" [map (const "matched on error") (MError MAny)] (cast "something else"))
-  case erlCase Nothing [map Just (MIO [Double])] funDivEx of
-    Nothing => putStrLn "not found"
-    Just funDiv_crashes => do
-      Right funDiv_crashes_res <- funDiv_crashes 0.0
-        | Left _ => putStrLn "exception"
-      putStrLn (erlCase "did not match on error" [MError (MTuple [MAtom, MAtom, MAny] (\class, reason, stacktrace => unwrapAtom reason))] funDiv_crashes_res)
-
 
 main : IO ()
 main = do

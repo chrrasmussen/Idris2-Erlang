@@ -326,7 +326,6 @@ namespace CaseExpr
       MTuple        : ErlMatchers ErlMatcher xs  -> TypesToFunc xs ret -> ErlMatcher ret
       MMapSubset    : ErlMatchers ErlMapEntry xs -> TypesToFunc xs ret -> ErlMatcher ret
       MIO           : (xs : List Type) -> ErlMatcher (TypesToFunc xs (IO (Either ErlException ErlTerm)))
-      MError        : ErlMatcher a -> ErlMatcher a
       MMapper       : ErlMatcher a -> (a -> b) -> ErlMatcher b
 
     public export
