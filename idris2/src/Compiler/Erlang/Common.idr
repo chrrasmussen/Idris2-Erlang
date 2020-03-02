@@ -356,9 +356,13 @@ unitCExp : CExp vars
 unitCExp =
   CCon EmptyFC (NS ["Builtin"] (UN "MkUnit")) 0 []
 
+mkIOCExp : CExp vars -> CExp vars
+mkIOCExp expr =
+  CCon EmptyFC (NS ["PrimIO"] (UN "MkIO")) 0 [CErased EmptyFC, expr]
+
 ioPureCExp : CExp vars -> CExp vars
 ioPureCExp expr =
-  CCon EmptyFC (NS ["PrimIO"] (UN "MkIO")) 0 [CErased EmptyFC, CLam EmptyFC (MN "World" 0) (CCon EmptyFC (NS ["PrimIO"] (UN "MkIORes")) 0 [CErased EmptyFC, weaken expr, CLocal EmptyFC First])]
+  mkIOCExp $ CLam EmptyFC (MN "World" 0) $ CCon EmptyFC (NS ["PrimIO"] (UN "MkIORes")) 0 [CErased EmptyFC, weaken expr, CLocal EmptyFC First]
 
 tryCatchCExp : CExp vars -> CExp vars
 tryCatchCExp expr =
