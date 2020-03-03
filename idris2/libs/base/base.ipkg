@@ -40,10 +40,4 @@ modules = Control.App,
           System.Directory,
           System.File,
           System.Info,
-          System.REPL,
-
-          Erlang,
-          Erlang.System,
-          Erlang.Debug,
-          Erlang.Data.Buffer,
-          Erlang.Data.IORef
+          System.REPL

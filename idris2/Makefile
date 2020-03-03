@@ -64,7 +64,10 @@ network: prelude
 contrib: prelude
 	make -C libs/contrib IDRIS2=../../idris2
 
-libs : prelude base network contrib
+erlang: prelude
+	make -C libs/erlang IDRIS2=../../idris2
+
+libs : prelude base network contrib erlang
 
 clean: clean-libs
 	make -C src clean
@@ -78,6 +81,7 @@ clean-libs:
 	make -C libs/base clean
 	make -C libs/network clean
 	make -C libs/contrib clean
+	make -C libs/erlang clean
 
 test:
 	idris --build tests.ipkg
@@ -105,3 +109,4 @@ install-libs: libs
 	make -C libs/base install IDRIS2=../../idris2
 	make -C libs/network install IDRIS2=../../idris2 IDRIS2_VERSION=${IDRIS2_VERSION}
 	make -C libs/contrib install IDRIS2=../../idris2
+	make -C libs/erlang install IDRIS2=../../idris2
