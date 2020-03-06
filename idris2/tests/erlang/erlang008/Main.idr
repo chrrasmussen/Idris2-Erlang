@@ -265,4 +265,3 @@ main = do
   testMTuple
   testMMapSubset
   testMIO
-  testMError
