@@ -916,7 +916,7 @@ strCons = prim__strCons
 public export
 strUncons : String -> Maybe (Char, String)
 strUncons "" = Nothing
-strUncons str = Just (prim__strHead str, prim__strTail str)
+strUncons str = Just (assert_total (prim__strHead str, prim__strTail str))
 
 public export
 pack : List Char -> String
@@ -940,7 +940,7 @@ unpack : String -> List Char
 unpack str =
   case strUncons str of
     Nothing => []
-    Just (x, xs) => x :: unpack xs
+    Just (x, xs) => x :: unpack (assert_smaller str xs)
 
 
 public export
