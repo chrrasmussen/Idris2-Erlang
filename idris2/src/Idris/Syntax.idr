@@ -311,6 +311,7 @@ data REPLCmd : Type where
      SetOpt : REPLOpt -> REPLCmd
      GetOpts : REPLCmd
      CD : String -> REPLCmd
+     CWD: REPLCmd
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
      SetLog : Nat -> REPLCmd

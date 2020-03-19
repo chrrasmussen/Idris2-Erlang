@@ -4,8 +4,12 @@ modules = Syntax.WithProof,
           Syntax.PreorderReasoning,
           Data.List.TailRec,
           Data.Bool.Extra,
+          Data.SortedMap,
+          Data.SortedSet,
           Text.Token,
           Text.Quantity,
           Control.Delayed,
           Text.Parser,
-          Text.Lexer
+          Text.Lexer,
+          Text.Parser.Core,
+          Text.Lexer.Core

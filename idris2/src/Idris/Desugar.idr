@@ -347,6 +347,7 @@ mutual
       = pure (ISetFieldApp p !(desugarB side ps v))
 
   expandList : {auto s : Ref Syn SyntaxInfo} ->
+               {auto b : Ref Bang BangData} ->
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto m : Ref MD Metadata} ->
@@ -354,7 +355,7 @@ mutual
   expandList side ps fc [] = pure (IVar fc (UN "Nil"))
   expandList side ps fc (x :: xs)
       = pure $ apply (IVar fc (UN "::"))
-                [!(desugar side ps x), !(expandList side ps fc xs)]
+                [!(desugarB side ps x), !(expandList side ps fc xs)]
 
   expandDo : {auto s : Ref Syn SyntaxInfo} ->
              {auto c : Ref Ctxt Defs} ->
@@ -517,7 +518,7 @@ mutual
   --    i.e. type constructors of data declarations
   --         function types
   --         interfaces (in full, since it includes function types)
-  --         records (in full, similarly)
+  --         records (just the generated type constructor)
   --         implementation headers (i.e. note their existence, but not the bodies)
   -- Everything else on the second pass
   getDecl : Pass -> PDecl -> Maybe PDecl
@@ -531,7 +532,12 @@ mutual
   getDecl AsType (PData fc vis (MkPData dfc tyn tyc _ _))
       = Just (PData fc vis (MkPLater dfc tyn tyc))
   getDecl AsType d@(PInterface _ _ _ _ _ _ _ _) = Just d
-  getDecl AsType d@(PRecord _ _ _ _ _ _) = Just d
+  getDecl AsType d@(PRecord fc vis n ps _ _)
+      = Just (PData fc vis (MkPLater fc n (mkRecType ps)))
+    where
+      mkRecType : List (Name, PTerm) -> PTerm
+      mkRecType [] = PType fc
+      mkRecType ((n, t) :: ts) = PPi fc RigW Explicit (Just n) t (mkRecType ts)
   getDecl AsType d@(PFixity _ _ _ _) = Just d
   getDecl AsType d@(PDirective _ _) = Just d
   getDecl AsType d = Nothing
@@ -539,7 +545,7 @@ mutual
   getDecl AsDef (PClaim _ _ _ _ _) = Nothing
   getDecl AsDef d@(PData _ _ (MkPLater _ _ _)) = Just d
   getDecl AsDef (PInterface _ _ _ _ _ _ _ _) = Nothing
-  getDecl AsDef (PRecord _ _ _ _ _ _) = Nothing
+  getDecl AsDef d@(PRecord _ _ _ _ _ _) = Just d
   getDecl AsDef (PFixity _ _ _ _) = Nothing
   getDecl AsDef (PDirective _ _) = Nothing
   getDecl AsDef d = Just d
@@ -687,7 +693,7 @@ mutual
                              elabImplementation fc vis pass env nest isb consb
                                                 tn paramsb impname nusing
                                                 body')]
-  desugarDecl ps (PRecord fc vis tn params conname fields)
+  desugarDecl ps (PRecord fc vis tn params conname_in fields)
       = do params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            let fnames = map fname fields
@@ -700,13 +706,19 @@ mutual
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
+           let conname = maybe (mkConName tn) id conname_in
            -- True flag set so that the parent namespace can look inside the
            -- record definition
-           pure [INamespace fc True [nameRoot tn]
-                  [IRecord fc vis (MkImpRecord fc tn paramsb conname fields')]]
+           pure [IRecord fc (Just (nameRoot tn))
+                         vis (MkImpRecord fc tn paramsb conname fields')]
     where
       fname : PField -> Name
       fname (MkField _ _ _ n _) = n
+
+      mkConName : Name -> Name
+      mkConName (NS ns (UN n)) = NS ns (DN n (MN ("__mk" ++ n) 0))
+      mkConName n = DN (show n) (MN ("__mk" ++ show n) 0)
+
   desugarDecl ps (PFixity fc Prefix prec (UN n))
       = do syn <- get Syn
            put Syn (record { prefixes $= insert n prec } syn)
@@ -723,7 +735,7 @@ mutual
            pure (concat mds')
   desugarDecl ps (PNamespace fc ns decls)
       = do ds <- traverse (desugarDecl ps) decls
-           pure [INamespace fc False ns (concat ds)]
+           pure [INamespace fc ns (concat ds)]
   desugarDecl ps (PTransform fc lhs rhs)
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs

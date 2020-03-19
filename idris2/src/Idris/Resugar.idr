@@ -137,7 +137,7 @@ mutual
       = toPTerm p (IVar loc n)
   toPTerm p (IVar fc n)
       = do ns <- fullNamespace
-           pure (sugarApp (PRef fc (if ns then n else dropNS n)))
+           pure (sugarApp (PRef fc (if ns then n else UN !(prettyName n))))
   toPTerm p (IPi fc rig Implicit n arg ret)
       = do imp <- showImplicits
            if imp
@@ -330,7 +330,7 @@ mutual
                                    do ty' <- toPTerm startPrec ty
                                       pure (n, ty')) ps
            fs' <- traverse toPField fs
-           pure (n, ps', con, fs')
+           pure (n, ps', Just con, fs')
 
   toPFnOpt : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->
@@ -356,10 +356,10 @@ mutual
                 !(traverse (\ntm => do tm' <- toPTerm startPrec (snd ntm)
                                        pure (fst ntm, tm')) ps)
                 (mapMaybe id ds')))
-  toPDecl (IRecord fc vis r)
+  toPDecl (IRecord fc _ vis r)
       = do (n, ps, con, fs) <- toPRecord r
            pure (Just (PRecord fc vis n ps con fs))
-  toPDecl (INamespace fc _ ns ds)
+  toPDecl (INamespace fc ns ds)
       = do ds' <- traverse toPDecl ds
            pure (Just (PNamespace fc ns (mapMaybe id ds')))
   toPDecl (ITransform fc lhs rhs)

@@ -19,14 +19,20 @@ import System.Info
 
 %default covering
 
+
+pathLookup : IO String
+pathLookup
+    = do path <- getEnv "PATH"
+         let pathList = split (== ':') $ fromMaybe "/usr/bin:/usr/local/bin" path
+         let candidates = [p ++ "/" ++ x | p <- pathList,
+                                           x <- ["chez", "chezscheme9.5", "scheme"]]
+         e <- firstExists candidates
+         pure $ fromMaybe "/usr/bin/env scheme" e
+
 findChez : IO String
 findChez
-    = do env <- getEnv "CHEZ"
-         case env of
-            Just n => pure n
-            Nothing => do e <- firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["chez", "chezscheme9.5", "scheme"]]
-                          pure $ fromMaybe "/usr/bin/env scheme" e
+    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
+         pure chez
 
 -- Given the chez compiler directives, return a list of pairs of:
 --   - the library file name
@@ -123,6 +129,21 @@ mutual
       -- throw (InternalError ("C FFI calls must be to statically known functions (" ++ show fn ++ ")"))
   chezExtPrim i vs GetStr [world]
       = pure $ mkWorld "(get-line (current-input-port))"
+  chezExtPrim i vs GetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _]
+      = do structsc <- schExp chezExtPrim chezString 0 vs struct
+           pure $ "(ftype-ref " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++ ")"
+  chezExtPrim i vs GetField [_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
+  chezExtPrim i vs SetField [CPrimVal _ (Str s), _, _, struct,
+                             CPrimVal _ (Str fld), _, val, world]
+      = do structsc <- schExp chezExtPrim chezString 0 vs struct
+           valsc <- schExp chezExtPrim chezString 0 vs val
+           pure $ mkWorld $
+              "(ftype-set! " ++ s ++ " (" ++ fld ++ ") " ++ structsc ++
+              " " ++ valsc ++ ")"
+  chezExtPrim i vs SetField [_,_,_,_,_,_,_,_]
+      = pure "(error \"bad setField\")"
   chezExtPrim i vs SysCodegen []
       = pure $ "\"chez\""
   chezExtPrim i vs prim args
@@ -130,6 +151,9 @@ mutual
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
+
+-- Label for noting which struct types are declared
+data Structs : Type where
 
 cftySpec : FC -> CFType -> Core String
 cftySpec fc CFUnit = pure "void"
@@ -140,6 +164,7 @@ cftySpec fc CFChar = pure "char"
 cftySpec fc CFPtr = pure "void*"
 cftySpec fc (CFFun s t) = pure "void*"
 cftySpec fc (CFIORes t) = cftySpec fc t
+cftySpec fc (CFStruct n t) = pure $ "(* " ++ n ++ ")"
 cftySpec fc t = throw (GenericMsg fc ("Can't pass argument of type " ++ show t ++
                          " to foreign function"))
 
@@ -155,7 +180,7 @@ cCall fc cfn clib args ret
                            copyLib (fname, fullname)
                            put Loaded (clib :: loaded)
                            pure $ "(load-shared-object \""
-                                    ++ escapeQuotes fullname
+                                    ++ escapeQuotes fname
                                     ++ "\")\n"
          argTypes <- traverse (\a => cftySpec fc (snd a)) args
          retType <- cftySpec fc ret
@@ -241,16 +266,37 @@ mkArgs i [] = []
 mkArgs i (CFWorld :: cs) = (MN "farg" i, False) :: mkArgs i cs
 mkArgs i (c :: cs) = (MN "farg" i, True) :: mkArgs (i + 1) cs
 
+mkStruct : {auto s : Ref Structs (List String)} ->
+           CFType -> Core String
+mkStruct (CFStruct n flds)
+    = do defs <- traverse mkStruct (map snd flds)
+         strs <- get Structs
+         if n `elem` strs
+            then pure (concat defs)
+            else do put Structs (n :: strs)
+                    pure $ concat defs ++ "(define-ftype " ++ n ++ " (struct\n\t"
+                           ++ showSep "\n\t" !(traverse showFld flds) ++ "))\n"
+  where
+    showFld : (String, CFType) -> Core String
+    showFld (n, ty) = pure $ "[" ++ n ++ " " ++ !(cftySpec emptyFC ty) ++ "]"
+mkStruct (CFIORes t) = mkStruct t
+mkStruct (CFFun a b) = do mkStruct a; mkStruct b
+mkStruct _ = pure ""
+
 schFgnDef : {auto c : Ref Ctxt Defs} ->
             {auto l : Ref Loaded (List String)} ->
+            {auto s : Ref Structs (List String)} ->
             FC -> Name -> CDef -> Core (String, String)
 schFgnDef fc n (MkForeign cs args ret)
     = do let argns = mkArgs 0 args
          let allargns = map fst argns
          let useargns = map fst (filter snd argns)
+         argStrs <- traverse mkStruct args
+         retStr <- mkStruct ret
          (load, body) <- useCC fc cs (zip useargns args) ret
          defs <- get Ctxt
          pure (load,
+                concat argStrs ++ retStr ++
                 "(define " ++ schName !(full (gamma defs) n) ++
                 " (lambda (" ++ showSep " " (map schName allargns) ++ ") " ++
                 body ++ "))\n")
@@ -258,6 +304,7 @@ schFgnDef _ _ _ = pure ("", "")
 
 getFgnCall : {auto c : Ref Ctxt Defs} ->
              {auto l : Ref Loaded (List String)} ->
+             {auto s : Ref Structs (List String)} ->
              Name -> Core (String, String)
 getFgnCall n
     = do defs <- get Ctxt
@@ -267,6 +314,12 @@ getFgnCall n
                           Nothing =>
                              throw (InternalError ("No compiled definition for " ++ show n))
                           Just d => schFgnDef (location def) n d
+
+startChez : String -> String -> String
+startChez target ext
+    = "#!/bin/sh\n\n" ++
+      "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`dirname $0`/" ++ target ++ "_app\n" ++
+      "`dirname $0`/" ++ target ++ "_app/" ++ target ++ "." ++ ext ++ " $*\n"
 
 ||| Compile a TT expression to Chez Scheme
 compileToSS : Ref Ctxt Defs ->
@@ -278,6 +331,7 @@ compileToSS c tm outfile
          (ns, tags) <- findUsedNames tm
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded ["libc", "libc 6"]
+         s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme chezExtPrim chezString defs) ns
          let code = concat (map snd fgndefs) ++ concat compdefs
@@ -307,27 +361,36 @@ compileToSO ssFile
          coreLift $ system tmpFile
          pure ()
 
+makeSh : String -> String -> Core ()
+makeSh outfile ext
+    = do Right () <- coreLift $ writeFile outfile (startChez outfile ext)
+            | Left err => throw (FileErr outfile err)
+         pure ()
+
 ||| Chez Scheme implementation of the `compileExpr` interface.
-compileExpr : Ref Ctxt Defs ->
+compileExpr : Bool -> Ref Ctxt Defs ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
-    = do let outSs = outfile ++ ".ss"
+compileExpr makeitso c tm outfile
+    = do coreLift $ mkdirs [outfile ++ "_app"]
+         coreLift $ changeDir (outfile ++ "_app")
+         let outSs = outfile ++ ".ss"
          compileToSS c tm outSs
-         compileToSO outSs
-         pure (Just (outfile ++ ".so"))
+         when makeitso $ compileToSO outSs
+         coreLift $ changeDir ".."
+         makeSh outfile (if makeitso then "so" else "ss")
+         coreLift $ chmod outfile 0o755
+         pure (Just outfile)
 
 ||| Chez Scheme implementation of the `executeExpr` interface.
 ||| This implementation simply runs the usual compiler, saving it to a temp file, then interpreting it.
 executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
 executeExpr c tm
-    = do tmp <- coreLift $ tmpName
-         let outn = tmp ++ ".ss"
-         compileToSS c tm outn
-         chez <- coreLift findChez
-         coreLift $ system outn
+    = do compileExpr False c tm "_tmpchez"
+         cwd <- coreLift $ currentDir
+         coreLift $ system (cwd ++ dirSep ++ "_tmpchez")
          pure ()
 
 ||| Codegen wrapper for Chez scheme implementation.
 export
 codegenChez : Codegen
-codegenChez = MkCG compileExpr executeExpr
+codegenChez = MkCG (compileExpr True) executeExpr

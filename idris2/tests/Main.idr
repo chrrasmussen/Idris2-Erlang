@@ -34,7 +34,7 @@ idrisTests
        "basic036",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
-       "coverage005",
+       "coverage005", "coverage006",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -72,7 +72,8 @@ idrisTests
        -- Records, access and dependent update
        "record001", "record002",
        -- Miscellaneous regressions
-       "reg001", "reg002", "reg003", "reg004", "reg005",
+       "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
+       "reg008", "reg009", "reg010", "reg011", "reg012",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
@@ -83,12 +84,13 @@ typeddTests : List String
 typeddTests
    = ["chapter01", "chapter02", "chapter03", "chapter04", "chapter05",
       "chapter06", "chapter07", "chapter08", "chapter09", "chapter10",
-      "chapter11", "chapter12"]
+      "chapter11", "chapter12", "chapter13", "chapter14"]
 
 chezTests : List String
 chezTests
    = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
-      "chez007", "chez008", "chez009", "chez010", "chez011", "chez012"]
+      "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
+      "chez013", "chez014"]
 
 ideModeTests : List String
 ideModeTests
@@ -152,13 +154,18 @@ firstExists : List String -> IO (Maybe String)
 firstExists [] = pure Nothing
 firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
+pathLookup : IO (Maybe String)
+pathLookup = do
+  path <- getEnv "PATH"
+  let pathList = split (== ':') $ fromMaybe "/usr/bin:/usr/local/bin" path
+  let candidates = [p ++ "/" ++ x | p <- pathList,
+                                    x <- ["chez", "chezscheme9.5", "scheme"]]
+  firstExists candidates
+
 findChez : IO (Maybe String)
 findChez
-    = do env <- getEnv "CHEZ"
-         case env of
-            Just n => pure $ Just n
-            Nothing => firstExists [p ++ x | p <- ["/usr/bin/", "/usr/local/bin/"],
-                                    x <- ["chez", "chezscheme9.5", "scheme"]]
+    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
+         pure $ Just chez
 
 runChezTests : String -> List String -> IO (List Bool)
 runChezTests prog tests

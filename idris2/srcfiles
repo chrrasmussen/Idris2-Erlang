@@ -1,0 +1,14 @@
+*.idr
+*.yaff
+*.ipkg
+Makefile
+config.mk
+expected
+input
+run
+*.c
+*.h
+*.rst
+*.py
+*.md
+*.bat

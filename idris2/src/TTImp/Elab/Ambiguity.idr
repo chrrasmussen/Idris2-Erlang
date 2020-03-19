@@ -262,6 +262,7 @@ pruneByType env target alts
                 -- if there's any concrete matches, drop the non-concrete
                 -- matches marked as '%allow_overloads' from the possible set
                    then do keep <- filterCore (notOverloadable defs) matches
+                           log 10 $ "Keep " ++ show keep
                            pure (map snd keep)
                    else pure (map snd matches)
          if isNil res
@@ -304,7 +305,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
                            pure mexpected
          let solvemode = case elabMode elabinfo of
                               InLHS c => InLHS
-                              _ => InTerm False
+                              _ => InTerm (Top False)
          delayOnFailure fc rig env expected ambiguous $
              \delayed =>
                do solveConstraints solvemode Normal
@@ -348,7 +349,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                   pure mexpected
                 let solvemode = case elabMode elabinfo of
                                       InLHS c => InLHS
-                                      _ => InTerm False
+                                      _ => InTerm (Top False)
                 delayOnFailure fc rig env expected ambiguous $
                      \delayed =>
                        do defs <- get Ctxt

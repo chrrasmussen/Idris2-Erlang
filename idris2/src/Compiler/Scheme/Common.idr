@@ -157,10 +157,12 @@ schOp BelieveMe [_,_,x] = x
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = CCall | SchemeCall | PutStr | GetStr
+data ExtPrim = CCall | SchemeCall
+             | PutStr | GetStr | PutChar | GetChar
              | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
+             | GetField | SetField
              | Stdin | Stdout | Stderr
              | VoidElim
              | SysOS | SysCodegen
@@ -172,6 +174,8 @@ Show ExtPrim where
   show SchemeCall = "SchemeCall"
   show PutStr = "PutStr"
   show GetStr = "GetStr"
+  show PutChar = "PutChar"
+  show GetChar = "GetChar"
   show FileOpen = "FileOpen"
   show FileClose = "FileClose"
   show FileReadLine = "FileReadLine"
@@ -183,6 +187,8 @@ Show ExtPrim where
   show NewArray = "NewArray"
   show ArrayGet = "ArrayGet"
   show ArraySet = "ArraySet"
+  show GetField = "GetField"
+  show SetField = "SetField"
   show Stdin = "Stdin"
   show Stdout = "Stdout"
   show Stderr = "Stderr"
@@ -198,6 +204,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__cCall", CCall),
             (n == UN "prim__putStr", PutStr),
             (n == UN "prim__getStr", GetStr),
+            (n == UN "prim__putChar", PutChar),
+            (n == UN "prim__getChar", GetChar),
             (n == UN "prim__open", FileOpen),
             (n == UN "prim__close", FileClose),
             (n == UN "prim__readLine", FileReadLine),
@@ -209,6 +217,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__newArray", NewArray),
             (n == UN "prim__arrayGet", ArrayGet),
             (n == UN "prim__arraySet", ArraySet),
+            (n == UN "prim__getField", GetField),
+            (n == UN "prim__setField", SetField),
             (n == UN "prim__stdin", Stdin),
             (n == UN "prim__stdout", Stdout),
             (n == UN "prim__stderr", Stderr),
@@ -227,7 +237,10 @@ schConstant : (String -> String) -> Constant -> String
 schConstant _ (I x) = show x
 schConstant _ (BI x) = show x
 schConstant schString (Str x) = schString x
-schConstant _ (Ch x) = "#\\" ++ cast x
+schConstant _ (Ch x)
+   = if (the Int (cast x) >= 32 && the Int (cast x) < 127)
+        then "#\\" ++ cast x
+        else "(integer->char " ++ show (the Int (cast x)) ++ ")"
 schConstant _ (Db x) = show x
 schConstant _ WorldVal = "#f"
 schConstant _ IntType = "#t"
@@ -294,8 +307,8 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
         = pure $ schOp op !(schArgs i vs args)
     schExp i vs (CExtPrim fc p args)
         = schExtPrim i vs (toPrim p) args
-    schExp i vs (CForce fc t) = pure $ "(force " ++ !(schExp i vs t) ++ ")"
-    schExp i vs (CDelay fc t) = pure $ "(delay " ++ !(schExp i vs t) ++ ")"
+    schExp i vs (CForce fc t) = pure $ "(" ++ !(schExp i vs t) ++ ")"
+    schExp i vs (CDelay fc t) = pure $ "(lambda () " ++ !(schExp i vs t) ++ ")"
     schExp i vs (CConCase fc sc alts def)
         = do tcode <- schExp (i+1) vs sc
              defc <- maybe (pure Nothing) (\v => pure (Just !(schExp i vs v))) def
@@ -336,6 +349,10 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
       = pure $ "(display " ++ !(schExp i vs arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
   schExtCommon i vs GetStr [world]
       = pure $ mkWorld "(blodwen-get-line (current-input-port))"
+  schExtCommon i vs PutChar [arg, world]
+      = pure $ "(display " ++ !(schExp i vs arg) ++ ") " ++ mkWorld (schConstructor 0 []) -- code for MkUnit
+  schExtCommon i vs GetChar [world]
+      = pure $ mkWorld "(blodwen-get-char (current-input-port))"
   schExtCommon i vs FileOpen [file, mode, bin, world]
       = pure $ mkWorld $ fileOp $ "(blodwen-open "
                                       ++ !(schExp i vs file) ++ " "

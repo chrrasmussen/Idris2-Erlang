@@ -19,39 +19,6 @@ import Data.NameMap
 
 %default covering
 
-varEmbedSub : SubVars small vars ->
-              {idx : Nat} -> .(IsVar n idx small) ->
-              Var vars
-varEmbedSub SubRefl y = MkVar y
-varEmbedSub (DropCons prf) y
-    = let MkVar y' = varEmbedSub prf y in
-          MkVar (Later y')
-varEmbedSub (KeepCons prf) First = MkVar First
-varEmbedSub (KeepCons prf) (Later p)
-    = let MkVar p' = varEmbedSub prf p in
-          MkVar (Later p')
-
-mutual
-  embedSub : SubVars small vars -> Term small -> Term vars
-  embedSub sub (Local fc x idx y)
-      = let MkVar y' = varEmbedSub sub y in Local fc x _ y'
-  embedSub sub (Ref fc x name) = Ref fc x name
-  embedSub sub (Meta fc x y xs)
-      = Meta fc x y (map (embedSub sub) xs)
-  embedSub sub (Bind fc x b scope)
-      = Bind fc x (map (embedSub sub) b) (embedSub (KeepCons sub) scope)
-  embedSub sub (App fc fn arg)
-      = App fc (embedSub sub fn) (embedSub sub arg)
-  embedSub sub (As fc s nm pat)
-      = As fc s (embedSub sub nm) (embedSub sub pat)
-  embedSub sub (TDelayed fc x y) = TDelayed fc x (embedSub sub y)
-  embedSub sub (TDelay fc x t y)
-      = TDelay fc x (embedSub sub t) (embedSub sub y)
-  embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
-  embedSub sub (PrimVal fc c) = PrimVal fc c
-  embedSub sub (Erased fc i) = Erased fc i
-  embedSub sub (TType fc) = TType fc
-
 -- Make a hole for an unbound implicit in the outer environment
 export
 mkOuterHole : {auto e : Ref EST (EState vars)} ->
@@ -173,7 +140,7 @@ bindUnsolved {vars} fc elabmode _
              logTerm 5 ("Added unbound implicit") bindtm
              unify (case elabmode of
                          InLHS _ => InLHS
-                         _ => InTerm False)
+                         _ => InTerm (Top False))
                    fc env tm bindtm
              pure ()
 
@@ -225,7 +192,7 @@ push ofc n b tm = Bind ofc n b tm
 -- We only do this for variables named 'PV', since they are the unbound
 -- implicits, and we don't want to move any given by the programmer
 liftImps : BindMode -> (Term vars, Term vars) -> (Term vars, Term vars)
-liftImps (PI _) (tm, TType) = (liftImps' tm, TType)
+liftImps (PI _) (tm, TType fc) = (liftImps' tm, TType fc)
   where
     liftImps' : Term vars -> Term vars
     liftImps' (Bind fc (PV n i) (Pi c Implicit ty) sc)
@@ -326,11 +293,11 @@ getToBind fc elabmode NONE env excepts
 getToBind {vars} fc elabmode impmode env excepts
     = do solveConstraints (case elabmode of
                                 InLHS _ => InLHS
-                                _ => InTerm False) Normal
+                                _ => InTerm (Top False)) Normal
          bindUnsolved fc elabmode impmode
          solveConstraints (case elabmode of
                                 InLHS _ => InLHS
-                                _ => InTerm False) Normal
+                                _ => InTerm (Top False)) Normal
          defs <- get Ctxt
          est <- get EST
          let tob = reverse $ filter (\x => not (fst x `elem` excepts)) $
@@ -498,10 +465,10 @@ checkBindHere rig elabinfo nest env fc bindmode tm exp
                              nest env tm exp
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
-                                _ => InTerm False) Normal
+                                _ => InTerm (Top False)) Normal
          solveConstraints (case elabMode elabinfo of
                                 InLHS c => InLHS
-                                _ => InTerm False) Defaults
+                                _ => InTerm (Top False)) Defaults
          ust <- get UST
          catch (retryDelayed (delayedElab ust))
                (\err =>

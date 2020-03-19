@@ -1,3 +1,27 @@
+##### Options which a user might set before building go here #####
+
+PREFIX ?= ${HOME}/.idris2
+
+# Add any optimisation/profiling flags for C here (e.g. -O2)
+export OPT=
+export CC=clang # clang compiles the output much faster than gcc!
+
+##################################################################
+
+MACHINE := $(shell $(CC) -dumpmachine)
+
+ifneq (, $(findstring darwin, $(MACHINE)))
+	OS := darwin
+else ifneq (, $(findstring cygwin, $(MACHINE)))
+	OS := windows
+else ifneq (, $(findstring mingw, $(MACHINE)))
+	OS := windows
+else ifneq (, $(findstring windows, $(MACHINE)))
+	OS := windows
+else
+	OS := unix
+endif
+
 # current Idris2 version components
 MAJOR=0
 MINOR=0
@@ -17,8 +41,8 @@ endif
 IDRIS2_VERSION := ${MAJOR}.${MINOR}.${PATCH}
 IDRIS2_VERSION_TAG := ${IDRIS2_VERSION}${VER_TAG}
 
-PREFIX ?= ${HOME}/.idris2
-export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc
+export IDRIS2_PATH = ${CURDIR}/libs/prelude/build/ttc:${CURDIR}/libs/base/build/ttc:${CURDIR}/libs/network/build/ttc
+export IDRIS2_LIBS = ${CURDIR}/libs/network
 export IDRIS2_DATA = ${CURDIR}/support
 
 IDRIS_VERSION := $(shell idris --version)
@@ -26,30 +50,46 @@ VALID_IDRIS_VERSION_REGEXP = "1.3.2.*"
 
 -include custom.mk
 
-.PHONY: ttimp idris2 prelude test base clean lib_clean check_version idris2c dist/idris2.c
+.PHONY: ttimp idris2 idris2-fromc prelude test base clean lib_clean check_version idris2c dist/idris2.c
 
 all: idris2 libs test
+
+# test requires an Idris install! Maybe we should do a version in Idris2?
+all-fromc: idris2-fromc libs
 
 check_version:
 	@echo "Using Idris 1 version: $(IDRIS_VERSION)"
 	@if [ $(shell expr $(IDRIS_VERSION) : $(VALID_IDRIS_VERSION_REGEXP)) -eq 0 ]; then echo "Wrong idris version, expected version matching $(VALID_IDRIS_VERSION_REGEXP)"; exit 1; fi
 
-idris2: src/YafflePaths.idr check_version
-	@echo "Building Idris 2 version: $(IDRIS2_VERSION_TAG)"
-	idris --build idris2.ipkg
+idris2: dist/idris2.c idris2-fromc
 
+# Just build the C, assuming already built from Idris source.
+# Separate rule to avoid having to build the C if Idris 1 isn't available.
+# (Also replaces the first line of the generated C with the proper prefix)
+#
+idris2-fromc:
+ifeq ($(OS), darwin)
+	@sed -i '' '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+else
+	@sed -i '1 s|^.*$$|char* idris2_prefix = "${PREFIX}";|' dist/idris2.c
+endif
+	make -C dist
+	@cp dist/idris2 ./idris2
+
+# bit of a hack here, to get the prefix into the generated C!
 dist/idris2.c: src/YafflePaths.idr check_version
 	@echo "Building Idris 2 version: $(IDRIS2_VERSION_TAG)"
-	idris --build idris2-mkc.ipkg
-	@cat idris2.c dist/rts/idris_main.c > dist/idris2.c
-	@rm -f idris2.c
+	idris --build idris2.ipkg
+	@echo 'char* idris2_prefix = "${PREFIX}";' > idris2_prefix.c
+	@echo 'char* getIdris2_prefix() { return idris2_prefix; }' >> idris2_prefix.c
+	@cat idris2_prefix.c idris2.c dist/rts/idris_main.c > dist/idris2.c
+	@rm -f idris2.c idris2_prefix.c
 
 idris2c: dist/idris2.c
 	make -C dist
 
 src/YafflePaths.idr:
 	echo 'module YafflePaths; export yversion : ((Nat,Nat,Nat), String); yversion = ((${MAJOR},${MINOR},${PATCH}), "${GIT_SHA1}")' > src/YafflePaths.idr
-	echo 'export yprefix : String; yprefix = "${PREFIX}"' >> src/YafflePaths.idr
 
 prelude:
 	make -C libs/prelude IDRIS2=../../idris2
@@ -87,7 +127,11 @@ test:
 	idris --build tests.ipkg
 	@make -C tests only=$(only)
 
-install: all install-exec install-support install-libs
+install-all: install-exec install-support install-libs
+
+install: all install-all
+
+install-fromc: all-fromc install-all
 
 install-support:
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
@@ -99,7 +143,7 @@ install-support:
 	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
 	install support/erlang/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/erlang
 
-install-exec: idris2
+install-exec:
 	mkdir -p ${PREFIX}/bin
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/lib
 	install idris2 ${PREFIX}/bin

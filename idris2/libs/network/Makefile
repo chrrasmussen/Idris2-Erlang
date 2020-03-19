@@ -47,10 +47,9 @@ clean :
 	rm -rf $(OBJS) $(LIBTARGET) $(DYLIBTARGET) build
 
 test: build test.c
-	cp $(DYLIBTARGET) lib$(DYLIBTARGET) # to make C linker happy
-	$(CC) -o network-tests -L. -I. test.c -l$(LIBNAME)
+	$(CC) -o network-tests -L. -I. test.c $(DYLIBTARGET)
 	LD_LIBRARY_PATH=. ./network-tests
-	./lib-tests
+	@rm -f ./network-tests
 
 $(OBJS): $(HDRS)
 

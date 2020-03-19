@@ -505,7 +505,6 @@ checkClause {vars} mult hashit n opts nest env (WithClause fc lhs_in wval_raw cs
         = do newlhs <- getNewLHS ploc drop nest wname wargnames lhs patlhs
              pure (ImpossibleClause ploc newlhs)
 
-
 nameListEq : (xs : List Name) -> (ys : List Name) -> Maybe (xs = ys)
 nameListEq [] [] = Just Refl
 nameListEq (x :: xs) (y :: ys) with (nameEq x y)
@@ -523,22 +522,26 @@ mkRunTime n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
-         let PMDef r cargs tree_ct _ pats = definition gdef
-              | _ => pure () -- not a function definition
-         let ty = type gdef
-         (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
-                                        !(traverse (toClause (location gdef)) pats)
-         let Just Refl = nameListEq cargs rargs
-                 | Nothing => throw (InternalError "WAT")
-         addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
-                          } gdef)
-         pure ()
+         -- If it's erased at run time, don't build the tree
+         when (not (multiplicity gdef == Rig0)) $ do
+           let PMDef r cargs tree_ct _ pats = definition gdef
+                | _ => pure () -- not a function definition
+           let ty = type gdef
+           (rargs ** tree_rt) <- getPMDef (location gdef) RunTime n ty
+                                          !(traverse (toClause (location gdef)) pats)
+           log 5 $ "Runtime tree for " ++ show (fullname gdef) ++ ": " ++ show tree_rt
+           let Just Refl = nameListEq cargs rargs
+                   | Nothing => throw (InternalError "WAT")
+           addDef n (record { definition = PMDef r cargs tree_ct tree_rt pats
+                            } gdef)
+           pure ()
   where
     toClause : FC -> (vars ** (Env Term vars, Term vars, Term vars)) ->
                Core Clause
     toClause fc (_ ** (env, lhs, rhs))
-        = do rhs_erased <- linearCheck fc Rig1 True env rhs
-             pure $ MkClause env lhs rhs_erased
+        = do lhs_erased <- linearCheck fc Rig1 True env lhs
+             rhs_erased <- linearCheck fc Rig1 True env rhs
+             pure $ MkClause env lhs_erased rhs_erased
 
 compileRunTime : {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
@@ -678,7 +681,7 @@ processDef opts nest env fc n_in cs_in
     getClause : {auto c : Ref Ctxt Defs} ->
                 Either RawImp Clause -> Core (Maybe Clause)
     getClause (Left rawlhs)
-        = catch (do lhsp <- getImpossibleTerm rawlhs
+        = catch (do lhsp <- getImpossibleTerm env rawlhs
                     log 3 $ "Generated impossible LHS: " ++ show lhsp
                     pure $ Just $ MkClause [] lhsp (Erased (getFC rawlhs) True))
                 (\e => pure Nothing)
@@ -699,11 +702,14 @@ processDef opts nest env fc n_in cs_in
                         pure ("Initially missing in " ++
                                  show !(getFullName (Resolved n)) ++ ":\n" ++
                                 showSep "\n" (map show mc)))
+             -- Filter out the ones which are impossible
              missImp <- traverse (checkImpossible n mult) missCase
-             let miss = mapMaybe id missImp
+             -- Filter out the ones which are actually matched (perhaps having
+             -- come up due to some overlapping patterns)
+             missMatch <- traverse (checkMatched covcs) (mapMaybe id missImp)
+             let miss = mapMaybe id missMatch
              if isNil miss
                 then do [] <- getNonCoveringRefs fc (Resolved n)
                            | ns => toFullNames (NonCoveringCall ns)
                         pure IsCovering
                 else pure (MissingCases miss)
-
