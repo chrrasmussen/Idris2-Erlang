@@ -322,16 +322,23 @@ namespace CaseExpr
       MAnyList      : ErlMatcher ErlTerm
       MNil          : ErlMatcher ()
       MCons         : ErlMatcher a -> ErlMatcher b -> (a -> b -> ret)  -> ErlMatcher ret
-      MList         : ErlMatchers ErlMatcher xs  -> TypesToFunc xs ret -> ErlMatcher ret
-      MTuple        : ErlMatchers ErlMatcher xs  -> TypesToFunc xs ret -> ErlMatcher ret
-      MMapSubset    : ErlMatchers ErlMapEntry xs -> TypesToFunc xs ret -> ErlMatcher ret
+      MList         : ErlMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
+      MTuple        : ErlMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
+      MMapSubset    : ErlMapEntryMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
       MIO           : (xs : List Type) -> ErlMatcher (TypesToFunc xs (IO (Either ErlException ErlTerm)))
-      MMapper       : ErlMatcher a -> (a -> b) -> ErlMatcher b
+      MTransform    : ErlMatcher a -> (a -> b) -> ErlMatcher b
 
-    public export
-    data ErlMatchers : (Type -> Type) -> List Type -> Type where
-      Nil : ErlMatchers matcher []
-      (::) : matcher x -> ErlMatchers matcher xs -> ErlMatchers matcher (x :: xs)
+    namespace ErlMatchers
+      public export
+      data ErlMatchers : List Type -> Type where
+        Nil : ErlMatchers []
+        (::) : ErlMatcher x -> ErlMatchers xs -> ErlMatchers (x :: xs)
+
+    namespace ErlMapEntryMatchers
+      public export
+      data ErlMapEntryMatchers : List Type -> Type where
+        Nil : ErlMapEntryMatchers []
+        (::) : ErlMapEntry x -> ErlMapEntryMatchers xs -> ErlMapEntryMatchers (x :: xs)
 
     export
     data ErlMapEntry : Type -> Type where
@@ -353,7 +360,7 @@ namespace CaseExpr
   -- TODO: I would prefer to have Functor implementation for ErlMatcher instead, but at the moment this function needs to be inlined
   export %inline
   map : (a -> b) -> ErlMatcher a -> ErlMatcher b
-  map func matcher = MMapper matcher func
+  map func matcher = MTransform matcher func
 
 
 namespace Concurrency
