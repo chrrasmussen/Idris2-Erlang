@@ -1,7 +1,7 @@
 module Erlang.Data.Buffer
 
-import System.File
 import Erlang
+import Erlang.System.File
 
 export
 data Buffer : Type where
@@ -114,14 +114,11 @@ bufferData buf = do
       val <- getByte buf (loc - 1)
       unpackTo (val :: acc) (loc - 1)
 
-filePtrToErlTerm : FilePtr -> ErlTerm
-filePtrToErlTerm = believe_me
-
 export
 readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO (Either FileError Buffer)
 readBufferFromFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
-  Right result <- erlCall "file" "read" [filePtrToErlTerm h, maxBytes]
+  Right result <- erlCall "file" "read" [h, maxBytes]
     | Left _ => pure (Left FileReadError)
   let Just (MkErlBinary str) = erlCase Nothing [map Just (MTuple [MExact (MkErlAtom "ok"), MBinary] (\ok, binary => binary))] result
     | _ => pure (Left FileReadError)
@@ -141,6 +138,6 @@ writeBufferToFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   binary <- getBinary buf
   Right binaryToBeWritten <- erlCall "binary" "part" [binary, MkErlTuple2 loc max']
     | Left _ => pure (Left FileWriteError)
-  Right result <- erlCall "file" "write" [filePtrToErlTerm h, binaryToBeWritten]
+  Right result <- erlCall "file" "write" [h, binaryToBeWritten]
     | Left _ => pure (Left FileWriteError)
   pure $ erlCase (Left FileWriteError) [map (const (Right (MkBuffer ref size (loc + max')))) (MExact (MkErlAtom "ok"))] result

@@ -1,6 +1,6 @@
 module Main
 
-import System.File
+import Erlang.System.File
 
 main : IO ()
 main = do

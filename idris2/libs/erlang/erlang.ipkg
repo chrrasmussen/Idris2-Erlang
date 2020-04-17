@@ -2,6 +2,7 @@ package erlang
 
 modules = Erlang,
           Erlang.System,
+          Erlang.System.File,
           Erlang.Debug,
           Erlang.Data.Buffer,
           Erlang.Data.IORef

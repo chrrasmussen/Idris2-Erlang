@@ -1,5 +1,5 @@
 import Erlang.Data.Buffer
-import System.File
+import Erlang.System.File
 
 main : IO ()
 main

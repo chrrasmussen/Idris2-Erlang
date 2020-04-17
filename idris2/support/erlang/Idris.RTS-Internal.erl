@@ -9,7 +9,6 @@
 -export([char_to_integer/1, char_to_int/1, char_to_string/1]).
 -export([string_to_integer/1, string_to_int/1, string_to_double/1]).
 -export([io_unicode_put_str/1, io_unicode_get_str/1]).
--export([file_open/5, file_close/1, file_read_line/3, file_write_line/4, file_eof/1]).
 -export([buffer_new/1, buffer_set_byte/3, buffer_get_byte/2, buffer_set_int/3, buffer_get_int/2, buffer_set_double/3, buffer_get_double/2, buffer_set_string/3, buffer_get_string/3]).
 
 
@@ -144,81 +143,6 @@ io_unicode_put_str(Str) ->
 io_unicode_get_str(Prompt) ->
   Line = io:get_line(Prompt),
   string:trim(Line, trailing, "\n").
-
-
-% Files
-
-% Relevant docs: http://erlang.org/doc/man/file.html
-
--type idris_handle() :: file:io_device() | undefined.
-
-% TODO: Support more error codes
-% Relevant implementation details:
-% - https://github.com/edwinb/Idris2/blob/4e019d80937a2209cc920bb651fd088b12406463/libs/base/System/File.idr#L48-L53
-% - https://github.com/edwinb/Idris2/blob/4e019d80937a2209cc920bb651fd088b12406463/support/chez/support.ss#L99-L107
--define(IDRIS_ERROR_CODE_UNKNOWN, 256).
--type idris_error_code() :: ?IDRIS_ERROR_CODE_UNKNOWN.
-
-
--spec file_mode_flags(iolist()) -> [file:mode()].
-file_mode_flags(Mode) ->
-  case unicode:characters_to_binary(Mode) of
-    <<"r">> -> [read];
-    <<"w">> -> [write];
-    <<"a">> -> [append];
-    <<"r+">> -> [read, write];
-    _ -> []
-  end.
-
--spec file_bin_flags(idris_bool()) -> [file:mode()].
-file_bin_flags(Bin) ->
-  case Bin of
-    ?IDRIS_TRUE -> [binary];
-    _ -> []
-  end.
-
--spec file_open(any(), any(), file:name_all(), iolist(), idris_bool()) -> any(). % idris_either(idris_error_code(), idris_handle()).
-file_open(BuildLeft, BuildRight, File, Mode, Bin) ->
-  Flags = file_mode_flags(Mode) ++ file_bin_flags(Bin),
-  case file:open(File, Flags) of
-    {ok, Pid} -> BuildRight(Pid);
-    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
-  end.
-
--spec file_close(idris_handle()) -> idris_unit().
-file_close(Pid) ->
-  file:close(Pid),
-  ?IDRIS_UNIT.
-
--spec file_read_line(any(), any(), idris_handle()) -> any(). % idris_either(idris_error_code(), binary()).
-file_read_line(BuildLeft, BuildRight, Pid) ->
-  case file:read_line(Pid) of
-    {ok, Line} -> BuildRight(Line);
-    eof -> BuildRight(<<>>);
-    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
-  end.
-
--spec file_write_line(any(), any(), idris_handle(), binary()) -> any(). % idris_either(idris_error_code(), idris_unit()).
-file_write_line(BuildLeft, BuildRight, Pid, Bytes) ->
-  case file:write(Pid, Bytes) of
-    ok -> BuildRight(?IDRIS_UNIT);
-    _ -> BuildLeft(?IDRIS_ERROR_CODE_UNKNOWN)
-  end.
-
-% COPIED FROM: https://github.com/lenary/idris-erlang/blob/master/irts/idris_erlang_rts.erl
--spec file_eof(idris_handle()) -> idris_bool().
-file_eof(undefined) ->
-  ?IDRIS_TRUE;
-file_eof(Handle) ->
-  case file:read(Handle, 1) of
-    eof -> ?IDRIS_TRUE;
-    {ok, _} ->
-      case file:position(Handle, {cur, -1}) of
-        {ok, _} -> ?IDRIS_FALSE;
-        {error, _} -> ?IDRIS_TRUE % Error Scanning Back => EOF
-      end;
-    {error, _} -> ?IDRIS_TRUE % Error => EOF
-  end.
 
 
 % Buffer
