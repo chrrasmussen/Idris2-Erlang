@@ -49,6 +49,10 @@ genSequence l (expr1 :: expr2 :: restExpr) =
   in genLet l unusedVar expr1 (weaken (genSequence l (expr2 :: restExpr)))
 
 export
+genList : Line -> List (ErlExpr vars) -> ErlExpr vars
+genList l xs = foldr (\x, acc => ECons l x acc) (ENil l) xs
+
+export
 genThrow : Line -> String -> ErlExpr vars
 genThrow l msg =
   genFunCall l "erlang" "throw" [ECharlist l msg]
@@ -134,8 +138,8 @@ export
 genMainInit : Line -> ErlExpr (argsVar :: vars) -> ErlExpr (argsVar :: vars)
 genMainInit l expr =
   let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", ELocal l First]
-      createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", ECons l (EAtom l "public") (ECons l (EAtom l "named_table") (ENil l))]
-      setEncodingCall = genFunCall l "io" "setopts" [ECons l (ETuple l [EAtom l "encoding", EAtom l "unicode"]) (ENil l)]
+      createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
+      setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
   in genSequence l
       [ saveArgsCall
       , createEtsCall
