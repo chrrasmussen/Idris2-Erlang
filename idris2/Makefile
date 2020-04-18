@@ -137,11 +137,9 @@ install-support:
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
 	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
-	mkdir -p ${PREFIX}/idris2-${IDRIS2_VERSION}/support/erlang
 	install support/chez/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chez
 	install support/chicken/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/chicken
 	install support/racket/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/racket
-	install support/erlang/* ${PREFIX}/idris2-${IDRIS2_VERSION}/support/erlang
 
 install-exec:
 	mkdir -p ${PREFIX}/bin

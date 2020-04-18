@@ -37,10 +37,10 @@ genConstant WorldType = IWorldType
 -- OPERATORS
 
 genOp : Line -> PrimFn arity -> Vect arity (ErlExpr vars) -> ErlExpr vars
-genOp l (Add IntType) [x, y] = genFunCall l "Idris.RTS-Internal" "int_add" [x, y, EInteger l 63]
-genOp l (Sub IntType) [x, y] = genFunCall l "Idris.RTS-Internal" "int_sub" [x, y, EInteger l 63]
-genOp l (Mul IntType) [x, y] = genFunCall l "Idris.RTS-Internal" "int_mult" [x, y, EInteger l 63]
-genOp l (Div IntType) [x, y] = genFunCall l "Idris.RTS-Internal" "int_div" [x, y, EInteger l 63]
+genOp l (Add IntType) [x, y] = genIntAdd l 63 x y
+genOp l (Sub IntType) [x, y] = genIntSub l 63 x y
+genOp l (Mul IntType) [x, y] = genIntMult l 63 x y
+genOp l (Div IntType) [x, y] = genIntDiv l 63 x y
 genOp l (Add ty) [x, y] = EOp l "+" x y
 genOp l (Sub ty) [x, y] = EOp l "-" x y
 genOp l (Mul ty) [x, y] = EOp l "*" x y
@@ -53,24 +53,24 @@ genOp l (ShiftR ty) [x, y] = EOp l "bsr" x y
 genOp l (BAnd ty) [x, y] = EOp l "band" x y
 genOp l (BOr ty) [x, y] = EOp l "bor" x y
 genOp l (BXOr ty) [x, y] = EOp l "bxor" x y
-genOp l (LT StringType) [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_lt" [x, y]
-genOp l (LTE StringType) [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_lte" [x, y]
-genOp l (EQ StringType) [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_eq" [x, y]
-genOp l (GTE StringType) [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_gte" [x, y]
-genOp l (GT StringType) [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_gt" [x, y]
+genOp l (LT StringType) [x, y] = genUnicodeStringLT l x y
+genOp l (LTE StringType) [x, y] = genUnicodeStringLTE l x y
+genOp l (EQ StringType) [x, y] = genUnicodeStringEQ l x y
+genOp l (GTE StringType) [x, y] = genUnicodeStringGTE l x y
+genOp l (GT StringType) [x, y] = genUnicodeStringGT l x y
 genOp l (LT ty) [x, y] = genBoolToInt l (EOp l "<" x y)
 genOp l (LTE ty) [x, y] = genBoolToInt l (EOp l "=<" x y)
 genOp l (EQ ty) [x, y] = genBoolToInt l (EOp l "=:=" x y)
 genOp l (GTE ty) [x, y] = genBoolToInt l (EOp l ">=" x y)
 genOp l (GT ty) [x, y] = genBoolToInt l (EOp l ">" x y)
-genOp l StrLength [x] = genFunCall l "Idris.RTS-Internal" "unicode_string_length" [x]
-genOp l StrHead [x] = genFunCall l "Idris.RTS-Internal" "unicode_string_head" [x]
-genOp l StrTail [x] = genFunCall l "Idris.RTS-Internal" "unicode_string_tail" [x]
-genOp l StrIndex [x, i] = genFunCall l "Idris.RTS-Internal" "unicode_string_index" [x, i]
-genOp l StrCons [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_cons" [x, y]
-genOp l StrAppend [x, y] = genFunCall l "Idris.RTS-Internal" "unicode_string_append" [x, y]
-genOp l StrReverse [x] = genFunCall l "Idris.RTS-Internal" "unicode_string_reverse" [x]
-genOp l StrSubstr [x, y, z] = genFunCall l "Idris.RTS-Internal" "unicode_string_substr" [x, y, z]
+genOp l StrLength [str] = genUnicodeStringLength l str
+genOp l StrHead [str] = genUnicodeStringHead l str
+genOp l StrTail [str] = genUnicodeStringTail l str
+genOp l StrIndex [str, index] = genUnicodeStringIndex l str index
+genOp l StrCons [char, str] = genUnicodeStringCons l char str
+genOp l StrAppend [str1, str2] = genUnicodeStringAppend l str1 str2
+genOp l StrReverse [str] = genUnicodeStringReverse l str
+genOp l StrSubstr [start, len, str] = genUnicodeStringSubstr l start len str
 
 -- `e` is Euler's number, which approximates to: 2.718281828459045
 genOp l DoubleExp [x] = genFunCall l "math" "pow" [EFloat l 2.718281828459045, x] -- TODO: Hard-coded literal
@@ -85,26 +85,26 @@ genOp l DoubleSqrt [x] = genFunCall l "math" "sqrt" [x]
 genOp l DoubleFloor [x] = genFunCall l "erlang" "floor" [x]
 genOp l DoubleCeiling [x] = genFunCall l "erlang" "ceil" [x]
 
-genOp l (Cast IntegerType IntType) [x] = genFunCall l "Idris.RTS-Internal" "integer_to_int" [x]
-genOp l (Cast IntegerType DoubleType) [x] = genFunCall l "Idris.RTS-Internal" "integer_to_double" [x]
-genOp l (Cast IntegerType StringType) [x] = genFunCall l "Idris.RTS-Internal" "integer_to_string" [x]
+genOp l (Cast IntegerType IntType) [x] = genIntegerToInt l x
+genOp l (Cast IntegerType DoubleType) [x] = genIntegerToDouble l x
+genOp l (Cast IntegerType StringType) [x] = genIntegerToString l x
 
-genOp l (Cast IntType IntegerType) [x] = genFunCall l "Idris.RTS-Internal" "int_to_integer" [x]
-genOp l (Cast IntType DoubleType) [x] = genFunCall l "Idris.RTS-Internal" "int_to_double" [x]
-genOp l (Cast IntType CharType) [x] = genFunCall l "Idris.RTS-Internal" "int_to_char" [x]
-genOp l (Cast IntType StringType) [x] = genFunCall l "Idris.RTS-Internal" "int_to_string" [x]
+genOp l (Cast IntType IntegerType) [x] = genIntToInteger l x
+genOp l (Cast IntType DoubleType) [x] = genIntToDouble l x
+genOp l (Cast IntType CharType) [x] = genIntToChar l x
+genOp l (Cast IntType StringType) [x] = genIntToString l x
 
-genOp l (Cast DoubleType IntegerType) [x] = genFunCall l "Idris.RTS-Internal" "double_to_integer" [x]
-genOp l (Cast DoubleType IntType) [x] = genFunCall l "Idris.RTS-Internal" "double_to_int" [x]
-genOp l (Cast DoubleType StringType) [x] = genFunCall l "Idris.RTS-Internal" "double_to_string" [x]
+genOp l (Cast DoubleType IntegerType) [x] = genDoubleToInteger l x
+genOp l (Cast DoubleType IntType) [x] = genDoubleToInt l x
+genOp l (Cast DoubleType StringType) [x] = genDoubleToString l x
 
-genOp l (Cast CharType IntegerType) [x] = genFunCall l "Idris.RTS-Internal" "char_to_integer" [x]
-genOp l (Cast CharType IntType) [x] = genFunCall l "Idris.RTS-Internal" "char_to_int" [x]
-genOp l (Cast CharType StringType) [x] = genFunCall l "Idris.RTS-Internal" "char_to_string" [x]
+genOp l (Cast CharType IntegerType) [x] = genCharToInteger l x
+genOp l (Cast CharType IntType) [x] = genCharToInt l x
+genOp l (Cast CharType StringType) [x] = genCharToString l x
 
-genOp l (Cast StringType IntegerType) [x] = genFunCall l "Idris.RTS-Internal" "string_to_integer" [x]
-genOp l (Cast StringType IntType) [x] = genFunCall l "Idris.RTS-Internal" "string_to_int" [x]
-genOp l (Cast StringType DoubleType) [x] = genFunCall l "Idris.RTS-Internal" "string_to_double" [x]
+genOp l (Cast StringType IntegerType) [x] = genStringToInteger l x
+genOp l (Cast StringType IntType) [x] = genStringToInt l x
+genOp l (Cast StringType DoubleType) [x] = genStringToDouble l x
 
 genOp l (Cast from to) [x] = genThrow l ("Invalid cast " ++ show from ++ "->" ++ show to)
 
@@ -283,6 +283,9 @@ data ExtPrim
   = PutStr | GetStr
   | VoidElim
   | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
+  | ErlBufferNew
+  | ErlBufferSetByte | ErlBufferGetByte | ErlBufferSetInt | ErlBufferGetInt
+  | ErlBufferSetDouble | ErlBufferGetDouble | ErlBufferSetString | ErlBufferGetString
 
 Show ExtPrim where
   show PutStr = "PutStr"
@@ -293,6 +296,15 @@ Show ExtPrim where
   show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
+  show ErlBufferNew = "ErlBufferNew"
+  show ErlBufferSetByte = "ErlBufferSetByte"
+  show ErlBufferGetByte = "ErlBufferGetByte"
+  show ErlBufferSetInt = "ErlBufferSetInt"
+  show ErlBufferGetInt = "ErlBufferGetInt"
+  show ErlBufferSetDouble = "ErlBufferSetDouble"
+  show ErlBufferGetDouble = "ErlBufferGetDouble"
+  show ErlBufferSetString = "ErlBufferSetString"
+  show ErlBufferGetString = "ErlBufferGetString"
 
 toPrim : Name -> Maybe ExtPrim
 toPrim (NS _ n) = cond [
@@ -303,18 +315,28 @@ toPrim (NS _ n) = cond [
   (n == UN "prim__erlTryCatch", Just ErlTryCatch),
   (n == UN "prim__erlCase", Just ErlCase),
   (n == UN "prim__erlReceive", Just ErlReceive),
-  (n == UN "prim__erlModule", Just ErlModule)
+  (n == UN "prim__erlModule", Just ErlModule),
+  (n == UN "prim__erlBufferNew", Just ErlBufferNew),
+  (n == UN "prim__erlBufferSetByte", Just ErlBufferSetByte),
+  (n == UN "prim__erlBufferGetByte", Just ErlBufferGetByte),
+  (n == UN "prim__erlBufferSetInt", Just ErlBufferSetInt),
+  (n == UN "prim__erlBufferGetInt", Just ErlBufferGetInt),
+  (n == UN "prim__erlBufferSetDouble", Just ErlBufferSetDouble),
+  (n == UN "prim__erlBufferGetDouble", Just ErlBufferGetDouble),
+  (n == UN "prim__erlBufferSetString", Just ErlBufferSetString),
+  (n == UN "prim__erlBufferGetString", Just ErlBufferGetString)
   ]
   Nothing
 toPrim pn = Nothing
 
 genExtPrim : NamespaceInfo -> Line -> ExtPrim -> List (ErlExpr vars) -> Core (ErlExpr vars)
 genExtPrim namespaceInfo l PutStr [arg, world] = do
-  let putStrCall = genFunCall l "Idris.RTS-Internal" "io_unicode_put_str" [arg]
+  let putStrCall = genUnicodePutStr l arg
   let retVal = genMkIORes namespaceInfo l (genMkUnit l)
   pure $ genSequence l [putStrCall, retVal]
-genExtPrim namespaceInfo l GetStr [world] =
-  pure $ genMkIORes namespaceInfo l (genFunCall l "Idris.RTS-Internal" "io_unicode_get_str" [ECharlist l ""])
+genExtPrim namespaceInfo l GetStr [world] = do
+  let getStrCall = genUnicodeGetStr l (ECharlist l "")
+  pure $ genMkIORes namespaceInfo l getStrCall
 genExtPrim namespaceInfo l VoidElim [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l ErlUnsafeCall [_, ret, modName, fnName, args, world] = do
@@ -326,6 +348,24 @@ genExtPrim namespaceInfo l ErlTryCatch [_, action, world] = do
 genExtPrim namespaceInfo l ErlModule [] = do
   let moduleName = moduleNameFromNS (prefix namespaceInfo) (fromMaybe [] (inNS namespaceInfo)) -- TODO: Remove fromMaybe
   pure $ EAtom l moduleName
+genExtPrim namespaceInfo l ErlBufferNew [size] =
+  pure $ EBufferNew l size
+genExtPrim namespaceInfo l ErlBufferSetByte [bin, loc, value] =
+  pure $ EBufferSetByte l bin loc value
+genExtPrim namespaceInfo l ErlBufferGetByte [bin, loc] =
+  pure $ EBufferGetByte l bin loc
+genExtPrim namespaceInfo l ErlBufferSetInt [bin, loc, value] =
+  pure $ EBufferSetInt l bin loc value
+genExtPrim namespaceInfo l ErlBufferGetInt [bin, loc] =
+  pure $ EBufferGetInt l bin loc
+genExtPrim namespaceInfo l ErlBufferSetDouble [bin, loc, value] =
+  pure $ EBufferSetDouble l bin loc value
+genExtPrim namespaceInfo l ErlBufferGetDouble [bin, loc] =
+  pure $ EBufferGetDouble l bin loc
+genExtPrim namespaceInfo l ErlBufferSetString [bin, loc, value] =
+  pure $ EBufferSetString l bin loc value
+genExtPrim namespaceInfo l ErlBufferGetString [bin, loc, len] =
+  pure $ EBufferGetString l bin loc len
 -- genExtPrim namespaceInfo l prim args =
 --   throw (InternalError ("Badly formed external primitive " ++ show prim)) -- TODO: Is this preferable to run-time error?
 genExtPrim namespaceInfo l prim args =

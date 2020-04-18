@@ -3,6 +3,18 @@ module Erlang.Data.Buffer
 import Erlang
 import Erlang.System.File
 
+
+%extern prim__erlBufferNew : (size : Int) -> ErlBinary
+%extern prim__erlBufferSetByte : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
+%extern prim__erlBufferGetByte : (bin : ErlBinary) -> (loc : Int) -> Int
+%extern prim__erlBufferSetInt : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
+%extern prim__erlBufferGetInt : (bin : ErlBinary) -> (loc : Int) -> Int
+%extern prim__erlBufferSetDouble : (bin : ErlBinary) -> (loc : Int) -> (value : Double) -> ErlBinary
+%extern prim__erlBufferGetDouble : (bin : ErlBinary) -> (loc : Int) -> Double
+%extern prim__erlBufferSetString : (bin : ErlBinary) -> (loc : Int) -> (value : String) -> ErlBinary
+%extern prim__erlBufferGetString : (bin : ErlBinary) -> (loc : Int) -> (len : Int) -> String
+
+
 export
 data Buffer : Type where
   MkBuffer : ErlTerm -> (size : Int) -> (loc : Int) -> Buffer
@@ -31,7 +43,7 @@ export
 newBuffer : Int -> IO Buffer
 newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
-  emptyBinary <- erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_new" [size]
+  let emptyBinary = prim__erlBufferNew size
   erlCall "ets" "insert" [etsKey, MkErlTuple2 ref emptyBinary]
   pure (MkBuffer ref size 0)
 
@@ -49,58 +61,46 @@ size (MkBuffer _ s _) = s
 export
 setByte : Buffer -> (loc : Int) -> (val : Int) -> IO ()
 setByte buf loc val = do
-  updateBinary buf (unsafePerformIO . erlSetByte)
-  where
-    erlSetByte : ErlBinary -> IO ErlBinary
-    erlSetByte binary = erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_set_byte" [binary, loc, val]
+  updateBinary buf (\bin => prim__erlBufferSetByte bin loc val)
 
 export
 getByte : Buffer -> (loc : Int) -> IO Int
 getByte buf loc = do
-  binary <- getBinary buf
-  erlUnsafeCall Int "Idris.RTS-Internal" "buffer_get_byte" [binary, loc]
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetByte bin loc
 
 export
 setInt : Buffer -> (loc : Int) -> (val : Int) -> IO ()
 setInt buf loc val = do
-  updateBinary buf (unsafePerformIO . erlSetInt)
-  where
-    erlSetInt : ErlBinary -> IO ErlBinary
-    erlSetInt binary = erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_set_int" [binary, loc, val]
+  updateBinary buf (\bin => prim__erlBufferSetInt bin loc val)
 
 export
 getInt : Buffer -> (loc : Int) -> IO Int
 getInt buf loc = do
-  binary <- getBinary buf
-  erlUnsafeCall Int "Idris.RTS-Internal" "buffer_get_int" [binary, loc]
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetInt bin loc
 
 export
 setDouble : Buffer -> (loc : Int) -> (val : Double) -> IO ()
 setDouble buf loc val = do
-  updateBinary buf (unsafePerformIO . erlSetDouble)
-  where
-    erlSetDouble : ErlBinary -> IO ErlBinary
-    erlSetDouble binary = erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_set_double" [binary, loc, val]
+  updateBinary buf (\bin => prim__erlBufferSetDouble bin loc val)
 
 export
 getDouble : Buffer -> (loc : Int) -> IO Double
 getDouble buf loc = do
-  binary <- getBinary buf
-  erlUnsafeCall Double "Idris.RTS-Internal" "buffer_get_double" [binary, loc]
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetDouble bin loc
 
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
 setString buf loc val = do
-  updateBinary buf (unsafePerformIO . erlSetString)
-  where
-    erlSetString : ErlBinary -> IO ErlBinary
-    erlSetString binary = erlUnsafeCall ErlBinary "Idris.RTS-Internal" "buffer_set_string" [binary, loc, val]
+  updateBinary buf (\bin => prim__erlBufferSetString bin loc val)
 
 export
 getString : Buffer -> (loc : Int) -> (len : Int) -> IO String
 getString buf loc len = do
-  binary <- getBinary buf
-  erlUnsafeCall String "Idris.RTS-Internal" "buffer_get_string" [binary, loc, len]
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetString bin loc len
 
 export
 bufferData : Buffer -> IO (List Int)

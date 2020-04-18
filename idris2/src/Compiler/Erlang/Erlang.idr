@@ -76,30 +76,6 @@ compileAbstrCmd erl srcfiles outdir =
         ]
   in evalErlangCmd erl code
 
-
-
-idrisRtsModuleName : String
-idrisRtsModuleName = "Idris.RTS-Internal"
-
-findIdrisRtsPath : {auto c : Ref Ctxt Defs} -> Core String
-findIdrisRtsPath = do
-  d <- getDirs
-  let idrisRtsPath = "erlang" ++ dirSep ++ idrisRtsModuleName ++ ".erl"
-  let fs = map (\p => p ++ dirSep ++ idrisRtsPath) (data_dirs d)
-  Just f <- firstAvailable fs
-    | Nothing => throw (InternalError ("Can't find data file " ++ idrisRtsPath))
-  pure f
-
-copyIdrisRtsToDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
-copyIdrisRtsToDir outDir = do
-  f <- findIdrisRtsPath
-  Right contents <- coreLift $ readFile f
-    | Left err => throw (FileErr f err)
-  let outFile = outDir ++ dirSep ++ idrisRtsModuleName ++ ".erl"
-  Right () <- coreLift $ writeFile outFile contents
-    | Left err => throw (FileErr outFile err)
-  pure ()
-
 groupBy : (a -> a -> Bool) -> List a -> List (List a)
 groupBy _ [] = []
 groupBy p list@(x :: xs) =
@@ -164,7 +140,6 @@ namespace MainEntrypoint
     let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] [MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 (weaken mainBody))]
     Right () <- coreLift $ writeFile outfile (showModule module)
       | Left err => throw (FileErr outfile err)
-    copyIdrisRtsToDir outdir
     pure (modName :: map (moduleNameFromNS (prefix opts) . fst) modules)
 
   -- TODO: Add error handling
@@ -178,8 +153,6 @@ namespace MainEntrypoint
     generatedModules <- generateAbstr opts tm tmpDir modName
     let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
     coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
-    let idrisRtsFile = tmpDir ++ dirSep ++ idrisRtsModuleName ++ ".erl"
-    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ quoted idrisRtsFile)
     pure ()
 
   erlangModuleName : (outfile : String) -> Maybe (String, String)
@@ -263,7 +236,6 @@ namespace Library
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (generateErlangModule opts ds outdir) modules
-    copyIdrisRtsToDir outdir
     pure (map (moduleNameFromNS (prefix opts) . fst) modules)
 
   -- TODO: Add error handling
@@ -277,8 +249,6 @@ namespace Library
     generatedModules <- generateAbstr opts tmpDir
     let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
     coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
-    let idrisRtsFile = tmpDir ++ dirSep ++ idrisRtsModuleName ++ ".erl"
-    coreLift $ system (erlc ++ " -W0 -o " ++ quoted outdir ++ " " ++ quoted idrisRtsFile)
     pure ()
 
   export
