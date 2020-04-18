@@ -139,7 +139,7 @@ generateErlangModule opts ds targetDir (ns, funDecls) = do
   let exportsFuncName = getExportInNamespace ds ns
   exportFunDecls <- maybe (pure []) (genExports (MkNamespaceInfo (prefix opts) (Just ns)) 4242) exportsFuncName
   let modName = moduleNameFromNS (prefix opts) ns
-  let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242, ExportAll 4242] (exportFunDecls ++ funDecls)
+  let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] (exportFunDecls ++ funDecls)
   let outfile = targetDir ++ dirSep ++ modName ++ ".abstr"
   Right () <- coreLift $ writeFile outfile (showModule module)
     | Left err => throw (FileErr outfile err)

@@ -145,7 +145,6 @@ data ErlAttribute : Type where
   NoAutoImport : Line -> ErlAttribute
   Inline       : Line -> ErlAttribute
   InlineSize   : Line -> Nat -> ErlAttribute
-  ExportAll    : Line -> ErlAttribute
 
 public export
 data ErlVisibility = Private | Public
@@ -434,7 +433,6 @@ genAttribute : ErlAttribute -> Decl
 genAttribute (NoAutoImport l) = genCompileAttr l (PAtom "no_auto_import")
 genAttribute (Inline l) = genCompileAttr l (PAtom "inline")
 genAttribute (InlineSize l size) = genCompileAttr l (PTuple [PAtom "inline_size", PInteger (cast size)])
-genAttribute (ExportAll l) = genCompileAttr l (PAtom "export_all")
 
 export
 genErlModule : ErlModule -> List Decl
