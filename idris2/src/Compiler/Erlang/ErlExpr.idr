@@ -108,7 +108,7 @@ mutual
     MAny          : ErlMatcher vars
     MCodepoint    : ErlMatcher vars
     MInteger      : ErlMatcher vars
-    MDouble       : ErlMatcher vars
+    MFloat        : ErlMatcher vars
     MAtom         : ErlMatcher vars
     MBinary       : ErlMatcher vars
     MMap          : ErlMatcher vars
@@ -342,7 +342,7 @@ mutual
     let body = AEVar l (localVarName local)
     pure $ MkMatcherClause (local + 1) pattern guard body
   readErlMatcher l vs local MInteger = readSimpleGuardMatcherClause l vs local "is_integer"
-  readErlMatcher l vs local MDouble = readSimpleGuardMatcherClause l vs local "is_float"
+  readErlMatcher l vs local MFloat = readSimpleGuardMatcherClause l vs local "is_float"
   readErlMatcher l vs local MAtom = readSimpleGuardMatcherClause l vs local "is_atom"
   readErlMatcher l vs local MBinary = readSimpleGuardMatcherClause l vs local "is_binary"
   readErlMatcher l vs local MMap = readSimpleGuardMatcherClause l vs local "is_map"
@@ -494,7 +494,7 @@ mutual
   thinErlMatcher n MAny = MAny
   thinErlMatcher n MCodepoint = MCodepoint
   thinErlMatcher n MInteger = MInteger
-  thinErlMatcher n MDouble = MDouble
+  thinErlMatcher n MFloat = MFloat
   thinErlMatcher n MAtom = MAtom
   thinErlMatcher n MBinary = MBinary
   thinErlMatcher n MMap = MMap

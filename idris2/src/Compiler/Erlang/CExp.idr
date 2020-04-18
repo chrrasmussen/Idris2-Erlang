@@ -458,7 +458,7 @@ mutual
   -- Simple guards
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCodepoint")) tag []) = pure $ MCodepoint
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MInteger")) tag []) = pure $ MInteger
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MDouble")) tag []) = pure $ MDouble
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MDouble")) tag []) = pure $ MFloat
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAtom")) tag []) = pure $ MAtom
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MBinary")) tag []) = pure $ MBinary
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMap")) tag []) = pure $ MMap
