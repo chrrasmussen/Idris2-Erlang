@@ -297,11 +297,13 @@ tail [] impossible
 tail (x :: xs) = xs
 
 ||| Attempt to get the head of a list. If the list is empty, return `Nothing`.
+export
 head' : List a -> Maybe a
 head' []      = Nothing
 head' (x::xs) = Just x
 
 ||| Attempt to get the tail of a list. If the list is empty, return `Nothing`.
+export
 tail' : List a -> Maybe (List a)
 tail' []      = Nothing
 tail' (x::xs) = Just xs
@@ -334,6 +336,19 @@ intersperse : a -> List a -> List a
 intersperse sep []      = []
 intersperse sep (x::xs) = x :: mergeReplicate sep xs
 
+||| Given a separator list and some more lists, produce a new list by
+||| placing the separator between each of the lists.
+|||
+||| @ sep the separator
+||| @ xss the lists between which the separator will be placed
+|||
+||| ```idris example
+||| intercalate [0, 0, 0] [ [1, 2, 3], [4, 5, 6], [7, 8, 9] ]
+||| ```
+export
+intercalate : (sep : List a) -> (xss : List (List a)) -> List a
+intercalate sep xss = concat $ intersperse sep xss
+
 ||| Apply a partial function to the elements of a list, keeping the ones at which
 ||| it is defined.
 export
@@ -365,6 +380,8 @@ mergeBy : (a -> a -> Ordering) -> List a -> List a -> List a
 mergeBy order []      right   = right
 mergeBy order left    []      = left
 mergeBy order (x::xs) (y::ys) =
+  -- The code below will emit `y` before `x` whenever `x == y`.
+  -- If you change this, `sortBy` will stop being stable, unless you fix `sortBy`, too.
   case order x y of
        LT => x :: mergeBy order xs (y::ys)
        _  => y :: mergeBy order (x::xs) ys
@@ -387,9 +404,13 @@ sortBy cmp xs  = let (x, y) = split xs in
           (sortBy cmp (assert_smaller xs x))
           (sortBy cmp (assert_smaller xs y)) -- not structurally smaller, hence assert
   where
-    splitRec : List a -> List a -> (List a -> List a) -> (List a, List a)
+    splitRec : List b -> List a -> (List a -> List a) -> (List a, List a)
     splitRec (_::_::xs) (y::ys) zs = splitRec xs ys (zs . ((::) y))
-    splitRec _          ys      zs = (zs [], ys)
+    splitRec _          ys      zs = (ys, zs [])
+    -- In the above base-case clause, we put `ys` on the LHS to get a stable sort.
+    -- This is because `mergeBy` prefers taking elements from its RHS operand
+    -- if both heads are equal, and all elements in `zs []` precede all elements of `ys`
+    -- in the original list.
 
     split : List a -> (List a, List a)
     split xs = splitRec xs xs id
@@ -436,6 +457,26 @@ isSuffixOf = isSuffixOfBy (==)
 export
 isInfixOf : Eq a => List a -> List a -> Bool
 isInfixOf n h = any (isPrefixOf n) (tails h)
+
+||| Transposes rows and columns of a list of lists.
+|||
+||| ```idris example
+||| with List transpose [[1, 2], [3, 4]]
+||| ```
+|||
+||| This also works for non square scenarios, thus
+||| involution does not always hold:
+|||
+|||     transpose [[], [1, 2]] = [[1], [2]]
+|||     transpose (transpose [[], [1, 2]]) = [[1, 2]]
+export
+transpose : List (List a) -> List (List a)
+transpose [] = []
+transpose (heads :: tails) = spreadHeads heads (transpose tails) where
+  spreadHeads : List a -> List (List a) -> List (List a)
+  spreadHeads []              tails           = tails
+  spreadHeads (head :: heads) []              = [head] :: spreadHeads heads []
+  spreadHeads (head :: heads) (tail :: tails) = (head :: tail) :: spreadHeads heads tails
 
 --------------------------------------------------------------------------------
 -- Properties

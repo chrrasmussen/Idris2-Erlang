@@ -11,6 +11,11 @@ code is also [going to be] part of the test suite (see `tests/typedd-book
 <https://github.com/edwinb/Idris2/tree/master/tests/typedd-book>`_ in the Idris
 2 source).
 
+If you are new to Idris, and learning from the book, we recommend working
+through the first 3-4 chapters with Idris 1, to avoid the need to worry about
+the changes described here. After that, refer to this document for any
+necessary changes.
+
 Chapter 1
 ---------
 
@@ -66,8 +71,8 @@ Chapter 5
 
 There is no longer a ``Cast`` instance from ``String`` to ``Nat``, because its
 behaviour of returing Z if the ``String`` wasn't numeric was thought to be
-confusing. Instead, there is ``stringToNatOrZ`` in ``Data.Strings`` which at least
-has a clearer name. So:
+confusing and potentially error prone. Instead, there is ``stringToNatOrZ`` in
+``Data.Strings`` which at least has a clearer name. So:
 
 In ``Loops.idr`` and ``ReadNum.idr`` add ``import Data.Strings`` and change ``cast`` to
 ``stringToNatOrZ``

@@ -2,6 +2,7 @@ module Parser.Support
 
 import public Text.Lexer
 import public Parser.Lexer
+import public Parser.Unlit
 import public Text.Parser
 
 import Core.TT
@@ -21,6 +22,7 @@ public export
 data ParseError = ParseFail String (Maybe (Int, Int)) (List Token)
                 | LexFail (Int, Int, String)
                 | FileFail FileError
+                | LitFail (List Int)
 
 export
 Show ParseError where
@@ -31,6 +33,8 @@ Show ParseError where
       = "Lex error at " ++ show (c, l) ++ " input: " ++ str
   show (FileFail err)
       = "File error: " ++ show err
+  show (LitFail l)
+      = "Lit error(s) at " ++ show l
 
 export
 eoi : EmptyRule ()
@@ -43,30 +47,33 @@ eoi
     isEOI _ = False
 
 export
-runParserTo : (TokenData Token -> Bool) ->
+runParserTo : Bool -> Bool -> (TokenData Token -> Bool) ->
               String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParserTo pred str p
-    = case lexTo pred str of
-           Left err => Left $ LexFail err
-           Right toks =>
-              case parse p toks of
-                   Left (Error err []) =>
-                          Left $ ParseFail err Nothing []
-                   Left (Error err (t :: ts)) =>
-                          Left $ ParseFail err (Just (line t, col t))
-                                               (map tok (t :: ts))
-                   Right (val, _) => Right val
+runParserTo lit enforce pred str p
+    = case unlit lit enforce str of
+           Left l => Left $ LitFail l
+           Right str =>
+             case lexTo pred str of
+               Left err => Left $ LexFail err
+               Right toks =>
+                  case parse p toks of
+                       Left (Error err []) =>
+                              Left $ ParseFail err Nothing []
+                       Left (Error err (t :: ts)) =>
+                              Left $ ParseFail err (Just (line t, col t))
+                                                   (map tok (t :: ts))
+                       Right (val, _) => Right val
 
 export
-runParser : String -> Grammar (TokenData Token) e ty -> Either ParseError ty
-runParser = runParserTo (const False)
+runParser : Bool -> Bool -> String -> Grammar (TokenData Token) e ty -> Either ParseError ty
+runParser lit enforce = runParserTo lit enforce (const False)
 
 export
 parseFile : (fn : String) -> Rule ty -> IO (Either ParseError ty)
 parseFile fn p
     = do Right str <- readFile fn
              | Left err => pure (Left (FileFail err))
-         pure (runParser str p)
+         pure (runParser (isLitFile fn) True str p)
 
 
 -- Some basic parsers used by all the intermediate forms
@@ -381,12 +388,12 @@ continueF err indent
             then err
             else pure ()
 
--- Fail if this is the end of a block entry or end of file
+||| Fail if this is the end of a block entry or end of file
 export
 continue : (indent : IndentInfo) -> EmptyRule ()
 continue = continueF (fail "Unexpected end of expression")
 
--- As 'continue' but failing is fatal (i.e. entire parse fails)
+||| As 'continue' but failing is fatal (i.e. entire parse fails)
 export
 mustContinue : (indent : IndentInfo) -> Maybe String -> EmptyRule ()
 mustContinue indent Nothing
@@ -394,11 +401,15 @@ mustContinue indent Nothing
 mustContinue indent (Just req)
    = continueF (fatalError ("Expected '" ++ req ++ "'")) indent
 
-data ValidIndent
-     = AnyIndent -- In {}, entries can begin in any column
-     | AtPos Int -- Entry must begin in a specific column
-     | AfterPos Int -- Entry can begin in this column or later
-     | EndOfBlock -- Block is finished
+data ValidIndent =
+  |||  In {}, entries can begin in any column
+  AnyIndent |
+  ||| Entry must begin in a specific column
+  AtPos Int |
+  ||| Entry can begin in this column or later
+  AfterPos Int |
+  ||| Block is finished
+  EndOfBlock
 
 Show ValidIndent where
   show AnyIndent = "[any]"
@@ -416,7 +427,7 @@ checkValid (AfterPos x) c = if c >= x
                                else fail "Invalid indentation"
 checkValid EndOfBlock c = fail "End of block"
 
--- Any token which indicates the end of a statement/block
+||| Any token which indicates the end of a statement/block
 isTerminator : Token -> Bool
 isTerminator (Symbol ",") = True
 isTerminator (Symbol "]") = True
@@ -425,14 +436,16 @@ isTerminator (Symbol "}") = True
 isTerminator (Symbol ")") = True
 isTerminator (Symbol "|") = True
 isTerminator (Keyword "in") = True
+isTerminator (Keyword "then") = True
+isTerminator (Keyword "else") = True
 isTerminator (Keyword "where") = True
 isTerminator EndInput = True
 isTerminator _ = False
 
--- Check we're at the end of a block entry, given the start column
--- of the block.
--- It's the end if we have a terminating token, or the next token starts
--- in or before indent. Works by looking ahead but not consuming.
+||| Check we're at the end of a block entry, given the start column
+||| of the block.
+||| It's the end if we have a terminating token, or the next token starts
+||| in or before indent. Works by looking ahead but not consuming.
 export
 atEnd : (indent : IndentInfo) -> EmptyRule ()
 atEnd indent
@@ -524,6 +537,11 @@ block item
   <|> do col <- column
          blockEntries (AtPos col) item
 
+
+||| `blockAfter col rule` parses a `rule`-block indented by at
+||| least `col` spaces (unless the block is explicitly delimited
+||| by curly braces). `rule` is a function of the actual indentation
+||| level.
 export
 blockAfter : Int -> (IndentInfo -> Rule ty) -> EmptyRule (List ty)
 blockAfter mincol item

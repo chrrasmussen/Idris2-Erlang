@@ -23,8 +23,6 @@ import TTImp.Unelab
 
 import Parser.Support
 
-import Control.Catchable
-
 %default covering
 
 showInfo : (Name, Int, GlobalDef) -> Core ()
@@ -153,7 +151,7 @@ repl : {auto c : Ref Ctxt Defs} ->
 repl
     = do coreLift (putStr "Yaffle> ")
          inp <- coreLift getLine
-         case runParser inp command of
+         case runParser False False inp command of
               Left err => do coreLift (printLn err)
                              repl
               Right cmd =>

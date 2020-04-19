@@ -69,6 +69,10 @@ data CLOpt
   IdeModeSocket String |
    ||| Run as a checker for the core language TTImp
   Yaffle String |
+   ||| Dump metadata from a .ttm file
+  Metadata String |
+   ||| Dump cases before compiling
+  DumpCases String |
    ||| Run a REPL command then exit immediately
   RunREPL String |
   FindIPKG |
@@ -143,6 +147,10 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            -- Internal debugging options
            MkOpt ["--yaffle", "--ttimp"] ["ttimp file"] (\f => [Yaffle f])
               Nothing, -- run ttimp REPL rather than full Idris
+           MkOpt ["--ttm" ] ["ttimp file"] (\f => [Metadata f])
+              Nothing, -- dump metadata information from the given ttm file
+           MkOpt ["--dumpcases"] ["output file"] (\f => [DumpCases f])
+              Nothing, -- dump case trees to the given file
            MkOpt ["--debug-elab-check"] [] [DebugElabCheck]
               Nothing -- do more elaborator checks (currently conversion in LinearCheck)
            ]

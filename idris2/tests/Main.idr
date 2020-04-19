@@ -4,6 +4,9 @@ import System
 
 %default covering
 
+------------------------------------------------------------------------
+-- Test cases
+
 ttimpTests : List String
 ttimpTests
     = ["basic001", "basic002", "basic003", "basic004", "basic005",
@@ -31,7 +34,7 @@ idrisTests
        "basic021", "basic022", "basic023", "basic024", "basic025",
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034", "basic035",
-       "basic036",
+       "basic036", "basic037", "basic038",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006",
@@ -44,6 +47,10 @@ idrisTests
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
+       -- Literate
+       "literate001", "literate002", "literate003", "literate004",
+       "literate005", "literate006", "literate007", "literate008",
+       "literate009",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
@@ -73,7 +80,7 @@ idrisTests
        "record001", "record002",
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
-       "reg008", "reg009", "reg010", "reg011", "reg012",
+       "reg008", "reg009", "reg010", "reg011", "reg012", "reg013",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006",
@@ -94,7 +101,40 @@ chezTests
 
 ideModeTests : List String
 ideModeTests
-  =  [ "ideMode001", "ideMode002" ]
+  =  [ "ideMode001", "ideMode002", "ideMode003" ]
+
+------------------------------------------------------------------------
+-- Options
+
+||| Options for the test driver.
+record Options where
+  constructor MkOptions
+  ||| Name of the idris2 executable
+  idris2      : String
+  ||| Should we only run some specific cases?
+  onlyNames   : List String
+  ||| Should we run the test suite interactively?
+  interactive : Bool
+
+usage : String
+usage = "Usage: runtests <idris2 path> [--interactive] [--only [NAMES]]"
+
+options : List String -> Maybe Options
+options args = case args of
+    (_ :: idris2 :: rest) => go rest (MkOptions idris2 [] False)
+    _ => Nothing
+
+  where
+
+    go : List String -> Options -> Maybe Options
+    go rest opts = case rest of
+      []                      => pure opts
+      ("--interactive" :: xs) => go xs (record { interactive = True } opts)
+      ("--only" :: xs)        => pure $ record { onlyNames = xs } opts
+      _ => Nothing
+
+------------------------------------------------------------------------
+-- Actual test runner
 
 erlangTests : List String
 erlangTests
@@ -115,21 +155,60 @@ fail err
     = do putStrLn err
          exitWith (ExitFailure 1)
 
-runTest : String -> String -> IO Bool
-runTest prog testPath
+runTest : Options -> String -> IO Bool
+runTest opts testPath
     = do chdir testPath
          isSuccess <- runTest'
          chdir "../.."
          pure isSuccess
     where
+        getAnswer : IO Bool
+        getAnswer = do
+          str <- getLine
+          case str of
+            "y" => pure True
+            "n" => pure False
+            _   => do putStrLn "Invalid Answer."
+                      getAnswer
+
+        printExpectedVsOutput : String -> String -> IO ()
+        printExpectedVsOutput exp out = do
+          putStrLn "Expected:"
+          printLn exp
+          putStrLn "Given:"
+          printLn out
+
+        mayOverwrite : Maybe String -> String -> IO ()
+        mayOverwrite mexp out = do
+          case mexp of
+            Nothing => putStr $ unlines
+              [ "Golden value missing. I computed the following result:"
+              , out
+              , "Accept new golden value? [yn]"
+              ]
+            Just exp => do
+              putStrLn "Golden value differs from actual value."
+              code <- system "git diff expected output"
+              when (code /= 0) $ printExpectedVsOutput exp out
+              putStrLn "Accept actual value as new golden value? [yn]"
+          b <- getAnswer
+          when b $ do Right _ <- writeFile "expected" out
+                          | Left err => print err
+                      pure ()
+
         runTest' : IO Bool
         runTest'
             = do putStr $ testPath ++ ": "
-                 system $ "sh ./run " ++ prog ++ " | tr -d '\\r' > output"
+                 system $ "sh ./run " ++ idris2 opts ++ " | tr -d '\\r' > output"
                  Right out <- readFile "output"
                      | Left err => do print err
                                       pure False
                  Right exp <- readFile "expected"
+                     | Left FileNotFound => do
+                         if interactive opts
+                           then mayOverwrite Nothing out
+                           else print FileNotFound
+                         pure False
                      | Left err => do print err
                                       pure False
 
@@ -137,10 +216,8 @@ runTest prog testPath
                     then putStrLn "success"
                     else do
                       putStrLn "FAILURE"
-                      putStrLn "Expected:"
-                      printLn exp
-                      putStrLn "Given:"
-                      printLn out
+                      if interactive opts then mayOverwrite (Just exp) out
+                      else printExpectedVsOutput exp out
 
                  pure (out == exp)
 
@@ -168,40 +245,45 @@ findChez
     = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
          pure $ Just chez
 
-runChezTests : String -> List String -> IO (List Bool)
-runChezTests prog tests
+runChezTests : Options -> List String -> IO (List Bool)
+runChezTests opts tests
     = do chexec <- findChez
          maybe (do putStrLn "Chez Scheme not found"
                    pure [])
                (\c => do putStrLn $ "Found Chez Scheme at " ++ c
-                         traverse (runTest prog) tests)
+                         traverse (runTest opts) tests)
                chexec
 
-runErlangTests : String -> List String -> IO (List Bool)
-runErlangTests prog tests
-    = traverse (runTest prog) tests
+runErlangTests : Options -> List String -> IO (List Bool)
+runErlangTests opts tests
+    = traverse (runTest opts) tests
+
+filterTests : Options -> List String -> List String
+filterTests opts = case onlyNames opts of
+  [] => id
+  xs => filter (\ name => any (`isInfixOf` name) xs)
 
 main : IO ()
 main
     = do args <- getArgs
-         let (_ :: idris2 :: _) = args
-              | _ => do putStrLn "Usage: runtests <idris2 path> [--only <name>]"
-         let filterTests = case drop 2 args of
-              ("--only" :: onlyName :: _) => filter (\testName => isInfixOf onlyName testName)
-              _ => id
+         let (Just opts) = options args
+              | _ => do print args
+                        putStrLn usage
          let filteredNonCGTests =
-              filterTests $ concat [testPaths "ttimp" ttimpTests,
-                                    testPaths "idris2" idrisTests,
-                                    testPaths "typedd-book" typeddTests,
-                                    testPaths "ideMode" ideModeTests]
-         let filteredChezTests = filterTests (testPaths "chez" chezTests)
-         let filteredErlangTests = filterTests (testPaths "erlang" erlangTests)
-         nonCGTestRes <- traverse (runTest idris2) filteredNonCGTests
+              filterTests opts $ concat
+                 [ testPaths "ttimp" ttimpTests
+                 , testPaths "idris2" idrisTests
+                 , testPaths "typedd-book" typeddTests
+                 , testPaths "ideMode" ideModeTests
+                 ]
+         let filteredChezTests = filterTests opts (testPaths "chez" chezTests)
+         let filteredErlangTests = filterTests opts (testPaths "erlang" erlangTests)
+         nonCGTestRes <- traverse (runTest opts) filteredNonCGTests
          chezTestRes <- if length filteredChezTests > 0
-              then runChezTests idris2 filteredChezTests
+              then runChezTests opts filteredChezTests
               else pure []
          erlangTestRes <- if length filteredErlangTests > 0
-              then runErlangTests idris2 filteredErlangTests
+              then runErlangTests opts filteredErlangTests
               else pure []
          let res = nonCGTestRes ++ chezTestRes ++ erlangTestRes
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)

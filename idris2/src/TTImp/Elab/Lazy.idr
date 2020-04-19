@@ -45,12 +45,12 @@ checkDelay rig elabinfo nest env fc tm mexpected
                                pure (gnf env ty))
                            pure mexpected
          let solvemode = case elabMode elabinfo of
-                              InLHS c => InLHS
-                              _ => InTerm (Top False)
+                              InLHS c => inLHS
+                              _ => inTermP False
          solveConstraints solvemode Normal
          -- Can only check if we know the expected type already because we
          -- need to infer the delay reason
-         delayOnFailure fc rig env expected delayError
+         delayOnFailure fc rig env expected delayError 5
             (\delayed =>
                  case !(getNF expected) of
                       NDelayed _ r expnf =>

@@ -21,6 +21,8 @@ import Core.Termination
 import Core.TT
 import Core.Unify
 
+import Parser.Unlit
+
 import Idris.Desugar
 import Idris.Error
 import Idris.IDEMode.CaseSplit
@@ -57,6 +59,7 @@ showInfo (n, idx, d)
          coreLift $ putStrLn (show (multiplicity d))
          coreLift $ putStrLn ("Erasable args: " ++ show (eraseArgs d))
          coreLift $ putStrLn ("Detaggable arg types: " ++ show (safeErase d))
+         coreLift $ putStrLn ("Specialise args: " ++ show (specArgs d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
@@ -232,6 +235,7 @@ getOptions = do
          , Editor (editor opts)
          ]
 
+export
 findCG : {auto c : Ref Ctxt Defs} -> Core Codegen
 findCG
     = do defs <- get Ctxt
@@ -247,21 +251,22 @@ anyAt p loc y = p loc
 
 printClause : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              Nat -> ImpClause ->
+              Bool -> Nat -> ImpClause ->
               Core String
-printClause i (PatClause _ lhsraw rhsraw)
+printClause l i (PatClause _ lhsraw rhsraw)
     = do lhs <- pterm lhsraw
          rhs <- pterm rhsraw
-         pure (pack (replicate i ' ') ++ show lhs ++ " = " ++ show rhs)
-printClause i (WithClause _ lhsraw wvraw csraw)
+         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " = " ++ show rhs))
+printClause l i (WithClause _ lhsraw wvraw csraw)
     = do lhs <- pterm lhsraw
          wval <- pterm wvraw
-         cs <- traverse (printClause (i + 2)) csraw
-         pure (pack (replicate i ' ') ++ show lhs ++ " with (" ++ show wval ++ ")\n" ++
-                 showSep "\n" cs)
-printClause i (ImpossibleClause _ lhsraw)
+         cs <- traverse (printClause l (i + 2)) csraw
+         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " with (" ++ show wval ++ ")\n" ++
+                 showSep "\n" cs))
+printClause l i (ImpossibleClause _ lhsraw)
     = do lhs <- pterm lhsraw
-         pure (pack (replicate i ' ') ++ show lhs ++ " impossible")
+         pure ((if l then ">" else "") ++ (pack (replicate i ' ') ++ show lhs ++ " impossible"))
+
 
 lookupDefTyName : Name -> Context ->
                   Core (List (Name, Int, (Def, ClosedTerm)))
@@ -271,7 +276,7 @@ public export
 data EditResult : Type where
   DisplayEdit : List String -> EditResult
   EditError : String -> EditResult
-  MadeLemma : Name -> PTerm -> String -> EditResult
+  MadeLemma : Bool -> Name -> PTerm -> String -> EditResult
 
 updateFile : {auto r : Ref ROpts REPLOpts} ->
              (List String -> List String) -> Core EditResult
@@ -311,22 +316,22 @@ proofSearch n res Z (x :: xs) = replaceStr ("?" ++ show n) res x :: xs
 proofSearch n res (S k) (x :: xs) = x :: proofSearch n res k xs
 proofSearch n res _ [] = []
 
-addMadeLemma : Name -> String -> String -> Nat -> List String -> List String
-addMadeLemma n ty app line content
-    = addApp line [] (proofSearch n app line content)
+addMadeLemma : Bool -> Name -> String -> String -> Nat -> List String -> List String
+addMadeLemma lit n ty app line content
+    = addApp lit line [] (proofSearch n app line content)
   where
     -- Put n : ty in the first blank line
-    insertInBlank : List String -> List String
-    insertInBlank [] = [show n ++ " : " ++ ty ++ "\n"]
-    insertInBlank (x :: xs)
+    insertInBlank : Bool -> List String -> List String
+    insertInBlank lit [] = [(if lit then "> " else "") ++ show n ++ " : " ++ ty ++ "\n"]
+    insertInBlank lit (x :: xs)
         = if trim x == ""
-             then ("\n" ++ show n ++ " : " ++ ty ++ "\n") :: xs
-             else x :: insertInBlank xs
+             then ("\n" ++ (if lit then "> " else "") ++ show n ++ " : " ++ ty ++ "\n") :: xs
+             else x :: insertInBlank lit xs
 
-    addApp : Nat -> List String -> List String -> List String
-    addApp Z acc rest = reverse (insertInBlank acc) ++ rest
-    addApp (S k) acc (x :: xs) = addApp k (x :: acc) xs
-    addApp (S k) acc [] = reverse acc
+    addApp : Bool -> Nat -> List String -> List String -> List String
+    addApp lit Z acc rest = reverse (insertInBlank lit acc) ++ rest
+    addApp lit (S k) acc (x :: xs) = addApp lit k (x :: acc) xs
+    addApp _ (S k) acc [] = reverse acc
 
 processEdit : {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
@@ -418,11 +423,15 @@ processEdit (GenerateDef upd line name)
                   catch
                     (do Just (fc, cs) <- makeDef (\p, n => onLine line p) n'
                            | Nothing => processEdit (AddClause upd line name)
-                        ls <- traverse (printClause (cast (snd (startPos fc)))) cs
+                        Just srcLine <- getSourceLine line
+                           | Nothing => pure (EditError "Source line not found")
+                        let (lit, _) = isLit srcLine
+                        let l : Nat = if lit then cast (max 0 (snd (startPos fc) - 1)) else cast (snd (startPos fc))
+                        ls <- traverse (printClause lit l) cs
                         if upd
                            then updateFile (addClause (unlines ls) (cast line))
                            else pure $ DisplayEdit ls)
-                    (\err => pure $ EditError $ "Can't find a definition for " ++ show n')
+                    (\err => pure $ EditError $ "Can't find a definition for " ++ show n' ++ ": " ++ show err)
               Just _ => pure $ EditError "Already defined"
               Nothing => pure $ EditError $ "Can't find declaration for " ++ show name
 processEdit (MakeLemma upd line name)
@@ -438,10 +447,13 @@ processEdit (MakeLemma upd line name)
                      let pappstr = show (if brack
                                             then addBracket replFC papp
                                             else papp)
+                     Just srcLine <- getSourceLine line
+                       | Nothing => pure (EditError "Source line not found")
+                     let (lit, _) = isLit srcLine
                      if upd
-                        then updateFile (addMadeLemma name (show pty) pappstr
+                        then updateFile (addMadeLemma lit name (show pty) pappstr
                                                       (cast (line - 1)))
-                        else pure $ MadeLemma name pty pappstr
+                        else pure $ MadeLemma lit name pty pappstr
               _ => pure $ EditError "Can't make lifted definition"
 processEdit (MakeCase upd line name)
     = pure $ EditError "Not implemented yet"
@@ -461,6 +473,7 @@ data REPLResult : Type where
   Done : REPLResult
   REPLError : String -> REPLResult
   Executed : PTerm -> REPLResult
+  RequestedHelp : REPLResult
   Evaluated : PTerm -> (Maybe PTerm) -> REPLResult
   Printed : List String -> REPLResult
   TermChecked : PTerm -> PTerm -> REPLResult
@@ -582,6 +595,13 @@ process (Eval itm)
             _ =>
               do ttimp <- desugar AnyExpr [] itm
                  inidx <- resolveName (UN "[input]")
+                 -- a TMP HACK to prioritise list syntax for List: hide
+                 -- foreign argument lists. TODO: once the new FFI is fully
+                 -- up and running we won't need this. Also, if we add
+                 -- 'with' disambiguation we can use that instead.
+                 catch (do hide replFC (NS ["PrimIO"] (UN "::"))
+                           hide replFC (NS ["PrimIO"] (UN "Nil")))
+                       (\err => pure ())
                  (tm, gty) <- elabTerm inidx (emode (evalMode opts)) [] (MkNested [])
                                        [] ttimp Nothing
                  defs <- get Ctxt
@@ -654,6 +674,8 @@ process (Compile ctm outfile)
     = compileExp ctm outfile
 process (Exec ctm)
     = execExp ctm
+process Help
+    = pure RequestedHelp
 process (ProofSearch n_in)
     = do defs <- get Ctxt
          [(n, i, ty)] <- lookupTyName n_in (gamma defs)
@@ -751,7 +773,7 @@ export
 parseRepl : String -> Either ParseError (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD)] inp of
-           Nothing => runParser inp (parseEmptyCmd <|> parseCmd)
+           Nothing => runParser False False inp (parseEmptyCmd <|> parseCmd)
            Just cmd => Right $ Just cmd
   where
     -- a right load of hackery - we can't tokenise the filename using the
@@ -863,12 +885,28 @@ mutual
                                    showSep ", " (map show xs)
   displayResult  (LogLevelSet k) = printResult $ "Set loglevel to " ++ show k
   displayResult  (VersionIs x) = printResult $ showVersion True x
+  displayResult  (RequestedHelp) = printResult displayHelp
   displayResult  (Edited (DisplayEdit [])) = pure ()
   displayResult  (Edited (DisplayEdit xs)) = printResult $ showSep "\n" xs
   displayResult  (Edited (EditError x)) = printError x
-  displayResult  (Edited (MadeLemma name pty pappstr)) = printResult (show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
+  displayResult  (Edited (MadeLemma lit name pty pappstr)) = printResult ((if lit then "> " else "") ++ show name ++ " : " ++ show pty ++ "\n" ++ pappstr)
   displayResult  (OptionsSet opts) = printResult $ showSep "\n" $ map show opts
   displayResult  _ = pure ()
+
+  displayHelp : String
+  displayHelp =
+    showSep "\n" $ map cmdInfo help
+    where
+      makeSpace : Nat -> String
+      makeSpace n = pack $ take n (repeat ' ')
+
+      col : Nat -> Nat -> String -> String -> String -> String
+      col c1 c2 l m r =
+        l ++ (makeSpace $ c1 `minus` length l) ++
+        m ++ (makeSpace $ c2 `minus` length m) ++ r
+
+      cmdInfo : (List String, CmdArg, String) -> String
+      cmdInfo (cmds, args, text) = "   " ++ col 16 12 (showSep " " cmds) (show args) text
 
   export
   displayErrors : {auto c : Ref Ctxt Defs} ->

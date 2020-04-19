@@ -34,14 +34,11 @@ import Control.Monad.State
 
 -- Desugaring from high level Idris syntax to TTImp involves:
 
--- Done:
 -- * Shunting infix operators into function applications according to precedence
 -- * Replacing 'do' notating with applications of (>>=)
 -- * Replacing pattern matching binds with 'case'
 -- * Changing tuples to 'Pair/MkPair'
 -- * List notation
-
--- Still TODO:
 -- * Replacing !-notation
 -- * Dependent pair notation
 -- * Idiom brackets
@@ -120,6 +117,18 @@ idiomise fc (IApp afc f a)
                     (idiomise afc f))
                     a
 idiomise fc fn = IApp fc (IVar fc (UN "pure")) fn
+
+pairname : Name
+pairname = NS ["Builtin"] (UN "Pair")
+
+mkpairname : Name
+mkpairname = NS ["Builtin"] (UN "MkPair")
+
+dpairname : Name
+dpairname = NS ["DPair", "Builtin"] (UN "DPair")
+
+mkdpairname : Name
+mkdpairname = NS ["DPair", "Builtin"] (UN "MkDPair")
 
 data Bang : Type where
 
@@ -273,27 +282,27 @@ mutual
   desugarB side ps (PPair fc l r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
-           let pval = apply (IVar fc (UN "MkPair")) [l', r']
+           let pval = apply (IVar fc mkpairname) [l', r']
            pure $ IAlternative fc (UniqueDefault pval)
-                  [apply (IVar fc (UN "Pair")) [l', r'], pval]
+                  [apply (IVar fc pairname) [l', r'], pval]
   desugarB side ps (PDPair fc (PRef nfc (UN n)) (PImplicit _) r)
       = do r' <- desugarB side ps r
-           let pval = apply (IVar fc (UN "MkDPair")) [IVar nfc (UN n), r']
+           let pval = apply (IVar fc mkdpairname) [IVar nfc (UN n), r']
            pure $ IAlternative fc (UniqueDefault pval)
-                  [apply (IVar fc (UN "DPair"))
+                  [apply (IVar fc dpairname)
                       [Implicit nfc False,
                        ILam nfc RigW Explicit (Just (UN n)) (Implicit nfc False) r'],
                    pval]
   desugarB side ps (PDPair fc (PRef nfc (UN n)) ty r)
       = do ty' <- desugarB side ps ty
            r' <- desugarB side ps r
-           pure $ apply (IVar fc (UN "DPair"))
+           pure $ apply (IVar fc dpairname)
                         [ty',
                          ILam nfc RigW Explicit (Just (UN n)) ty' r']
   desugarB side ps (PDPair fc l (PImplicit _) r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
-           pure $ apply (IVar fc (UN "MkDPair")) [l', r']
+           pure $ apply (IVar fc mkdpairname) [l', r']
   desugarB side ps (PDPair fc l ty r)
       = throw (GenericMsg fc "Invalid dependent pair type")
   desugarB side ps (PUnit fc)
@@ -332,8 +341,8 @@ mutual
                 desugarB side ps (PApp fc (PRef fc (UN "rangeFrom")) start)
              Just n =>
                 desugarB side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
-  desugarB side ps (PUnifyLog fc tm)
-      = pure $ IUnifyLog fc !(desugarB side ps tm)
+  desugarB side ps (PUnifyLog fc lvl tm)
+      = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto b : Ref Bang BangData} ->
@@ -403,14 +412,17 @@ mutual
            bd <- get Bang
            pure $ bindBangs (bangNames bd) bind
   expandDo side ps topfc (DoLetPat fc pat ty tm alts :: rest)
-      = do pat' <- desugar LHS ps pat
+      = do b <- newRef Bang initBangs
+           pat' <- desugar LHS ps pat
            ty' <- desugar side ps ty
            (newps, bpat) <- bindNames False pat'
-           tm' <- desugar side ps tm
+           tm' <- desugarB side ps tm
            alts' <- traverse (desugarClause ps True) alts
            let ps' = newps ++ ps
            rest' <- expandDo side ps' topfc rest
-           pure $ ICase fc tm' ty'
+           bd <- get Bang
+           pure $ bindBangs (bangNames bd) $
+                    ICase fc tm' ty'
                        (PatClause fc bpat rest'
                                   :: alts')
   expandDo side ps topfc (DoLetLocal fc decls :: rest)
@@ -618,9 +630,11 @@ mutual
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             pure (fst ntm, tm')) params
            -- Look for implicitly bindable names in the parameters
-           let pnames = concatMap (findBindableNames True
-                                    (ps ++ map fst params) [])
-                                    (map snd params')
+           let pnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ map fst params) [])
+                                       (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind pnames tm)) params'
            pure [IParameters fc paramsb (concat pds')]
   desugarDecl ps (PUsing fc uimpls uds)
@@ -646,12 +660,15 @@ mutual
                                             pure (fst ntm, tm')) params
            -- Look for bindable names in all the constraints and parameters
            let mnames = map dropNS (definedIn body)
-           let bnames = concatMap (findBindableNames True
+           let bnames = if !isUnboundImplicits
+                        then 
+                        concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd cons') ++
                         concatMap (findBindableNames True
                                       (ps ++ mnames ++ map fst params) [])
                                   (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
 
@@ -680,8 +697,11 @@ mutual
                                           pure (fst ntm, tm')) cons
            params' <- traverse (desugar AnyExpr ps) params
            -- Look for bindable names in all the constraints and parameters
-           let bnames = concatMap (findBindableNames True ps []) (map snd cons') ++
+           let bnames = if !isUnboundImplicits
+                        then  
+                        concatMap (findBindableNames True ps []) (map snd cons') ++
                         concatMap (findBindableNames True ps []) params'
+                        else []
            let paramsb = map (doBind bnames) params'
            let isb = map (\ (n, r, tm) => (n, r, doBind bnames tm)) is'
            let consb = map (\ (n, tm) => (n, doBind bnames tm)) cons'
@@ -698,11 +718,12 @@ mutual
                                             pure (fst ntm, tm')) params
            let fnames = map fname fields
            -- Look for bindable names in the parameters
-           let bnames = concatMap (findBindableNames True
-                                      (ps ++ fnames ++ map fst params) [])
-                                  (map snd params')
-           fields' <- traverse (desugarField (ps ++ fnames ++ map fst params))
-                               fields
+           
+           let bnames = if !isUnboundImplicits
+                        then concatMap (findBindableNames True
+                                         (ps ++ fnames ++ map fst params) [])
+                                       (map snd params')
+                        else []
            let paramsb = map (\ (n, tm) => (n, doBind bnames tm)) params'
            fields' <- traverse (desugarField (ps ++ map fname fields ++
                                               map fst params)) fields
@@ -745,7 +766,10 @@ mutual
              Hide n => pure [IPragma (\c, nest, env => hide fc n)]
              Logging i => pure [ILog i]
              LazyOn a => pure [IPragma (\c, nest, env => lazyActive a)]
-             UnboundImplicits a => pure [IPragma (\c, nest, env => setUnboundImplicits a)]
+             UnboundImplicits a => do 
+               setUnboundImplicits a
+               pure [IPragma (\c, nest, env => setUnboundImplicits a)]
+             AmbigDepth n => pure [IPragma (\c, nest, env => setAmbigLimit n)]
              PairNames ty f s => pure [IPragma (\c, nest, env => setPair fc ty f s)]
              RewriteName eq rw => pure [IPragma (\c, nest, env => setRewrite fc eq rw)]
              PrimInteger n => pure [IPragma (\c, nest, env => setFromInteger n)]

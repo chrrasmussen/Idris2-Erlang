@@ -169,6 +169,11 @@ mkPrf : (idx : Nat) -> IsVar n idx ns
 mkPrf {n} {ns} Z = believe_me (First {n} {ns = n :: ns})
 mkPrf {n} {ns} (S k) = believe_me (Later {m=n} (mkPrf {n} {ns} k))
 
+getName : (idx : Nat) -> List Name -> Maybe Name
+getName Z (x :: xs) = Just x
+getName (S k) (x :: xs) = getName k xs
+getName _ [] = Nothing
+
 export
 TTC (Var vars) where
   toBuf b (MkVar {i} {n} v) = do toBuf b n; toBuf b i
@@ -215,10 +220,8 @@ mutual
         = if idx < 244
              then do toBuf b (prim__truncBigInt_B8 (12 + cast idx))
                      toBuf b c
-                     toBuf b name
              else do tag 0
                      toBuf b c
-                     toBuf b name
                      toBuf b idx
     toBuf b (Ref fc nt name)
         = do tag 1;
@@ -256,11 +259,12 @@ mutual
     toBuf b (TType fc)
         = tag 11
 
-    fromBuf b
+    fromBuf {vars} b
         = case !getTag of
                0 => do c <- fromBuf b
-                       name <- fromBuf b
                        idx <- fromBuf b
+                       name <- maybe (corrupt "Term") pure
+                                     (getName idx vars)
                        pure (Local {name} emptyFC c idx (mkPrf idx))
                1 => do nt <- fromBuf b; name <- fromBuf b
                        pure (Ref emptyFC nt name)
@@ -287,8 +291,9 @@ mutual
                10 => pure (Erased emptyFC False)
                11 => pure (TType emptyFC)
                idxp => do c <- fromBuf b
-                          name <- fromBuf b
-                          let idx = fromInteger (prim__sextB8_BigInt idxp - 12)
+                          let idx : Nat = fromInteger (prim__sextB8_BigInt idxp - 12)
+                          name <- maybe (corrupt "Term") pure
+                                        (getName idx vars)
                           pure (Local {name} emptyFC c idx (mkPrf idx))
 
 export
@@ -895,11 +900,13 @@ TTC GlobalDef where
            toBuf b (definition gdef)
            toBuf b (compexpr gdef)
            toBuf b (map toList (refersToM gdef))
+           toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
            when (isUserName (fullname gdef)) $
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
+                 toBuf b (specArgs gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -914,21 +921,24 @@ TTC GlobalDef where
            def <- fromBuf b
            cdef <- fromBuf b
            refsList <- fromBuf b
+           refsRList <- fromBuf b
            let refs = map fromList refsList
+           let refsR = map fromList refsRList
            loc <- fromBuf b
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
-                      seargs <- fromBuf b
+                      seargs <- fromBuf b; specargs <- fromBuf b
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs seargs mul vars vis
-                                        tot fl refs inv c True def cdef sc)
-              else pure (MkGlobalDef loc name (Erased loc False) [] []
-                                     RigW [] Public unchecked [] refs
+                      pure (MkGlobalDef loc name ty eargs seargs specargs
+                                        mul vars vis
+                                        tot fl refs refsR inv c True def cdef sc)
+              else pure (MkGlobalDef loc name (Erased loc False) [] [] []
+                                     RigW [] Public unchecked [] refs refsR
                                      False False True def cdef [])
 
 TTC Transform where
@@ -945,14 +955,14 @@ TTC Transform where
            rhs <- fromBuf b
            pure (MkTransform {vars} env lhs rhs)
 
--- decode : Context -> Int -> ContextEntry -> Core GlobalDef
-Core.Context.decode gam idx (Coded bin)
+-- decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
+Core.Context.decode gam idx update (Coded bin)
     = do b <- newRef Bin bin
          def <- fromBuf b
          let a = getContent gam
          arr <- get Arr
          def' <- resolved gam def
-         coreLift $ writeArray arr idx (Decoded def')
+         when update $ coreLift $ writeArray arr idx (Decoded def')
          pure def'
-Core.Context.decode gam idx (Decoded def) = pure def
+Core.Context.decode gam idx update (Decoded def) = pure def
 

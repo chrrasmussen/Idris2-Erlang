@@ -35,7 +35,7 @@ schName (UN n) = schString n
 schName (MN n i) = schString n ++ "-" ++ show i
 schName (PV n d) = "pat--" ++ schName n
 schName (DN _ n) = schName n
-schName (Nested i n) = "n--" ++ show i ++ "-" ++ schName n
+schName (Nested (i, x) n) = "n--" ++ show i ++ "-" ++ show x ++ "-" ++ schName n
 schName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 schName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
 schName (Resolved i) = "fn--" ++ show i
@@ -159,7 +159,8 @@ schOp BelieveMe [_,_,x] = x
 public export
 data ExtPrim = CCall | SchemeCall
              | PutStr | GetStr | PutChar | GetChar
-             | FileOpen | FileClose | FileReadLine | FileWriteLine | FileEOF
+             | FileOpen | FileClose | FileReadLine | FileWriteLine
+             | FileEOF | FileModifiedTime
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
@@ -181,6 +182,7 @@ Show ExtPrim where
   show FileReadLine = "FileReadLine"
   show FileWriteLine = "FileWriteLine"
   show FileEOF = "FileEOF"
+  show FileModifiedTime = "FileModifiedTime"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -211,6 +213,7 @@ toPrim pn@(NS _ n)
             (n == UN "prim__readLine", FileReadLine),
             (n == UN "prim__writeLine", FileWriteLine),
             (n == UN "prim__eof", FileEOF),
+            (n == UN "prim__fileModifiedTime", FileModifiedTime),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
@@ -324,7 +327,7 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                       ++ showSep " " !(traverse (schConstAlt (i+1) vs n) alts)
                       ++ schCaseDef defc ++ "))"
     schExp i vs (CPrimVal fc c) = pure $ schConstant schString c
-    schExp i vs (CErased fc) = pure "'()"
+    schExp i vs (CErased fc) = pure "4294"
     schExp i vs (CCrash fc msg) = pure $ "(blodwen-error-quit " ++ show msg ++ ")"
 
   -- Need to convert the argument (a list of scheme arguments that may
@@ -368,6 +371,9 @@ parameters (schExtPrim : {vars : _} -> Int -> SVars vars -> ExtPrim -> List (CEx
                                         ++ !(schExp i vs str) ++ ")"
   schExtCommon i vs FileEOF [file, world]
       = pure $ mkWorld $ "(blodwen-eof " ++ !(schExp i vs file) ++ ")"
+  schExtCommon i vs FileModifiedTime [file, world]
+      = pure $ mkWorld $ fileOp $ "(blodwen-file-modified-time "
+                                        ++ !(schExp i vs file) ++ ")"
   schExtCommon i vs NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i vs val) ++ ")"
   schExtCommon i vs ReadIORef [_, ref, world]

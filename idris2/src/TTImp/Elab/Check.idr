@@ -22,6 +22,11 @@ import Data.StringMap
 public export
 data ElabMode = InType | InLHS RigCount | InExpr
 
+Show ElabMode where
+  show InType = "InType"
+  show (InLHS c) = "InLHS " ++ show c
+  show InExpr = "InExpr"
+
 public export
 data ElabOpt
   = HolesOkay
@@ -371,10 +376,11 @@ record ElabInfo where
   bindingVars : Bool
   preciseInf : Bool -- are types inferred precisely (True) or do we generalise
                     -- pi bindings to RigW (False, default)
+  ambigTries : List Name
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False True False
+initElabInfo m = MkElabInfo m NONE False True False []
 
 export
 tryError : {vars : _} ->
@@ -427,37 +433,106 @@ successful : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
+             Bool -> -- constraints allowed
              List (Maybe Name, Core a) ->
              Core (List (Either (Maybe Name, Error)
-                                (a, Defs, UState, EState vars)))
-successful [] = pure []
-successful ((tm, elab) :: elabs)
+                                (Nat, a, Defs, UState, EState vars)))
+successful allowCons [] = pure []
+successful allowCons ((tm, elab) :: elabs)
     = do ust <- get UST
+         let ncons = if allowCons
+                        then 0
+                        else length (toList (guesses ust))
          est <- get EST
          md <- get MD
          defs <- branch
          catch (do -- Run the elaborator
-                   log 5 $ "Running " ++ show tm
+                   logC 5 $ do tm' <- maybe (pure (UN "__"))
+                                            toFullNames tm
+                               pure ("Running " ++ show tm')
                    res <- elab
                    -- Record post-elaborator state
                    ust' <- get UST
+                   let ncons' = if allowCons
+                                   then 0
+                                   else length (toList (guesses ust'))
+
                    est' <- get EST
                    md' <- get MD
                    defs' <- get Ctxt
+
                    -- Reset to previous state and try the rest
                    put UST ust
                    put EST est
                    put MD md
                    put Ctxt defs
-                   elabs' <- successful elabs
+                   logC 5 $ do tm' <- maybe (pure (UN "__"))
+                                            toFullNames tm
+                               pure ("Success " ++ show tm' ++
+                                     " (" ++ show ncons' ++ " - "
+                                          ++ show ncons ++ ")")
+                   elabs' <- successful allowCons elabs
                    -- Record success, and the state we ended at
-                   pure (Right (res, defs', ust', est') :: elabs'))
+                   pure (Right (minus ncons' ncons,
+                                res, defs', ust', est') :: elabs'))
                (\err => do put UST ust
                            put EST est
                            put MD md
                            put Ctxt defs
-                           elabs' <- successful elabs
+                           elabs' <- successful allowCons elabs
                            pure (Left (tm, !(normaliseErr err)) :: elabs'))
+
+export
+exactlyOne' : {vars : _} ->
+              {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
+              {auto u : Ref UST UState} ->
+              {auto e : Ref EST (EState vars)} ->
+              Bool -> FC -> Env Term vars ->
+              List (Maybe Name, Core (Term vars, Glued vars)) ->
+              Core (Term vars, Glued vars)
+exactlyOne' allowCons fc env [(tm, elab)] = elab
+exactlyOne' {vars} allowCons fc env all
+    = do elabs <- successful allowCons all
+         case getRight elabs of
+              Right (res, defs, ust, est) =>
+                    do put UST ust
+                       put EST est
+                       put Ctxt defs
+                       commit
+                       pure res
+              Left rs => throw (altError (lefts elabs) rs)
+  where
+    getRight : List (Either err (Nat, res)) -> Either (List res) res
+    getRight es
+        = case rights es of
+               [(_, res)] => Right res
+               rs => case filter (\x => fst x == Z) rs of
+                          [(_, res)] => Right res
+                          _ => Left (map snd rs)
+
+    getRes : ((Term vars, Glued vars), st) -> Term vars
+    getRes ((tm, _), thisst) = tm
+
+    getDepthError : Error -> Maybe Error
+    getDepthError e@(AmbiguityTooDeep _ _ _) = Just e
+    getDepthError _ = Nothing
+
+    depthError : List (Maybe Name, Error) -> Maybe Error
+    depthError [] = Nothing
+    depthError ((_, e) :: es)
+        = maybe (depthError es) Just (getDepthError e)
+
+    -- If they've all failed, collect all the errors
+    -- If more than one succeeded, report the ambiguity
+    altError : List (Maybe Name, Error) ->
+               List ((Term vars, Glued vars), st) ->
+               Error
+    altError ls []
+        = case depthError ls of
+               Nothing => AllFailed ls
+               Just err => err
+    altError ls rs = AmbiguousElab fc env (map getRes rs)
 
 export
 exactlyOne : {vars : _} ->
@@ -468,28 +543,7 @@ exactlyOne : {vars : _} ->
              FC -> Env Term vars ->
              List (Maybe Name, Core (Term vars, Glued vars)) ->
              Core (Term vars, Glued vars)
-exactlyOne fc env [(tm, elab)] = elab
-exactlyOne {vars} fc env all
-    = do elabs <- successful all
-         case rights elabs of
-              [(res, defs, ust, est)] =>
-                    do put UST ust
-                       put EST est
-                       put Ctxt defs
-                       commit
-                       pure res
-              rs => throw (altError (lefts elabs) rs)
-  where
-    getRes : ((Term vars, Glued vars), st) -> Term vars
-    getRes ((tm, _), thisst) = tm
-
-    -- If they've all failed, collect all the errors
-    -- If more than one succeeded, report the ambiguity
-    altError : List (Maybe Name, Error) ->
-               List ((Term vars, Glued vars), st) ->
-               Error
-    altError ls [] = AllFailed ls
-    altError ls rs = AmbiguousElab fc env (map getRes rs)
+exactlyOne = exactlyOne' True
 
 export
 anyOne : {vars : _} ->
@@ -549,13 +603,14 @@ convertWithLazy
           FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
           Core UnifyResult
 convertWithLazy withLazy prec fc elabinfo env x y
-    = let umode : UnifyMode
+    = let umode : UnifyInfo
                 = case elabMode elabinfo of
-                       InLHS _ => InLHS
-                       _ => InTerm (Top prec) in
+                       InLHS _ => inLHS
+                       _ => inTermP prec in
           catch
             (do let lazy = !isLazyActive && withLazy
-                logGlueNF 5 ("Unifying " ++ show withLazy) env x
+                logGlueNF 5 ("Unifying " ++ show withLazy ++ " "
+                             ++ show (elabMode elabinfo)) env x
                 logGlueNF 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x

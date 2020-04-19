@@ -122,6 +122,7 @@ mutual
   appExpr : ParseOpts -> FileName -> IndentInfo -> Rule PTerm
   appExpr q fname indents
       = case_ fname indents
+    <|> lambdaCase fname indents
     <|> lazy fname indents
     <|> if_ fname indents
     <|> doBlock fname indents
@@ -358,10 +359,11 @@ mutual
            end <- location
            pure (PIdiom (MkFC fname start end) e)
     <|> do start <- location
-           symbol "%"; exactIdent "unifyLog"
+           symbol "%"; exactIdent "logging"
+           lvl <- intLit
            e <- expr pdef fname indents
            end <- location
-           pure (PUnifyLog (MkFC fname start end) e)
+           pure (PUnifyLog (MkFC fname start end) (cast lvl) e)
 
   multiplicity : EmptyRule (Maybe Integer)
   multiplicity
@@ -570,6 +572,21 @@ mutual
            alts <- block (caseAlt fname)
            end <- location
            pure (PCase (MkFC fname start end) scr alts)
+
+  lambdaCase : FileName -> IndentInfo -> Rule PTerm
+  lambdaCase fname indents
+      = do start <- location
+           symbol "\\" *> keyword "case"
+           endCase <- location
+           commit
+           alts <- block (caseAlt fname)
+           end <- location
+           let fc = MkFC fname start end
+           let fcCase = MkFC fname start endCase
+           let n = MN "lcase" 0
+           pure $
+            PLam fcCase RigW Explicit (PRef fcCase n) (PInfer fcCase) $
+                PCase fc (PRef fcCase n) alts
 
   caseAlt : FileName -> IndentInfo -> Rule PClause
   caseAlt fname indents
@@ -967,6 +984,10 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
+  <|> do exactIdent "ambiguity_depth"
+         lvl <- intLit
+         atEnd indents
+         pure (AmbigDepth (cast lvl))
   <|> do exactIdent "pair"
          ty <- name
          f <- name
@@ -1095,6 +1116,9 @@ fnDirectOpt fname
          pure $ IFnOpt ExternFn
   <|> do exactIdent "macro"
          pure $ IFnOpt Macro
+  <|> do exactIdent "spec"
+         ns <- sepBy (symbol ",") name
+         pure $ IFnOpt (SpecArgs ns)
   <|> do exactIdent "foreign"
          cs <- block (expr pdef fname)
          pure $ PForeign cs
@@ -1452,6 +1476,7 @@ replCmd : List String -> Rule ()
 replCmd [] = fail "Unrecognised command"
 replCmd (c :: cs)
     = exactIdent c
+  <|> symbol c
   <|> replCmd cs
 
 export
@@ -1505,58 +1530,158 @@ editCmd
          pure (MakeWith upd (fromInteger line) n)
   <|> fatalError "Unrecognised command"
 
+export
+data CmdArg : Type where
+     ||| The command takes no arguments.
+     NoArg : CmdArg
+
+     ||| The command takes a name.
+     NameArg : CmdArg
+
+     ||| The command takes an expression.
+     ExprArg : CmdArg
+
+     ||| The command takes a number.
+     NumberArg : CmdArg
+
+     ||| The command takes an option.
+     OptionArg : CmdArg
+
+     ||| The command takes a file.
+     FileArg : CmdArg
+
+export
+Show CmdArg where
+  show NoArg = ""
+  show NameArg = "<name>"
+  show ExprArg = "<expr>"
+  show NumberArg = "<number>"
+  show OptionArg = "<option>"
+  show FileArg = "<filename>"
+
+export
+data ParseCmd : Type where
+     ParseREPLCmd : List String -> ParseCmd
+     ParseKeywordCmd : String -> ParseCmd
+     ParseIdentCmd : String -> ParseCmd
+
+CommandDefinition : Type
+CommandDefinition = (List String, CmdArg, String, Rule REPLCmd)
+
+CommandTable : Type
+CommandTable = List CommandDefinition
+
+extractNames : ParseCmd -> List String
+extractNames (ParseREPLCmd names) = names
+extractNames (ParseKeywordCmd keyword) = [keyword]
+extractNames (ParseIdentCmd ident) = [ident]
+
+runParseCmd : ParseCmd -> Rule ()
+runParseCmd (ParseREPLCmd names) = replCmd names
+runParseCmd (ParseKeywordCmd keyword') = keyword keyword'
+runParseCmd (ParseIdentCmd ident) = exactIdent ident
+
+noArgCmd : ParseCmd -> REPLCmd -> String -> CommandDefinition
+noArgCmd parseCmd command doc = (names, NoArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      pure command
+
+nameArgCmd : ParseCmd -> (Name -> REPLCmd) -> String -> CommandDefinition
+nameArgCmd parseCmd command doc = (names, NameArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      n <- name
+      pure (command n)
+
+exprArgCmd : ParseCmd -> (PTerm -> REPLCmd) -> String -> CommandDefinition
+exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      tm <- expr pdef "(interactive)" init
+      pure (command tm)
+
+optArgCmd : ParseCmd -> (REPLOpt -> REPLCmd) -> Bool -> String -> CommandDefinition
+optArgCmd parseCmd command set doc = (names, OptionArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      opt <- setOption set
+      pure (command opt)
+
+numberArgCmd : ParseCmd -> (Nat -> REPLCmd) -> String -> CommandDefinition
+numberArgCmd parseCmd command doc = (names, NumberArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      i <- intLit
+      pure (command (fromInteger i))
+
+compileArgsCmd : ParseCmd -> (PTerm -> String -> REPLCmd) -> String -> CommandDefinition
+compileArgsCmd parseCmd command doc = (names, FileArg, doc, parse)
+  where
+    names = extractNames parseCmd
+
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      n <- unqualifiedName
+      tm <- expr pdef "(interactive)" init
+      pure (command tm n)
+
+parserCommandsForHelp : CommandTable
+parserCommandsForHelp =
+  [ exprArgCmd (ParseREPLCmd ["t", "type"]) Check "Check the type of an expression"
+  , nameArgCmd (ParseREPLCmd ["printdef"]) PrintDef "Show the definition of a function"
+  , nameArgCmd (ParseREPLCmd ["s", "search"]) ProofSearch "Search for values by type"
+  , nameArgCmd (ParseIdentCmd "di") DebugInfo "Show debugging information for a name"
+  , noArgCmd (ParseREPLCmd ["q", "quit", "exit"]) Quit "Exit the Idris system"
+  , noArgCmd (ParseREPLCmd ["cwd"]) CWD "Displays the current working directory"
+  , optArgCmd (ParseIdentCmd "set") SetOpt True "Set an option"
+  , optArgCmd (ParseIdentCmd "unset") SetOpt False "Unset an option"
+  , compileArgsCmd (ParseREPLCmd ["c", "compile"]) Compile "Compile to an executable"
+  , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
+  , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
+  , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
+  , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
+  , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
+  , numberArgCmd (ParseREPLCmd ["log", "logging"]) SetLog "Set logging level"
+  , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
+  , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"
+  , noArgCmd (ParseREPLCmd ["?", "h", "help"]) Help "Display this help text"
+  ]
+
+export
+help : List (List String, CmdArg, String)
+help = (["<expr>"], NoArg, "Evaluate an expression") ::
+  [ (map (":" ++) names, args, text) | (names, args, text, _) <- parserCommandsForHelp ]
+
 nonEmptyCommand : Rule REPLCmd
-nonEmptyCommand
-    = do symbol ":"; replCmd ["t", "type"]
-         tm <- expr pdef "(interactive)" init
-         pure (Check tm)
-  <|> do symbol ":"; replCmd ["printdef"]
-         n <- name
-         pure (PrintDef n)
-  <|> do symbol ":"; replCmd ["s", "search"]
-         n <- name
-         pure (ProofSearch n)
-  <|> do symbol ":"; exactIdent "di"
-         n <- name
-         pure (DebugInfo n)
-  <|> do symbol ":"; replCmd ["q", "quit", "exit"]
-         pure Quit
-  <|> do symbol ":"; replCmd ["cwd"]
-         pure CWD
-  <|> do symbol ":"; exactIdent "set"
-         opt <- setOption True
-         pure (SetOpt opt)
-  <|> do symbol ":"; exactIdent "unset"
-         opt <- setOption False
-         pure (SetOpt opt)
-  <|> do symbol ":"; replCmd ["c", "compile"]
-         n <- unqualifiedName
-         tm <- expr pdef "(interactive)" init
-         pure (Compile tm n)
-  <|> do symbol ":"; exactIdent "exec"
-         tm <- expr pdef "(interactive)" init
-         pure (Exec tm)
-  <|> do symbol ":"; replCmd ["r", "reload"]
-         pure Reload
-  <|> do symbol ":"; replCmd ["e", "edit"]
-         pure Edit
-  <|> do symbol ":"; replCmd ["miss", "missing"]
-         n <- name
-         pure (Missing n)
-  <|> do symbol ":"; keyword "total"
-         n <- name
-         pure (Total n)
-  <|> do symbol ":"; replCmd ["log", "logging"]
-         i <- intLit
-         pure (SetLog (fromInteger i))
-  <|> do symbol ":"; replCmd ["m", "metavars"]
-         pure Metavars
-  <|> do symbol ":"; replCmd ["version"]
-         pure ShowVersion
-  <|> do symbol ":"; cmd <- editCmd
-         pure (Editing cmd)
-  <|> do tm <- expr pdef "(interactive)" init
-         pure (Eval tm)
+nonEmptyCommand =
+  choice [ parser | (_, _, _, parser) <- parserCommandsForHelp ]
+
+eval : Rule REPLCmd
+eval = do
+  tm <- expr pdef "(interactive)" init
+  pure (Eval tm)
 
 export
 command : EmptyRule REPLCmd
@@ -1564,3 +1689,7 @@ command
     = do eoi
          pure NOP
   <|> nonEmptyCommand
+  <|> do symbol ":?"; pure Help -- special case, :? doesn't fit into above scheme
+  <|> do symbol ":"; cmd <- editCmd
+         pure (Editing cmd)
+  <|> eval

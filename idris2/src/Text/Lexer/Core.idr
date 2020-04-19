@@ -17,6 +17,7 @@ data Recognise : (consumes : Bool) -> Type where
      Pred : (Char -> Bool) -> Recognise True
      SeqEat : Recognise True -> Inf (Recognise e) -> Recognise True
      SeqEmpty : Recognise e1 -> Recognise e2 -> Recognise (e1 || e2)
+     SeqSame : Recognise e -> Recognise e -> Recognise e
      Alt : Recognise e1 -> Recognise e2 -> Recognise (e1 && e2)
 
 ||| A token recogniser. Guaranteed to consume at least one character.
@@ -33,7 +34,7 @@ export %inline
 (<+>) {c1 = True} = SeqEat
 
 ||| Alternative recognisers. If both consume, the combination is guaranteed
-||| to consumer a character.
+||| to consume a character.
 export
 (<|>) : Recognise c1 -> Recognise c2 -> Recognise (c1 && c2)
 (<|>) = Alt
@@ -67,12 +68,10 @@ reject = Lookahead False
 ||| of a list. The resulting recogniser will consume input if the produced
 ||| recognisers consume and the list is non-empty.
 export
-concatMap : {c : Bool} ->
-            (a -> Recognise c) -> (xs : List a) -> Recognise (c && isCons xs)
-concatMap {c} _ [] = rewrite andFalseFalse c in Empty
-concatMap {c} f (x :: xs) = rewrite andTrueNeutral c in
-                            rewrite sym (orSameAndRightNeutral c (isCons xs)) in
-                                    SeqEmpty (f x) (concatMap f xs)
+concatMap : (a -> Recognise c) -> (xs : List a) -> Recognise (isCons xs && c)
+concatMap _ []                 = Empty
+concatMap f (x :: [])          = f x
+concatMap f (x :: xs@(_ :: _)) = SeqSame (f x) (concatMap f xs)
 
 data StrLen : Type where
      MkStrLen : String -> Nat -> StrLen
@@ -83,7 +82,7 @@ getString (MkStrLen str n) = str
 strIndex : StrLen -> Nat -> Maybe Char
 strIndex (MkStrLen str len) i
     = if cast {to = Integer} i >= cast len then Nothing
-                  else Just (assert_total (prim__strIndex str (cast i)))
+      else Just (assert_total (prim__strIndex str (cast i)))
 
 mkStr : String -> StrLen
 mkStr str = MkStrLen str (length str)
@@ -92,26 +91,25 @@ strTail : Nat -> StrLen -> StrLen
 strTail start (MkStrLen str len)
     = MkStrLen (substr start len str) (minus len start)
 
--- If the string is recognised, returns the index at which the token
--- ends
+||| If the string is recognised, returns the index at which the token ends
 scan : Recognise c -> Nat -> StrLen -> Maybe Nat
 scan Empty idx str = pure idx
 scan Fail idx str = Nothing
-scan (Lookahead positive r) idx str
-    = if isJust (scan r idx str) == positive
-         then Just idx
-         else Nothing
-scan (Pred f) idx (MkStrLen str len)
-    = if cast {to = Integer} idx >= cast len
-         then Nothing
-         else if f (assert_total (prim__strIndex str (cast idx)))
-                 then Just (idx + 1)
-                 else Nothing
+scan (Lookahead positive r) idx str = do
+  guard (isJust (scan r idx str) == positive)
+  pure idx
+scan (Pred f) idx str = do
+  c <- strIndex str idx
+  guard (f c)
+  pure (1 + idx)
 scan (SeqEat r1 r2) idx str
     = do idx' <- scan r1 idx str
          -- TODO: Can we prove totality instead by showing idx has increased?
          assert_total (scan r2 idx' str)
 scan (SeqEmpty r1 r2) idx str
+    = do idx' <- scan r1 idx str
+         scan r2 idx' str
+scan (SeqSame r1 r2) idx str
     = do idx' <- scan r1 idx str
          scan r2 idx' str
 scan (Alt r1 r2) idx str
@@ -138,6 +136,9 @@ record TokenData a where
   col : Int
   tok : a
 
+||| `fspanEnd 0` returns the index at which the span stopped together
+||| with the leftover string.
+||| BEWARE: It is NOT a `span` starting from the string's end!
 fspanEnd : Nat -> (Char -> Bool) -> String -> (Nat, String)
 fspanEnd k p "" = (k, "")
 fspanEnd k p xxs
@@ -147,7 +148,7 @@ fspanEnd k p xxs
           if p x then fspanEnd (S k) p xs
                  else (k, xxs)
 
--- Faster version of 'span' from the prelude (avoids unpacking)
+||| Faster version of 'span' from the prelude (avoids unpacking)
 export
 fspan : (Char -> Bool) -> String -> (String, String)
 fspan p xs

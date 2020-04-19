@@ -650,7 +650,7 @@ Ord Nat where
 public export
 natToInteger : Nat -> Integer
 natToInteger Z = 0
-natToInteger (S k) = 1 + natToInteger k 
+natToInteger (S k) = 1 + natToInteger k
                          -- integer (+) may be non-linear in second
                          -- argument
 
@@ -1016,6 +1016,14 @@ isControl : Char -> Bool
 isControl x
     = (x >= '\x0000' && x <= '\x001f')
        || (x >= '\x007f' && x <= '\x009f')
+
+public export
+chr : Int -> Char
+chr = prim__cast_IntChar
+
+public export
+ord : Char -> Int
+ord = prim__cast_CharInt
 
 ----------
 -- SHOW --

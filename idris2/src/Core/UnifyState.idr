@@ -78,10 +78,11 @@ record UState where
   dotConstraints : List (Name, DotReason, Constraint) -- dot pattern constraints
   nextName : Int
   nextConstraint : Int
-  delayedElab : List (Int, Core ClosedTerm)
+  delayedElab : List (Nat, Int, Core ClosedTerm)
                 -- Elaborators which we need to try again later, because
                 -- we didn't have enough type information to elaborate
                 -- successfully yet.
+                -- 'Nat' is the priority (lowest first)
                 -- The 'Int' is the resolved name. Delays can't be nested,
                 -- so we just process them in order.
   logging : Bool
@@ -640,11 +641,12 @@ dumpHole lvl hole
              case lookup n (constraints ust) of
                   Nothing => pure ()
                   Just Resolved => log lvl "\tResolved"
-                  Just (MkConstraint _ l env x y) =>
+                  Just (MkConstraint _ lazy env x y) =>
                     do log lvl $ "\t  " ++ show !(toFullNames !(normalise defs env x))
                                       ++ " =?= " ++ show !(toFullNames !(normalise defs env y))
                        log 5 $ "\t    from " ++ show !(toFullNames x)
-                                      ++ " =?= " ++ show !(toFullNames y)
+                                      ++ " =?= " ++ show !(toFullNames y) ++
+                               if lazy then "\n\t(lazy allowed)" else ""
                   Just (MkSeqConstraint _ _ xs ys) =>
                        log lvl $ "\t\t" ++ show xs ++ " =?= " ++ show ys
 

@@ -187,7 +187,8 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          -- actually bound! This is rather hacky, but a lot less fiddly than
          -- the alternative of fixing up the environment
          when (not (isNil fullImps)) $ findImpsIn fc [] [] casefnty
-         cidx <- addDef casen (newDef fc casen rigc [] casefnty Private None)
+         cidx <- addDef casen (newDef fc casen (if rigc == Rig0 then Rig0 else RigW)
+                                      [] casefnty Private None)
          let caseRef : Term vars = Ref fc Func (Resolved cidx)
 
          let applyEnv = applyToFull fc caseRef env
@@ -310,11 +311,13 @@ checkCase : {vars : _} ->
             FC -> (scr : RawImp) -> (ty : RawImp) -> List ImpClause ->
             Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-checkCase rig elabinfo nest env fc scr scrty_exp alts exp
-    = delayElab fc rig env exp $
-        do (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp
+checkCase rig elabinfo nest env fc scr scrty_in alts exp
+    = delayElab fc rig env exp 0 $
+        do scrty_exp <- case scrty_in of
+                             Implicit _ _ => guessScrType alts
+                             _ => pure scrty_in
+           (scrtyv, scrtyt) <- check Rig0 elabinfo nest env scrty_exp
                                      (Just (gType fc))
-
            logTerm 10 "Expected scrutinee type" scrtyv
            -- Try checking at the given multiplicity; if that doesn't work,
            -- try checking at Rig1 (meaning that we're using a linear variable
@@ -325,14 +328,15 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
            log 5 $ "Checking " ++ show scr ++ " at " ++ show chrig
 
            (scrtm_in, gscrty, caseRig) <- handle
-              (do c <- check chrig elabinfo nest env scr (Just (gnf env scrtyv))
+              (do c <- runDelays 10 $ check chrig elabinfo nest env scr (Just (gnf env scrtyv))
                   pure (fst c, snd c, chrig))
               (\err => case err of
                             LinearMisuse _ _ Rig1 _
-                              => do c <- check Rig1 elabinfo nest env scr
+                              => do c <- runDelays 10 $ check Rig1 elabinfo nest env scr
                                                (Just (gnf env scrtyv))
                                     pure (fst c, snd c, Rig1)
                             e => throw e)
+
            scrty <- getTerm gscrty
            logTermNF 5 "Scrutinee type" env scrty
            defs <- get Ctxt
@@ -347,3 +351,37 @@ checkCase rig elabinfo nest env fc scr scrty_exp alts exp
         = throw (GenericMsg (getFC scr) "Can't infer type for case scrutinee")
     checkConcrete _ = pure ()
 
+    applyTo : Defs -> RawImp -> NF [] -> Core RawImp
+    applyTo defs ty (NBind fc _ (Pi _ Explicit _) sc)
+        = applyTo defs (IApp fc ty (Implicit fc False))
+               !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+    applyTo defs ty (NBind _ x (Pi _ _ _) sc)
+        = applyTo defs (IImplicitApp fc ty (Just x) (Implicit fc False))
+               !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+    applyTo defs ty _ = pure ty
+
+    -- Get the name and type of the family the scrutinee is in
+    getRetTy : Defs -> NF [] -> Core (Maybe (Name, NF []))
+    getRetTy defs (NBind fc _ (Pi _ _ _) sc)
+        = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+    getRetTy defs (NTCon _ n _ arity _)
+        = do Just ty <- lookupTyExact n (gamma defs)
+                  | Nothing => pure Nothing
+             pure (Just (n, !(nf defs [] ty)))
+    getRetTy _ _ = pure Nothing
+
+    -- Guess a scrutinee type by looking at the alternatives, so that we
+    -- have a hint for building the case type
+    guessScrType : List ImpClause -> Core RawImp
+    guessScrType [] = pure $ Implicit fc False
+    guessScrType (PatClause _ x _ :: xs)
+        = case getFn x of
+               IVar _ n =>
+                  do defs <- get Ctxt
+                     [(n', (_, ty))] <- lookupTyName n (gamma defs)
+                         | _ => guessScrType xs
+                     Just (tyn, tyty) <- getRetTy defs !(nf defs [] ty)
+                         | _ => guessScrType xs
+                     applyTo defs (IVar fc tyn) tyty
+               _ => guessScrType xs
+    guessScrType (_ :: xs) = guessScrType xs

@@ -9,6 +9,7 @@ import Core.Options
 import Core.TT
 import Utils.Binary
 
+import Data.IOArray
 import Data.NameMap
 
 import System.Info
@@ -20,10 +21,10 @@ public export
 record Codegen where
   constructor MkCG
   ||| Compile an Idris 2 expression, saving it to a file.
-  compileExpr : Ref Ctxt Defs ->
+  compileExpr : Ref Ctxt Defs -> (execDir : String) ->
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
-  executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
+  executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 
 ||| compile
 ||| Given a value of type Codegen, produce a standalone function
@@ -34,12 +35,8 @@ compile : {auto c : Ref Ctxt Defs} ->
           ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compile {c} cg tm out
     = do makeExecDirectory
-         cwd <- coreLift $ currentDir
          d <- getDirs
-         coreLift $ changeDir (exec_dir d)
-         fn <- compileExpr cg c tm out
-         coreLift $ changeDir cwd
-         pure fn
+         compileExpr cg c (exec_dir d) tm out
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
@@ -49,29 +46,29 @@ execute : {auto c : Ref Ctxt Defs} ->
           Codegen -> ClosedTerm -> Core ()
 execute {c} cg tm
     = do makeExecDirectory
-         cwd <- coreLift $ currentDir
          d <- getDirs
-         coreLift $ changeDir (exec_dir d)
-         executeExpr cg c tm
-         coreLift $ changeDir cwd
+         executeExpr cg c (exec_dir d) tm
          pure ()
 
 -- ||| Recursively get all calls in a function definition
 export
-getAllDesc : List Name -> -- calls to check
-             NameMap () ->  -- all descendants so far
-             Defs -> Core (NameMap ())
-getAllDesc [] ns defs = pure ns
-getAllDesc (n :: rest) ns defs
-  = case lookup n ns of
-         Just _ => getAllDesc rest ns defs
-         Nothing =>
-            case !(lookupCtxtExact n (gamma defs)) of
-                 Nothing => getAllDesc rest ns defs
-                 Just def =>
-                   let refs = refersTo def in
-                       getAllDesc (rest ++ keys refs) (insert n () ns) defs
-
+getAllDesc : {auto c : Ref Ctxt Defs} ->
+             List Name -> -- calls to check
+             IOArray Int -> -- which nodes have been visited. If the entry is
+                            -- present, it's visited
+             Defs -> Core ()
+getAllDesc [] arr defs = pure ()
+getAllDesc (n@(Resolved i) :: rest) arr defs
+  = do Nothing <- coreLift $ readArray arr i
+           | Just _ => getAllDesc rest arr defs
+       case !(lookupCtxtExact n (gamma defs)) of
+            Nothing => getAllDesc rest arr defs
+            Just def =>
+              do coreLift $ writeArray arr i i
+                 let refs = refersToRuntime def
+                 getAllDesc (keys refs ++ rest) arr defs
+getAllDesc (n :: rest) arr defs
+  = getAllDesc rest arr defs
 
 -- Calculate a unique tag for each type constructor name we're compiling
 -- This is so that type constructor names get globally unique tags
@@ -93,17 +90,57 @@ natHackNames
        NS ["Prelude"] (UN "natToInteger"),
        NS ["Prelude"] (UN "integerToNat")]
 
+export
+fastAppend : List String -> String
+fastAppend xs
+    = let len = cast (foldr (+) 0 (map length xs)) in
+          unsafePerformIO $
+             do b <- newStringBuffer (len+1)
+                build b xs
+                getStringFromBuffer b
+  where
+    build : StringBuffer -> List String -> IO ()
+    build b [] = pure ()
+    build b (x :: xs) = do addToStringBuffer b x
+                           build b xs
+
+dumpCases : {auto c : Ref Ctxt Defs} ->
+            String -> List Name ->
+            Core ()
+dumpCases fn cns
+    = do defs <- get Ctxt
+         cstrs <- traverse (dumpCase defs) cns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    dumpCase : Defs -> Name -> Core String
+    dumpCase defs n
+        = case !(lookupCtxtExact n (gamma defs)) of
+               Nothing => pure ""
+               Just d =>
+                    case compexpr d of
+                         Nothing => pure ""
+                         Just def => pure (show n ++ " = " ++ show def ++ "\n")
+
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs)
 export
-findUsedNames : {auto c : Ref Ctxt Defs} -> Term vars ->
-                Core (List Name, NameTags)
+findUsedNames : {auto c : Ref Ctxt Defs} ->
+                Term vars -> Core (List Name, NameTags)
 findUsedNames tm
     = do defs <- get Ctxt
+         sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm
          natHackNames' <- traverse toResolvedNames natHackNames
-         allNs <- getAllDesc (natHackNames' ++ keys ns) empty defs
-         cns <- traverse toFullNames (keys allNs)
+         -- make an array of Bools to hold which names we've found (quicker
+         -- to check than a NameMap!)
+         asize <- getNextEntry
+         arr <- coreLift $ newArray asize
+         logTime "Get names" $ getAllDesc (natHackNames' ++ keys ns) arr defs
+         let allNs = mapMaybe (maybe Nothing (Just . Resolved))
+                              !(coreLift (toList arr))
+         cns <- traverse toFullNames allNs
          -- Initialise the type constructor list with explicit names for
          -- the primitives (this is how we look up the tags)
          -- Use '1' for '->' constructor
@@ -113,8 +150,13 @@ findUsedNames tm
                                      [IntType, IntegerType, StringType,
                                       CharType, DoubleType, WorldType]
          tycontags <- mkNameTags defs tyconInit 100 cns
-         traverse_ (compileDef tycontags) cns
-         traverse_ inlineDef cns
+         logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
+           traverse_ (compileDef tycontags) cns
+         logTime "Inline" $ traverse_ inlineDef cns
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
+                         dumpCases f cns)
+               (dumpcases sopts)
          pure (cns, tycontags)
   where
     primTags : Int -> NameTags -> List Constant -> NameTags

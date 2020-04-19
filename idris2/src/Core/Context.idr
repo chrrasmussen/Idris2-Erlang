@@ -87,7 +87,8 @@ export
 Show Def where
   show None = "undefined"
   show (PMDef _ args ct rt pats)
-      = show args ++ "; " ++ show ct
+      = show args ++ ";\nCompile time tree: " ++ show ct ++
+        "\nRun time tree: " ++ show rt
   show (DCon t a) = "DataCon " ++ show t ++ " " ++ show a
   show (TCon t a ps ds u ms cons det)
       = "TyCon " ++ show t ++ " " ++ show a ++ " params: " ++ show ps ++
@@ -183,12 +184,14 @@ record GlobalDef where
   safeErase : List Nat -- which argument positions are safe to assume
                        -- erasable without 'dotting', because their types
                        -- are collapsible relative to non-erased arguments
+  specArgs : List Nat -- arguments to specialise by
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
   totality : Totality
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)
+  refersToRuntimeM : Maybe (NameMap Bool)
   invertible : Bool -- for an ordinary definition, is it invertible in unification
   noCycles : Bool -- for metavariables, whether they can be cyclic (this
                   -- would only be allowed when using a metavariable as a
@@ -203,6 +206,10 @@ record GlobalDef where
 export
 refersTo : GlobalDef -> NameMap Bool
 refersTo def = maybe empty id (refersToM def)
+
+export
+refersToRuntime : GlobalDef -> NameMap Bool
+refersToRuntime def = maybe empty id (refersToRuntimeM def)
 
 -- Label for array references
 export
@@ -254,7 +261,7 @@ getContent = content
 -- Implemented later, once we can convert to and from full names
 -- Defined in Core.TTC
 export
-decode : Context -> Int -> ContextEntry -> Core GlobalDef
+decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
 
 initSize : Int
 initSize = 10000
@@ -267,7 +274,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [] False)
+         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False)
 
 export
 initCtxt : Core Context
@@ -356,13 +363,13 @@ lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
 lookupCtxtExactI (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
            Just val =>
-                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx val)
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx True val)
            Nothing =>
               do let a = content ctxt
                  arr <- get Arr
                  Just def <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx def)
+                 pure $ returnDef (inlineOnly ctxt) idx !(decode ctxt idx True def)
 lookupCtxtExactI n ctxt
     = do let Just idx = lookup n (resolvedAs ctxt)
                   | Nothing => pure Nothing
@@ -373,7 +380,7 @@ lookupCtxtExact : Name -> Context -> Core (Maybe GlobalDef)
 lookupCtxtExact (Resolved idx) ctxt
     = case lookup idx (staging ctxt) of
            Just res =>
-                do def <- decode ctxt idx res
+                do def <- decode ctxt idx True res
                    case returnDef (inlineOnly ctxt) idx def of
                         Nothing => pure Nothing
                         Just (_, def) => pure (Just def)
@@ -382,7 +389,7 @@ lookupCtxtExact (Resolved idx) ctxt
                  arr <- get Arr
                  Just res <- coreLift (readArray arr idx)
                       | Nothing => pure Nothing
-                 def <- decode ctxt idx res
+                 def <- decode ctxt idx True res
                  case returnDef (inlineOnly ctxt) idx def of
                       Nothing => pure Nothing
                       Just (_, def) => pure (Just def)
@@ -390,6 +397,22 @@ lookupCtxtExact n ctxt
     = do Just (i, def) <- lookupCtxtExactI n ctxt
               | Nothing => pure Nothing
          pure (Just def)
+
+export
+lookupContextEntry : Name -> Context -> Core (Maybe (Int, ContextEntry))
+lookupContextEntry (Resolved idx) ctxt
+    = case lookup idx (staging ctxt) of
+           Just res => pure (Just (idx, res))
+           Nothing =>
+              do let a = content ctxt
+                 arr <- get Arr
+                 Just res <- coreLift (readArray arr idx)
+                      | Nothing => pure Nothing
+                 pure (Just (idx, res))
+lookupContextEntry n ctxt
+    = do let Just idx = lookup n (resolvedAs ctxt)
+                  | Nothing => pure Nothing
+         lookupContextEntry (Resolved idx) ctxt
 
 export
 lookupCtxtName : Name -> Context -> Core (List (Name, Int, GlobalDef))
@@ -450,7 +473,8 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] [] rig vars vis unchecked [] empty False False False def
+    = MkGlobalDef fc n ty [] [] []
+                  rig vars vis unchecked [] Nothing Nothing False False False def
                   Nothing []
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -705,6 +729,7 @@ HasNames GlobalDef where
                            definition = !(full gam (definition def)),
                            totality = !(full gam (totality def)),
                            refersToM = !(full gam (refersToM def)),
+                           refersToRuntimeM = !(full gam (refersToRuntimeM def)),
                            sizeChange = !(traverse (full gam) (sizeChange def))
                          } def
   resolved gam def
@@ -712,6 +737,7 @@ HasNames GlobalDef where
                         definition = !(resolved gam (definition def)),
                         totality = !(resolved gam (totality def)),
                         refersToM = !(resolved gam (refersToM def)),
+                        refersToRuntimeM = !(resolved gam (refersToRuntimeM def)),
                         sizeChange = !(traverse (resolved gam) (sizeChange def))
                       } def
 
@@ -880,8 +906,9 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] RigW [] Public tot
-                               [Inline] empty False False True (Builtin op)
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] RigW [] Public tot
+                               [Inline] Nothing Nothing
+                               False False True (Builtin op)
                                Nothing [])
          pure ()
 
@@ -1070,10 +1097,10 @@ toResolvedNames t
 export
 prettyName : {auto c : Ref Ctxt Defs} ->
              Name -> Core String
-prettyName (Nested i n)
+prettyName (Nested (i, _) n)
     = do i' <- toFullNames (Resolved i)
-         pure (show !(prettyName i') ++ "," ++
-               show !(prettyName n))
+         pure (!(prettyName i') ++ "," ++
+               !(prettyName n))
 prettyName (CaseBlock outer idx)
     = do outer' <- toFullNames (Resolved outer)
          pure ("case block in " ++ !(prettyName outer'))
@@ -1612,13 +1639,13 @@ inCurrentNS : {auto c : Ref Ctxt Defs} ->
 inCurrentNS (UN n)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) (UN n))
-inCurrentNS n@(Nested _ _)
-    = do defs <- get Ctxt
-         pure (NS (currentNS defs) n)
 inCurrentNS n@(CaseBlock _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(WithBlock _ _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
+inCurrentNS n@(Nested _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
 inCurrentNS n@(MN _ _)
@@ -1824,10 +1851,17 @@ setUnboundImplicits a
 
 export
 setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
-                TotalReq -> Core ()
+                           TotalReq -> Core ()
 setDefaultTotalityOption tot
     = do defs <- get Ctxt
          put Ctxt (record { options->elabDirectives->totality = tot } defs)
+
+export
+setAmbigLimit : {auto c : Ref Ctxt Defs} ->
+                Nat -> Core ()
+setAmbigLimit max
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->ambigLimit = max } defs)
 
 export
 isLazyActive : {auto c : Ref Ctxt Defs} ->
@@ -1845,10 +1879,17 @@ isUnboundImplicits
 
 export
 getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
-                  Core TotalReq
+                           Core TotalReq
 getDefaultTotalityOption
     = do defs <- get Ctxt
          pure (totality (elabDirectives (options defs)))
+
+export
+getAmbigLimit : {auto c : Ref Ctxt Defs} ->
+                Core Nat
+getAmbigLimit
+    = do defs <- get Ctxt
+         pure (ambigLimit (elabDirectives (options defs)))
 
 export
 setPair : {auto c : Ref Ctxt Defs} ->

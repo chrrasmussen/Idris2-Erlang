@@ -5,6 +5,7 @@ import Compiler.CompileExpr
 import Compiler.Inline
 import Compiler.Scheme.Common
 
+import Core.Options
 import Core.Context
 import Core.Directory
 import Core.Name
@@ -33,6 +34,7 @@ schHeader : String -> String
 schHeader libs
   = "#lang racket/base\n" ++
     "(require racket/promise)\n" ++ -- for force/delay
+    "(require racket/system)\n" ++ -- for system
     "(require rnrs/bytevectors-6)\n" ++ -- for buffers
     "(require rnrs/io/ports-6)\n" ++ -- for file handling
     "(require ffi/unsafe ffi/unsafe/define)\n" ++ -- for calling C
@@ -296,7 +298,7 @@ compileToRKT c tm outfile
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim racketString defs) ns
-         let code = concat (map snd fgndefs) ++ concat compdefs
+         let code = fastAppend (map snd fgndefs ++ compdefs)
          main <- schExp racketPrim racketString 0 [] !(compileExp tags tm)
          support <- readDataFile "racket/support.rkt"
          let scm = schHeader (concat (map fst fgndefs)) ++
@@ -308,19 +310,20 @@ compileToRKT c tm outfile
          coreLift $ chmod outfile 0o755
          pure ()
 
-compileExpr : Ref Ctxt Defs ->
+compileExpr : Ref Ctxt Defs -> (execDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile
-    = do let outn = outfile ++ ".rkt"
-         compileToRKT c tm outn
+compileExpr c execDir tm outfile
+    = do let outSs = execDir ++ dirSep ++ outfile ++ ".rkt"
+         let outBin = execDir ++ dirSep ++ outfile
+         compileToRKT c tm outSs
          raco <- coreLift findRacoExe
-         ok <- coreLift $ system (raco ++ " -o " ++ outfile ++ " " ++ outn)
+         ok <- coreLift $ system (raco ++ " -o " ++ outBin ++ " " ++ outSs)
          if ok == 0
             then pure (Just outfile)
             else pure Nothing
 
-executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
-executeExpr c tm
+executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c execDir tm
     = do tmp <- coreLift $ tmpName
          let outn = tmp ++ ".rkt"
          compileToRKT c tm outn

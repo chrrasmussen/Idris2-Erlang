@@ -19,8 +19,6 @@ import Idris.ProcessIdr
 import Idris.REPL
 import Idris.SetOptions
 import Idris.Syntax
-import Idris.Socket
-import Idris.Socket.Data
 import Idris.Version
 
 import Data.Vect
@@ -105,13 +103,19 @@ tryYaffle (Yaffle f :: _) = do yaffleMain f []
                                pure True
 tryYaffle (c :: cs) = tryYaffle cs
 
+tryTTM : List CLOpt -> Core Bool
+tryTTM [] = pure False
+tryTTM (Metadata f :: _) = do dumpTTM f
+                              pure True
+tryTTM (c :: cs) = tryTTM cs
+
 
 banner : String
 banner = "     ____    __     _         ___                                           \n" ++
          "    /  _/___/ /____(_)____   |__ \\                                          \n" ++
          "    / // __  / ___/ / ___/   __/ /     Version " ++ showVersion True version ++ "\n" ++
          "  _/ // /_/ / /  / (__  )   / __/      https://www.idris-lang.org           \n" ++
-         " /___/\\__,_/_/  /_/____/   /____/                                           \n" ++
+         " /___/\\__,_/_/  /_/____/   /____/      Type :? for help                     \n" ++
          "\n" ++
          "Welcome to Idris 2.  Enjoy yourself!"
 
@@ -119,6 +123,8 @@ banner = "     ____    __     _         ___                                     
 stMain : List CLOpt -> Core ()
 stMain opts
     = do False <- tryYaffle opts
+            | True => pure ()
+         False <- tryTTM opts
             | True => pure ()
          defs <- initDefs
          c <- newRef Ctxt defs

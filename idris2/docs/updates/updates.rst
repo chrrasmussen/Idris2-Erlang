@@ -81,7 +81,7 @@ can get the length of a vector as follows:
 
     vlen : Vect n a -> Nat
     vlen {n} xs = n
-  
+
 This might seem like a good idea, since it runs in constant time and takes
 advantage of the type level information, but the trade off is that ``n`` has to
 be available at run time, so at run time we always need the length of the
@@ -94,7 +94,7 @@ In Idris 2, we need to state explicitly that ``n`` is needed at run time
 
     vlen : {n : Nat} -> Vect n a -> Nat
     vlen xs = n
-  
+
 (Incidentally, also note that in Idris 2, names bound in types are also available
 in the definition without explicitly rebinding them.)
 
@@ -105,12 +105,12 @@ example, this will give an error
 
     sumLengths : Vect m a -> Vect n a —> Nat
     sumLengths xs ys = vlen xs + vlen ys
-  
+
 Idris 2 reports::
 
   vlen.idr:7:20--7:28:While processing right hand side of Main.sumLengths at vlen.idr:7:1--10:1:
   m is not accessible in this context
-  
+
 This means that it needs to use ``m`` as an argument to pass to ``vlen xs``,
 where it needs to be available at run time, but ``m`` is not available in
 ``sumLengths`` because it has multiplicity ``0``.
@@ -122,7 +122,7 @@ We can see this more clearly by replacing the right hand side of
 
     sumLengths : Vect m a -> Vect n a -> Nat
     sumLengths xs ys = ?sumLengths_rhs
-  
+
 ...then checking the hole's type at the REPL::
 
   Main> :t sumLengths_rhs
@@ -152,7 +152,7 @@ though, that if you have bound implicits, such as...
 .. code-block:: idris
 
     excitingFn : {t : _} -> Coffee t -> Moonbase t
-   
+
 ...then it's a good idea to make sure ``t`` really is needed, or performance
 might suffer due to the run time building the instance of ``t`` unnecessarily!
 
@@ -168,7 +168,7 @@ elsewhere. So, the following definition is rejected
 
 This is rejected with the error::
 
-  badnot.idr:2:1--3:1:Attempt to match on erased argument False in 
+  badnot.idr:2:1--3:1:Attempt to match on erased argument False in
   Main.badNot
 
 The following, however, is fine, because in ``sNot``, even though we appear
@@ -180,7 +180,7 @@ the type of the second argument
     data SBool : Bool -> Type where
          SFalse : SBool False
          STrue  : SBool True
-  
+
     sNot : (0 x : Bool) -> SBool x -> Bool
     sNot False SFalse = True
     sNot True  STrue  = False
@@ -196,7 +196,7 @@ Linearity
 ---------
 
 Full details on linear arguments with multiplicity ``1`` are given in Section
-:ref:`sect-multiplicities`. In brief, the intution behind multiplicity ``1`` is
+:ref:`sect-multiplicities`. In brief, the intuition behind multiplicity ``1`` is
 that if we have a function with a type of the following form...
 
 .. code-block:: idris
@@ -250,17 +250,27 @@ Ambiguous Name Resolution
 
 Idris 1 worked very hard to resolve ambiguous names, by type, even if this
 involved some complicated interaction with interface resolution. This could
-sometimes be the cause of long type checking times. Idris 2 simplifies this,
-at the cost of requiring more programmer annotations on ambiguous names.
+sometimes be the cause of long type checking times. Idris 2 simplifies this, at
+the cost of sometimes requiring more programmer annotations on ambiguous
+names.
 
 As a general rule, Idris 2 will be able to disambiguate between names which
 have different concrete return types (such as data constructors), or which have
 different concrete argument types (such as record projections). It may struggle
 to resolve ambiguities if one name requires an interface to be resolved.
 It will postpone resolution if a name can't be resolved immediately, but unlike
-Idris 1, it won't attempt significant backtracking
+Idris 1, it won't attempt significant backtracking. If you have deeply nested
+ambiguous names (beyond a small threshold, default 3) Idris 2 will report an
+error.  You can change this threshold with a directive, for example:
 
-If you get an ambiguous name error, generally the best approach is to
+.. code_block:: idris
+
+    %ambiguity_depth 10
+
+However, in such circumstances it is almost certainly a better idea to
+disambiguate explicitly.
+
+Indeed in general, if you get an ambiguous name error, the best approach is to
 give the namespace explicitly. You can also rebind names locally:
 
 .. code-block:: idris
@@ -388,6 +398,33 @@ By default, ``auto``-implicit search uses the constructors of a data type
 as search hints. The ``noHints`` option on a data type turns this behaviour
 off.
 
+You can add your own search hints with the ``%hint`` option on a function.
+For example:
+
+.. code-block:: idris
+
+    data MyShow : Type -> Type where
+         [noHints]
+         MkMyShow : (myshow : a -> String) -> MyShow a
+
+    %hint
+    showBool : MyShow Bool
+    showBool = MkMyShow (\x => if x then "True" else "False")
+
+    myShow : MyShow a => a -> String
+    myShow @{MkMyShow myshow} = myshow
+
+In this case, searching for ``MyShow Bool`` will find ``showBool``, as we
+can see if we try evaluating ``myShow True`` at the REPL:
+
+::
+
+    Main> myShow True
+    "True"
+
+In fact, this is how interfaces are elaborated. However, ``%hint`` should be
+used with care. Too many hints can lead to a large search space!
+
 Totality and Coverage
 ---------------------
 
@@ -450,7 +487,7 @@ body of ``vlen``:
 
     vlen : {n : Nat} -> Vect n a -> Nat
     vlen xs = n
- 
+
 This is important to remember when using ``where`` blocks, or local definitions,
 since the names in scope will also be in scope when declaring the *type* of
 the local definition. For example, the following definition, where we attempt
@@ -519,7 +556,7 @@ Dependent case
 
 ``case`` blocks were available in Idris 1, but with some restrictions. Having
 better inference means that ``case`` blocks work more effectively in Idris 2,
-and dependent case analysis is supported. 
+and dependent case analysis is supported.
 
 .. code-block:: idris
 
@@ -603,7 +640,7 @@ remarkably effective in a lot of situations. Some other examples which work:
     lappend : (1 xs : List a) -> (1 ys : List a) -> List a
     zipWith : (a -> b -> c) -> Vect n a -> Vect n b -> Vect n c
 
-This is available in the IDE protocol via the ``generate-def`` command. 
+This is available in the IDE protocol via the ``generate-def`` command.
 
 Chez Scheme target
 ------------------

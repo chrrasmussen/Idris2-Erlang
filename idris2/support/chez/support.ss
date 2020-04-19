@@ -19,7 +19,10 @@
     (if (number? x) x 0)))
 (define destroy-prefix
   (lambda (x)
-    (if (eqv? (string-ref x 0) #\#) "" x)))
+    (cond
+      ((equal? x "") "")
+      ((equal? (string-ref x 0) #\#) "")
+      (else x))))
 (define cast-string-int
   (lambda (x)
     (floor (cast-num (string->number (destroy-prefix x))))))
@@ -66,10 +69,10 @@
   (bytevector-u8-ref buf loc))
 
 (define (blodwen-buffer-setint buf loc val)
-  (bytevector-s64-set! buf loc val (native-endianness)))
+  (bytevector-s32-set! buf loc val (native-endianness)))
 
 (define (blodwen-buffer-getint buf loc)
-  (bytevector-s64-ref buf loc (native-endianness)))
+  (bytevector-s32-ref buf loc (native-endianness)))
 
 (define (blodwen-buffer-setdouble buf loc val)
   (bytevector-ieee-double-set! buf loc val (native-endianness)))
@@ -161,6 +164,9 @@
         (get-char p)
         #\nul))
 
+(define (blodwen-file-modified-time p)
+    (time-second (file-modification-time p)))
+
 (define (blodwen-file-size p)
     (port-length p))
 
@@ -234,3 +240,9 @@
         (vector 0 '())
         (vector 1 '() (car args) (blodwen-build-args (cdr args)))))
     (blodwen-build-args (command-line)))
+
+(define (blodwen-hasenv var)
+  (if (eq? (getenv var) #f) 0 1))
+
+(define (blodwen-system cmd)
+  (system cmd))
