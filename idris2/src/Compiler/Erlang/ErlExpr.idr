@@ -6,6 +6,7 @@ import Control.Monad.State
 import Core.Name
 import Core.TT
 import public Compiler.Erlang.AbstractFormat
+import Compiler.Erlang.ErlBuffer
 import Compiler.Erlang.Utils
 
 
@@ -97,6 +98,16 @@ mutual
     ECons : Line -> ErlExpr vars -> ErlExpr vars -> ErlExpr vars
     ETuple : Line -> List (ErlExpr vars) -> ErlExpr vars
     EMap : Line -> List (ErlExpr vars, ErlExpr vars) -> ErlExpr vars
+
+    EBufferNew       : Line -> (size : ErlExpr vars) -> ErlExpr vars
+    EBufferSetByte   : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
+    EBufferGetByte   : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
+    EBufferSetInt    : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
+    EBufferGetInt    : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
+    EBufferSetDouble : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
+    EBufferGetDouble : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
+    EBufferSetString : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
+    EBufferGetString : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (len : ErlExpr vars) -> ErlExpr vars
 
   public export
   data ErlConstAlt : List Name -> Type where
@@ -222,6 +233,10 @@ genIdrisConstant l fromString fromLiteral constant =
     IDoubleType => fromLiteral (ALAtom l "double_type")
     IWorldType => fromLiteral (ALAtom l "world_type")
 
+genBinary : Line -> String -> Expr
+genBinary l str =
+  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+
 mutual
   export
   genErlExpr : EVars vars -> ErlExpr vars -> Expr
@@ -292,23 +307,35 @@ mutual
         okClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "ok"), APVar l "Value"]] [] [AEFunCall l okBody [AEVar l "Value"]]
         errorClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "error"), APVar l "Error"]] [] [AEFunCall l errorBody [AEVar l "Error"]]
     in AEFunCall l (AEFun l 1 [okClause, errorClause]) [tryResult]
-  genErlExpr vs (EIdrisConstant l x) = genIdrisConstant l (AEBinary l) AELiteral x
+  genErlExpr vs (EIdrisConstant l x) = genIdrisConstant l (genBinary l) AELiteral x
   genErlExpr vs (EAtom l x) = AELiteral (ALAtom l x)
   genErlExpr vs (EChar l x) = AELiteral (ALChar l x)
   genErlExpr vs (EFloat l x) = AELiteral (ALFloat l x)
   genErlExpr vs (EInteger l x) = AELiteral (ALInteger l x)
   genErlExpr vs (ECharlist l x) = AELiteral (ALCharlist l x)
-  genErlExpr vs (EBinary l x) = AEBinary l x
+  genErlExpr vs (EBinary l x) = genBinary l x
   genErlExpr vs (ENil l) = AENil l
   genErlExpr vs (ECons l x y) = AECons l (genErlExpr vs x) (genErlExpr vs y)
   genErlExpr vs (ETuple l elems) = AETuple l (assert_total (map (genErlExpr vs) elems))
   genErlExpr vs (EMap l entries) =
     AEMapNew l (assert_total (map (\(key, value) => MkAssoc l (genErlExpr vs key) (genErlExpr vs value)) entries))
+  genErlExpr vs (EBufferNew l size) = bufferNew l (genErlExpr vs size)
+  genErlExpr vs (EBufferSetByte l bin loc value) = bufferSetByte l (genErlExpr vs bin) (genErlExpr vs loc) (genErlExpr vs value)
+  genErlExpr vs (EBufferGetByte l bin loc) = bufferGetByte l (genErlExpr vs bin) (genErlExpr vs loc)
+  genErlExpr vs (EBufferSetInt l bin loc value) = bufferSetInt l (genErlExpr vs bin) (genErlExpr vs loc) (genErlExpr vs value)
+  genErlExpr vs (EBufferGetInt l bin loc) = bufferGetInt l (genErlExpr vs bin) (genErlExpr vs loc)
+  genErlExpr vs (EBufferSetDouble l bin loc value) = bufferSetDouble l (genErlExpr vs bin) (genErlExpr vs loc) (genErlExpr vs value)
+  genErlExpr vs (EBufferGetDouble l bin loc) = bufferGetDouble l (genErlExpr vs bin) (genErlExpr vs loc)
+  genErlExpr vs (EBufferSetString l bin loc value) = bufferSetString l (genErlExpr vs bin) (genErlExpr vs loc) (genErlExpr vs value)
+  genErlExpr vs (EBufferGetString l bin loc len) = bufferGetString l (genErlExpr vs bin) (genErlExpr vs loc) (genErlExpr vs len)
 
   genErlConstAlt : Line -> EVars vars -> ErlConstAlt vars -> FunClause 1
   genErlConstAlt l vs (MkConstAlt constant body) =
-    let pattern = genIdrisConstant l (APBinary l) APLiteral constant
+    let pattern = genIdrisConstant l stringPattern APLiteral constant
     in MkFunClause l [pattern] [] [genErlExpr vs body]
+    where
+      stringPattern : String -> Pattern
+      stringPattern str = APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
   genErlMatcher : Line -> EVars vars -> ErlMatcher vars -> State (List Expr) (FunClause 1)
   genErlMatcher l vs matcher = do
@@ -485,6 +512,15 @@ mutual
   thin n (ECons l x y) = ECons l (thin n x) (thin n y)
   thin n (ETuple l xs) = ETuple l (assert_total (map (thin n) xs))
   thin n (EMap l xs) = EMap l (assert_total (map (\(key, value) => (thin n key, thin n value)) xs))
+  thin n (EBufferNew l size) = EBufferNew l (thin n size)
+  thin n (EBufferSetByte l bin loc value) = EBufferSetByte l (thin n bin) (thin n loc) (thin n value)
+  thin n (EBufferGetByte l bin loc) = EBufferGetByte l (thin n bin) (thin n loc)
+  thin n (EBufferSetInt l bin loc value) = EBufferSetInt l (thin n bin) (thin n loc) (thin n value)
+  thin n (EBufferGetInt l bin loc) = EBufferGetInt l (thin n bin) (thin n loc)
+  thin n (EBufferSetDouble l bin loc value) = EBufferSetDouble l (thin n bin) (thin n loc) (thin n value)
+  thin n (EBufferGetDouble l bin loc) = EBufferGetDouble l (thin n bin) (thin n loc)
+  thin n (EBufferSetString l bin loc value) = EBufferSetString l (thin n bin) (thin n loc) (thin n value)
+  thin n (EBufferGetString l bin loc len) = EBufferGetString l (thin n bin) (thin n loc) (thin n len)
 
   thinConstAlt : {outer, inner : _} -> (n : Name) -> ErlConstAlt (outer ++ inner) -> ErlConstAlt (outer ++ n :: inner)
   thinConstAlt n (MkConstAlt c body) = MkConstAlt c (thin n body)

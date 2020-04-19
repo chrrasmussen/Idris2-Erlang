@@ -1,6 +1,7 @@
 module Compiler.Erlang.AbstractFormat
 
 import public Data.Vect
+import Data.Fin
 import Data.List
 
 import public Compiler.Erlang.PrimTerm
@@ -36,10 +37,48 @@ data MapFieldExact : Type -> Type where
   MkExact : Line -> (key : a) -> (value : a) -> MapFieldExact a
 
 public export
+data BitType = ABInteger | ABFloat | ABBinary | ABBytes | ABBitstring | ABBits | ABUtf8 | ABUtf16 | ABUtf32
+
+public export
+data BitSignedness = ABUnsigned | ABSigned
+
+public export
+data BitEndianness = ABBig | ABLittle | ABNative
+
+-- Unit is a value from 1-256 where `FZ` is representing the value 1
+public export
+data BitUnit = MkBitUnit (Fin 256)
+
+public export
+data BitSize : Type where
+  ABSDefault : BitSize
+  ABSInteger : Line -> Integer -> BitSize
+  ABSVar : Line -> String -> BitSize
+
+public export
+record TypeSpecifierList where
+  constructor MkTSL
+  signedness : Maybe BitSignedness
+  endianness : Maybe BitEndianness
+  type : Maybe BitType
+  unit : Maybe BitUnit
+
+public export
+data BitSegment : Type -> Type where
+  MkBitSegment : Line -> a -> (size : BitSize) -> TypeSpecifierList -> BitSegment a
+
+public export
+data BitPattern : Type where
+  ABPInteger : Line -> Integer -> BitPattern
+  ABPFloat : Line -> Double -> BitPattern
+  ABPCharlist : Line -> String -> BitPattern
+  ABPUniversal : Line -> BitPattern -- Wildcard matching
+  ABPVar : Line -> (name : String) -> BitPattern
+
+public export
 data Pattern : Type where
   APLiteral : Literal -> Pattern
-  -- Bitstring pattern
-  APBinary : Line -> String -> Pattern -- NOTE: A restricted version of the bitstring constructor
+  APBitstring : Line -> List (BitSegment BitPattern) -> Pattern
   -- Compound pattern
   APCons : Line -> Pattern -> Pattern -> Pattern
   APMap : Line -> List (MapFieldExact Pattern) -> Pattern
@@ -83,8 +122,8 @@ mutual
   public export
   data Expr : Type where
     AELiteral : Literal -> Expr
+    AEBitstring : Line -> List (BitSegment Expr) -> Expr
     -- Bitstring comprehension
-    AEBinary : Line -> String -> Expr -- NOTE: A restricted version of the bitstring constructor
     -- Block expression
     -- Case expression
     -- Catch expression
@@ -97,9 +136,9 @@ mutual
     -- List comprehension
     AEMapNew : Line -> List (MapFieldAssoc Expr) -> Expr
     -- Map update
-    -- Match operator expression
+    AEMatch : Line -> (lhs : Pattern) -> (rhs : Expr) -> Expr
     AENil : Line -> Expr
-    AEOp : Line -> (op : String) -> Expr -> Expr -> Expr
+    AEOp : Line -> (op : String) -> (lhs : Expr) -> (rhs : Expr) -> Expr
     -- Paranthesized expression
     AEReceive : Line -> List CaseClause -> ReceiveTimeout -> Expr
     -- Record creation expression
@@ -146,7 +185,7 @@ genLine l = PInteger (cast l)
 genLiteral : Literal -> PrimTerm
 genLiteral (ALAtom l x) = PTuple [PAtom "atom", genLine l, PAtom x]
 genLiteral (ALChar l x) = PTuple [PAtom "char", genLine l, PChar x]
-genLiteral (ALFloat l x) = PTuple [PAtom "char", genLine l, PFloat x]
+genLiteral (ALFloat l x) = PTuple [PAtom "float", genLine l, PFloat x]
 genLiteral (ALInteger l x) = PTuple [PAtom "integer", genLine l, PInteger x]
 genLiteral (ALCharlist l x) = PTuple [PAtom "string", genLine l, PCharlist x]
 
@@ -158,21 +197,68 @@ genMapFieldExact : (a -> PrimTerm) -> MapFieldExact a -> PrimTerm
 genMapFieldExact toPrimTerm (MkExact l key value) =
   PTuple [PAtom "map_field_exact", genLine l, toPrimTerm key, toPrimTerm value]
 
-genBinary : Line -> String -> PrimTerm
-genBinary l str =
-  let binElement = PTuple [PAtom "bin_element", genLine l, genLiteral (ALCharlist l str), PAtom "default", PList [PAtom "utf8"]]
-  in PTuple [PAtom "bin", genLine l, PList [binElement]]
+genBitType : BitType -> PrimTerm
+genBitType type =
+  PAtom $ case type of
+    ABInteger => "integer"
+    ABFloat => "float"
+    ABBinary => "binary"
+    ABBytes => "bytes"
+    ABBitstring => "bitstring"
+    ABBits => "bits"
+    ABUtf8 => "utf8"
+    ABUtf16 => "utf16"
+    ABUtf32 => "utf32"
 
-mutual
-  genPattern : Pattern -> PrimTerm
-  genPattern (APLiteral x) = genLiteral x
-  genPattern (APBinary l x) = genBinary l x
-  genPattern (APCons l x y) = PTuple [PAtom "cons", genLine l, genPattern x, genPattern y]
-  genPattern (APMap l entries) = PTuple [PAtom "map", genLine l, PList (assert_total (map (genMapFieldExact genPattern) entries))]
-  genPattern (APNil l) = PTuple [PAtom "nil", genLine l]
-  genPattern (APTuple l patterns) = PTuple [PAtom "tuple", genLine l, PList (assert_total (map genPattern patterns))]
-  genPattern (APUniversal l) = PTuple [PAtom "var", genLine l, PAtom "_"]
-  genPattern (APVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
+genBitSignedness : BitSignedness -> PrimTerm
+genBitSignedness signedness =
+  PAtom $ case signedness of
+    ABUnsigned => "unsigned"
+    ABSigned => "signed"
+
+genBitEndianness : BitEndianness -> PrimTerm
+genBitEndianness endianness =
+  PAtom $ case endianness of
+    ABBig => "big"
+    ABLittle => "little"
+    ABNative => "native"
+
+genBitUnit : BitUnit -> PrimTerm
+genBitUnit (MkBitUnit size) =
+  PTuple [PAtom "unit", PInteger (cast size + 1)]
+
+genBitSize : BitSize -> PrimTerm
+genBitSize ABSDefault = PAtom "default"
+genBitSize (ABSInteger l x) = PTuple [PAtom "integer", genLine l, PInteger x]
+genBitSize (ABSVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
+
+genTypeSpecifierList : TypeSpecifierList -> PrimTerm
+genTypeSpecifierList (MkTSL signedness endianness type unit) =
+  PList $ toList (map genBitSignedness signedness) ++
+    toList (map genBitEndianness endianness) ++
+    toList (map genBitType type) ++
+    toList (map genBitUnit unit)
+
+genBitSegment : (a -> PrimTerm) -> BitSegment a -> PrimTerm
+genBitSegment genValue (MkBitSegment l value size tsl) =
+  PTuple [PAtom "bin_element", genLine l, genValue value, genBitSize size, genTypeSpecifierList tsl]
+
+genBitPattern : BitPattern -> PrimTerm
+genBitPattern (ABPInteger l x) = PTuple [PAtom "integer", genLine l, PInteger x]
+genBitPattern (ABPFloat l x) = PTuple [PAtom "float", genLine l, PFloat x]
+genBitPattern (ABPCharlist l x) = PTuple [PAtom "string", genLine l, PCharlist x]
+genBitPattern (ABPUniversal l) = PTuple [PAtom "var", genLine l, PAtom "_"]
+genBitPattern (ABPVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
+
+genPattern : Pattern -> PrimTerm
+genPattern (APLiteral x) = genLiteral x
+genPattern (APBitstring l segments) = PTuple [PAtom "bin", genLine l, PList (map (genBitSegment genBitPattern) segments)]
+genPattern (APCons l x y) = PTuple [PAtom "cons", genLine l, genPattern x, genPattern y]
+genPattern (APMap l entries) = PTuple [PAtom "map", genLine l, PList (assert_total (map (genMapFieldExact genPattern) entries))]
+genPattern (APNil l) = PTuple [PAtom "nil", genLine l]
+genPattern (APTuple l patterns) = PTuple [PAtom "tuple", genLine l, PList (assert_total (map genPattern patterns))]
+genPattern (APUniversal l) = PTuple [PAtom "var", genLine l, PAtom "_"]
+genPattern (APVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
 
 mutual
   genGuard : Guard -> PrimTerm
@@ -193,8 +279,8 @@ mutual
   genExpr : Expr -> PrimTerm
   genExpr (AELiteral x) =
     genLiteral x
-  genExpr (AEBinary l x) =
-    genBinary l x
+  genExpr (AEBitstring l segments) =
+    PTuple [PAtom "bin", genLine l, PList (assert_total (map (genBitSegment genExpr) segments))]
   genExpr (AECons l x y) =
     PTuple [PAtom "cons", genLine l, genExpr x, genExpr y]
   genExpr (AEFun l arity clauses) =
@@ -205,6 +291,8 @@ mutual
     PTuple [PAtom "remote", genLine l, genExpr modName, genExpr fnName]
   genExpr (AEMapNew l entries) =
     PTuple [PAtom "map", genLine l, PList (assert_total (map (genMapFieldAssoc genExpr) entries))]
+  genExpr (AEMatch l p x) =
+    PTuple [PAtom "match", genLine l, genPattern p, genExpr x]
   genExpr (AENil l) =
     PTuple [PAtom "nil", genLine l]
   genExpr (AEOp l opName x y) =
