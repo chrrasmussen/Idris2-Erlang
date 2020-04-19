@@ -1,5 +1,5 @@
 $1 --no-banner --codegen erlang Main.idr < input
-(cd build/exec && escript foo.beam)
-(cd build/exec && escript foo.beam a b)
-(cd build/exec && escript foo.beam a "b c")
-rm -rf build
+escript foo.beam
+escript foo.beam a b
+escript foo.beam a "b c"
+rm -rf build *.beam

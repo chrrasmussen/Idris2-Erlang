@@ -16,6 +16,7 @@ import Core.Name
 import Core.Options
 import Core.TT
 
+import Data.IOArray
 import Data.NameMap
 import System
 import System.Info
@@ -192,13 +193,19 @@ namespace Library
   findExportedNames : {auto c : Ref Ctxt Defs} -> (Name -> Bool) -> List Name -> Core (List Name, NameTags)
   findExportedNames shouldCompileName extraNames = do
       defs <- get Ctxt
+      -- make an array of Bools to hold which names we've found (quicker
+      -- to check than a NameMap!)
+      asize <- getNextEntry
+      arr <- coreLift $ newArray asize
+      -- Find relevant names
       let cns = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
       cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) cns
       let visibleCns = mapMaybe exportedName cnsWithGlobalDef
-      natHackNames' <- traverse toResolvedNames natHackNames
-      allNs <- getAllDesc (natHackNames' ++ visibleCns ++ extraNames) empty defs
-      allCns' <- traverse toFullNames (keys allNs)
-      let allCns = nub (filter skipUnusedNames allCns')
+      resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
+      logTime "Get names" $ getAllDesc resolvedNames arr defs
+      let allNs = mapMaybe (maybe Nothing (Just . Resolved)) !(coreLift (toList arr))
+      allFullNs <- traverse toFullNames allNs
+      let allCns = nub (filter skipUnusedNames allFullNs)
       -- Initialise the type constructor list with explicit names for
       -- the primitives (this is how we look up the tags)
       -- Use '1' for '->' constructor
@@ -206,8 +213,10 @@ namespace Library
         insert (UN "Type") 2 $
         primTags 3 empty [IntType, IntegerType, StringType, CharType, DoubleType, WorldType]
       tycontags <- mkNameTags defs tyconInit 100 allCns
-      traverse_ (compileDef tycontags) allCns
-      traverse_ inlineDef allCns
+      logTime ("Compile defs " ++ show (length allCns) ++ "/" ++ show asize) $
+        traverse_ (compileDef tycontags) allCns
+      logTime "Inline" $ traverse_ inlineDef allCns
+      -- TODO: `Compiler.Common.findUsedNames` includes `dumpCases` here
       pure (allCns, tycontags)
     where
       primTags : Int -> NameTags -> List Constant -> NameTags
@@ -264,8 +273,8 @@ namespace Library
         pure ()
 
 -- TODO: Validate `outfile`
-compileExpr : Ref Ctxt Defs -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tm outfile = do
+compileExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compileExpr c execDir tm outfile = do
   session <- getSession
   let opts = parseOpts (codegenOptions session)
   if generateAsLibrary opts
@@ -274,8 +283,8 @@ compileExpr c tm outfile = do
   pure (Just outfile)
 
 -- TODO: Add error handling
-executeExpr : Ref Ctxt Defs -> ClosedTerm -> Core ()
-executeExpr c tm = do
+executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c execDir tm = do
   tmpDir <- coreLift $ tmpName
   let modName = "main"
   let outfile = tmpDir ++ dirSep ++ modName
