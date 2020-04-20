@@ -122,6 +122,13 @@ generateErlangModule opts ds targetDir (ns, funDecls) = do
     | Left err => throw (FileErr outfile err)
   pure ()
 
+genCompdef : {auto c : Ref Ctxt Defs} -> (prefix : String) -> Line -> Name -> Core (Maybe (Namespace, ErlFunDecl))
+genCompdef prefix l name = do
+  let ns = getNamespace name
+  let namespaceInfo = MkNamespaceInfo prefix (Just ns)
+  Just funDecl <- genErlang namespaceInfo l name
+    | Nothing => pure Nothing
+  pure $ Just (ns, funDecl)
 
 namespace MainEntrypoint
   -- TODO: Add error handling
@@ -130,7 +137,7 @@ namespace MainEntrypoint
     let outfile = outdir ++ dirSep ++ modName ++ ".abstr"
     (names, tags) <- findUsedNames tm
     defs <- get Ctxt
-    compdefs <- traverse (genErlang (prefix opts) 4242) names
+    compdefs <- traverse (genCompdef (prefix opts) 4242) names
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     ds <- getDirectives Erlang
@@ -241,7 +248,7 @@ namespace Library
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: exportFuncs
     (names, tags) <- findExportedNames (shouldCompileName namespacesToCompile) extraNames
     defs <- get Ctxt
-    compdefs <- traverse (genErlang (prefix opts) 4242) (filter (shouldCompileName namespacesToCompile) names)
+    compdefs <- traverse (genCompdef (prefix opts) 4242) (filter (shouldCompileName namespacesToCompile) names)
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (generateErlangModule opts ds outdir) modules

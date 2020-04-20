@@ -589,24 +589,20 @@ mutual
 
 -- DEFINITIIONS
 
-genDef : (prefix : String) -> Line -> Name -> CDef -> Core (Maybe (Namespace, ErlFunDecl))
-genDef prefix l name (MkFun args body) = do
+genDef : NamespaceInfo -> Line -> Name -> CDef -> Core (Maybe ErlFunDecl)
+genDef namespaceInfo l name (MkFun args body) = do
   let (vs, _) = initEVars args
-  let ns = getNamespace name
-  let (modName, fnName) = moduleNameFunctionName prefix name
-  let namespaceInfo = MkNamespaceInfo prefix (Just ns)
+  let (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) name
   let funDecl = MkFunDecl l Public fnName args !(genCExp namespaceInfo vs body)
-  pure $ Just (ns, funDecl)
-genDef prefix l name (MkError body) = do
+  pure $ Just funDecl
+genDef namespaceInfo l name (MkError body) = do
   let vs = fst (initEVars []) -- TODO: Workaround for `Trying to use linear name vs in non-linear context` in Idris 1
-  let ns = getNamespace name
-  let (modName, fnName) = moduleNameFunctionName prefix name
-  let namespaceInfo = MkNamespaceInfo prefix (Just ns)
+  let (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) name
   let funDecl = MkFunDecl l Private fnName [] !(genCExp namespaceInfo vs body)
-  pure $ Just (ns, funDecl)
-genDef prefix l name (MkForeign _ _ _) =
+  pure $ Just funDecl
+genDef namespaceInfo l name (MkForeign _ _ _) =
   pure Nothing
-genDef prefix l name (MkCon t a) =
+genDef namespaceInfo l name (MkCon t a) =
   pure Nothing
 
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
@@ -619,10 +615,10 @@ getCompileExpr name = do
   pure expr
 
 export
-genErlang : {auto c : Ref Ctxt Defs} -> (prefix : String) -> Line -> Name -> Core (Maybe (Namespace, ErlFunDecl))
-genErlang prefix l name = do
+genErlang : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Line -> Name -> Core (Maybe ErlFunDecl)
+genErlang namespaceInfo l name = do
   expr <- getCompileExpr name
-  genDef prefix l name expr
+  genDef namespaceInfo l name expr
 
 
 -- EXPORT
