@@ -32,23 +32,6 @@ findErlangCompiler = pure "erlc"
 findEscript : IO String
 findEscript = pure "escript"
 
--- TODO: Remove
-data ExportMainFunc = IncludeMain | ExcludeMain
-
--- TODO: Remove
-header : (modName : String) -> ExportMainFunc -> String
-header modName exportMainFunc = do
-  let exportDirective =
-    case exportMainFunc of
-      IncludeMain => "-export([main/1]).\n"
-      ExcludeMain => ""
-  "-module('" ++ modName ++ "').\n" ++
-    -- "-mode(compile).\n" ++ -- TODO: Make mode into a flag
-    "-compile([nowarn_unused_function, nowarn_unused_vars]).\n" ++
-    "-compile(export_all).\n" ++
-    exportDirective ++
-    "\n"
-
 escapeCmd : List String -> String
 escapeCmd components = unwords (map escapeComponent components)
   where
