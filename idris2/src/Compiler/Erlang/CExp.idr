@@ -589,6 +589,7 @@ mutual
 
 -- DEFINITIIONS
 
+export
 genDef : NamespaceInfo -> Line -> Name -> CDef -> Core (Maybe ErlFunDecl)
 genDef namespaceInfo l name (MkFun args body) = do
   let (vs, _) = initEVars args
@@ -605,23 +606,8 @@ genDef namespaceInfo l name (MkForeign _ _ _) =
 genDef namespaceInfo l name (MkCon t a) =
   pure Nothing
 
-getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
-getCompileExpr name = do
-  defs <- get Ctxt
-  Just globalDef <- lookupCtxtExact name (gamma defs)
-    | throw (InternalError ("Compiling undefined name " ++ show name))
-  let Just expr = compexpr globalDef
-    | throw (InternalError ("No compiled definition for " ++ show name))
-  pure expr
 
-export
-genErlang : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Line -> Name -> Core (Maybe ErlFunDecl)
-genErlang namespaceInfo l name = do
-  expr <- getCompileExpr name
-  genDef namespaceInfo l name expr
-
-
--- EXPORT
+-- EXPORTS
 
 data InternalArity = Value | Arity Nat
 
@@ -646,6 +632,7 @@ externalArity Value = 0
 externalArity (Arity arity) = arity
 
 -- TODO: Do not require name of exported function to be a static string?
+export
 readExports : NamespaceInfo -> Line -> CExp [] -> Core (List ErlFunDecl)
 readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [_, exprTy, CPrimVal _ (Str fnName), expr]) = do
   let intArity = internalArity exprTy
@@ -663,10 +650,3 @@ readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Combine")) tag [e
   pure $ !(readExports namespaceInfo l exports1) ++ !(readExports namespaceInfo l exports2)
 readExports namespaceInfo l tm =
   throw (InternalError ("Invalid export: " ++ show tm))
-
-export
-genExports : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Line -> Name -> Core (List ErlFunDecl)
-genExports namespaceInfo l name = do
-  MkFun [] expr <- getCompileExpr name
-    | throw (InternalError ("Expected function definition for " ++ show name))
-  readExports namespaceInfo l expr

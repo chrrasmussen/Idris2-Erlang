@@ -110,6 +110,21 @@ showModule : ErlModule -> String
 showModule module =
   concat (map ((++ ".\n") . showPrimTerm . genDecl) (genErlModule module))
 
+getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
+getCompileExpr name = do
+  defs <- get Ctxt
+  Just globalDef <- lookupCtxtExact name (gamma defs)
+    | throw (InternalError ("Compiling undefined name " ++ show name))
+  let Just expr = compexpr globalDef
+    | throw (InternalError ("No compiled definition for " ++ show name))
+  pure expr
+
+genExports : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Line -> Name -> Core (List ErlFunDecl)
+genExports namespaceInfo l name = do
+  MkFun [] expr <- getCompileExpr name
+    | throw (InternalError ("Expected function definition for " ++ show name))
+  readExports namespaceInfo l expr
+
 generateErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, String) -> String -> (Namespace, List ErlFunDecl) -> Core ()
 generateErlangModule opts ds targetDir (ns, funDecls) = do
   defs <- get Ctxt
@@ -126,9 +141,11 @@ genCompdef : {auto c : Ref Ctxt Defs} -> (prefix : String) -> Line -> Name -> Co
 genCompdef prefix l name = do
   let ns = getNamespace name
   let namespaceInfo = MkNamespaceInfo prefix (Just ns)
-  Just funDecl <- genErlang namespaceInfo l name
+  expr <- getCompileExpr name
+  Just funDecl <- genDef namespaceInfo l name expr
     | Nothing => pure Nothing
   pure $ Just (ns, funDecl)
+
 
 namespace MainEntrypoint
   -- TODO: Add error handling
