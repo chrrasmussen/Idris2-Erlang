@@ -2,6 +2,7 @@ module Compiler.Common
 
 import Compiler.CompileExpr
 import Compiler.Inline
+import Compiler.LambdaLift
 
 import Core.Context
 import Core.Directory
@@ -104,31 +105,59 @@ fastAppend xs
     build b (x :: xs) = do addToStringBuffer b x
                            build b xs
 
-dumpCases : {auto c : Ref Ctxt Defs} ->
-            String -> List Name ->
+dumpCases : Defs -> String -> List Name ->
             Core ()
-dumpCases fn cns
-    = do defs <- get Ctxt
-         cstrs <- traverse (dumpCase defs) cns
+dumpCases defs fn cns
+    = do cstrs <- traverse dumpCase cns
          Right () <- coreLift $ writeFile fn (fastAppend cstrs)
                | Left err => throw (FileErr fn err)
          pure ()
   where
-    dumpCase : Defs -> Name -> Core String
-    dumpCase defs n
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
+    dumpCase : Name -> Core String
+    dumpCase n
         = case !(lookupCtxtExact n (gamma defs)) of
                Nothing => pure ""
                Just d =>
-                    case compexpr d of
+                    case namedcompexpr d of
                          Nothing => pure ""
-                         Just def => pure (show n ++ " = " ++ show def ++ "\n")
+                         Just def => pure (fullShow n ++ " = " ++ show def ++ "\n")
+
+dumpLifted : String -> List (Name, LiftedDef) -> Core ()
+dumpLifted fn lns
+    = do let cstrs = map dumpDef lns
+         Right () <- coreLift $ writeFile fn (fastAppend cstrs)
+               | Left err => throw (FileErr fn err)
+         pure ()
+  where
+    fullShow : Name -> String
+    fullShow (DN _ n) = show n
+    fullShow n = show n
+
+    dumpDef : (Name, LiftedDef) -> String
+    dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
+
+public export
+record CompileData where
+  constructor MkCompileData
+  allNames : List Name -- names which need to be compiled
+  nameTags : NameTags -- a mapping from type names to constructor tags
+  mainExpr : CExp [] -- main expression to execute
+  lambdaLifted : List (Name, LiftedDef)
+       -- ^ lambda lifted definitions, if required. Only the top level names
+       -- will be in the context, and (for the moment...) I don't expect to
+       -- need to look anything up, so it's just an alist.
 
 -- Find all the names which need compiling, from a given expression, and compile
--- them to CExp form (and update that in the Defs)
+-- them to CExp form (and update that in the Defs).
+-- Return the names, the type tags, and a compiled version of the expression
 export
-findUsedNames : {auto c : Ref Ctxt Defs} ->
-                Term vars -> Core (List Name, NameTags)
-findUsedNames tm
+getCompileData : {auto c : Ref Ctxt Defs} ->
+                 ClosedTerm -> Core CompileData
+getCompileData tm
     = do defs <- get Ctxt
          sopts <- getSession
          let ns = getRefs (Resolved (-1)) tm
@@ -153,11 +182,24 @@ findUsedNames tm
          logTime ("Compile defs " ++ show (length cns) ++ "/" ++ show asize) $
            traverse_ (compileDef tycontags) cns
          logTime "Inline" $ traverse_ inlineDef cns
+         logTime "Merge lambda" $ traverse_ mergeLamDef cns
+         logTime "Fix arity" $ traverse_ fixArityDef cns
+         logTime "Forget names" $ traverse_ mkForgetDef cns
+
+         lifted <- logTime "Lambda lift" $ traverse lambdaLift cns
+
+         compiledtm <- fixArityExp !(compileExp tycontags tm)
+
+         defs <- get Ctxt
          maybe (pure ())
                (\f => do coreLift $ putStrLn $ "Dumping case trees to " ++ f
-                         dumpCases f cns)
+                         dumpCases defs f cns)
                (dumpcases sopts)
-         pure (cns, tycontags)
+         maybe (pure ())
+               (\f => do coreLift $ putStrLn $ "Dumping lambda lifted defs to " ++ f
+                         dumpLifted f (concat lifted))
+               (dumplifted sopts)
+         pure (MkCompileData cns tycontags compiledtm (concat lifted))
   where
     primTags : Int -> NameTags -> List Constant -> NameTags
     primTags t tags [] = tags

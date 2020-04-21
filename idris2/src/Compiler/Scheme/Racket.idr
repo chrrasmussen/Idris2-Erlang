@@ -66,27 +66,27 @@ racketString : String -> String
 racketString cs = strCons '"' (showRacketString (unpack cs) "\"")
 
 mutual
-  racketPrim : Int -> SVars vars -> ExtPrim -> List (CExp vars) -> Core String
-  racketPrim i vs CCall [ret, fn, args, world]
+  racketPrim : Int -> ExtPrim -> List NamedCExp -> Core String
+  racketPrim i CCall [ret, fn, args, world]
       = throw (InternalError ("Can't compile C FFI calls to Racket yet"))
-  racketPrim i vs GetField [CPrimVal _ (Str s), _, _, struct,
-                             CPrimVal _ (Str fld), _]
-      = do structsc <- schExp racketPrim racketString 0 vs struct
+  racketPrim i GetField [NmPrimVal _ (Str s), _, _, struct,
+                             NmPrimVal _ (Str fld), _]
+      = do structsc <- schExp racketPrim racketString 0 struct
            pure $ "(" ++ s ++ "-" ++ fld ++ " " ++ structsc ++ ")"
-  racketPrim i vs GetField [_,_,_,_,_,_]
+  racketPrim i GetField [_,_,_,_,_,_]
       = pure "(error \"bad setField\")"
-  racketPrim i vs SetField [CPrimVal _ (Str s), _, _, struct,
-                             CPrimVal _ (Str fld), _, val, world]
-      = do structsc <- schExp racketPrim racketString 0 vs struct
-           valsc <- schExp racketPrim racketString 0 vs val
+  racketPrim i SetField [NmPrimVal _ (Str s), _, _, struct,
+                         NmPrimVal _ (Str fld), _, val, world]
+      = do structsc <- schExp racketPrim racketString 0 struct
+           valsc <- schExp racketPrim racketString 0 val
            pure $ mkWorld $
                 "(set-" ++ s ++ "-" ++ fld ++ "! " ++ structsc ++ " " ++ valsc ++ ")"
-  racketPrim i vs SetField [_,_,_,_,_,_,_,_]
+  racketPrim i SetField [_,_,_,_,_,_,_,_]
       = pure "(error \"bad setField\")"
-  racketPrim i vs SysCodegen []
+  racketPrim i SysCodegen []
       = pure $ "\"racket\""
-  racketPrim i vs prim args
-      = schExtCommon racketPrim racketString i vs prim args
+  racketPrim i prim args
+      = schExtCommon racketPrim racketString i prim args
 
 -- Reference label for keeping track of loaded external libraries
 data Loaded : Type where
@@ -181,12 +181,11 @@ cCall fc cfn libspec args ret
         = applyLams ("(" ++ n ++ " " ++ cToRkt ty a ++ ")") as
 
     getVal : CFType -> String -> String
-    getVal ty str = rktToC ty ("(vector-ref " ++ str ++ "2)")
+    getVal ty str = rktToC ty ("(vector-ref " ++ str ++ "1)")
 
     mkFun : List CFType -> CFType -> String -> String
     mkFun args ret n
         = let argns = mkNs 0 args in
-              "(lambda (" ++ showSep " " (map fst (mapMaybe id argns)) ++ ") " ++
               (case ret of
                     CFIORes rt => getVal rt (applyLams n argns) ++ ")"
                     _ => applyLams n argns ++ ")")
@@ -292,14 +291,18 @@ getFgnCall n
 compileToRKT : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core ()
 compileToRKT c tm outfile
-    = do (ns, tags) <- findUsedNames tm
+    = do cdata <- getCompileData tm
+         let ns = allNames cdata
+         let tags = nameTags cdata
+         let ctm = forget (mainExpr cdata)
+
          defs <- get Ctxt
          l <- newRef {t = List String} Loaded []
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse getFgnCall ns
          compdefs <- traverse (getScheme racketPrim racketString defs) ns
          let code = fastAppend (map snd fgndefs ++ compdefs)
-         main <- schExp racketPrim racketString 0 [] !(compileExp tags tm)
+         main <- schExp racketPrim racketString 0 ctm
          support <- readDataFile "racket/support.rkt"
          let scm = schHeader (concat (map fst fgndefs)) ++
                    support ++ code ++
