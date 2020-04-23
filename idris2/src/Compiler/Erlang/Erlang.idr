@@ -3,6 +3,8 @@ module Compiler.Erlang.Erlang
 import Compiler.Common
 import Compiler.CompileExpr
 import Compiler.Inline
+import Compiler.LambdaLift
+
 import Compiler.Erlang.Opts
 import Compiler.Erlang.CExp
 import Compiler.Erlang.FileUtils
@@ -135,15 +137,15 @@ namespace MainEntrypoint
   generateAbstr : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core (List String)
   generateAbstr opts tm outdir modName = do
     let outfile = outdir ++ dirSep ++ modName ++ ".abstr"
-    (names, tags) <- findUsedNames tm
+    compileData <- getCompileData tm
     defs <- get Ctxt
-    compdefs <- traverse (genCompdef (prefix opts) 4242) names
+    compdefs <- traverse (genCompdef (prefix opts) 4242) (allNames compileData)
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     ds <- getDirectives Erlang
     traverse_ (generateErlangModule opts ds outdir) modules
     let (vs, _) = initEVars []
-    mainBody <- genCExp (MkNamespaceInfo (prefix opts) Nothing) vs !(CompileExpr.compileExp tags tm) -- TODO: Supply `modName` as namespace?
+    mainBody <- genCExp (MkNamespaceInfo (prefix opts) Nothing) vs (mainExpr compileData) -- TODO: Supply `modName` as namespace?
     let argsVar = MN "" 0
     let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] [MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 (weaken mainBody))]
     Right () <- coreLift $ writeFile outfile (showModule module)
@@ -197,8 +199,8 @@ namespace Library
   exportedName _ = Nothing
 
   -- Find all the exported names in namespace, and compile them to CExp form (and update that in the Defs)
-  findExportedNames : {auto c : Ref Ctxt Defs} -> (Name -> Bool) -> List Name -> Core (List Name, NameTags)
-  findExportedNames shouldCompileName extraNames = do
+  getExportedCompileData : {auto c : Ref Ctxt Defs} -> (Name -> Bool) -> List Name -> Core CompileData
+  getExportedCompileData shouldCompileName extraNames = do
       defs <- get Ctxt
       -- make an array of Bools to hold which names we've found (quicker
       -- to check than a NameMap!)
@@ -223,8 +225,11 @@ namespace Library
       logTime ("Compile defs " ++ show (length allCns) ++ "/" ++ show asize) $
         traverse_ (compileDef tycontags) allCns
       logTime "Inline" $ traverse_ inlineDef allCns
-      -- TODO: `Compiler.Common.findUsedNames` includes `dumpCases` here
-      pure (allCns, tycontags)
+      logTime "Merge lambda" $ traverse_ mergeLamDef allCns
+      logTime "Fix arity" $ traverse_ fixArityDef allCns
+      logTime "Forget names" $ traverse_ mkForgetDef allCns
+      -- TODO: `Compiler.Common.getCompileData` includes `lambdaLift`, `dumpLifted` and `dumpCases` here
+      pure (MkCompileData allCns tycontags (CErased EmptyFC) [])
     where
       primTags : Int -> NameTags -> List Constant -> NameTags
       primTags t tags [] = tags
@@ -246,9 +251,9 @@ namespace Library
     let namespacesToCompile = changedNamespaces opts
     let exportFuncs = maybe (mapMaybe parseExport ds) (mapMaybe (getExportInNamespace ds)) namespacesToCompile
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: exportFuncs
-    (names, tags) <- findExportedNames (shouldCompileName namespacesToCompile) extraNames
+    compileData <- getExportedCompileData (shouldCompileName namespacesToCompile) extraNames
     defs <- get Ctxt
-    compdefs <- traverse (genCompdef (prefix opts) 4242) (filter (shouldCompileName namespacesToCompile) names)
+    compdefs <- traverse (genCompdef (prefix opts) 4242) (filter (shouldCompileName namespacesToCompile) (allNames compileData))
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (generateErlangModule opts ds outdir) modules

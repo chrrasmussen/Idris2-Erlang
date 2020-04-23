@@ -120,10 +120,10 @@ genCon namespaceInfo l (NS ["Builtin"] (UN "MkUnit")) [] = genMkUnit l
 genCon namespaceInfo l (NS ["Prelude"] (UN "True")) [] = EAtom l "true"
 genCon namespaceInfo l (NS ["Prelude"] (UN "False")) [] = EAtom l "false"
 -- List
-genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [_] = ENil l
-genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [_, x, xs] = ECons l x xs
+genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
+genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
 -- Raw
-genCon namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [_, x] = x
+genCon namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [x] = x
 -- ErlAtom
 genCon namespaceInfo l (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) [x] =
   genUnsafeStringToAtom l x
@@ -136,31 +136,31 @@ genCon namespaceInfo l (NS ["Strings", "Erlang"] (UN "MkErlCharlist")) [x] =
 -- ErlNil
 genCon namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) [] = ENil l
 -- ErlCons
-genCon namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "::")) [_, _, x, y] = ECons l x y
+genCon namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "::")) [x, y] = ECons l x y
 -- ErlList
 genCon namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "Nil")) [] = ENil l
-genCon namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "::")) [_, _, x, xs] =  ECons l x xs
+genCon namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "::")) [x, xs] =  ECons l x xs
 -- ErlTuple/A
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) args = ETuple l (drop 0 args)
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) args = ETuple l (drop 1 args)
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) args = ETuple l (drop 2 args)
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) args = ETuple l (drop 3 args)
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) args = ETuple l (drop 4 args)
-genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) args = ETuple l (drop 5 args)
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) args = ETuple l args
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) args = ETuple l args
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) args = ETuple l args
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) args = ETuple l args
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) args = ETuple l args
+genCon namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) args = ETuple l args
 -- ErlFun/A
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun0")) [_, fun] = genUncurry l 0 id fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun1")) [_, _, fun] = genUncurry l 1 id fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun2")) [_, _, _, fun] = genUncurry l 2 id fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun3")) [_, _, _, _, fun] = genUncurry l 3 id fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [_, _, _, _, _, fun] = genUncurry l 4 id fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [_, _, _, _, _, _, fun] = genUncurry l 5 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun0")) [fun] = genUncurry l 0 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun1")) [fun] = genUncurry l 1 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun2")) [fun] = genUncurry l 2 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun3")) [fun] = genUncurry l 3 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [fun] = genUncurry l 4 id fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [fun] = genUncurry l 5 id fun
 -- ErlIO/A
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [_, fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [_, _, fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [_, _, _, fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [_, _, _, _, fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [_, _, _, _, _, fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [_, _, _, _, _, _, fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
 -- Default
 genCon namespaceInfo l name args =
   ECon l (constructorName namespaceInfo name) args
@@ -172,20 +172,15 @@ argsToErlMatchers : (args : List Name) -> ErlMatchers vars args
 argsToErlMatchers [] = []
 argsToErlMatchers (x :: xs) = (::) {newVar=x} MAny (argsToErlMatchers xs)
 
-supplyErasedArgs : Line -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlExpr vars
-supplyErasedArgs l [] body = body
-supplyErasedArgs l (argVar :: argVars) body =
-  supplyErasedArgs l argVars (genLet l argVar (genErased l) body)
+readConAltTuple : Line -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlMatcher vars
+readConAltTuple l args body =
+  MTuple (argsToErlMatchers args) body
 
-readConAltTuple : Line -> (erasedArgs : List Name) -> (matcherArgs : List Name) -> ErlExpr (erasedArgs ++ matcherArgs ++ vars) -> ErlMatcher vars
-readConAltTuple l erasedArgs matcherArgs body =
-  MTuple (argsToErlMatchers matcherArgs) (supplyErasedArgs l erasedArgs body)
-
-readConAltFun : Line -> (arity : Nat) -> (erasedArgs : List Name) -> (funVar : Name) -> ErlExpr (erasedArgs ++ (funVar :: vars)) -> (transform : {vars : _} -> ErlExpr vars -> ErlExpr vars) -> ErlMatcher vars
-readConAltFun l arity erasedArgs funVar body transform =
+readConAltFun : Line -> (arity : Nat) -> (funVar : Name) -> ErlExpr (funVar :: vars) -> (transform : {vars : _} -> ErlExpr vars -> ErlExpr vars) -> ErlMatcher vars
+readConAltFun l arity funVar body transform =
   let tempVar = MN "" 0
       curriedFunMatcher = MTransform MAny tempVar (genCurry l arity transform (ELocal l First))
-  in MTransform curriedFunMatcher funVar (supplyErasedArgs l erasedArgs body)
+  in MTransform curriedFunMatcher funVar body
 
 readConAlt : NamespaceInfo -> Line -> Name -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlMatcher vars
 -- Unit
@@ -199,14 +194,14 @@ readConAlt namespaceInfo l (NS ["Prelude"] (UN "False")) [] body =
   let unusedVar = MN "" 0
   in MTransform (MExact (EAtom l "false")) unusedVar (weaken body)
 -- List
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [ty1Var] body =
+readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
   let unusedVar = MN "" 0
-  in MTransform MNil unusedVar (weaken (supplyErasedArgs l [ty1Var] body))
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [ty1Var, xVar, xsVar] body =
-  MCons MAny MAny xVar xsVar (supplyErasedArgs l [ty1Var] body)
+  in MTransform MNil unusedVar (weaken body)
+readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [xVar, xsVar] body =
+  MCons MAny MAny xVar xsVar body
 -- Raw
-readConAlt namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [ty1Var, xVar] body =
-  MTransform MAny xVar (supplyErasedArgs l [ty1Var] body)
+readConAlt namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [xVar] body =
+  MTransform MAny xVar body
 -- ErlAtom
 readConAlt namespaceInfo l (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) [xVar] body =
   let tempVar = MN "" 0
@@ -223,53 +218,53 @@ readConAlt namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "Nil")) [] b
   let unusedVar = MN "" 0
   in MTransform MNil unusedVar (weaken body)
 -- ErlCons
-readConAlt namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "::")) [ty1Var, ty2Var, xVar, yVar] body =
-  MCons MAny MAny xVar yVar (supplyErasedArgs l [ty1Var, ty2Var] body)
+readConAlt namespaceInfo l (NS ["MaybeImproperLists", "Erlang"] (UN "::")) [xVar, yVar] body =
+  MCons MAny MAny xVar yVar body
 -- ErlList
 readConAlt namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "Nil")) [] body =
   let unusedVar = MN "" 0
   in MTransform MNil unusedVar (weaken body)
-readConAlt namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "::")) [ty1Var, ty2Var, xVar, xsVar] body =
-  MCons MAny MAny xVar xsVar (supplyErasedArgs l [ty1Var, ty2Var] body)
+readConAlt namespaceInfo l (NS ["ProperLists", "Erlang"] (UN "::")) [xVar, xsVar] body =
+  MCons MAny MAny xVar xsVar body
 -- ErlTuple/A
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) [] body =
-  readConAltTuple l [] [] body
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) [ty1Var, x1Var] body =
-  readConAltTuple l [ty1Var] [x1Var] body
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) [ty1Var, ty2Var, x1Var, x2Var] body =
-  readConAltTuple l [ty1Var, ty2Var] [x1Var, x2Var] body
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) [ty1Var, ty2Var, ty3Var, x1Var, x2Var, x3Var] body =
-  readConAltTuple l [ty1Var, ty2Var, ty3Var] [x1Var, x2Var, x3Var] body
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) [ty1Var, ty2Var, ty3Var, ty4Var, x1Var, x2Var, x3Var, x4Var] body =
-  readConAltTuple l [ty1Var, ty2Var, ty3Var, ty4Var] [x1Var, x2Var, x3Var, x4Var] body
-readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) [ty1Var, ty2Var, ty3Var, ty4Var, ty5Var, x1Var, x2Var, x3Var, x4Var, x5Var] body =
-  readConAltTuple l [ty1Var, ty2Var, ty3Var, ty4Var, ty5Var] [x1Var, x2Var, x3Var, x4Var, x5Var] body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple0")) args body =
+  MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple1")) args body =
+  MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple2")) args body =
+  MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple3")) args body =
+  MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple4")) args body =
+  MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Tuples", "Erlang"] (UN "MkErlTuple5")) args body =
+  MTuple (argsToErlMatchers args) body
 -- ErlFun/A
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun0")) [retVar, funVar] body =
-  readConAltFun l 0 [retVar] funVar body id
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun1")) [retVar, ty1Var, funVar] body =
-  readConAltFun l 1 [retVar, ty1Var] funVar body id
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun2")) [retVar, ty1Var, ty2Var, funVar] body =
-  readConAltFun l 2 [retVar, ty1Var, ty2Var] funVar body id
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun3")) [retVar, ty1Var, ty2Var, ty3Var, funVar] body =
-  readConAltFun l 3 [retVar, ty1Var, ty2Var, ty3Var] funVar body id
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [retVar, ty1Var, ty2Var, ty3Var, ty4Var, funVar] body =
-  readConAltFun l 4 [retVar, ty1Var, ty2Var, ty3Var, ty4Var] funVar body id
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [retVar, ty1Var, ty2Var, ty3Var, ty4Var, ty5Var, funVar] body =
-  readConAltFun l 5 [retVar, ty1Var, ty2Var, ty3Var, ty4Var, ty5Var] funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun0")) [funVar] body =
+  readConAltFun l 0 funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun1")) [funVar] body =
+  readConAltFun l 1 funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun2")) [funVar] body =
+  readConAltFun l 2 funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun3")) [funVar] body =
+  readConAltFun l 3 funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [funVar] body =
+  readConAltFun l 4 funVar body id
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [funVar] body =
+  readConAltFun l 5 funVar body id
 -- ErlIO/A
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [retVar, funVar] body =
-  readConAltFun l 0 [retVar] funVar body (genMkIO namespaceInfo l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [retVar, ty1Var, funVar] body =
-  readConAltFun l 1 [retVar, ty1Var] funVar body (genMkIO namespaceInfo l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [retVar, ty1Var, ty2Var, funVar] body =
-  readConAltFun l 2 [retVar, ty1Var, ty2Var] funVar body (genMkIO namespaceInfo l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [retVar, ty1Var, ty2Var, ty3Var, funVar] body =
-  readConAltFun l 3 [retVar, ty1Var, ty2Var, ty3Var] funVar body (genMkIO namespaceInfo l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [retVar, ty1Var, ty2Var, ty3Var, ty4Var, funVar] body =
-  readConAltFun l 4 [retVar, ty1Var, ty2Var, ty3Var, ty4Var] funVar body (genMkIO namespaceInfo l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [retVar, ty1Var, ty2Var, ty3Var, ty4Var, ty5Var, funVar] body =
-  readConAltFun l 5 [retVar, ty1Var, ty2Var, ty3Var, ty4Var, ty5Var] funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [funVar] body =
+  readConAltFun l 0 funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [funVar] body =
+  readConAltFun l 1 funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [funVar] body =
+  readConAltFun l 2 funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [funVar] body =
+  readConAltFun l 3 funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [funVar] body =
+  readConAltFun l 4 funVar body (genMkIO namespaceInfo l)
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [funVar] body =
+  readConAltFun l 5 funVar body (genMkIO namespaceInfo l)
 -- Default
 readConAlt namespaceInfo l name args body =
   let conAtom = EAtom l (constructorName namespaceInfo name)
@@ -479,8 +474,8 @@ mutual
     pure $ genThrow l "Error: Badly formed erlReceive"
 
   readErlMatcherClauses : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (List (ErlMatcher vars))
-  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "Nil")) tag [_]) = pure []
-  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "::")) tag [_, x, xs]) = do
+  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "Nil")) tag []) = pure []
+  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "::")) tag [x, xs]) = do
     first <- readErlMatcher namespaceInfo l vs x
     rest <- readErlMatcherClauses namespaceInfo l vs xs
     pure (first :: rest)
@@ -489,7 +484,7 @@ mutual
 
   readErlMatcher : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (ErlMatcher vars)
   -- MExact
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MExact")) tag [_, _, matchValue]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MExact")) tag [erlTypePrf, matchValue]) = do
     let unusedVar = MN "" 0
     pure $ MTransform (MExact !(genCExp namespaceInfo vs matchValue)) unusedVar (genMkUnit l)
   -- MAny
@@ -511,7 +506,7 @@ mutual
     let unusedVar = MN "" 0
     pure $ MTransform MNil unusedVar (genMkUnit l)
   -- MCons
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCons")) tag [_, _, _, headMatcher, tailMatcher, transformFun]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCons")) tag [headMatcher, tailMatcher, transformFun]) = do
     headErlMatcher <- readErlMatcher namespaceInfo l vs headMatcher
     tailErlMatcher <- readErlMatcher namespaceInfo l vs tailMatcher
     fun <- genCExp namespaceInfo vs transformFun
@@ -519,17 +514,17 @@ mutual
     let tailVar = MN "" 0
     pure $ MCons headErlMatcher tailErlMatcher headVar tailVar (genAppCurriedFun l (weakenNs [headVar, tailVar] fun) [ELocal l First, ELocal l (Later First)])
   -- MList
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MList")) tag [_, _, xs, transformFun]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MList")) tag [xs, transformFun]) = do
     (args ** erlMatchers) <- readErlMatchers namespaceInfo l vs xs
     fun <- genCExp namespaceInfo vs transformFun
     pure $ MList erlMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
   -- MTuple
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTuple")) tag [_, _, xs, transformFun]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTuple")) tag [xs, transformFun]) = do
     (args ** erlMatchers) <- readErlMatchers namespaceInfo l vs xs
     fun <- genCExp namespaceInfo vs transformFun
     pure $ MTuple erlMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
   -- MMapSubset
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapSubset")) tag [_, _, xs, transformFun]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapSubset")) tag [xs, transformFun]) = do
     (args ** erlMapEntryMatchers) <- readErlMapEntryMatchers namespaceInfo l vs xs
     fun <- genCExp namespaceInfo vs transformFun
     pure $ MMapSubset erlMapEntryMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
@@ -539,7 +534,7 @@ mutual
     let resultVar = MN "" 0
     pure $ MTransform (MFun arity) resultVar (genCurry l arity (genMkIO namespaceInfo l . genTryCatch namespaceInfo l) (ELocal l First))
   -- MTransform
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTransform")) tag [_, _, matcher, transformFun]) = do
+  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTransform")) tag [matcher, transformFun]) = do
     erlMatcher <- readErlMatcher namespaceInfo l vs matcher
     let resultVar = MN "" 0
     pure $ MTransform erlMatcher resultVar (EApp l (weaken !(genCExp namespaceInfo vs transformFun)) [ELocal 1 First])
@@ -550,7 +545,7 @@ mutual
   readErlMatchers : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (args ** ErlMatchers vars args)
   readErlMatchers namespaceInfo l vs (CCon fc (NS ["ErlMatchers", "CaseExpr", "Erlang"] (UN "Nil")) tag []) =
     pure ([] ** [])
-  readErlMatchers namespaceInfo l vs (CCon fc (NS ["ErlMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [_, _, x, xs]) = do
+  readErlMatchers namespaceInfo l vs (CCon fc (NS ["ErlMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [x, xs]) = do
     first <- readErlMatcher namespaceInfo l vs x
     (args ** rest) <- readErlMatchers namespaceInfo l vs xs
     let newVar = MN "" 0
@@ -561,7 +556,7 @@ mutual
   readErlMapEntryMatchers : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (args ** ErlMapEntryMatchers vars args)
   readErlMapEntryMatchers namespaceInfo l vs (CCon fc (NS ["ErlMapEntryMatchers", "CaseExpr", "Erlang"] (UN "Nil")) tag []) =
     pure ([] ** [])
-  readErlMapEntryMatchers namespaceInfo l vs (CCon fc (NS ["ErlMapEntryMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [_, _, x, xs]) = do
+  readErlMapEntryMatchers namespaceInfo l vs (CCon fc (NS ["ErlMapEntryMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [x, xs]) = do
     mapEntry <- readErlMapEntry namespaceInfo l vs x
     (args ** rest) <- readErlMapEntryMatchers namespaceInfo l vs xs
     let newVar = MN "" 0
@@ -570,7 +565,7 @@ mutual
     throw (InternalError ("Expected ErlMapEntryMatchers " ++ show args))
 
   readErlMapEntry : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (ErlExpr vars, ErlMatcher vars)
-  readErlMapEntry namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MkErlMapEntry")) tag [_, _, _, key, matcher]) = do
+  readErlMapEntry namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MkErlMapEntry")) tag [erlTypePrf, key, matcher]) = do
     keyExpr <- genCExp namespaceInfo vs key
     valueMatcher <- readErlMatcher namespaceInfo l vs matcher
     pure (keyExpr, valueMatcher)
@@ -578,9 +573,9 @@ mutual
     throw (InternalError ("Expected ErlMapEntry " ++ show args))
 
   readListLength : CExp vars -> Core Nat
-  readListLength (CCon fc (NS ["Prelude"] (UN "Nil")) _ [_]) =
+  readListLength (CCon fc (NS ["Prelude"] (UN "Nil")) _ []) =
     pure 0
-  readListLength (CCon fc (NS ["Prelude"] (UN "::")) _ [_, x, xs]) = do
+  readListLength (CCon fc (NS ["Prelude"] (UN "::")) _ [x, xs]) = do
     tailLength <- readListLength xs
     pure (1 + tailLength)
   readListLength args =
@@ -603,7 +598,7 @@ genDef namespaceInfo l name (MkError body) = do
   pure $ Just funDecl
 genDef namespaceInfo l name (MkForeign _ _ _) =
   pure Nothing
-genDef namespaceInfo l name (MkCon t a) =
+genDef namespaceInfo l name (MkCon tag arity nt) =
   pure Nothing
 
 
@@ -634,7 +629,7 @@ externalArity (Arity arity) = arity
 -- TODO: Do not require name of exported function to be a static string?
 export
 readExports : NamespaceInfo -> Line -> CExp [] -> Core (List ErlFunDecl)
-readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [_, exprTy, CPrimVal _ (Str fnName), expr]) = do
+readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [exprTy, CPrimVal _ (Str fnName), expr]) = do
   let intArity = internalArity exprTy
   let extArity = externalArity intArity
   let args = take extArity (repeat (MN "" 0))

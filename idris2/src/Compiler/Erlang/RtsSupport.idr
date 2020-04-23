@@ -60,8 +60,8 @@ genThrow l msg =
 export
 genTryCatch : NamespaceInfo -> Line -> ErlExpr vars -> ErlExpr vars
 genTryCatch namespaceInfo l body =
-  let okExpr = ECon l (constructorName namespaceInfo (NS ["Prelude"] (UN "Right"))) [genErased l, genErased l, ELocal l First]
-      errorExpr = ECon l (constructorName namespaceInfo (NS ["Prelude"] (UN "Left"))) [genErased l, genErased l, ELocal l First]
+  let okExpr = ECon l (constructorName namespaceInfo (NS ["Prelude"] (UN "Right"))) [ELocal l First]
+      errorExpr = ECon l (constructorName namespaceInfo (NS ["Prelude"] (UN "Left"))) [ELocal l First]
   in ETryCatch l body (MN "" 0) okExpr (MN "" 0) errorExpr
 
 export
@@ -73,7 +73,7 @@ genMkUnit l =
 export
 genMkIORes : NamespaceInfo -> Line -> ErlExpr vars -> ErlExpr vars
 genMkIORes namespaceInfo l expr =
-  ECon l (constructorName namespaceInfo (NS ["PrimIO"] (UN "MkIORes"))) [genErased l, expr, EIdrisConstant l IWorldVal]
+  ECon l (constructorName namespaceInfo (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
 
 -- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
 export
@@ -81,7 +81,7 @@ genMkIO : NamespaceInfo -> Line -> ErlExpr vars -> ErlExpr vars
 genMkIO namespaceInfo l expr =
   let worldVar = MN "" 0
       fn = ELam l [worldVar] (genMkIORes namespaceInfo l (weaken expr))
-  in ECon l (constructorName namespaceInfo (NS ["PrimIO"] (UN "MkIO"))) [genErased l, fn]
+  in ECon l (constructorName namespaceInfo (NS ["PrimIO"] (UN "MkIO"))) [fn]
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr vars -> ErlExpr vars

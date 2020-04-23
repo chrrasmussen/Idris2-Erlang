@@ -317,7 +317,7 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
 
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
-         findNewtype cons
+         --findNewtype cons -- TODO: Add option to disable newtype for specific types
 
          -- Type is defined mutually with every data type undefined at the
          -- point it was declared, and every data type undefined right now
