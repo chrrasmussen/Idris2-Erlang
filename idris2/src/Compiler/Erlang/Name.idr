@@ -19,7 +19,7 @@ record NamespaceInfo where
 
 
 export
-getNamespace : Name -> List String
+getNamespace : Name -> Namespace
 getNamespace (NS ns _) = ns
 getNamespace n = []
 
@@ -49,13 +49,10 @@ moduleNameFunctionName prefix n@(NS ns dcons) = (moduleName prefix n, genName dc
 moduleNameFunctionName prefix n = (moduleName prefix n, genName n)
 
 export
-constructorName : NamespaceInfo -> Name -> String
-constructorName namespaceInfo (NS ns (UN dcons)) =
-  let modName = moduleNameFromNS (prefix namespaceInfo) ns
-  in modName ++ "." ++ dcons
-constructorName namespaceInfo (UN dcons) =
-  let modName = moduleNameFromNS (prefix namespaceInfo) []
-  in modName ++ "." ++ dcons
-constructorName namespaceInfo n =
-  let (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) n
-  in modName ++ "." ++ fnName
+constructorName : Name -> String
+constructorName name =
+  let prefix = showSep "." ("Idris" :: reverse (getNamespace name))
+      ctorName = case dropNS name of
+        (UN dataCtor) => dataCtor
+        n => genName n
+  in prefix ++ "." ++ ctorName

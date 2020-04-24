@@ -163,7 +163,7 @@ genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [fun] = genU
 genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
 -- Default
 genCon namespaceInfo l name args =
-  ECon l (constructorName namespaceInfo name) args
+  ECon l (constructorName name) args
 
 
 -- DATA DECONSTRUCTORS
@@ -254,20 +254,20 @@ readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [funVar
   readConAltFun l 5 funVar body id
 -- ErlIO/A
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [funVar] body =
-  readConAltFun l 0 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 0 funVar body (genMkIO l)
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [funVar] body =
-  readConAltFun l 1 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 1 funVar body (genMkIO l)
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [funVar] body =
-  readConAltFun l 2 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 2 funVar body (genMkIO l)
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [funVar] body =
-  readConAltFun l 3 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 3 funVar body (genMkIO l)
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [funVar] body =
-  readConAltFun l 4 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 4 funVar body (genMkIO l)
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [funVar] body =
-  readConAltFun l 5 funVar body (genMkIO namespaceInfo l)
+  readConAltFun l 5 funVar body (genMkIO l)
 -- Default
 readConAlt namespaceInfo l name args body =
-  let conAtom = EAtom l (constructorName namespaceInfo name)
+  let conAtom = EAtom l (constructorName name)
       unusedVar = MN "" 0
   in MTuple ((::) {newVar=unusedVar} (MExact conAtom) (argsToErlMatchers args)) (weaken body)
 
@@ -327,19 +327,19 @@ toPrim pn = Nothing
 genExtPrim : NamespaceInfo -> Line -> ExtPrim -> List (ErlExpr vars) -> Core (ErlExpr vars)
 genExtPrim namespaceInfo l PutStr [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
-  let retVal = genMkIORes namespaceInfo l (genMkUnit l)
+  let retVal = genMkIORes l (genMkUnit l)
   pure $ genSequence l [putStrCall, retVal]
 genExtPrim namespaceInfo l GetStr [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
-  pure $ genMkIORes namespaceInfo l getStrCall
+  pure $ genMkIORes l getStrCall
 genExtPrim namespaceInfo l VoidElim [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l ErlUnsafeCall [_, ret, modName, fnName, args, world] = do
   let erlCall = genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
-  pure $ genMkIORes namespaceInfo l erlCall
+  pure $ genMkIORes l erlCall
 genExtPrim namespaceInfo l ErlTryCatch [_, action, world] = do
   let actionExpr = genUnsafePerformIO namespaceInfo l action
-  pure $ genMkIORes namespaceInfo l (genTryCatch namespaceInfo l actionExpr)
+  pure $ genMkIORes l (genTryCatch l actionExpr)
 genExtPrim namespaceInfo l ErlModule [] = do
   let moduleName = moduleNameFromNS (prefix namespaceInfo) (fromMaybe [] (inNS namespaceInfo)) -- TODO: Remove fromMaybe
   pure $ EAtom l moduleName
@@ -469,7 +469,7 @@ mutual
   genErlReceive namespaceInfo l vs [_, timeout, def, matchersCExp@(CCon _ _ _ _), world] = do
     clauses <- readErlMatcherClauses namespaceInfo l vs matchersCExp
     let receive = EReceive l clauses !(genCExp namespaceInfo vs timeout) !(genCExp namespaceInfo vs def)
-    pure $ genMkIORes namespaceInfo l receive
+    pure $ genMkIORes l receive
   genErlReceive namespaceInfo l vs args =
     pure $ genThrow l "Error: Badly formed erlReceive"
 
@@ -532,7 +532,7 @@ mutual
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MIO")) tag [types]) = do
     arity <- readListLength types
     let resultVar = MN "" 0
-    pure $ MTransform (MFun arity) resultVar (genCurry l arity (genMkIO namespaceInfo l . genTryCatch namespaceInfo l) (ELocal l First))
+    pure $ MTransform (MFun arity) resultVar (genCurry l arity (genMkIO l . genTryCatch l) (ELocal l First))
   -- MTransform
   readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTransform")) tag [matcher, transformFun]) = do
     erlMatcher <- readErlMatcher namespaceInfo l vs matcher
