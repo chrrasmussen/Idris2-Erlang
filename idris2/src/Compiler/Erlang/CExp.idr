@@ -382,7 +382,7 @@ mutual
     let (vs', _) = extendEVars [x] vs
     body' <- genCExp namespaceInfo vs' body
     pure $ ELam l [x] body'
-  genCExp namespaceInfo vs (CLet fc x val body) = do
+  genCExp namespaceInfo vs (CLet fc x inlineOK val body) = do
     let l = genFC fc
     let (vs', _) = extendEVars [x] vs
     val' <- genCExp namespaceInfo vs val
