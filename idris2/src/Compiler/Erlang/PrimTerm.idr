@@ -34,12 +34,26 @@ escapeString : List Char -> String -> String
 escapeString [] = id
 escapeString (c :: cs) = escapeChar c . escapeString cs
 
+-- Convert a Double to a String. Includes a decimal separator for all Double numbers.
+--
+-- > showDouble 42
+-- "42.0"
+--
+-- TODO: It may be possible to remove this if all codegens agree on making
+-- `show {a=Double}` include a decimal separator.
+showDouble : Double -> String
+showDouble x =
+  let dblStr = show x
+  in if '.' `elem` unpack dblStr
+    then dblStr
+    else dblStr ++ ".0"
+
 mutual
   export
   showPrimTerm : PrimTerm -> String
   showPrimTerm (PAtom str) = "'" ++ escapeString (unpack str) "" ++ "'"
   showPrimTerm (PChar x) = "$" ++ escapeChar x ""
-  showPrimTerm (PFloat x) = show x -- TODO: Must include `.` in output
+  showPrimTerm (PFloat x) = showDouble x
   showPrimTerm (PInteger x) = show x
   showPrimTerm (PTuple xs) = "{" ++ showSep "," (mapShowPrimTerm xs) ++ "}"
   showPrimTerm (PList xs) = "[" ++ showSep "," (mapShowPrimTerm xs) ++ "]"
