@@ -28,9 +28,6 @@ import System.Info
 findErlangExecutable : IO String
 findErlangExecutable = pure "erl"
 
-findErlangCompiler : IO String
-findErlangCompiler = pure "erlc"
-
 findEscript : IO String
 findEscript = pure "escript"
 
@@ -158,11 +155,9 @@ namespace MainEntrypoint
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  -- TODO: Add options to `erlc`
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core ()
   writeBeamFiles opts tm outdir modName = do
     erl <- coreLift findErlangExecutable
-    erlc <- coreLift findErlangCompiler
     tmpDir <- coreLift $ tmpName
     coreLift $ system ("mkdir -p " ++ quoted tmpDir)
     generatedModules <- writeAbstrFiles opts tm tmpDir modName
@@ -264,11 +259,9 @@ namespace Library
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  -- TODO: Add options to `erlc`
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
   writeBeamFiles opts outdir = do
     erl <- coreLift findErlangExecutable
-    erlc <- coreLift findErlangCompiler
     tmpDir <- coreLift $ tmpName
     coreLift $ system ("mkdir -p " ++ quoted tmpDir)
     generatedModules <- writeAbstrFiles opts tmpDir
