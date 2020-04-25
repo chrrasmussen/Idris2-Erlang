@@ -59,6 +59,29 @@ compileAbstrCmd erl srcfiles outdir =
         ]
   in evalErlangCmd erl code
 
+generateErlCmd : (erl : String) -> (srcfiles : List String) -> (outdir : String) -> String
+generateErlCmd erl srcfiles outdir =
+  let code =
+      unwords
+        [ "ModuleNameFromForms = fun(Forms) ->"
+        ,   "lists:foldl("
+        ,     "fun"
+        ,       "({attribute, _, module, ModuleName}, _Acc) -> {ok, ModuleName};"
+        ,       "(_, Acc) -> Acc"
+        ,     "end, not_found, Forms)"
+        , "end,"
+        , "GenerateErl = fun(File, OutputDir) ->"
+        ,   "{ok, Forms} = file:consult(File),"
+        ,   "{ok, ModuleName} = ModuleNameFromForms(Forms),"
+        ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".erl\"),"
+        ,   "ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms)),"
+        ,   "file:write_file(OutputFile, ErlangSource)"
+        , "end,"
+        , "lists:map(fun(File) -> GenerateErl(File, " ++ show outdir ++ ") end, " ++ show srcfiles ++ "),"
+        , "halt(0)"
+        ]
+  in evalErlangCmd erl code
+
 groupBy : (a -> a -> Bool) -> List a -> List (List a)
 groupBy _ [] = []
 groupBy p list@(x :: xs) =
@@ -155,6 +178,17 @@ namespace MainEntrypoint
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core ()
+  writeErlFiles opts tm outdir modName = do
+    erl <- coreLift findErlangExecutable
+    tmpDir <- coreLift $ tmpName
+    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+    generatedModules <- writeAbstrFiles opts tm tmpDir modName
+    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    coreLift $ system $ generateErlCmd erl generatedFiles outdir
+    pure ()
+
+  -- TODO: Add error handling
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core ()
   writeBeamFiles opts tm outdir modName = do
     erl <- coreLift findErlangExecutable
@@ -180,6 +214,9 @@ namespace MainEntrypoint
     case outputFormat opts of
       AbstractFormat => do
         writeAbstrFiles opts tm outdir modName
+        pure ()
+      Erlang => do
+        writeErlFiles opts tm outdir modName
         pure ()
       Beam => do
         writeBeamFiles opts tm outdir modName
@@ -259,6 +296,17 @@ namespace Library
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
+  writeErlFiles opts outdir = do
+    erl <- coreLift findErlangExecutable
+    tmpDir <- coreLift $ tmpName
+    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+    generatedModules <- writeAbstrFiles opts tmpDir
+    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    coreLift $ system $ generateErlCmd erl generatedFiles outdir
+    pure ()
+
+  -- TODO: Add error handling
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
   writeBeamFiles opts outdir = do
     erl <- coreLift findErlangExecutable
@@ -276,6 +324,9 @@ namespace Library
     case outputFormat opts of
       AbstractFormat => do
         writeAbstrFiles opts outdir
+        pure ()
+      Erlang => do
+        writeErlFiles opts outdir
         pure ()
       Beam => do
         writeBeamFiles opts outdir

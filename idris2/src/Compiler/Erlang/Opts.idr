@@ -7,7 +7,7 @@ import Compiler.Erlang.Name
 
 
 public export
-data OutputFormat = AbstractFormat | Beam
+data OutputFormat = AbstractFormat | Erlang | Beam
 
 public export
 record Opts where
@@ -50,6 +50,7 @@ stringToFlags str = parseFlags (words str)
     parseFlags : List String -> List Flag
     parseFlags [] = []
     parseFlags ("--format" :: "abstr" :: rest) = SetOutputFormat AbstractFormat :: parseFlags rest
+    parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat Erlang :: parseFlags rest
     parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat Beam :: parseFlags rest
     parseFlags ("--prefix" :: prefix :: rest) = SetPrefix prefix :: parseFlags rest
     parseFlags ("--library" :: rest) = SetGenerateAsLibrary :: parseFlags rest
