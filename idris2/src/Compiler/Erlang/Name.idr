@@ -12,18 +12,31 @@ Namespace : Type
 Namespace = List String
 
 public export
+data OutputBundle : Type where
+  Concat : (ns : String) -> OutputBundle
+  Split : (prefix : String) -> (inNS : Namespace) -> OutputBundle
+
+export
+Eq OutputBundle where
+  (Concat ns1) == (Concat ns2) = ns1 == ns2
+  (Split prefix1 inNS1) == (Split prefix2 inNS2) = prefix1 == prefix2 && inNS1 == inNS2
+  _ == _ = False
+
+public export
 record NamespaceInfo where
   constructor MkNamespaceInfo
-  prefix : String
-  inNS : Maybe Namespace
+  outputBundle : OutputBundle
 
+export
+Eq NamespaceInfo where
+  (MkNamespaceInfo outputBundle1) == (MkNamespaceInfo outputBundle2) =
+    outputBundle1 == outputBundle2
 
 export
 getNamespace : Name -> Namespace
 getNamespace (NS ns _) = ns
 getNamespace n = []
 
-export
 genName : Name -> String
 genName (NS ns n) = "ns--" ++ showSep "-" ns ++ "--" ++ genName n
 genName (UN n) = "un--" ++ n
@@ -35,18 +48,35 @@ genName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 genName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
 genName (Resolved i) = "fn--" ++ show i
 
-export
-moduleNameFromNS : (prefix : String) -> List String -> String
-moduleNameFromNS prefix ns = showSep "." (prefix :: reverse ns)
+moduleNameForNS : NamespaceInfo -> Namespace -> String
+moduleNameForNS namespaceInfo ns =
+  case outputBundle namespaceInfo of
+    Concat ns => ns
+    Split prefix inNS => showSep "." (prefix :: reverse ns)
+
+moduleNameForName : NamespaceInfo -> Name -> String
+moduleNameForName namespaceInfo name = moduleNameForNS namespaceInfo (getNamespace name)
 
 export
-moduleName : (prefix : String) -> Name -> String
-moduleName prefix n = moduleNameFromNS prefix (getNamespace n)
+currentModuleName : NamespaceInfo -> String
+currentModuleName namespaceInfo =
+  case outputBundle namespaceInfo of
+    Concat ns => ns
+    Split _ inNS => moduleNameForNS namespaceInfo inNS
 
 export
-moduleNameFunctionName : (prefix : String) -> Name -> (String, String)
-moduleNameFunctionName prefix n@(NS ns dcons) = (moduleName prefix n, genName dcons)
-moduleNameFunctionName prefix n = (moduleName prefix n, genName n)
+isNameInCurrentModule : NamespaceInfo -> Name -> Bool
+isNameInCurrentModule namespaceInfo name =
+  case outputBundle namespaceInfo of
+    Concat _ => True
+    Split _ inNS => moduleNameForName namespaceInfo name == currentModuleName namespaceInfo
+
+export
+moduleNameFunctionName : NamespaceInfo -> Name -> (String, String)
+moduleNameFunctionName namespaceInfo name =
+  case outputBundle namespaceInfo of
+    Concat ns => (ns, genName name)
+    Split _ _ => (moduleNameForName namespaceInfo name, genName (dropNS name))
 
 export
 constructorName : Name -> String

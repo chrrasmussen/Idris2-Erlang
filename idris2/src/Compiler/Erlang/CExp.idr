@@ -340,9 +340,8 @@ genExtPrim namespaceInfo l ErlUnsafeCall [_, ret, modName, fnName, args, world] 
 genExtPrim namespaceInfo l ErlTryCatch [_, action, world] = do
   let actionExpr = genUnsafePerformIO namespaceInfo l action
   pure $ genMkIORes l (genTryCatch l actionExpr)
-genExtPrim namespaceInfo l ErlModule [] = do
-  let moduleName = moduleNameFromNS (prefix namespaceInfo) (fromMaybe [] (inNS namespaceInfo)) -- TODO: Remove fromMaybe
-  pure $ EAtom l moduleName
+genExtPrim namespaceInfo l ErlModule [] =
+  pure $ EAtom l (currentModuleName namespaceInfo)
 genExtPrim namespaceInfo l ErlBufferNew [size] =
   pure $ EBufferNew l size
 genExtPrim namespaceInfo l ErlBufferSetByte [bin, loc, value] =
@@ -588,12 +587,12 @@ export
 genDef : NamespaceInfo -> Line -> Name -> CDef -> Core (Maybe ErlFunDecl)
 genDef namespaceInfo l name (MkFun args body) = do
   let (vs, _) = initEVars args
-  let (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) name
+  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   let funDecl = MkFunDecl l Public fnName args !(genCExp namespaceInfo vs body)
   pure $ Just funDecl
 genDef namespaceInfo l name (MkError body) = do
   let vs = fst (initEVars []) -- TODO: Workaround for `Trying to use linear name vs in non-linear context` in Idris 1
-  let (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) name
+  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   let funDecl = MkFunDecl l Private fnName [] !(genCExp namespaceInfo vs body)
   pure $ Just funDecl
 genDef namespaceInfo l name (MkForeign _ _ _) =

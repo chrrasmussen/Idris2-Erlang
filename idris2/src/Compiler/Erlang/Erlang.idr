@@ -68,16 +68,16 @@ groupBy p list@(x :: xs) =
   let (matches, remaining) = partition (p x) list
   in matches :: groupBy p (assert_smaller list remaining)
 
-defsPerModule : List (Namespace, a) -> List (Namespace, List a)
+defsPerModule : List (NamespaceInfo, a) -> List (NamespaceInfo, List a)
 defsPerModule defs =
-  let modules = groupBy (\(ns1, _), (ns2, _) => ns1 == ns2) defs
+  let modules = groupBy (\(namespaceInfo1, _), (namespaceInfo2, _) => namespaceInfo1 == namespaceInfo2) defs
   in mapMaybe extractModuleName modules
     where
-      extractModuleName : List (Namespace, a) -> Maybe (Namespace, List a)
+      extractModuleName : List (NamespaceInfo, a) -> Maybe (NamespaceInfo, List a)
       extractModuleName defsInModule =
         case map fst (head' defsInModule) of
           Nothing => Nothing
-          Just ns => Just (ns, map snd defsInModule)
+          Just namespaceInfo => Just (namespaceInfo, map snd defsInModule)
 
 parseExport : (Namespace, String) -> Maybe Name
 parseExport (ns, directive) = map (NS ns . UN) $ parseExport' (words directive)
@@ -86,10 +86,9 @@ parseExport (ns, directive) = map (NS ns . UN) $ parseExport' (words directive)
     parseExport' ("export" :: exportsFuncStr :: _) = Just exportsFuncStr
     parseExport' _ = Nothing
 
-getExportInNamespace : List (Namespace, String) -> Namespace -> Maybe Name
-getExportInNamespace ds targetNs = do
-  let onlyRelevantDs = filter ((== targetNs) . fst) ds
-  head' (mapMaybe parseExport onlyRelevantDs)
+getExports : List (Namespace, String) -> List (Namespace, Name)
+getExports ds =
+  mapMaybe (\(ns, str) => map (\name => (ns, name)) (parseExport (ns, str))) ds
 
 showModule : ErlModule -> String
 showModule module =
@@ -110,26 +109,35 @@ genExports namespaceInfo l name = do
     | throw (InternalError ("Expected function definition for " ++ show name))
   readExports namespaceInfo l expr
 
-generateErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, String) -> String -> (Namespace, List ErlFunDecl) -> Core ()
-generateErlangModule opts ds targetDir (ns, funDecls) = do
-  defs <- get Ctxt
-  let exportsFuncName = getExportInNamespace ds ns
-  exportFunDecls <- maybe (pure []) (genExports (MkNamespaceInfo (prefix opts) (Just ns)) 4242) exportsFuncName
-  let modName = moduleNameFromNS (prefix opts) ns
+generateErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> String -> (NamespaceInfo, List ErlFunDecl) -> Core ()
+generateErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
+  let inNS = case outputBundle namespaceInfo of
+        Concat _ => Nothing
+        Split _ inNS => Just inNS
+  let exportFunName = inNS >>= (\ns => lookup ns exportFunNames)
+  exportFunDecls <- maybe (pure []) (genExports namespaceInfo 4242) exportFunName
+  let modName = currentModuleName namespaceInfo
   let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] (exportFunDecls ++ funDecls)
   let outfile = targetDir ++ dirSep ++ modName ++ ".abstr"
   Right () <- coreLift $ writeFile outfile (showModule module)
     | Left err => throw (FileErr outfile err)
   pure ()
 
-genCompdef : {auto c : Ref Ctxt Defs} -> (prefix : String) -> Line -> Name -> Core (Maybe (Namespace, ErlFunDecl))
-genCompdef prefix l name = do
-  let ns = getNamespace name
-  let namespaceInfo = MkNamespaceInfo prefix (Just ns)
+genCompdef : {auto c : Ref Ctxt Defs} -> Line -> (NamespaceInfo, Name) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
+genCompdef l (namespaceInfo, name) = do
   expr <- getCompileExpr name
   Just funDecl <- genDef namespaceInfo l name expr
     | Nothing => pure Nothing
-  pure $ Just (ns, funDecl)
+  pure $ Just (namespaceInfo, funDecl)
+
+concatNamespaceInfo : (ns : String) -> Name -> (NamespaceInfo, Name)
+concatNamespaceInfo ns name =
+  (MkNamespaceInfo (Concat ns), name)
+
+splitNamespaceInfo : (prefix : String) -> Name -> (NamespaceInfo, Name)
+splitNamespaceInfo prefix name =
+  let ns = getNamespace name
+  in (MkNamespaceInfo (Split prefix ns), name)
 
 
 namespace MainEntrypoint
@@ -138,19 +146,16 @@ namespace MainEntrypoint
   generateAbstr opts tm outdir modName = do
     let outfile = outdir ++ dirSep ++ modName ++ ".abstr"
     compileData <- getCompileData tm
-    defs <- get Ctxt
-    compdefs <- traverse (genCompdef (prefix opts) 4242) (allNames compileData)
-    let validCompdefs = mapMaybe id compdefs
-    let modules = defsPerModule validCompdefs
-    ds <- getDirectives Erlang
-    traverse_ (generateErlangModule opts ds outdir) modules
+    compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (allNames compileData)
+    let namespaceInfo = MkNamespaceInfo (Concat modName)
     let (vs, _) = initEVars []
-    mainBody <- genCExp (MkNamespaceInfo (prefix opts) Nothing) vs (mainExpr compileData) -- TODO: Supply `modName` as namespace?
+    mainBody <- genCExp namespaceInfo vs (mainExpr compileData)
     let argsVar = MN "" 0
-    let module = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] [MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 (weaken mainBody))]
-    Right () <- coreLift $ writeFile outfile (showModule module)
-      | Left err => throw (FileErr outfile err)
-    pure (modName :: map (moduleNameFromNS (prefix opts) . fst) modules)
+    let mainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 (weaken mainBody))
+    let validCompdefs = (namespaceInfo, mainFunDecl) :: mapMaybe id compdefs
+    let modules = defsPerModule validCompdefs
+    traverse_ (generateErlangModule opts [] outdir) modules
+    pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
   -- TODO: Add options to `erlc`
@@ -248,16 +253,15 @@ namespace Library
   generateAbstr : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core (List String)
   generateAbstr opts outdir = do
     ds <- getDirectives Erlang
+    let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
     let namespacesToCompile = changedNamespaces opts
-    let exportFuncs = maybe (mapMaybe parseExport ds) (mapMaybe (getExportInNamespace ds)) namespacesToCompile
-    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: exportFuncs
+    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
     compileData <- getExportedCompileData (shouldCompileName namespacesToCompile) extraNames
-    defs <- get Ctxt
-    compdefs <- traverse (genCompdef (prefix opts) 4242) (filter (shouldCompileName namespacesToCompile) (allNames compileData))
+    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefix opts)) (filter (shouldCompileName namespacesToCompile) (allNames compileData))
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
-    traverse_ (generateErlangModule opts ds outdir) modules
-    pure (map (moduleNameFromNS (prefix opts) . fst) modules)
+    traverse_ (generateErlangModule opts exportFunNames outdir) modules
+    pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
   -- TODO: Add options to `erlc`

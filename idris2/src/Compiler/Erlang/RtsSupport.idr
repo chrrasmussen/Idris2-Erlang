@@ -21,9 +21,8 @@ genErased l =
 export
 genRef : NamespaceInfo -> Line -> Name -> ErlExpr vars
 genRef namespaceInfo l name =
-  let currentNS = getNamespace name
-      (modName, fnName) = moduleNameFunctionName (prefix namespaceInfo) name
-  in if Just currentNS == inNS namespaceInfo
+  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
+  in if isNameInCurrentModule namespaceInfo name
     then EAtom l fnName
     else ERef l (EAtom l modName) (EAtom l fnName)
 
