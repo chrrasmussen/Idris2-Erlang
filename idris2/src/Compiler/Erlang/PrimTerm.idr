@@ -48,17 +48,12 @@ showDouble x =
     then dblStr
     else dblStr ++ ".0"
 
-mutual
-  export
-  showPrimTerm : PrimTerm -> String
-  showPrimTerm (PAtom str) = "'" ++ escapeString (unpack str) "" ++ "'"
-  showPrimTerm (PChar x) = "$" ++ escapeChar x ""
-  showPrimTerm (PFloat x) = showDouble x
-  showPrimTerm (PInteger x) = show x
-  showPrimTerm (PTuple xs) = "{" ++ showSep "," (mapShowPrimTerm xs) ++ "}"
-  showPrimTerm (PList xs) = "[" ++ showSep "," (mapShowPrimTerm xs) ++ "]"
-  showPrimTerm (PCharlist str) = "\"" ++ escapeString (unpack str) "" ++ "\""
-
-  mapShowPrimTerm : List PrimTerm -> List String
-  mapShowPrimTerm [] = []
-  mapShowPrimTerm (x :: xs) = showPrimTerm x :: mapShowPrimTerm xs
+export
+showPrimTerm : PrimTerm -> String
+showPrimTerm (PAtom str) = "'" ++ escapeString (unpack str) "" ++ "'"
+showPrimTerm (PChar x) = "$" ++ escapeChar x ""
+showPrimTerm (PFloat x) = showDouble x
+showPrimTerm (PInteger x) = show x
+showPrimTerm (PTuple xs) = "{" ++ showSep "," (assert_total (map showPrimTerm xs)) ++ "}"
+showPrimTerm (PList xs) = "[" ++ showSep "," (assert_total (map showPrimTerm xs)) ++ "]"
+showPrimTerm (PCharlist str) = "\"" ++ escapeString (unpack str) "" ++ "\""

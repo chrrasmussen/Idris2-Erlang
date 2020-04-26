@@ -238,7 +238,6 @@ genBinary l str =
   AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
 mutual
-  export
   genErlExpr : EVars vars -> ErlExpr vars -> Expr
   genErlExpr vs (ELocal l prf) = AEVar l (lookupEVar prf vs)
   genErlExpr vs (ERef l modName fnName) = AERemoteRef l (genErlExpr vs modName) (genErlExpr vs fnName)
