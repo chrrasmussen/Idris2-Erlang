@@ -154,13 +154,13 @@ genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun2")) [fun] = gen
 genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun3")) [fun] = genUncurry l 3 id fun
 genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [fun] = genUncurry l 4 id fun
 genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [fun] = genUncurry l 5 id fun
--- ErlIO/A
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
+-- ErlIOFun/A
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun2")) [fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
 -- Default
 genCon namespaceInfo l name args =
   ECon l (constructorName name) args
@@ -252,18 +252,18 @@ readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun4")) [funVar
   readConAltFun l 4 funVar body id
 readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlFun5")) [funVar] body =
   readConAltFun l 5 funVar body id
--- ErlIO/A
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO0")) [funVar] body =
+-- ErlIOFun/A
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun0")) [funVar] body =
   readConAltFun l 0 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO1")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun1")) [funVar] body =
   readConAltFun l 1 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO2")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun2")) [funVar] body =
   readConAltFun l 2 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO3")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun3")) [funVar] body =
   readConAltFun l 3 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO4")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun4")) [funVar] body =
   readConAltFun l 4 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIO5")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Functions", "Erlang"] (UN "MkErlIOFun5")) [funVar] body =
   readConAltFun l 5 funVar body (genMkIO l)
 -- Default
 readConAlt namespaceInfo l name args body =
@@ -613,12 +613,12 @@ internalArity (CCon fc (NS ["Erlang"] (UN "ETErlFun2")) _ _) = Arity 2
 internalArity (CCon fc (NS ["Erlang"] (UN "ETErlFun3")) _ _) = Arity 3
 internalArity (CCon fc (NS ["Erlang"] (UN "ETErlFun4")) _ _) = Arity 4
 internalArity (CCon fc (NS ["Erlang"] (UN "ETErlFun5")) _ _) = Arity 5
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO0")) _ _) = Arity 0
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO1")) _ _) = Arity 1
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO2")) _ _) = Arity 2
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO3")) _ _) = Arity 3
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO4")) _ _) = Arity 4
-internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIO5")) _ _) = Arity 5
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun0")) _ _) = Arity 0
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun1")) _ _) = Arity 1
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun2")) _ _) = Arity 2
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun3")) _ _) = Arity 3
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun4")) _ _) = Arity 4
+internalArity (CCon fc (NS ["Erlang"] (UN "ETErlIOFun5")) _ _) = Arity 5
 internalArity _ = Value
 
 externalArity : InternalArity -> Nat

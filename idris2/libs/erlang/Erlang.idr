@@ -98,28 +98,28 @@ namespace Functions
     MkErlFun5 : (a -> b -> c -> d -> e -> ret) -> ErlFun5 a b c d e ret
 
   public export
-  data ErlIO0 : Type -> Type where
-    MkErlIO0  : IO ret -> ErlIO0 ret
+  data ErlIOFun0 : Type -> Type where
+    MkErlIOFun0  : IO ret -> ErlIOFun0 ret
 
   public export
-  data ErlIO1 : Type -> Type -> Type where
-    MkErlIO1  : (a -> IO ret) -> ErlIO1 a ret
+  data ErlIOFun1 : Type -> Type -> Type where
+    MkErlIOFun1  : (a -> IO ret) -> ErlIOFun1 a ret
 
   public export
-  data ErlIO2 : Type -> Type -> Type -> Type where
-    MkErlIO2  : (a -> b -> IO ret) -> ErlIO2 a b ret
+  data ErlIOFun2 : Type -> Type -> Type -> Type where
+    MkErlIOFun2  : (a -> b -> IO ret) -> ErlIOFun2 a b ret
 
   public export
-  data ErlIO3 : Type -> Type -> Type -> Type -> Type where
-    MkErlIO3  : (a -> b -> c -> IO ret) -> ErlIO3 a b c ret
+  data ErlIOFun3 : Type -> Type -> Type -> Type -> Type where
+    MkErlIOFun3  : (a -> b -> c -> IO ret) -> ErlIOFun3 a b c ret
 
   public export
-  data ErlIO4 : Type -> Type -> Type -> Type -> Type -> Type where
-    MkErlIO4  : (a -> b -> c -> d -> IO ret) -> ErlIO4 a b c d ret
+  data ErlIOFun4 : Type -> Type -> Type -> Type -> Type -> Type where
+    MkErlIOFun4  : (a -> b -> c -> d -> IO ret) -> ErlIOFun4 a b c d ret
 
   public export
-  data ErlIO5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
-    MkErlIO5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIO5 a b c d e ret
+  data ErlIOFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
+    MkErlIOFun5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIOFun5 a b c d e ret
 
 
 mutual
@@ -162,12 +162,12 @@ mutual
     ETErlFun3       : ErlTypes [a, b, c, ret]       => ErlType (ErlFun3 a b c ret)
     ETErlFun4       : ErlTypes [a, b, c, d, ret]    => ErlType (ErlFun4 a b c d ret)
     ETErlFun5       : ErlTypes [a, b, c, d, e, ret] => ErlType (ErlFun5 a b c d e ret)
-    ETErlIO0        : ErlTypes [ret]                => ErlType (ErlIO0 ret)
-    ETErlIO1        : ErlTypes [a, ret]             => ErlType (ErlIO1 a ret)
-    ETErlIO2        : ErlTypes [a, b, ret]          => ErlType (ErlIO2 a b ret)
-    ETErlIO3        : ErlTypes [a, b, c, ret]       => ErlType (ErlIO3 a b c ret)
-    ETErlIO4        : ErlTypes [a, b, c, d, ret]    => ErlType (ErlIO4 a b c d ret)
-    ETErlIO5        : ErlTypes [a, b, c, d, e, ret] => ErlType (ErlIO5 a b c d e ret)
+    ETErlIOFun0     : ErlTypes [ret]                => ErlType (ErlIOFun0 ret)
+    ETErlIOFun1     : ErlTypes [a, ret]             => ErlType (ErlIOFun1 a ret)
+    ETErlIOFun2     : ErlTypes [a, b, ret]          => ErlType (ErlIOFun2 a b ret)
+    ETErlIOFun3     : ErlTypes [a, b, c, ret]       => ErlType (ErlIOFun3 a b c ret)
+    ETErlIOFun4     : ErlTypes [a, b, c, d, ret]    => ErlType (ErlIOFun4 a b c d ret)
+    ETErlIOFun5     : ErlTypes [a, b, c, d, e, ret] => ErlType (ErlIOFun5 a b c d e ret)
 
   public export
   data ErlTypes : List Type -> Type where
@@ -370,7 +370,7 @@ namespace Concurrency
 
   export
   erlSpawnLink : IO () -> IO ErlPid
-  erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkErlIO0 action]
+  erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkErlIOFun0 action]
 
   -- TODO: Support more receivers than just `ErlPid`
   export

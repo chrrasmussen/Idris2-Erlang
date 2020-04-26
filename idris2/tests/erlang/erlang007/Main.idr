@@ -34,17 +34,17 @@ erlCreateFun2 = do
 
 erlCreateIO0 : IO (IO Int)
 erlCreateIO0 = do
-  MkErlIO0 action <- erlUnsafeCall (ErlIO0 Int) "test_support" "create_io0" []
+  MkErlIOFun0 action <- erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
   pure action
 
 erlCreateIO1 : IO (Int -> IO Int)
 erlCreateIO1 = do
-  MkErlIO1 action <- erlUnsafeCall (ErlIO1 Int Int) "test_support" "create_io1" []
+  MkErlIOFun1 action <- erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
   pure action
 
 erlCreateIO2 : IO (Int -> Int -> IO Int)
 erlCreateIO2 = do
-  MkErlIO2 action <- erlUnsafeCall (ErlIO2 Int Int Int) "test_support" "create_io2" []
+  MkErlIOFun2 action <- erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
   pure action
 
 

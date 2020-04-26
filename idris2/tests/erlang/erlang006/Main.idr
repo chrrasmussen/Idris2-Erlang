@@ -27,13 +27,13 @@ erlRunFun2 x = erlUnsafeCall Int "test_support" "run2" [MkErlFun2 x]
 -- Wrappers around `runX` that takes an IO action
 
 erlRunIO0 : IO Int -> IO Int
-erlRunIO0 x = erlUnsafeCall Int "test_support" "run0" [MkErlIO0 x]
+erlRunIO0 x = erlUnsafeCall Int "test_support" "run0" [MkErlIOFun0 x]
 
 erlRunIO1 : (Int -> IO Int) -> IO Int
-erlRunIO1 x = erlUnsafeCall Int "test_support" "run1" [MkErlIO1 x]
+erlRunIO1 x = erlUnsafeCall Int "test_support" "run1" [MkErlIOFun1 x]
 
 erlRunIO2 : (Int -> Int -> IO Int) -> IO Int
-erlRunIO2 x = erlUnsafeCall Int "test_support" "run2" [MkErlIO2 x]
+erlRunIO2 x = erlUnsafeCall Int "test_support" "run2" [MkErlIOFun2 x]
 
 
 -- Tests
