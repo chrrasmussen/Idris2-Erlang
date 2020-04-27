@@ -43,6 +43,7 @@ genName (UN n) = "un--" ++ n
 genName (MN n i) = n ++ "_" ++ show i
 genName (PV n d) = "pat--" ++ genName n
 genName (DN _ n) = "dn--" ++ genName n
+genName (RF field) = "rf--" ++ field
 genName (Nested (i, x) n) = "nested--" ++ show i ++ "-" ++ show x ++ "--in--" ++ genName n
 genName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
 genName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
