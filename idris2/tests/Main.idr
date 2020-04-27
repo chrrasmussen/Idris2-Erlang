@@ -50,7 +50,7 @@ idrisTests
        -- Literate
        "literate001", "literate002", "literate003", "literate004",
        "literate005", "literate006", "literate007", "literate008",
-       "literate009",
+       "literate009", "literate010", "literate011", "literate012",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
@@ -77,7 +77,7 @@ idrisTests
        -- interesting interactions between features
        "real001", "real002",
        -- Records, access and dependent update
-       "record001", "record002", "record003", 
+       "record001", "record002", "record003", "record004",
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
