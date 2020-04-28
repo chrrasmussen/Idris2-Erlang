@@ -919,7 +919,7 @@ dataOpt
          pure (SearchBy ns)
   <|> do exactIdent "external"
          pure External
-  <|> do exactIdent "nonewtype"
+  <|> do exactIdent "noNewtype"
          pure NoNewType
 
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm ->
