@@ -37,19 +37,19 @@ namespace ProperLists
 
 namespace Opaque
   export
-  data ErlTerm : Type where
+  data ErlTerm : Type where [external]
 
   export
-  data ErlMap : Type where
+  data ErlMap : Type where [external]
 
   export
-  data ErlPid : Type where
+  data ErlPid : Type where [external]
 
   export
-  data ErlRef : Type where
+  data ErlRef : Type where [external]
 
   export
-  data ErlPort : Type where
+  data ErlPort : Type where [external]
 
 
 namespace Tuples
