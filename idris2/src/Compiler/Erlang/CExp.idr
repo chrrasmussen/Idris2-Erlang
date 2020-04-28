@@ -122,8 +122,6 @@ genCon namespaceInfo l (NS ["Prelude"] (UN "False")) [] = EAtom l "false"
 -- List
 genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
--- Raw
-genCon namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [x] = x
 -- ErlAtom
 genCon namespaceInfo l (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) [x] =
   genUnsafeStringToAtom l x
@@ -199,9 +197,6 @@ readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
   in MTransform MNil unusedVar (weaken body)
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [xVar, xsVar] body =
   MCons MAny MAny xVar xsVar body
--- Raw
-readConAlt namespaceInfo l (NS ["Idris", "Erlang"] (UN "MkRaw")) [xVar] body =
-  MTransform MAny xVar body
 -- ErlAtom
 readConAlt namespaceInfo l (NS ["Atoms", "Erlang"] (UN "MkErlAtom")) [xVar] body =
   let tempVar = MN "" 0
