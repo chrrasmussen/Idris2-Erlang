@@ -72,7 +72,9 @@ genMkUnit l =
 export
 genMkIORes : Line -> ErlExpr vars -> ErlExpr vars
 genMkIORes l expr =
-  ECon l (constructorName (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
+  -- Newtype optimization removes the data constructor:
+  -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
+  expr
 
 -- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
 export
@@ -80,7 +82,10 @@ genMkIO : Line -> ErlExpr vars -> ErlExpr vars
 genMkIO l expr =
   let worldVar = MN "" 0
       fn = ELam l [worldVar] (genMkIORes l (weaken expr))
-  in ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
+  in
+    -- Newtype optimization removes the data constructor:
+    -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
+    fn
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr vars -> ErlExpr vars

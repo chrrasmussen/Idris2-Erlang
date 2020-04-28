@@ -232,6 +232,7 @@ mutual
        NoHints : DataOpt -- Don't generate search hints for constructors
        UniqueSearch : DataOpt -- auto implicit search must check result is unique
        External : DataOpt -- implemented externally
+       NoNewType : DataOpt -- don't apply newtype optimisation
 
   export
   Eq DataOpt where
@@ -239,6 +240,7 @@ mutual
     (==) NoHints NoHints = True
     (==) UniqueSearch UniqueSearch = True
     (==) External External = True
+    (==) NoNewType NoNewType = True
     (==) _ _ = False
 
   public export
@@ -837,6 +839,7 @@ mutual
     toBuf b NoHints = tag 1
     toBuf b UniqueSearch = tag 2
     toBuf b External = tag 3
+    toBuf b NoNewType = tag 4
 
     fromBuf b
         = case !getTag of
@@ -845,6 +848,7 @@ mutual
                1 => pure NoHints
                2 => pure UniqueSearch
                3 => pure External
+               4 => pure NoNewType
                _ => corrupt "DataOpt"
 
   export
