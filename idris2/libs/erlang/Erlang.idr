@@ -9,15 +9,21 @@ namespace Idris
 
 namespace Atoms
   public export
-  data ErlAtom = MkErlAtom String
+  data ErlAtom : Type where
+    [nonewtype]
+    MkErlAtom : String -> ErlAtom
 
 
 namespace Strings
   public export
-  data ErlBinary = MkErlBinary String
+  data ErlBinary : Type where
+    [nonewtype]
+    MkErlBinary : String -> ErlBinary
 
   public export
-  data ErlCharlist = MkErlCharlist String
+  data ErlCharlist : Type where
+    [nonewtype]
+    MkErlCharlist : String -> ErlCharlist
 
 
 namespace MaybeImproperLists
@@ -54,71 +60,90 @@ namespace Opaque
 
 namespace Tuples
   public export
-  data ErlTuple0 = MkErlTuple0
+  data ErlTuple0 : Type where
+    MkErlTuple0 : ErlTuple0
 
   public export
-  data ErlTuple1 a = MkErlTuple1 a
+  data ErlTuple1 : Type -> Type where
+    [nonewtype]
+    MkErlTuple1 : a -> ErlTuple1 a
 
   public export
-  data ErlTuple2 a b = MkErlTuple2 a b
+  data ErlTuple2 : Type -> Type -> Type where
+    MkErlTuple2 : a -> b -> ErlTuple2 a b
 
   public export
-  data ErlTuple3 a b c = MkErlTuple3 a b c
+  data ErlTuple3 : Type -> Type -> Type -> Type where
+    MkErlTuple3 : a -> b -> c -> ErlTuple3 a b c
 
   public export
-  data ErlTuple4 a b c d = MkErlTuple4 a b c d
+  data ErlTuple4 : Type -> Type -> Type -> Type -> Type where
+    MkErlTuple4 : a -> b -> c -> d -> ErlTuple4 a b c d
 
   public export
-  data ErlTuple5 a b c d e = MkErlTuple5 a b c d e
+  data ErlTuple5 : Type -> Type -> Type -> Type -> Type -> Type where
+    MkErlTuple5 : a -> b -> c -> d -> e -> ErlTuple5 a b c d e
 
 
 namespace Functions
   public export
   data ErlFun0 : Type -> Type where
+    [nonewtype]
     MkErlFun0 : ret -> ErlFun0 ret
 
   public export
   data ErlFun1 : Type -> Type -> Type where
+    [nonewtype]
     MkErlFun1 : (a -> ret) -> ErlFun1 a ret
 
   public export
   data ErlFun2 : Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlFun2 : (a -> b -> ret) -> ErlFun2 a b ret
 
   public export
   data ErlFun3 : Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlFun3 : (a -> b -> c -> ret) -> ErlFun3 a b c ret
 
   public export
   data ErlFun4 : Type -> Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlFun4 : (a -> b -> c -> d -> ret) -> ErlFun4 a b c d ret
 
   public export
   data ErlFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlFun5 : (a -> b -> c -> d -> e -> ret) -> ErlFun5 a b c d e ret
 
   public export
   data ErlIOFun0 : Type -> Type where
+    [nonewtype]
     MkErlIOFun0  : IO ret -> ErlIOFun0 ret
 
   public export
   data ErlIOFun1 : Type -> Type -> Type where
+    [nonewtype]
     MkErlIOFun1  : (a -> IO ret) -> ErlIOFun1 a ret
 
   public export
   data ErlIOFun2 : Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlIOFun2  : (a -> b -> IO ret) -> ErlIOFun2 a b ret
 
   public export
   data ErlIOFun3 : Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlIOFun3  : (a -> b -> c -> IO ret) -> ErlIOFun3 a b c ret
 
   public export
   data ErlIOFun4 : Type -> Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlIOFun4  : (a -> b -> c -> d -> IO ret) -> ErlIOFun4 a b c d ret
 
   public export
   data ErlIOFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
+    [nonewtype]
     MkErlIOFun5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIOFun5 a b c d e ret
 
 
