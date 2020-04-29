@@ -920,7 +920,7 @@ dataOpt
   <|> do exactIdent "external"
          pure External
   <|> do exactIdent "noNewtype"
-         pure NoNewType
+         pure NoNewtype
 
 dataBody : FileName -> Int -> FilePos -> Name -> IndentInfo -> PTerm ->
            EmptyRule PDataDecl
