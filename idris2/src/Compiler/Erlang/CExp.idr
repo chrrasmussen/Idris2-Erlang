@@ -269,6 +269,11 @@ data ExtPrim
   = PutStr | GetStr
   | VoidElim
   | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
+  | ErlDecodeCodepoint | ErlDecodeInteger | ErlDecodeDouble | ErlDecodeAtom | ErlDecodeBinary
+  | ErlDecodePid | ErlDecodeRef | ErlDecodePort | ErlDecodeAnyMap | ErlDecodeAnyList
+  | ErlDecodeNil | ErlDecodeCons
+  | ErlDecodeTuple0 | ErlDecodeTuple1 | ErlDecodeTuple2 | ErlDecodeTuple3 | ErlDecodeTuple4 | ErlDecodeTuple5
+  | ErlDecodeFun0 | ErlDecodeFun1 | ErlDecodeFun2 | ErlDecodeFun3 | ErlDecodeFun4 | ErlDecodeFun5
   | ErlBufferNew
   | ErlBufferSetByte | ErlBufferGetByte | ErlBufferSetInt | ErlBufferGetInt
   | ErlBufferSetDouble | ErlBufferGetDouble | ErlBufferSetString | ErlBufferGetString
@@ -282,6 +287,30 @@ Show ExtPrim where
   show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
+  show ErlDecodeCodepoint = "ErlDecodeCodepoint"
+  show ErlDecodeInteger = "ErlDecodeInteger"
+  show ErlDecodeDouble = "ErlDecodeDouble"
+  show ErlDecodeAtom = "ErlDecodeAtom"
+  show ErlDecodeBinary = "ErlDecodeBinary"
+  show ErlDecodePid = "ErlDecodePid"
+  show ErlDecodeRef = "ErlDecodeRef"
+  show ErlDecodePort = "ErlDecodePort"
+  show ErlDecodeAnyMap = "ErlDecodeAnyMap"
+  show ErlDecodeAnyList = "ErlDecodeAnyList"
+  show ErlDecodeNil = "ErlDecodeNil"
+  show ErlDecodeCons = "ErlDecodeCons"
+  show ErlDecodeTuple0 = "ErlDecodeTuple0"
+  show ErlDecodeTuple1 = "ErlDecodeTuple1"
+  show ErlDecodeTuple2 = "ErlDecodeTuple2"
+  show ErlDecodeTuple3 = "ErlDecodeTuple3"
+  show ErlDecodeTuple4 = "ErlDecodeTuple4"
+  show ErlDecodeTuple5 = "ErlDecodeTuple5"
+  show ErlDecodeFun0 = "ErlDecodeFun0"
+  show ErlDecodeFun1 = "ErlDecodeFun1"
+  show ErlDecodeFun2 = "ErlDecodeFun2"
+  show ErlDecodeFun3 = "ErlDecodeFun3"
+  show ErlDecodeFun4 = "ErlDecodeFun4"
+  show ErlDecodeFun5 = "ErlDecodeFun5"
   show ErlBufferNew = "ErlBufferNew"
   show ErlBufferSetByte = "ErlBufferSetByte"
   show ErlBufferGetByte = "ErlBufferGetByte"
@@ -302,6 +331,30 @@ toPrim (NS _ n) = cond [
   (n == UN "prim__erlCase", Just ErlCase),
   (n == UN "prim__erlReceive", Just ErlReceive),
   (n == UN "prim__erlModule", Just ErlModule),
+  (n == UN "prim__erlDecodeCodepoint", Just ErlDecodeCodepoint),
+  (n == UN "prim__erlDecodeInteger", Just ErlDecodeInteger),
+  (n == UN "prim__erlDecodeDouble", Just ErlDecodeDouble),
+  (n == UN "prim__erlDecodeAtom", Just ErlDecodeAtom),
+  (n == UN "prim__erlDecodeBinary", Just ErlDecodeBinary),
+  (n == UN "prim__erlDecodePid", Just ErlDecodePid),
+  (n == UN "prim__erlDecodeRef", Just ErlDecodeRef),
+  (n == UN "prim__erlDecodePort", Just ErlDecodePort),
+  (n == UN "prim__erlDecodeAnyMap", Just ErlDecodeAnyMap),
+  (n == UN "prim__erlDecodeAnyList", Just ErlDecodeAnyList),
+  (n == UN "prim__erlDecodeNil", Just ErlDecodeNil),
+  (n == UN "prim__erlDecodeCons", Just ErlDecodeCons),
+  (n == UN "prim__erlDecodeTuple0", Just ErlDecodeTuple0),
+  (n == UN "prim__erlDecodeTuple1", Just ErlDecodeTuple1),
+  (n == UN "prim__erlDecodeTuple2", Just ErlDecodeTuple2),
+  (n == UN "prim__erlDecodeTuple3", Just ErlDecodeTuple3),
+  (n == UN "prim__erlDecodeTuple5", Just ErlDecodeTuple4),
+  (n == UN "prim__erlDecodeTuple6", Just ErlDecodeTuple5),
+  (n == UN "prim__erlDecodeFun0", Just ErlDecodeFun0),
+  (n == UN "prim__erlDecodeFun1", Just ErlDecodeFun1),
+  (n == UN "prim__erlDecodeFun2", Just ErlDecodeFun2),
+  (n == UN "prim__erlDecodeFun3", Just ErlDecodeFun3),
+  (n == UN "prim__erlDecodeFun5", Just ErlDecodeFun4),
+  (n == UN "prim__erlDecodeFun6", Just ErlDecodeFun5),
   (n == UN "prim__erlBufferNew", Just ErlBufferNew),
   (n == UN "prim__erlBufferSetByte", Just ErlBufferSetByte),
   (n == UN "prim__erlBufferGetByte", Just ErlBufferGetByte),
@@ -314,6 +367,10 @@ toPrim (NS _ n) = cond [
   ]
   Nothing
 toPrim pn = Nothing
+
+genDecode : Line -> ErlExpr vars -> ErlMatcher vars -> ErlExpr vars
+genDecode l term matcher =
+  EMatcherCase l term [MTransform matcher (MN "" 0) (genJust l (ELocal l First))] (genNothing l)
 
 genExtPrim : NamespaceInfo -> Line -> ExtPrim -> List (ErlExpr vars) -> Core (ErlExpr vars)
 genExtPrim namespaceInfo l PutStr [arg, world] = do
@@ -338,6 +395,54 @@ genExtPrim namespaceInfo l ErlModule [] =
   pure $ EAtom l (currentModuleName namespaceInfo)
 genExtPrim namespaceInfo l ErlBufferNew [size] =
   pure $ EBufferNew l size
+genExtPrim namespaceInfo l ErlDecodeCodepoint [term] =
+  pure $ genDecode l term MCodepoint
+genExtPrim namespaceInfo l ErlDecodeInteger [term] =
+  pure $ genDecode l term MInteger
+genExtPrim namespaceInfo l ErlDecodeDouble [term] =
+  pure $ genDecode l term MFloat
+genExtPrim namespaceInfo l ErlDecodeAtom [term] =
+  pure $ genDecode l term MAtom
+genExtPrim namespaceInfo l ErlDecodeBinary [term] =
+  pure $ genDecode l term MBinary
+genExtPrim namespaceInfo l ErlDecodePid [term] =
+  pure $ genDecode l term MPid
+genExtPrim namespaceInfo l ErlDecodeRef [term] =
+  pure $ genDecode l term MRef
+genExtPrim namespaceInfo l ErlDecodePort [term] =
+  pure $ genDecode l term MPort
+genExtPrim namespaceInfo l ErlDecodeAnyMap [term] =
+  pure $ genDecode l term MMap
+genExtPrim namespaceInfo l ErlDecodeAnyList [term] =
+  pure $ genDecode l term MAnyList
+genExtPrim namespaceInfo l ErlDecodeNil [term] =
+  pure $ genDecode l term MNil
+genExtPrim namespaceInfo l ErlDecodeCons [term] =
+  pure $ genDecode l term $ MCons MAny MAny (MN "" 0) (MN "" 0) (ECons l (ELocal l First) (ELocal l (Later First)))
+genExtPrim namespaceInfo l ErlDecodeTuple0 [term] =
+  pure $ genDecode l term $ MTuple [] (ETuple l [])
+genExtPrim namespaceInfo l ErlDecodeTuple1 [term] =
+  pure $ genDecode l term $ MTuple [MAny] (ETuple l [ELocal l First])
+genExtPrim namespaceInfo l ErlDecodeTuple2 [term] =
+  pure $ genDecode l term $ MTuple [MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First)])
+genExtPrim namespaceInfo l ErlDecodeTuple3 [term] =
+  pure $ genDecode l term $ MTuple [MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First))])
+genExtPrim namespaceInfo l ErlDecodeTuple4 [term] =
+  pure $ genDecode l term $ MTuple [MAny, MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First)), ELocal l (Later (Later (Later First)))])
+genExtPrim namespaceInfo l ErlDecodeTuple5 [term] =
+  pure $ genDecode l term $ MTuple [MAny, MAny, MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First)), ELocal l (Later (Later (Later First))), ELocal l (Later (Later (Later (Later First))))])
+genExtPrim namespaceInfo l ErlDecodeFun0 [term] =
+  pure $ genDecode l term (MFun 0)
+genExtPrim namespaceInfo l ErlDecodeFun1 [_, term] =
+  pure $ genDecode l term (MFun 1)
+genExtPrim namespaceInfo l ErlDecodeFun2 [_, _, term] =
+  pure $ genDecode l term (MFun 2)
+genExtPrim namespaceInfo l ErlDecodeFun3 [_, _, _, term] =
+  pure $ genDecode l term (MFun 3)
+genExtPrim namespaceInfo l ErlDecodeFun4 [_, _, _, _, term] =
+  pure $ genDecode l term (MFun 4)
+genExtPrim namespaceInfo l ErlDecodeFun5 [_, _, _, _, _, term] =
+  pure $ genDecode l term (MFun 5)
 genExtPrim namespaceInfo l ErlBufferSetByte [bin, loc, value] =
   pure $ EBufferSetByte l bin loc value
 genExtPrim namespaceInfo l ErlBufferGetByte [bin, loc] =

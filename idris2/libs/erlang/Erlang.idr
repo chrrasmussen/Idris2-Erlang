@@ -491,6 +491,34 @@ namespace Decoding
       Left _ => def
 
 
+  -- PRIMITIVES
+
+  %extern prim__erlDecodeCodepoint  : ErlTerm -> Maybe Char
+  %extern prim__erlDecodeInteger    : ErlTerm -> Maybe Integer
+  %extern prim__erlDecodeDouble     : ErlTerm -> Maybe Double
+  %extern prim__erlDecodeAtom       : ErlTerm -> Maybe ErlAtom
+  %extern prim__erlDecodeBinary     : ErlTerm -> Maybe ErlBinary
+  %extern prim__erlDecodePid        : ErlTerm -> Maybe ErlPid
+  %extern prim__erlDecodeRef        : ErlTerm -> Maybe ErlRef
+  %extern prim__erlDecodePort       : ErlTerm -> Maybe ErlPort
+  %extern prim__erlDecodeAnyMap     : ErlTerm -> Maybe ErlMap
+  %extern prim__erlDecodeAnyList    : ErlTerm -> Maybe ErlTerm
+  %extern prim__erlDecodeNil        : ErlTerm -> Maybe ErlNil
+  %extern prim__erlDecodeCons       : ErlTerm -> Maybe (ErlCons ErlTerm ErlTerm)
+  %extern prim__erlDecodeTuple0     : ErlTerm -> Maybe ErlTuple0
+  %extern prim__erlDecodeTuple1     : ErlTerm -> Maybe (ErlTuple1 ErlTerm)
+  %extern prim__erlDecodeTuple2     : ErlTerm -> Maybe (ErlTuple2 ErlTerm ErlTerm)
+  %extern prim__erlDecodeTuple3     : ErlTerm -> Maybe (ErlTuple3 ErlTerm ErlTerm ErlTerm)
+  %extern prim__erlDecodeTuple4     : ErlTerm -> Maybe (ErlTuple4 ErlTerm ErlTerm ErlTerm ErlTerm)
+  %extern prim__erlDecodeTuple5     : ErlTerm -> Maybe (ErlTuple5 ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm)
+  %extern prim__erlDecodeFun0       : ErlTerm -> Maybe (ErlIOFun0 ErlTerm)
+  %extern prim__erlDecodeFun1       : ErlTerm -> Maybe (ErlIOFun1 a ErlTerm)
+  %extern prim__erlDecodeFun2       : ErlTerm -> Maybe (ErlIOFun2 a b ErlTerm)
+  %extern prim__erlDecodeFun3       : ErlTerm -> Maybe (ErlIOFun3 a b c ErlTerm)
+  %extern prim__erlDecodeFun4       : ErlTerm -> Maybe (ErlIOFun4 a b c d ErlTerm)
+  %extern prim__erlDecodeFun5       : ErlTerm -> Maybe (ErlIOFun5 a b c d e ErlTerm)
+
+
   -- DECODERS
 
   export
@@ -507,7 +535,7 @@ namespace Decoding
   exact : ErlType a => a -> ErlDecoder a
   exact matchValue =
     MkDecoder (\term =>
-      let isEqual = unsafePerformIO (erlUnsafeCall Bool "erlang" "=:=" [term, MkRaw matchValue])
+      let isEqual = unsafePerformIO (erlUnsafeCall Bool "erlang" "=:=" [term, matchValue])
       in if isEqual
         then Right matchValue
         else Left (Error "Expected the value to match exactly"))
@@ -515,74 +543,64 @@ namespace Decoding
   export
   codepoint : ErlDecoder Char
   codepoint =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a char")) [map Right MCodepoint] term)
+    MkDecoder (maybe (Left (Error "Expected a char")) Right . prim__erlDecodeCodepoint)
 
   export
   integer : ErlDecoder Integer
   integer =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected an integer")) [map Right MInteger] term)
+    MkDecoder (maybe (Left (Error "Expected an integer")) Right . prim__erlDecodeInteger)
 
   export
   double : ErlDecoder Double
   double =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a double")) [map Right MDouble] term)
+    MkDecoder (maybe (Left (Error "Expected a double")) Right . prim__erlDecodeDouble)
 
   export
   atom : ErlDecoder ErlAtom
   atom =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected an atom")) [map Right MAtom] term)
+    MkDecoder (maybe (Left (Error "Expected an atom")) Right . prim__erlDecodeAtom)
 
   export
   binary : ErlDecoder ErlBinary
   binary =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a binary")) [map Right MBinary] term)
+    MkDecoder (maybe (Left (Error "Expected a binary")) Right . prim__erlDecodeBinary)
 
   export
   pid : ErlDecoder ErlPid
   pid =
-    MkDecoder (\term => do
-      erlCase (Left (Error "Expected a pid")) [map Right MPid] term)
+    MkDecoder (maybe (Left (Error "Expected a pid")) Right . prim__erlDecodePid)
 
   export
   ref : ErlDecoder ErlRef
   ref =
-    MkDecoder (\term => do
-      erlCase (Left (Error "Expected a ref")) [map Right MRef] term)
+    MkDecoder (maybe (Left (Error "Expected a ref")) Right . prim__erlDecodeRef)
 
   export
   port : ErlDecoder ErlPort
   port =
-    MkDecoder (\term => do
-      erlCase (Left (Error "Expected a port")) [map Right MPort] term)
+    MkDecoder (maybe (Left (Error "Expected a port")) Right . prim__erlDecodePort)
 
   export
   anyMap : ErlDecoder ErlMap
   anyMap =
-    MkDecoder (\term => do
-      erlCase (Left (Error "Expected a map")) [map Right MMap] term)
+    MkDecoder (maybe (Left (Error "Expected a map")) Right . prim__erlDecodeAnyMap)
 
   export
   anyList : ErlDecoder ErlTerm
   anyList =
-    MkDecoder (\term => do
-      erlCase (Left (Error "Expected a list")) [map Right MAnyList] term)
+    MkDecoder (maybe (Left (Error "Expected a list")) Right . prim__erlDecodeAnyList)
 
   export
   nil : ErlDecoder ErlNil
   nil =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a nil value")) [map (const (Right Nil)) MNil] term)
+    MkDecoder (maybe (Left (Error "Expected a nil value")) Right . prim__erlDecodeNil)
 
   export
   cons : ErlDecoder a -> ErlDecoder b -> ErlDecoder (ErlCons a b)
   cons (MkDecoder xDecoder) (MkDecoder yDecoder) =
     MkDecoder (\term => do
-      (x, y) <- erlCase (Left (Error "Expected a cons value")) [MCons MAny MAny (\x, y => Right (x, y))] term
+      let Just (x :: y) = prim__erlDecodeCons term
+        | Nothing => Left (Error "Expected a cons value")
       xRes <- xDecoder x
       yRes <- yDecoder y
       pure (xRes :: yRes))
@@ -590,14 +608,14 @@ namespace Decoding
   export
   tuple0 : ErlDecoder ErlTuple0
   tuple0 =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a tuple with 0 elements")) [MTuple [] (Right MkErlTuple0)] term)
+    MkDecoder (maybe (Left (Error "Expected a tuple with 0 elements")) Right . prim__erlDecodeTuple0)
 
   export
   tuple1 : ErlDecoder a -> ErlDecoder (ErlTuple1 a)
   tuple1 (MkDecoder aDecoder) =
     MkDecoder (\term => do
-      a <- erlCase (Left (Error "Expected a tuple with 1 element")) [MTuple [MAny] Right] term
+      let Just (MkErlTuple1 a) = prim__erlDecodeTuple1 term
+        | Nothing => Left (Error "Expected a tuple with 1 element")
       aRes <- aDecoder a
       pure (MkErlTuple1 aRes))
 
@@ -605,7 +623,8 @@ namespace Decoding
   tuple2 : ErlDecoder a -> ErlDecoder b -> ErlDecoder (ErlTuple2 a b)
   tuple2 (MkDecoder aDecoder) (MkDecoder bDecoder) =
     MkDecoder (\term => do
-      (a, b) <- erlCase (Left (Error "Expected a tuple with 2 elements")) [MTuple [MAny, MAny] (\a, b => Right (a, b))] term
+      let Just (MkErlTuple2 a b) = prim__erlDecodeTuple2 term
+        | Nothing => Left (Error "Expected a tuple with 2 elements")
       aRes <- aDecoder a
       bRes <- bDecoder b
       pure (MkErlTuple2 aRes bRes))
@@ -614,7 +633,8 @@ namespace Decoding
   tuple3 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder (ErlTuple3 a b c)
   tuple3 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) =
     MkDecoder (\term => do
-      (a, b, c) <- erlCase (Left (Error "Expected a tuple with 3 elements")) [MTuple [MAny, MAny, MAny] (\a, b, c => Right (a, b, c))] term
+      let Just (MkErlTuple3 a b c) = prim__erlDecodeTuple3 term
+        | Nothing => Left (Error "Expected a tuple with 3 elements")
       aRes <- aDecoder a
       bRes <- bDecoder b
       cRes <- cDecoder c
@@ -624,7 +644,8 @@ namespace Decoding
   tuple4 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder (ErlTuple4 a b c d)
   tuple4 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) =
     MkDecoder (\term => do
-      (a, b, c, d) <- erlCase (Left (Error "Expected a tuple with 4 elements")) [MTuple [MAny, MAny, MAny, MAny] (\a, b, c, d => Right (a, b, c, d))] term
+      let Just (MkErlTuple4 a b c d) = prim__erlDecodeTuple4 term
+        | Nothing => Left (Error "Expected a tuple with 4 elements")
       aRes <- aDecoder a
       bRes <- bDecoder b
       cRes <- cDecoder c
@@ -635,7 +656,8 @@ namespace Decoding
   tuple5 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder (ErlTuple5 a b c d e)
   tuple5 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) (MkDecoder eDecoder) =
     MkDecoder (\term => do
-      (a, b, c, d, e) <- erlCase (Left (Error "Expected a tuple with 5 elements")) [MTuple [MAny, MAny, MAny, MAny, MAny] (\a, b, c, d, e => Right (a, b, c, d, e))] term
+      let Just (MkErlTuple5 a b c d e) = prim__erlDecodeTuple5 term
+        | Nothing => Left (Error "Expected a tuple with 5 elements")
       aRes <- aDecoder a
       bRes <- bDecoder b
       cRes <- cDecoder c
@@ -685,7 +707,11 @@ namespace Decoding
   mapEntry : ErlType key => key -> ErlDecoder value -> ErlDecoder value
   mapEntry key (MkDecoder valueDecoder) =
     MkDecoder (\term => do
-      value <- erlCase (Left (Error "Could not find entry in map")) [MMapSubset [key := MAny] Right] term
+      let Just m = prim__erlDecodeAnyMap term
+        | Nothing => Left (Error "Expected a map")
+      let lookupResult = unsafePerformIO $ erlUnsafeCall ErlTerm "maps" "find" [key, m]
+      let Just (MkErlTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
+        | Nothing => Left (Error "Could not find key in map")
       valueDecoder value)
 
   export
@@ -703,38 +729,50 @@ namespace Decoding
   export
   fun0 : ErlDecoder (IO (Either ErlException ErlTerm))
   fun0 =
-    MkDecoder (\term =>
-      erlCase (Left (Error "Expected a function of arity 0")) [map Right (MIO [])] term)
+    MkDecoder (\term => do
+      let Just (MkErlIOFun0 fun) = prim__erlDecodeFun0 term
+        | Nothing => Left (Error "Expected a function of arity 0")
+      pure $ erlTryCatch fun)
 
   export
   fun1 : (a : Type) -> ErlDecoder (a -> IO (Either ErlException ErlTerm))
   fun1 aType =
     MkDecoder (\term => do
-      erlCase (Left (Error "Expected a function of arity 1")) [map Right (MIO [aType])] term)
+      let Just (MkErlIOFun1 fun) = prim__erlDecodeFun1 term
+        | Nothing => Left (Error "Expected a function of arity 1")
+      pure $ (\a => erlTryCatch (fun a)))
 
   export
   fun2 : (a : Type) -> (b : Type) -> ErlDecoder (a -> b -> IO (Either ErlException ErlTerm))
   fun2 aType bType =
     MkDecoder (\term => do
-      erlCase (Left (Error "Expected a function of arity 2")) [map Right (MIO [aType, bType])] term)
+      let Just (MkErlIOFun2 fun) = prim__erlDecodeFun2 term
+        | Nothing => Left (Error "Expected a function of arity 2")
+      pure $ (\a, b => erlTryCatch (fun a b)))
 
   export
   fun3 : (a : Type) -> (b : Type) -> (c : Type) -> ErlDecoder (a -> b -> c -> IO (Either ErlException ErlTerm))
   fun3 aType bType cType =
     MkDecoder (\term => do
-      erlCase (Left (Error "Expected a function of arity 3")) [map Right (MIO [aType, bType, cType])] term)
+      let Just (MkErlIOFun3 fun) = prim__erlDecodeFun3 term
+        | Nothing => Left (Error "Expected a function of arity 3")
+      pure $ (\a, b, c => erlTryCatch (fun a b c)))
 
   export
   fun4 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> ErlDecoder (a -> b -> c -> d -> IO (Either ErlException ErlTerm))
   fun4 aType bType cType dType =
     MkDecoder (\term => do
-      erlCase (Left (Error "Expected a function of arity 4")) [map Right (MIO [aType, bType, cType, dType])] term)
+      let Just (MkErlIOFun4 fun) = prim__erlDecodeFun4 term
+        | Nothing => Left (Error "Expected a function of arity 4")
+      pure $ (\a, b, c, d => erlTryCatch (fun a b c d)))
 
   export
   fun5 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> (e : Type) -> ErlDecoder (a -> b -> c -> d -> e -> IO (Either ErlException ErlTerm))
   fun5 aType bType cType dType eType =
     MkDecoder (\term => do
-      erlCase (Left (Error "Expected a function of arity 5")) [map Right (MIO [aType, bType, cType, dType, eType])] term)
+      let Just (MkErlIOFun5 fun) = prim__erlDecodeFun5 term
+        | Nothing => Left (Error "Expected a function of arity 5")
+      pure $ (\a, b, c, d, e => erlTryCatch (fun a b c d e)))
 
 
 namespace Concurrency
