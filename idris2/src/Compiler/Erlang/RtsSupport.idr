@@ -26,6 +26,14 @@ genMkUnit : Line -> ErlExpr vars
 genMkUnit l =
   ETuple l []
 
+genRight : Line -> ErlExpr vars -> ErlExpr vars
+genRight l expr =
+  ECon l (constructorName (NS ["Prelude"] (UN "Right"))) [expr]
+
+genLeft : Line -> ErlExpr vars -> ErlExpr vars
+genLeft l expr =
+  ECon l (constructorName (NS ["Prelude"] (UN "Left"))) [expr]
+
 -- PrimIO.MkIORes : {0 a : Type} -> (result : a) -> (1 x : %World) -> IORes a
 export
 genMkIORes : Line -> ErlExpr vars -> ErlExpr vars
@@ -89,8 +97,8 @@ genThrow l msg =
 export
 genTryCatch : Line -> ErlExpr vars -> ErlExpr vars
 genTryCatch l body =
-  let okExpr = ECon l (constructorName (NS ["Prelude"] (UN "Right"))) [ELocal l First]
-      errorExpr = ECon l (constructorName (NS ["Prelude"] (UN "Left"))) [ELocal l First]
+  let okExpr = genRight l (ELocal l First)
+      errorExpr = genLeft l (ELocal l First)
   in ETryCatch l body (MN "" 0) okExpr (MN "" 0) errorExpr
 
 export
