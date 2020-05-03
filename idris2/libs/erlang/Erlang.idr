@@ -303,7 +303,7 @@ namespace IO
   erlTryCatch : IO a -> IO (Either ErlException a)
   erlTryCatch action = primIO (prim__erlTryCatch action)
 
-  export %inline
+  export partial %inline
   erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
   erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
 
