@@ -18,6 +18,36 @@ genErased : Line -> ErlExpr vars
 genErased l =
   EAtom l "erased"
 
+
+-- DATA CONSTRUCTORS
+
+export
+genMkUnit : Line -> ErlExpr vars
+genMkUnit l =
+  ETuple l []
+
+-- PrimIO.MkIORes : {0 a : Type} -> (result : a) -> (1 x : %World) -> IORes a
+export
+genMkIORes : Line -> ErlExpr vars -> ErlExpr vars
+genMkIORes l expr =
+  -- Newtype optimization removes the data constructor:
+  -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
+  expr
+
+-- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
+export
+genMkIO : Line -> ErlExpr vars -> ErlExpr vars
+genMkIO l expr =
+  let worldVar = MN "" 0
+      fn = ELam l [worldVar] (genMkIORes l (weaken expr))
+  in
+    -- Newtype optimization removes the data constructor:
+    -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
+    fn
+
+
+-- HELPER FUNCTIONS
+
 export
 genRef : NamespaceInfo -> Line -> Name -> ErlExpr vars
 genRef namespaceInfo l name =
@@ -62,30 +92,6 @@ genTryCatch l body =
   let okExpr = ECon l (constructorName (NS ["Prelude"] (UN "Right"))) [ELocal l First]
       errorExpr = ECon l (constructorName (NS ["Prelude"] (UN "Left"))) [ELocal l First]
   in ETryCatch l body (MN "" 0) okExpr (MN "" 0) errorExpr
-
-export
-genMkUnit : Line -> ErlExpr vars
-genMkUnit l =
-  ETuple l []
-
--- PrimIO.MkIORes : {0 a : Type} -> (result : a) -> (1 x : %World) -> IORes a
-export
-genMkIORes : Line -> ErlExpr vars -> ErlExpr vars
-genMkIORes l expr =
-  -- Newtype optimization removes the data constructor:
-  -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
-  expr
-
--- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
-export
-genMkIO : Line -> ErlExpr vars -> ErlExpr vars
-genMkIO l expr =
-  let worldVar = MN "" 0
-      fn = ELam l [worldVar] (genMkIORes l (weaken expr))
-  in
-    -- Newtype optimization removes the data constructor:
-    -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
-    fn
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr vars -> ErlExpr vars
