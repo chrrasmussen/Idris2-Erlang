@@ -286,10 +286,10 @@ namespace IO
   %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
 
   export %inline
-  erlUnsafeCall : (0 ret : Type) -> {auto ret_prf : ErlType ret} ->
+  erlUnsafeCall : (0 ret : Type) -> {auto 0 retPrf : ErlType ret} ->
                   String ->
                   String ->
-                  ErlList xs -> {auto inp_prf : ErlTypes xs} ->
+                  ErlList xs -> {auto 0 argsPrf : ErlTypes xs} ->
                   IO ret
   erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
 
@@ -304,11 +304,11 @@ namespace IO
   erlTryCatch action = primIO (prim__erlTryCatch action)
 
   export partial %inline
-  erlCall : String -> String -> ErlList xs -> {auto prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
+  erlCall : String -> String -> ErlList xs -> {auto 0 prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
   erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
 
   export
-  erlUnsafeCast : (0 to : Type) -> {auto prf : ErlType to} -> ErlTerm -> to
+  erlUnsafeCast : (0 to : Type) -> {auto 0 prf : ErlType to} -> ErlTerm -> to
   erlUnsafeCast to term = believe_me term
 
   %extern prim__erlModule : ErlAtom
@@ -422,7 +422,7 @@ namespace Maps
 
   -- TODO: Return type may not match the actual content
   export
-  unsafeLookup : ErlType key => key -> (0 ret : Type) -> {auto prf : ErlType ret} -> ErlMap -> Maybe ret
+  unsafeLookup : ErlType key => key -> (0 ret : Type) -> {auto 0 prf : ErlType ret} -> ErlMap -> Maybe ret
   unsafeLookup key ty m = unsafePerformIO $ do
     result <- erlUnsafeCall ErlTerm "maps" "find" [key, m]
     pure $ erlCase Nothing [MTuple [MExact (MkErlAtom "ok"), MAny] (\ok, value => Just (erlUnsafeCast ty value))] result
