@@ -2,6 +2,10 @@ module Erlang.Data.IORef
 
 import Erlang
 
+
+%default total
+
+
 export
 data IORef : Type -> Type where
   MkIORef : ErlTerm -> IORef a

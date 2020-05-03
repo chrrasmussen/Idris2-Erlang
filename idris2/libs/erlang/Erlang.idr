@@ -1,6 +1,9 @@
 module Erlang
 
 
+%default total
+
+
 namespace Idris
   -- `Raw a` is compiled to `a`
   public export

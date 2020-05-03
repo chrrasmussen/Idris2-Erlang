@@ -3,6 +3,9 @@ module Erlang.System
 import Erlang
 
 
+%default total
+
+
 export
 sleep : Int -> IO ()
 sleep sec = do

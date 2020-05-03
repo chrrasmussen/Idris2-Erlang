@@ -2,6 +2,10 @@ module Erlang.Debug
 
 import Erlang
 
+
+%default total
+
+
 export
 erlPrintLn : a -> IO ()
 erlPrintLn x = do
