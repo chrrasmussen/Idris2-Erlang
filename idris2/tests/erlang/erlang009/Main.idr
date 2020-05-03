@@ -28,17 +28,17 @@ testCharlists : IO ()
 testCharlists = do
   putStrLn "testCharlists"
   validList <- getValidCharlists
-  printLn (map erlTermToCharlist validList)
+  printLn (map (erlDecodeMay charlist) validList)
   invalidList <- getInvalidCharlists
-  printLn (map erlTermToCharlist invalidList)
+  printLn (map (erlDecodeMay charlist) invalidList)
 
 testIOLists : IO ()
 testIOLists = do
   putStrLn "testIOLists"
   validList <- getValidIOLists
-  printLn (map erlTermToString validList)
+  printLn (map (erlDecodeMay string) validList)
   invalidList <- getInvalidIOLists
-  printLn (map erlTermToString invalidList)
+  printLn (map (erlDecodeMay string) invalidList)
 
 main : IO ()
 main = do

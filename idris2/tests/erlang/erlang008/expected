@@ -1,102 +1,120 @@
 1/1: Building Main (Main.idr)
 Main> File main written
 Main> Bye for now!
-testErlCase
-not found
-not found
+testErlDecode
 not found
 string matches on second try
 42
 -1
 Just "val"
 Nothing
-testErlCaseInErlCase
+testErlDecodeInErlDecode
 42
 find this
-testMExact
+testFail
+not found
+not found
+testAny
+matched on string
+matched on atom
+matched on integer
+testExact
 match me
 not found
 'ok'
 not found
 42
 not found
-testMAny
-matched on string
-matched on atom
-matched on integer
-testMCodepoint
+testCodepoint
 'a'
 not found
 not found
 not found
 not found
-testMInteger
+testInteger
 42
 0
 -42
 not found
 not found
-testMDouble
+testDouble
 42.0
 0.0
 -42.0
 not found
 not found
-testMAtom
+testAtom
 'ok'
 'error'
 not found
-testMBinary
+testBinary
 <<"hello">>
 not found
-testMMap
-found map
-found map
-not found
-testMPid
+testPid
 #Pid<0.4.1>
 not found
-testMRef
+testRef
 #Ref<0.4192537678.4073193475.71181>
 not found
-testMPort
+testPort
 #Port<0.4>
 not found
-testMAnyList
+testAnyMap
+found map
+found map
+not found
+testAnyList
 found list
 found list
 not found
-testMNil
+testNil
 found nil
 not found
-testMCons
-ab
+testCons
+[<<"a">> | <<"b">>]
 not found
-a42
-a
-a42
-testMList
-first item
-first item42
+[<<"a">> | 42]
+[<<"a">> | []]
+[<<"a">> | [42 | []]]
+testList
+[]
+not found
+[<<"first item">>, <<"second item">>]
+[1, 2, 3]
+not found
+testHList
+[<<"first item">> | []]
+not found
+[<<"first item">> | [42 | []]]
 not found
 not found
-testMTuple
-is empty tuple
-is empty tuple
+testTuple
+{}
+{}
 not found
-found any value
-42
-string inside 1-element tuple
+{<Erlang Term>}
+{42}
+{<<"string inside 1-element tuple">>}
 not found
-first string & second string
-42
+{<<"first string">>, <<"second string">>}
+{'ok', 42}
 not found
-testMMapSubset
+testMapEntry
 ex1
-ex2
 not found
-ex2 & 42
-testMIO
+not found
+ex2
+testMapSubset
+found map
+not found
+[<<"ex1">> | []]
+[<<"ex2">> | []]
+not found
+[<<"ex2">> | [42 | []]]
+testOptional
+Just 42
+Nothing
+testIO
 42
 not found
 42
