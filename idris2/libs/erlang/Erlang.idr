@@ -285,6 +285,12 @@ Cast (ErlList as) (ErlCons b c) => Cast (ErlList (a :: as)) (ErlCons a (ErlCons 
 namespace IO
   %extern prim__erlUnsafeCall : (0 ret : Type) -> String -> String -> ErlList xs -> (1 x : %World) -> IORes ret
 
+  -- This function is considered unsafe for the following reasons:
+  -- 1. It may call an Erlang function that never terminates (although it is not marked as `partial`).
+  -- 2. The specified return type may not match the actual content from the called function.
+  -- 3. If the called function throws an exception, it will crash the current process.
+  --
+  -- See `erlCall` for a safe way to call Erlang functions.
   export %inline
   erlUnsafeCall : (0 ret : Type) -> {auto 0 retPrf : ErlType ret} ->
                   String ->
