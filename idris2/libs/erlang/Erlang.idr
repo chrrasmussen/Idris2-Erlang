@@ -763,12 +763,9 @@ namespace Maps
   empty : ErlMap
   empty = unsafePerformIO $ erlUnsafeCall ErlMap "maps" "new" []
 
-  -- TODO: Return type may not match the actual content
   export
-  unsafeLookup : ErlType key => key -> (0 ret : Type) -> {auto 0 prf : ErlType ret} -> ErlMap -> Maybe ret
-  unsafeLookup key ty m = unsafePerformIO $ do
-    result <- erlUnsafeCall ErlTerm "maps" "find" [key, m]
-    pure $ erlCase Nothing [MTuple [MExact (MkErlAtom "ok"), MAny] (\ok, value => Just (erlUnsafeCast ty value))] result
+  lookup : ErlType key => key -> ErlDecoder a -> ErlMap -> Maybe a
+  lookup key decoder m = erlDecodeMay (mapEntry key decoder) (cast m)
 
   export
   insert : (ErlType key, ErlType value) => key -> value -> ErlMap -> ErlMap
