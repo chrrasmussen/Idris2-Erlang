@@ -1,9 +1,11 @@
 module Compiler.Erlang.Erlang
 
+import Compiler.ANF
 import Compiler.Common
 import Compiler.CompileExpr
 import Compiler.Inline
 import Compiler.LambdaLift
+import Compiler.VMCode
 
 import Compiler.Erlang.Opts
 import Compiler.Erlang.CExp
@@ -266,7 +268,7 @@ namespace Library
       logTime "Fix arity" $ traverse_ fixArityDef allCns
       logTime "Forget names" $ traverse_ mkForgetDef allCns
       -- TODO: `Compiler.Common.getCompileData` includes `lambdaLift`, `dumpLifted` and `dumpCases` here
-      pure (MkCompileData allCns tycontags (CErased EmptyFC) [])
+      pure (MkCompileData allCns tycontags (CErased EmptyFC) [] [] [])
     where
       primTags : Int -> NameTags -> List Constant -> NameTags
       primTags t tags [] = tags
