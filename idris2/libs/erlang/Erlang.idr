@@ -779,56 +779,6 @@ namespace Maps
   size m = unsafePerformIO $ erlUnsafeCall Integer "maps" "size" [m]
 
 
-namespace StringConversions
-  -- http://erlang.org/doc/man/unicode.html
-  -- charlist() = [char()]
-  export
-  isValidCharlist : ErlTerm -> Bool
-  isValidCharlist term =
-    erlCase False [
-      map (const True) MNil,
-      MCons MCodepoint MAny (\x, y => isValidCharlist (assert_smaller term y))
-    ] term
-
-  export
-  erlTermToCharlist : ErlTerm -> Maybe ErlCharlist
-  erlTermToCharlist term =
-    if isValidCharlist term
-      then Just (erlUnsafeCast ErlCharlist term)
-      else Nothing
-
-
-  -- http://erlang.org/doc/man/unicode.html#type-chardata
-  -- chardata() = charlist() | unicode_binary()
-  -- charlist() = maybe_improper_list(char() | unicode_binary() | charlist(), unicode_binary() | [])
-  -- maybe_improper_list(X, Y) = [X | maybe_improper_list(X, Y)]
-  mutual
-    isValidStringHead : ErlTerm -> Bool
-    isValidStringHead term =
-      erlCase False [
-        map (const True) MCodepoint, -- NOTE: Codepoints are only valid in head position in an IO list
-        map (const True) MBinary,
-        map (const True) MNil,
-        MCons MAny MAny (\x, y => isValidStringHead (assert_smaller term x) && isValidString (assert_smaller term y))
-      ] term
-
-    export
-    isValidString : ErlTerm -> Bool
-    isValidString term =
-      erlCase False [
-        map (const True) MBinary,
-        map (const True) MNil,
-        MCons MAny MAny (\x, y => isValidStringHead (assert_smaller term x) && isValidString (assert_smaller term y))
-      ] term
-
-  export
-  erlTermToString : ErlTerm -> Maybe String
-  erlTermToString term =
-    if isValidString term
-      then Just (erlUnsafeCast String term)
-      else Nothing
-
-
 namespace ListConversions
   export
   0 ListToErlCons : List a -> Type
