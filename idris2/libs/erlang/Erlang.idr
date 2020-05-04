@@ -747,12 +747,15 @@ namespace Concurrency
     erlCall "erlang" "send" [receiver, value]
     pure ()
 
-  %extern prim__erlReceive : (ms : Int) -> a -> List (ErlMatcher a) -> (1 x : %World) -> IORes a
+  %extern prim__erlReceive : (ms : Int) -> (1 x : %World) -> IORes (Maybe ErlTerm)
 
   -- TODO: Add proof that `ms` is in proper range: 0 - 16#FFFFFFFF (http://erlang.org/doc/reference_manual/expressions.html#receive)
   export %inline
-  erlReceive : (ms : Int) -> a -> List (ErlMatcher a) -> IO a
-  erlReceive ms def matchers = primIO (prim__erlReceive ms def matchers)
+  erlReceive : (ms : Int) -> a -> ErlDecoder a -> IO a
+  erlReceive ms def decoder = do
+    Just term <- primIO (prim__erlReceive ms)
+      | Nothing => pure def
+    pure (erlDecodeDef def decoder term)
 
 
 namespace Maps

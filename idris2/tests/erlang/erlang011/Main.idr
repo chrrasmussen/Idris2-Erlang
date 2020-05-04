@@ -22,7 +22,7 @@ testReceiveInteger self = do
   erlSpawnLink (do
     sleep 100
     erlSend self 42)
-  result <- erlReceive defaultTimeout "not found" [map show MInteger]
+  result <- erlReceive defaultTimeout "not found" (map show integer)
   putStrLn result
 
 testReceiveBinary : ErlPid -> IO ()
@@ -31,13 +31,13 @@ testReceiveBinary self = do
   erlSpawnLink (do
     sleep 100
     erlSend self "hello")
-  result <- erlReceive defaultTimeout "not found" [map (\(MkErlBinary str) => str) MBinary]
+  result <- erlReceive defaultTimeout "not found" (map (\(MkErlBinary str) => str) binary)
   putStrLn result
 
 testTimeout : IO ()
 testTimeout = do
   putStrLn "testTimeout"
-  result <- erlReceive 100 "not found" []
+  result <- erlReceive 100 "not found" (any *> pure "found")
   putStrLn result
 
 

@@ -335,6 +335,9 @@ genExtPrim namespaceInfo l ErlUnsafeCall [_, ret, modName, fnName, args, world] 
 genExtPrim namespaceInfo l ErlTryCatch [_, action, world] = do
   let actionExpr = genUnsafePerformIO namespaceInfo l action
   pure $ genMkIORes l (genTryCatch l actionExpr)
+genExtPrim namespaceInfo l ErlReceive [timeout, world] = do
+  let receive = EReceive l [MTransform MAny (MN "" 0) (genJust l (ELocal l First))] timeout (genNothing l)
+  pure $ genMkIORes l receive
 genExtPrim namespaceInfo l ErlModule [] =
   pure $ EAtom l (currentModuleName namespaceInfo)
 genExtPrim namespaceInfo l ErlBufferNew [size] =
@@ -399,7 +402,6 @@ mutual
       -- TODO: throw (InternalError ("Can't compile unknown external primitive " ++ show p))
     case extPrim of
       ErlCase => genErlCase namespaceInfo l vs args
-      ErlReceive => genErlReceive namespaceInfo l vs args
       _ => genExtPrim namespaceInfo l extPrim !(traverse (genCExp namespaceInfo vs) args)
   genCExp namespaceInfo vs (CForce fc t) = do
     let l = genFC fc
@@ -458,14 +460,6 @@ mutual
     pure $ EMatcherCase l !(genCExp namespaceInfo vs sc) clauses !(genCExp namespaceInfo vs def)
   genErlCase namespaceInfo l vs args =
     pure $ genThrow l "Error: Badly formed erlCase"
-
-  genErlReceive : NamespaceInfo -> Line -> EVars vars -> List (CExp vars) -> Core (ErlExpr vars)
-  genErlReceive namespaceInfo l vs [_, timeout, def, matchersCExp@(CCon _ _ _ _), world] = do
-    clauses <- readErlMatcherClauses namespaceInfo l vs matchersCExp
-    let receive = EReceive l clauses !(genCExp namespaceInfo vs timeout) !(genCExp namespaceInfo vs def)
-    pure $ genMkIORes l receive
-  genErlReceive namespaceInfo l vs args =
-    pure $ genThrow l "Error: Badly formed erlReceive"
 
   readErlMatcherClauses : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (List (ErlMatcher vars))
   readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "Nil")) tag []) = pure []

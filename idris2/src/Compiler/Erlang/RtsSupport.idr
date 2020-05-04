@@ -26,6 +26,16 @@ genMkUnit : Line -> ErlExpr vars
 genMkUnit l =
   ETuple l []
 
+export
+genJust : Line -> ErlExpr vars -> ErlExpr vars
+genJust l expr =
+  ECon l (constructorName (NS ["Prelude"] (UN "Just"))) [expr]
+
+export
+genNothing : Line -> ErlExpr vars
+genNothing l =
+  ECon l (constructorName (NS ["Prelude"] (UN "Nothing"))) []
+
 genRight : Line -> ErlExpr vars -> ErlExpr vars
 genRight l expr =
   ECon l (constructorName (NS ["Prelude"] (UN "Right"))) [expr]
