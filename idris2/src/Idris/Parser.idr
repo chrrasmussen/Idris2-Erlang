@@ -386,9 +386,9 @@ mutual
     <|> pure Nothing
 
   getMult : Maybe Integer -> EmptyRule RigCount
-  getMult (Just 0) = pure Rig0
-  getMult (Just 1) = pure Rig1
-  getMult Nothing = pure RigW
+  getMult (Just 0) = pure erased
+  getMult (Just 1) = pure linear
+  getMult Nothing = pure top
   getMult _ = fatalError "Invalid multiplicity (must be 0 or 1)"
 
   pibindAll : FC -> PiInfo PTerm -> List (RigCount, Maybe Name, PTerm) ->
@@ -489,7 +489,7 @@ mutual
            ns <- sepBy1 (symbol ",") unqualifiedName
            nend <- location
            let nfc = MkFC fname nstart nend
-           let binders = map (\n => (Rig0, Just (UN n), PImplicit nfc)) ns
+           let binders = map (\n => (erased, Just (UN n), PImplicit nfc)) ns
            symbol "."
            scope <- typeExpr pdef fname indents
            end <- location
@@ -603,7 +603,7 @@ mutual
            let fcCase = MkFC fname start endCase
            let n = MN "lcase" 0
            pure $
-            PLam fcCase RigW Explicit (PRef fcCase n) (PInfer fcCase) $
+            PLam fcCase top Explicit (PRef fcCase n) (PInfer fcCase) $
                 PCase fc (PRef fcCase n) alts
 
   caseAlt : FileName -> IndentInfo -> Rule PClause
@@ -651,7 +651,7 @@ mutual
 
   field : FileName -> IndentInfo -> Rule PFieldUpdate
   field fname indents
-      = do path <- map fieldName <$> [| name :: many recField |]
+      = do path <- map fieldName <$> [| name :: many recFieldCompat |]
            upd <- (do symbol "="; pure PSetField)
                       <|>
                   (do symbol "$="; pure PSetFieldApp)
@@ -662,6 +662,11 @@ mutual
       fieldName (UN s) = s
       fieldName (RF s) = s
       fieldName _ = "_impossible"
+
+      -- this allows the dotted syntax .field
+      -- but also the arrowed syntax ->field for compatibility with Idris 1
+      recFieldCompat : Rule Name
+      recFieldCompat = recField <|> (symbol "->" *> name)
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents
@@ -784,7 +789,7 @@ mutual
       mkPi : FilePos -> FilePos -> PTerm -> List (PiInfo PTerm, PTerm) -> PTerm
       mkPi start end arg [] = arg
       mkPi start end arg ((exp, a) :: as)
-            = PPi (MkFC fname start end) RigW exp Nothing arg
+            = PPi (MkFC fname start end) top exp Nothing arg
                   (mkPi start end a as)
 
   export
@@ -866,20 +871,20 @@ mutual
 mkTyConType : FC -> List Name -> PTerm
 mkTyConType fc [] = PType fc
 mkTyConType fc (x :: xs)
-   = PPi fc Rig1 Explicit Nothing (PType fc) (mkTyConType fc xs)
+   = PPi fc linear Explicit Nothing (PType fc) (mkTyConType fc xs)
 
 mkDataConType : FC -> PTerm -> List ArgType -> PTerm
 mkDataConType fc ret [] = ret
 mkDataConType fc ret (ExpArg x :: xs)
-    = PPi fc Rig1 Explicit Nothing x (mkDataConType fc ret xs)
+    = PPi fc linear Explicit Nothing x (mkDataConType fc ret xs)
 mkDataConType fc ret (ImpArg n (PRef fc' x) :: xs)
     = if n == Just x
-         then PPi fc Rig1 Implicit n (PType fc')
+         then PPi fc linear Implicit n (PType fc')
                           (mkDataConType fc ret xs)
-         else PPi fc Rig1 Implicit n (PRef fc' x)
+         else PPi fc linear Implicit n (PRef fc' x)
                           (mkDataConType fc ret xs)
 mkDataConType fc ret (ImpArg n x :: xs)
-    = PPi fc Rig1 Implicit n x (mkDataConType fc ret xs)
+    = PPi fc linear Implicit n x (mkDataConType fc ret xs)
 mkDataConType fc ret (WithArg a :: xs)
     = PImplicit fc -- This can't happen because we parse constructors without
                    -- withOK set
@@ -1285,9 +1290,7 @@ fieldDecl fname indents
         = do start <- location
              m <- multiplicity
              rigin <- getMult m
-             let rig = case rigin of
-                            Rig0 => Rig0
-                            _ => Rig1
+             let rig = if isErased rigin then erased else linear
              ns <- sepBy1 (symbol ",") name
              symbol ":"
              ty <- expr pdef fname indents
@@ -1304,7 +1307,7 @@ recordParam fname indents
   <|> do symbol "{"
          commit
          info <- the (EmptyRule (PiInfo PTerm))
-                 (pure  AutoImplicit <* keyword "auto" 
+                 (pure  AutoImplicit <* keyword "auto"
               <|>(do
                   keyword "default"
                   t <- simpleExpr fname indents
@@ -1317,7 +1320,7 @@ recordParam fname indents
   <|> do start <- location
          n <- name
          end <- location
-         pure [(n, RigW, Explicit, PInfer (MkFC fname start end))]
+         pure [(n, top, Explicit, PInfer (MkFC fname start end))]
 
 recordDecl : FileName -> IndentInfo -> Rule PDecl
 recordDecl fname indents
