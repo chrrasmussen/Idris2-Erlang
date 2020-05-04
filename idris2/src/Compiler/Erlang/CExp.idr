@@ -46,7 +46,7 @@ genOp l (Sub ty) [x, y] = EOp l "-" x y
 genOp l (Mul ty) [x, y] = EOp l "*" x y
 genOp l (Div IntegerType) [x, y] = EOp l "div" x y -- NOTE: Is allowed to be partial
 genOp l (Div ty) [x, y] = EOp l "/" x y -- NOTE: Is allowed to be partial
-genOp l (Mod ty) [x, y] = EOp l "rem" x y -- NOTE: Is allowed to be partial -- TODO: Can `x` and `y` be floating point? `rem` does not work on floating points
+genOp l (Mod ty) [x, y] = EOp l "rem" x y -- NOTE: Is allowed to be partial
 genOp l (Neg ty) [x] = genFunCall l "erlang" "-" [x]
 genOp l (ShiftL ty) [x, y] = EOp l "bsl" x y
 genOp l (ShiftR ty) [x, y] = EOp l "bsr" x y
@@ -73,7 +73,7 @@ genOp l StrReverse [str] = genUnicodeStringReverse l str
 genOp l StrSubstr [start, len, str] = genUnicodeStringSubstr l start len str
 
 -- `e` is Euler's number, which approximates to: 2.718281828459045
-genOp l DoubleExp [x] = genFunCall l "math" "pow" [EFloat l 2.718281828459045, x] -- TODO: Hard-coded literal
+genOp l DoubleExp [x] = genFunCall l "math" "pow" [EFloat l 2.718281828459045, x] -- Base is `e`
 genOp l DoubleLog [x] = genFunCall l "math" "log" [x] -- Base is `e`
 genOp l DoubleSin [x] = genFunCall l "math" "sin" [x]
 genOp l DoubleCos [x] = genFunCall l "math" "cos" [x]
@@ -562,7 +562,7 @@ genDef namespaceInfo l name (MkFun args body) = do
   let funDecl = MkFunDecl l Public fnName args !(genCExp namespaceInfo vs body)
   pure $ Just funDecl
 genDef namespaceInfo l name (MkError body) = do
-  let vs = fst (initEVars []) -- TODO: Workaround for `Trying to use linear name vs in non-linear context` in Idris 1
+  let vs = fst (initEVars [])
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   let funDecl = MkFunDecl l Private fnName [] !(genCExp namespaceInfo vs body)
   pure $ Just funDecl
@@ -603,7 +603,7 @@ readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [exprT
   let intArity = internalArity exprTy
   let extArity = externalArity intArity
   let args = take extArity (repeat (MN "" 0))
-  let vs = fst (initEVars []) -- TODO: Workaround for `Trying to use linear name vs in non-linear context` in Idris 1
+  let vs = fst (initEVars [])
   let body = replace (appendNilRightNeutral args) (weakenNs args !(genCExp namespaceInfo vs expr))
   let invokedBody =
       case intArity of
