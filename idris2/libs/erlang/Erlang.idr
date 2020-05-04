@@ -333,70 +333,6 @@ namespace IO
   (<+>) = Combine
 
 
-namespace CaseExpr
-  public export
-  TypesToFunc : List Type -> Type -> Type
-  TypesToFunc [] ret = ret
-  TypesToFunc (x :: xs) ret = x -> TypesToFunc xs ret
-
-  mutual
-    public export
-    data ErlMatcher : Type -> Type where
-      MExact        : ErlType a => a -> ErlMatcher ()
-      MAny          : ErlMatcher ErlTerm
-      MCodepoint    : ErlMatcher Char
-      MInteger      : ErlMatcher Integer
-      MDouble       : ErlMatcher Double
-      MAtom         : ErlMatcher ErlAtom
-      MBinary       : ErlMatcher ErlBinary
-      MMap          : ErlMatcher ErlMap
-      MPid          : ErlMatcher ErlPid
-      MRef          : ErlMatcher ErlRef
-      MPort         : ErlMatcher ErlPort
-      MAnyList      : ErlMatcher ErlTerm
-      MNil          : ErlMatcher ()
-      MCons         : ErlMatcher a -> ErlMatcher b -> (a -> b -> ret)  -> ErlMatcher ret
-      MList         : ErlMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
-      MTuple        : ErlMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
-      MMapSubset    : ErlMapEntryMatchers xs -> TypesToFunc xs ret -> ErlMatcher ret
-      MIO           : (xs : List Type) -> ErlMatcher (TypesToFunc xs (IO (Either ErlException ErlTerm)))
-      MTransform    : ErlMatcher a -> (a -> b) -> ErlMatcher b
-
-    namespace ErlMatchers
-      public export
-      data ErlMatchers : List Type -> Type where
-        Nil : ErlMatchers []
-        (::) : ErlMatcher x -> ErlMatchers xs -> ErlMatchers (x :: xs)
-
-    namespace ErlMapEntryMatchers
-      public export
-      data ErlMapEntryMatchers : List Type -> Type where
-        Nil : ErlMapEntryMatchers []
-        (::) : ErlMapEntry x -> ErlMapEntryMatchers xs -> ErlMapEntryMatchers (x :: xs)
-
-    export
-    data ErlMapEntry : Type -> Type where
-      MkErlMapEntry : ErlType key => key -> ErlMatcher value -> ErlMapEntry value
-
-    -- TODO: Which priority?
-    infix 3 :=
-
-    export %inline
-    (:=) : ErlType key => key -> ErlMatcher value -> ErlMapEntry value
-    (:=) = MkErlMapEntry
-
-  %extern prim__erlCase : a -> List (ErlMatcher a) -> ErlTerm -> a
-
-  export %inline
-  erlCase : a -> List (ErlMatcher a) -> ErlTerm -> a
-  erlCase = prim__erlCase
-
-  -- TODO: I would prefer to have Functor implementation for ErlMatcher instead, but at the moment this function needs to be inlined
-  export %inline
-  map : (a -> b) -> ErlMatcher a -> ErlMatcher b
-  map func matcher = MTransform matcher func
-
-
 namespace Decoding
   public export
   data ErlDecoderError
@@ -414,22 +350,21 @@ namespace Decoding
       Nil : ErlDecoders []
       (::) : ErlDecoder a -> ErlDecoders as -> ErlDecoders (a :: as)
 
-  -- TODO: Rename
   public export
-  data ErlMapEntry2 : Type -> Type where
-    MkErlMapEntry2 : ErlType key => key -> ErlDecoder value -> ErlMapEntry2 value
+  data ErlMapEntry : Type -> Type where
+    MkErlMapEntry : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
 
   infix 9 :=
 
   export %inline
-  (:=) : ErlType key => key -> ErlDecoder value -> ErlMapEntry2 value
-  (:=) = MkErlMapEntry2
+  (:=) : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
+  (:=) = MkErlMapEntry
 
   namespace ErlMapEntryDecoders
     public export
     data ErlMapEntryDecoders : List Type -> Type where
       Nil : ErlMapEntryDecoders []
-      (::) : ErlMapEntry2 a -> ErlMapEntryDecoders as -> ErlMapEntryDecoders (a :: as)
+      (::) : ErlMapEntry a -> ErlMapEntryDecoders as -> ErlMapEntryDecoders (a :: as)
 
 
   -- IMPLEMENTATIONS
@@ -717,7 +652,7 @@ namespace Decoding
   export
   mapSubset : ErlMapEntryDecoders xs -> ErlDecoder (ErlList xs)
   mapSubset [] = anyMap *> pure []
-  mapSubset (MkErlMapEntry2 key valueDecoder :: xs) =
+  mapSubset (MkErlMapEntry key valueDecoder :: xs) =
     (::) <$> mapEntry key valueDecoder <*> mapSubset xs
 
   export

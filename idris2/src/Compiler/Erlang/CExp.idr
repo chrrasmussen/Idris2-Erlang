@@ -268,7 +268,7 @@ readConAlt namespaceInfo l name args body =
 data ExtPrim
   = PutStr | GetStr
   | VoidElim
-  | ErlUnsafeCall | ErlTryCatch | ErlCase | ErlReceive | ErlModule
+  | ErlUnsafeCall | ErlTryCatch | ErlReceive | ErlModule
   | ErlDecodeCodepoint | ErlDecodeInteger | ErlDecodeDouble | ErlDecodeAtom | ErlDecodeBinary
   | ErlDecodePid | ErlDecodeRef | ErlDecodePort | ErlDecodeAnyMap | ErlDecodeAnyList
   | ErlDecodeNil | ErlDecodeCons
@@ -284,7 +284,6 @@ Show ExtPrim where
   show VoidElim = "VoidElim"
   show ErlUnsafeCall = "ErlUnsafeCall"
   show ErlTryCatch = "ErlTryCatch"
-  show ErlCase = "ErlCase"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
   show ErlDecodeCodepoint = "ErlDecodeCodepoint"
@@ -328,7 +327,6 @@ toPrim (NS _ n) = cond [
   (n == UN "void", Just VoidElim),
   (n == UN "prim__erlUnsafeCall", Just ErlUnsafeCall),
   (n == UN "prim__erlTryCatch", Just ErlTryCatch),
-  (n == UN "prim__erlCase", Just ErlCase),
   (n == UN "prim__erlReceive", Just ErlReceive),
   (n == UN "prim__erlModule", Just ErlModule),
   (n == UN "prim__erlDecodeCodepoint", Just ErlDecodeCodepoint),
@@ -501,9 +499,7 @@ mutual
     let Just extPrim = toPrim p
       | Nothing => pure (genThrow l ("Can't compile unknown external primitive " ++ show p))
       -- TODO: throw (InternalError ("Can't compile unknown external primitive " ++ show p))
-    case extPrim of
-      ErlCase => genErlCase namespaceInfo l vs args
-      _ => genExtPrim namespaceInfo l extPrim !(traverse (genCExp namespaceInfo vs) args)
+    genExtPrim namespaceInfo l extPrim !(traverse (genCExp namespaceInfo vs) args)
   genCExp namespaceInfo vs (CForce fc t) = do
     let l = genFC fc
     pure $ EApp l !(genCExp namespaceInfo vs t) []
@@ -554,121 +550,6 @@ mutual
   genConstAlt : NamespaceInfo -> EVars vars -> CConstAlt vars -> Core (ErlConstAlt vars)
   genConstAlt namespaceInfo vs (MkConstAlt constant body) = do
     pure $ MkConstAlt (genConstant constant) !(genCExp namespaceInfo vs body)
-
-  genErlCase : NamespaceInfo -> Line -> EVars vars -> List (CExp vars) -> Core (ErlExpr vars)
-  genErlCase namespaceInfo l vs [_, def, matchersCExp@(CCon _ _ _ _), sc] = do
-    clauses <- readErlMatcherClauses namespaceInfo l vs matchersCExp
-    pure $ EMatcherCase l !(genCExp namespaceInfo vs sc) clauses !(genCExp namespaceInfo vs def)
-  genErlCase namespaceInfo l vs args =
-    pure $ genThrow l "Error: Badly formed erlCase"
-
-  readErlMatcherClauses : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (List (ErlMatcher vars))
-  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "Nil")) tag []) = pure []
-  readErlMatcherClauses namespaceInfo l vs (CCon fc (NS ["Prelude"] (UN "::")) tag [x, xs]) = do
-    first <- readErlMatcher namespaceInfo l vs x
-    rest <- readErlMatcherClauses namespaceInfo l vs xs
-    pure (first :: rest)
-  readErlMatcherClauses namespaceInfo l vs args =
-    throw (InternalError ("Expected a list of ErlMatcher clauses " ++ show args))
-
-  readErlMatcher : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (ErlMatcher vars)
-  -- MExact
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MExact")) tag [erlTypePrf, matchValue]) = do
-    let unusedVar = MN "" 0
-    pure $ MTransform (MExact !(genCExp namespaceInfo vs matchValue)) unusedVar (genMkUnit l)
-  -- MAny
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAny")) tag []) = do
-    pure $ MAny
-  -- Simple guards
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCodepoint")) tag []) = pure $ MCodepoint
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MInteger")) tag []) = pure $ MInteger
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MDouble")) tag []) = pure $ MFloat
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAtom")) tag []) = pure $ MAtom
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MBinary")) tag []) = pure $ MBinary
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMap")) tag []) = pure $ MMap
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPid")) tag []) = pure $ MPid
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MRef")) tag []) = pure $ MRef
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MPort")) tag []) = pure $ MPort
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MAnyList")) tag []) = pure $ MAnyList
-  -- MNil
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MNil")) tag []) = do
-    let unusedVar = MN "" 0
-    pure $ MTransform MNil unusedVar (genMkUnit l)
-  -- MCons
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MCons")) tag [headMatcher, tailMatcher, transformFun]) = do
-    headErlMatcher <- readErlMatcher namespaceInfo l vs headMatcher
-    tailErlMatcher <- readErlMatcher namespaceInfo l vs tailMatcher
-    fun <- genCExp namespaceInfo vs transformFun
-    let headVar = MN "" 0
-    let tailVar = MN "" 0
-    pure $ MCons headErlMatcher tailErlMatcher headVar tailVar (genAppCurriedFun l (weakenNs [headVar, tailVar] fun) [ELocal l First, ELocal l (Later First)])
-  -- MList
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MList")) tag [xs, transformFun]) = do
-    (args ** erlMatchers) <- readErlMatchers namespaceInfo l vs xs
-    fun <- genCExp namespaceInfo vs transformFun
-    pure $ MList erlMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
-  -- MTuple
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTuple")) tag [xs, transformFun]) = do
-    (args ** erlMatchers) <- readErlMatchers namespaceInfo l vs xs
-    fun <- genCExp namespaceInfo vs transformFun
-    pure $ MTuple erlMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
-  -- MMapSubset
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MMapSubset")) tag [xs, transformFun]) = do
-    (args ** erlMapEntryMatchers) <- readErlMapEntryMatchers namespaceInfo l vs xs
-    fun <- genCExp namespaceInfo vs transformFun
-    pure $ MMapSubset erlMapEntryMatchers (genAppCurriedFun l (weakenNs args fun) (genArgsToLocals l args))
-  -- MIO
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MIO")) tag [types]) = do
-    arity <- readListLength types
-    let resultVar = MN "" 0
-    pure $ MTransform (MFun arity) resultVar (genCurry l arity (genMkIO l . genTryCatch l) (ELocal l First))
-  -- MTransform
-  readErlMatcher namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MTransform")) tag [matcher, transformFun]) = do
-    erlMatcher <- readErlMatcher namespaceInfo l vs matcher
-    let resultVar = MN "" 0
-    pure $ MTransform erlMatcher resultVar (EApp l (weaken !(genCExp namespaceInfo vs transformFun)) [ELocal 1 First])
-  -- Other
-  readErlMatcher namespaceInfo l vs matcher =
-    throw (InternalError ("Badly formed clause " ++ show matcher))
-
-  readErlMatchers : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (args ** ErlMatchers vars args)
-  readErlMatchers namespaceInfo l vs (CCon fc (NS ["ErlMatchers", "CaseExpr", "Erlang"] (UN "Nil")) tag []) =
-    pure ([] ** [])
-  readErlMatchers namespaceInfo l vs (CCon fc (NS ["ErlMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [x, xs]) = do
-    first <- readErlMatcher namespaceInfo l vs x
-    (args ** rest) <- readErlMatchers namespaceInfo l vs xs
-    let newVar = MN "" 0
-    pure ((newVar :: args) ** (::) {newVar} first rest)
-  readErlMatchers namespaceInfo l vs args =
-    throw (InternalError ("Expected ErlMatchers " ++ show args))
-
-  readErlMapEntryMatchers : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (args ** ErlMapEntryMatchers vars args)
-  readErlMapEntryMatchers namespaceInfo l vs (CCon fc (NS ["ErlMapEntryMatchers", "CaseExpr", "Erlang"] (UN "Nil")) tag []) =
-    pure ([] ** [])
-  readErlMapEntryMatchers namespaceInfo l vs (CCon fc (NS ["ErlMapEntryMatchers", "CaseExpr", "Erlang"] (UN "::")) tag [x, xs]) = do
-    mapEntry <- readErlMapEntry namespaceInfo l vs x
-    (args ** rest) <- readErlMapEntryMatchers namespaceInfo l vs xs
-    let newVar = MN "" 0
-    pure ((newVar :: args) ** (::) {newVar} mapEntry rest)
-  readErlMapEntryMatchers namespaceInfo l vs args =
-    throw (InternalError ("Expected ErlMapEntryMatchers " ++ show args))
-
-  readErlMapEntry : NamespaceInfo -> Line -> EVars vars -> CExp vars -> Core (ErlExpr vars, ErlMatcher vars)
-  readErlMapEntry namespaceInfo l vs (CCon fc (NS ["CaseExpr", "Erlang"] (UN "MkErlMapEntry")) tag [erlTypePrf, key, matcher]) = do
-    keyExpr <- genCExp namespaceInfo vs key
-    valueMatcher <- readErlMatcher namespaceInfo l vs matcher
-    pure (keyExpr, valueMatcher)
-  readErlMapEntry namespaceInfo l vs args =
-    throw (InternalError ("Expected ErlMapEntry " ++ show args))
-
-  readListLength : CExp vars -> Core Nat
-  readListLength (CCon fc (NS ["Prelude"] (UN "Nil")) _ []) =
-    pure 0
-  readListLength (CCon fc (NS ["Prelude"] (UN "::")) _ [x, xs]) = do
-    tailLength <- readListLength xs
-    pure (1 + tailLength)
-  readListLength args =
-    throw (InternalError ("Expected a list of types " ++ show args))
 
 
 -- DEFINITIIONS
