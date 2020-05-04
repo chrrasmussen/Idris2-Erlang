@@ -17,4 +17,4 @@ getArgs : IO (List String)
 getArgs = do
   Right result <- erlCall "persistent_term" "get" [MkErlAtom "$idris_rts_args"]
     | Left _ => pure []
-  pure $ erlCase [] [map (erlUnsafeCast (List String)) MAnyList] result
+  pure $ erlDecodeDef [] (map (erlUnsafeCast (List String)) anyList) result

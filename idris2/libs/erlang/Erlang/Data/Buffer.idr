@@ -123,7 +123,7 @@ readBufferFromFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
   Right result <- erlCall "file" "read" [h, maxBytes]
     | Left _ => pure (Left FileReadError)
-  let Just (MkErlBinary str) = erlCase Nothing [map Just (MTuple [MExact (MkErlAtom "ok"), MBinary] (\ok, binary => binary))] result
+  let Right (MkErlTuple2 _ (MkErlBinary str)) = erlDecode (tuple2 (exact (MkErlAtom "ok")) binary) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   if strSize <= remainingBytesInBuffer
@@ -143,4 +143,6 @@ writeBufferToFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
     | Left _ => pure (Left FileWriteError)
   Right result <- erlCall "file" "write" [h, binaryToBeWritten]
     | Left _ => pure (Left FileWriteError)
-  pure $ erlCase (Left FileWriteError) [map (const (Right (MkBuffer ref size (loc + max')))) (MExact (MkErlAtom "ok"))] result
+  pure $ erlDecodeDef (Left FileWriteError)
+    (exact (MkErlAtom "ok") *> pure (Right (MkBuffer ref size (loc + max'))))
+    result
