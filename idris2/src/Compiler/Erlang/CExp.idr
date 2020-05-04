@@ -170,10 +170,6 @@ argsToErlMatchers : (args : List Name) -> ErlMatchers vars args
 argsToErlMatchers [] = []
 argsToErlMatchers (x :: xs) = (::) {newVar=x} MAny (argsToErlMatchers xs)
 
-readConAltTuple : Line -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlMatcher vars
-readConAltTuple l args body =
-  MTuple (argsToErlMatchers args) body
-
 readConAltFun : Line -> (arity : Nat) -> (funVar : Name) -> ErlExpr (funVar :: vars) -> (transform : {vars : _} -> ErlExpr vars -> ErlExpr vars) -> ErlMatcher vars
 readConAltFun l arity funVar body transform =
   let tempVar = MN "" 0
