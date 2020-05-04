@@ -750,7 +750,7 @@ namespace Concurrency
   export
   erlSend : ErlType a => ErlPid -> a -> IO ()
   erlSend receiver value = do
-    erlCall "erlang" "send" [receiver, value]
+    erlUnsafeCall ErlTerm "erlang" "send" [receiver, value]
     pure ()
 
   %extern prim__erlReceive : (ms : Int) -> (1 x : %World) -> IORes (Maybe ErlTerm)
