@@ -50,184 +50,184 @@ unwrapBinary (MkErlBinary str) = str
 testErlDecode : IO ()
 testErlDecode = do
   putStrLn "testErlDecode"
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast "string is not an integer"))
-  putStrLn (erlDecodeDef "not found" (map show integer <|> map unwrapBinary binary) (cast "string matches on second try"))
-  printLn (erlDecodeDef (-1) integer (cast 42))
-  printLn (erlDecodeDef (-1) integer (cast "string is not an integer"))
-  printLn (erlDecodeDef Nothing (map (Just . unwrapBinary) binary) (cast "val"))
-  printLn (erlDecodeDef Nothing (map (Just . unwrapBinary) binary) (cast 0))
+  putStrLn (erlDecodeDef "not found" (map show integer) "string is not an integer")
+  putStrLn (erlDecodeDef "not found" (map show integer <|> map unwrapBinary binary) "string matches on second try")
+  printLn (erlDecodeDef (-1) integer 42)
+  printLn (erlDecodeDef (-1) integer "string is not an integer")
+  printLn (erlDecodeDef Nothing (map (Just . unwrapBinary) binary) "val")
+  printLn (erlDecodeDef Nothing (map (Just . unwrapBinary) binary) 0)
 
 testErlDecodeInErlDecode : IO ()
 testErlDecodeInErlDecode = do
   putStrLn "testErlDecodeInErlDecode"
-  putStrLn (erlDecodeDef "not found" (map (\(MkErlTuple1 val) => erlDecodeDef "inner not found" (map show integer) val) (tuple1 any)) (cast (MkErlTuple1 42)))
-  putStrLn (erlDecodeDef "not found" (map (\(MkErlBinary str) => erlDecodeDef "inner not found" (map (const "find this") (exact "find this")) (cast str)) binary) (cast "find this"))
+  putStrLn (erlDecodeDef "not found" (map (\(MkErlTuple1 val) => erlDecodeDef "inner not found" (map show integer) val) (tuple1 any)) (MkErlTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map (\(MkErlBinary str) => erlDecodeDef "inner not found" (map (const "find this") (exact "find this")) str) binary) "find this")
 
 testFail : IO ()
 testFail = do
   putStrLn "testFail"
-  putStrLn (erlDecodeDef "not found" (fail "always fails") (cast "any value"))
-  putStrLn (erlDecodeDef "not found" (fail "always fails") (cast 1))
+  putStrLn (erlDecodeDef "not found" (fail "always fails") "any value")
+  putStrLn (erlDecodeDef "not found" (fail "always fails") 1)
 
 testAny : IO ()
 testAny = do
   putStrLn "testAny"
-  putStrLn (erlDecodeDef "not found" (map (const "matched on string") any) (cast "match me"))
-  putStrLn (erlDecodeDef "not found" (map (const "matched on atom") any) (cast (MkErlAtom "ok")))
-  putStrLn (erlDecodeDef "not found" (map (const "matched on integer") any) (cast 42))
+  putStrLn (erlDecodeDef "not found" (map (const "matched on string") any) "match me")
+  putStrLn (erlDecodeDef "not found" (map (const "matched on atom") any) (MkErlAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map (const "matched on integer") any) 42)
 
 testExact : IO ()
 testExact = do
   putStrLn "testExact"
-  putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) (cast "match me"))
-  putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) (cast "something else"))
-  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) (cast (MkErlAtom "ok")))
-  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) (cast "ok"))
-  putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) (cast 42))
-  putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) (cast (the Double 42)))
+  putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) "match me")
+  putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) "something else")
+  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) (MkErlAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) "ok")
+  putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) 42)
+  putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) (the Double 42))
 
 testCodepoint : IO ()
 testCodepoint = do
   putStrLn "testCodepoint"
-  putStrLn (erlDecodeDef "not found" (map show codepoint) (cast 97))
-  putStrLn (erlDecodeDef "not found" (map show codepoint) (cast (-1))) -- NOTE: Min char value is 0
-  putStrLn (erlDecodeDef "not found" (map show codepoint) (cast 1114112)) -- NOTE: Max char value is 0x10FFFF (1114111 in decimal number)
-  putStrLn (erlDecodeDef "not found" (map show codepoint) (cast "string is not a char"))
-  putStrLn (erlDecodeDef "not found" (map show codepoint) (cast (the Double 42)))
+  putStrLn (erlDecodeDef "not found" (map show codepoint) 97)
+  putStrLn (erlDecodeDef "not found" (map show codepoint) (-1)) -- NOTE: Min char value is 0
+  putStrLn (erlDecodeDef "not found" (map show codepoint) 1114112) -- NOTE: Max char value is 0x10FFFF (1114111 in decimal number)
+  putStrLn (erlDecodeDef "not found" (map show codepoint) "string is not a char")
+  putStrLn (erlDecodeDef "not found" (map show codepoint) (the Double 42))
 
 testInteger : IO ()
 testInteger = do
   putStrLn "testInteger"
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast 42))
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast 0))
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast (-42)))
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast "string is not an integer"))
-  putStrLn (erlDecodeDef "not found" (map show integer) (cast (the Double 42)))
+  putStrLn (erlDecodeDef "not found" (map show integer) 42)
+  putStrLn (erlDecodeDef "not found" (map show integer) 0)
+  putStrLn (erlDecodeDef "not found" (map show integer) (-42))
+  putStrLn (erlDecodeDef "not found" (map show integer) "string is not an integer")
+  putStrLn (erlDecodeDef "not found" (map show integer) (the Double 42))
 
 testDouble : IO ()
 testDouble = do
   putStrLn "testDouble"
-  putStrLn (erlDecodeDef "not found" (map show double) (cast (the Double 42)))
-  putStrLn (erlDecodeDef "not found" (map show double) (cast (the Double 0)))
-  putStrLn (erlDecodeDef "not found" (map show double) (cast (the Double (-42))))
-  putStrLn (erlDecodeDef "not found" (map show double) (cast "string is not an double"))
-  putStrLn (erlDecodeDef "not found" (map show double) (cast 42))
+  putStrLn (erlDecodeDef "not found" (map show double) (the Double 42))
+  putStrLn (erlDecodeDef "not found" (map show double) (the Double 0))
+  putStrLn (erlDecodeDef "not found" (map show double) (the Double (-42)))
+  putStrLn (erlDecodeDef "not found" (map show double) "string is not an double")
+  putStrLn (erlDecodeDef "not found" (map show double) 42)
 
 testAtom : IO ()
 testAtom = do
   putStrLn "testAtom"
-  putStrLn (erlDecodeDef "not found" (map show atom) (cast (MkErlAtom "ok")))
-  putStrLn (erlDecodeDef "not found" (map show atom) (cast (MkErlAtom "error")))
-  putStrLn (erlDecodeDef "not found" (map show atom) (cast "string is not an atom"))
+  putStrLn (erlDecodeDef "not found" (map show atom) (MkErlAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map show atom) (MkErlAtom "error"))
+  putStrLn (erlDecodeDef "not found" (map show atom) "string is not an atom")
 
 testBinary : IO ()
 testBinary = do
   putStrLn "testBinary"
-  putStrLn (erlDecodeDef "not found" (map show binary) (cast binaryEx))
-  putStrLn (erlDecodeDef "not found" (map show binary) (cast 42))
+  putStrLn (erlDecodeDef "not found" (map show binary) binaryEx)
+  putStrLn (erlDecodeDef "not found" (map show binary) 42)
 
 testPid : IO ()
 testPid = do
   putStrLn "testPid"
-  putStrLn (erlDecodeDef "not found" (map show pid) (cast pidEx))
-  putStrLn (erlDecodeDef "not found" (map show pid) (cast "not a pid"))
+  putStrLn (erlDecodeDef "not found" (map show pid) pidEx)
+  putStrLn (erlDecodeDef "not found" (map show pid) "not a pid")
 
 testRef : IO ()
 testRef = do
   putStrLn "testRef"
-  putStrLn (erlDecodeDef "not found" (map show ref) (cast refEx))
-  putStrLn (erlDecodeDef "not found" (map show ref) (cast "not a ref"))
+  putStrLn (erlDecodeDef "not found" (map show ref) refEx)
+  putStrLn (erlDecodeDef "not found" (map show ref) "not a ref")
 
 testPort : IO ()
 testPort = do
   putStrLn "testPort"
-  putStrLn (erlDecodeDef "not found" (map show port) (cast portEx))
-  putStrLn (erlDecodeDef "not found" (map show port) (cast "not a port"))
+  putStrLn (erlDecodeDef "not found" (map show port) portEx)
+  putStrLn (erlDecodeDef "not found" (map show port) "not a port")
 
 testAnyMap : IO ()
 testAnyMap = do
   putStrLn "testAnyMap"
-  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) (cast mapEmpty))
-  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) (cast mapEx1))
-  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) (cast "not a map"))
+  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) mapEmpty)
+  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (const "found map") anyMap) "not a map")
 
 testAnyList : IO ()
 testAnyList = do
   putStrLn "testAnyList"
-  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (cast (the ErlNil [])))
-  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (cast (the (ErlCons _ _) (MkErlAtom "ok" :: 42))))
-  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (cast "not a list"))
+  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (the ErlNil []))
+  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (the (ErlCons _ _) (MkErlAtom "ok" :: 42)))
+  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) "not a list")
 
 testNil : IO ()
 testNil = do
   putStrLn "testNil"
-  putStrLn (erlDecodeDef "not found" (map (const "found nil") nil) (cast (the ErlNil [])))
-  putStrLn (erlDecodeDef "not found" (map (const "found nil") nil) (cast "not an empty list"))
+  putStrLn (erlDecodeDef "not found" (map (const "found nil") nil) (the ErlNil []))
+  putStrLn (erlDecodeDef "not found" (map (const "found nil") nil) "not an empty list")
 
 testCons : IO ()
 testCons = do
   putStrLn "testCons"
-  putStrLn (erlDecodeDef "not found" (map show (cons binary binary)) (cast (the (ErlCons String String) ("a" :: "b"))))
-  putStrLn (erlDecodeDef "not found" (map show (cons binary binary)) (cast "not a list cons"))
-  putStrLn (erlDecodeDef "not found" (map show (cons binary integer)) (cast (the (ErlCons String Integer) ("a" :: 42))))
-  putStrLn (erlDecodeDef "not found" (map show (cons binary nil)) (cast (the (ErlCons String ErlNil) ["a"])))
-  putStrLn (erlDecodeDef "not found" (map show (cons binary (cons integer nil))) (cast (the (ErlCons String (ErlCons Integer ErlNil)) ["a", 42])))
+  putStrLn (erlDecodeDef "not found" (map show (cons binary binary)) (the (ErlCons String String) ("a" :: "b")))
+  putStrLn (erlDecodeDef "not found" (map show (cons binary binary)) "not a list cons")
+  putStrLn (erlDecodeDef "not found" (map show (cons binary integer)) (the (ErlCons String Integer) ("a" :: 42)))
+  putStrLn (erlDecodeDef "not found" (map show (cons binary nil)) (the (ErlCons String ErlNil) ["a"]))
+  putStrLn (erlDecodeDef "not found" (map show (cons binary (cons integer nil))) (the (ErlCons String (ErlCons Integer ErlNil)) ["a", 42]))
 
 testList : IO ()
 testList = do
   putStrLn "testList"
-  putStrLn (erlDecodeDef "not found" (map show (list binary)) (cast (the (List String) [])))
-  putStrLn (erlDecodeDef "not found" (map show (list integer)) (cast "not a list"))
-  putStrLn (erlDecodeDef "not found" (map show (list binary)) (cast (the (List _) ["first item", "second item"])))
-  putStrLn (erlDecodeDef "not found" (map show (list integer)) (cast (the (List _) [1, 2, 3])))
-  putStrLn (erlDecodeDef "not found" (map show (list integer)) (cast (the (List _) ["first item", "second item"])))
+  putStrLn (erlDecodeDef "not found" (map show (list binary)) (the (List String) []))
+  putStrLn (erlDecodeDef "not found" (map show (list integer)) "not a list")
+  putStrLn (erlDecodeDef "not found" (map show (list binary)) (the (List _) ["first item", "second item"]))
+  putStrLn (erlDecodeDef "not found" (map show (list integer)) (the (List _) [1, 2, 3]))
+  putStrLn (erlDecodeDef "not found" (map show (list integer)) (the (List _) ["first item", "second item"]))
 
 testHList : IO ()
 testHList = do
   putStrLn "testHList"
-  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (cast (the (ErlList _) ["first item"])))
-  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (cast "not an hList"))
-  putStrLn (erlDecodeDef "not found" (map show (hList [binary, integer])) (cast (the (ErlList _) ["first item", 42])))
-  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (cast (the (ErlList _) [])))
-  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (cast (the (ErlList _) ["a", "b"])))
+  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (the (ErlList _) ["first item"]))
+  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) "not an hList")
+  putStrLn (erlDecodeDef "not found" (map show (hList [binary, integer])) (the (ErlList _) ["first item", 42]))
+  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (the (ErlList _) []))
+  putStrLn (erlDecodeDef "not found" (map show (hList [binary])) (the (ErlList _) ["a", "b"]))
 
 testTuple : IO ()
 testTuple = do
   putStrLn "testTuple"
-  putStrLn (erlDecodeDef "not found" (map show tuple0) (cast MkErlTuple0))
-  putStrLn (erlDecodeDef "not found" (map show tuple0) (cast ()))
-  putStrLn (erlDecodeDef "not found" (map show tuple0) (cast "not an empty tuple"))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (cast (MkErlTuple1 42)))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 integer)) (cast (MkErlTuple1 42)))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 binary)) (cast (MkErlTuple1 "string inside 1-element tuple")))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (cast 42))
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 binary binary)) (cast (MkErlTuple2 "first string" "second string")))
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (cast (MkErlTuple2 (MkErlAtom "ok") 42)))
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (cast (MkErlTuple3 (MkErlAtom "ok") 42 "too long tuple")))
+  putStrLn (erlDecodeDef "not found" (map show tuple0) MkErlTuple0)
+  putStrLn (erlDecodeDef "not found" (map show tuple0) ())
+  putStrLn (erlDecodeDef "not found" (map show tuple0) "not an empty tuple")
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (MkErlTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 integer)) (MkErlTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 binary)) (MkErlTuple1 "string inside 1-element tuple"))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) 42)
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 binary binary)) (MkErlTuple2 "first string" "second string"))
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (MkErlTuple2 (MkErlAtom "ok") 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (MkErlTuple3 (MkErlAtom "ok") 42 "too long tuple"))
 
 testMapEntry : IO ()
 testMapEntry = do
   putStrLn "testMapEntry"
-  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "first" binary)) (cast mapEx1))
-  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "second" binary)) (cast mapEx1)) -- Missing key
-  putStrLn (erlDecodeDef "not found" (map show (mapEntry "first" integer)) (cast mapEx1)) -- Wrong type
-  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "first" binary)) (cast mapEx2))
+  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "first" binary)) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "second" binary)) mapEx1) -- Missing key
+  putStrLn (erlDecodeDef "not found" (map show (mapEntry "first" integer)) mapEx1) -- Wrong type
+  putStrLn (erlDecodeDef "not found" (map unwrapBinary (mapEntry "first" binary)) mapEx2)
 
 testMapSubset : IO ()
 testMapSubset = do
   putStrLn "testMapSubset"
-  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) (cast mapEx1))
-  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) (cast "not a map"))
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) (cast mapEx1))
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) (cast mapEx2))
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) (cast mapEx1))
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) (cast mapEx2))
+  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) "not a map")
+  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) mapEx2)
 
 testOptional : IO ()
 testOptional = do
   putStrLn "testOptional"
-  putStrLn (erlDecodeDef "not found" (map show (optional integer)) (cast 42))
-  putStrLn (erlDecodeDef "not found" (map show (optional integer)) (cast "string is not an integer"))
+  putStrLn (erlDecodeDef "not found" (map show (optional integer)) 42)
+  putStrLn (erlDecodeDef "not found" (map show (optional integer)) "string is not an integer")
 
 testIO : IO ()
 testIO = do
@@ -238,7 +238,7 @@ testIO = do
         | Left _ => putStrLn "exception"
       putStrLn (erlDecodeDef "not an integer" (map show integer) fun0_res)
     Left _ => putStrLn "not found"
-  case erlDecode fun0 (cast {to=ErlTerm} "not a function") of
+  case erlDecode fun0 "not a function" of
     Right fun0_notFound => do
       Right fun0_notFound_res <- fun0_notFound
         | Left _ => putStrLn "exception"
