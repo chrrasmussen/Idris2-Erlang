@@ -115,7 +115,7 @@ contrib: prelude
 	${MAKE} -C libs/contrib IDRIS2=../../idris2
 
 erlang: prelude
-	make -C libs/erlang IDRIS2=../../idris2
+	${MAKE} -C libs/erlang IDRIS2=../../idris2
 
 libs : prelude base network contrib erlang
 
