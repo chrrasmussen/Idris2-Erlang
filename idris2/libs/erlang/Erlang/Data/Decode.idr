@@ -141,6 +141,22 @@ any =
   MkDecoder (\term => Right term)
 
 export
+optional : ErlDecoder a -> ErlDecoder (Maybe a)
+optional decoder =
+  map Just decoder <|>
+    pure Nothing
+
+infixr 2 `lazyAlt`
+
+-- A lazy version of `<|>`
+lazyAlt : ErlDecoder a -> Lazy (ErlDecoder a) -> ErlDecoder a
+lazyAlt decoder1 decoder2 = do
+  result <- optional decoder1
+  case result of
+    Just value => pure value
+    Nothing => decoder2
+
+export
 exact : ErlType a => a -> ErlDecoder a
 exact matchValue =
   MkDecoder (\term =>
@@ -277,7 +293,7 @@ tuple5 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder
 export
 list : ErlDecoder a -> ErlDecoder (List a)
 list decoder =
-  nil *> pure [] <|>
+  nil *> pure [] `lazyAlt`
     map (\(x :: xs) => x :: xs) (cons decoder (assert_total (list decoder)))
 
 export
@@ -301,15 +317,15 @@ mutual
   export
   string : ErlDecoder String
   string =
-    map believe_me binary <|>
-      map believe_me nil <|>
+    map believe_me binary `lazyAlt`
+      map believe_me nil `lazyAlt`
       map believe_me (cons (assert_total listHead) (assert_total string))
     where
       listHead : ErlDecoder String
       listHead =
-        map believe_me codepoint <|> -- NOTE: Codepoints are only valid in head position in an IO list
-          map believe_me binary <|>
-          map believe_me nil <|>
+        map believe_me codepoint `lazyAlt` -- NOTE: Codepoints are only valid in head position in an IO list
+          map believe_me binary `lazyAlt`
+          map believe_me nil `lazyAlt`
           map believe_me (cons (assert_total listHead) string)
 
 export
@@ -328,12 +344,6 @@ mapSubset : ErlMapEntryDecoders xs -> ErlDecoder (ErlList xs)
 mapSubset [] = anyMap *> pure []
 mapSubset (MkErlMapEntry key valueDecoder :: xs) =
   (::) <$> mapEntry key valueDecoder <*> mapSubset xs
-
-export
-optional : ErlDecoder a -> ErlDecoder (Maybe a)
-optional decoder =
-  map Just decoder <|>
-    pure Nothing
 
 export
 fun0 : ErlDecoder (IO (Either ErlException ErlTerm))
