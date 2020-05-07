@@ -70,10 +70,10 @@ export
 Alternative ErlDecoder where
   empty =
     MkDecoder (\_ => Left Empty)
-  (MkDecoder firstDecoder) <|> (MkDecoder secondDecoder) =
-    MkDecoder (\term => case firstDecoder term of
+  (MkDecoder decoder1) <|> (MkDecoder decoder2) =
+    MkDecoder (\term => case decoder1 term of
       Right res => Right res
-      Left firstErr => case secondDecoder term of
+      Left firstErr => case decoder2 term of
         Right res => Right res
         Left secondErr => Left (OneOf firstErr secondErr))
 
