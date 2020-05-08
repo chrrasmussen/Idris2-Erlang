@@ -34,11 +34,11 @@ export %inline
 (:=) : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
 (:=) = MkErlMapEntry
 
-namespace ErlMapEntryDecoders
+namespace ErlMapEntries
   public export
-  data ErlMapEntryDecoders : List Type -> Type where
-    Nil : ErlMapEntryDecoders []
-    (::) : ErlMapEntry a -> ErlMapEntryDecoders as -> ErlMapEntryDecoders (a :: as)
+  data ErlMapEntries : List Type -> Type where
+    Nil : ErlMapEntries []
+    (::) : ErlMapEntry a -> ErlMapEntries as -> ErlMapEntries (a :: as)
 
 
 -- IMPLEMENTATIONS
@@ -340,7 +340,7 @@ mapEntry key (MkDecoder valueDecoder) =
     valueDecoder value)
 
 export
-mapSubset : ErlMapEntryDecoders xs -> ErlDecoder (ErlList xs)
+mapSubset : ErlMapEntries xs -> ErlDecoder (ErlList xs)
 mapSubset [] = anyMap *> pure []
 mapSubset (MkErlMapEntry key valueDecoder :: xs) =
   (::) <$> mapEntry key valueDecoder <*> mapSubset xs
