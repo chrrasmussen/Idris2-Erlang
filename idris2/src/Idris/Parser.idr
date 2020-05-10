@@ -1091,6 +1091,17 @@ namespaceDecl fname indents
          ds <- assert_total (nonEmptyBlock (topDecl fname))
          pure (PNamespace (MkFC fname start end) ns (concat ds))
 
+transformDecl : FileName -> IndentInfo -> Rule PDecl
+transformDecl fname indents
+    = do start <- location
+         pragma "transform"
+         n <- strLit
+         lhs <- expr plhs fname indents
+         symbol "="
+         rhs <- expr pnowith fname indents
+         end <- location
+         pure (PTransform (MkFC fname start end) n lhs rhs)
+
 mutualDecls : FileName -> IndentInfo -> Rule PDecl
 mutualDecls fname indents
     = do start <- location
@@ -1408,6 +1419,8 @@ topDecl fname indents
   <|> do d <- paramDecls fname indents
          pure [d]
   <|> do d <- usingDecls fname indents
+         pure [d]
+  <|> do d <- transformDecl fname indents
          pure [d]
   <|> do d <- directiveDecl fname indents
          pure [d]

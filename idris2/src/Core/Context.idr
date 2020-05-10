@@ -55,8 +55,10 @@ data Def : Type where
             (treeRT : CaseTree args) ->
             (pats : List (vs ** (Env Term vs, Term vs, Term vs))) ->
                 -- original checked patterns (LHS/RHS) with the names in
-                -- the environment. Used for display purposes, and for helping
-                -- find size changes in termination checking
+                -- the environment. Used for display purposes, for helping
+                -- find size changes in termination checking, and for
+                -- generating specialised definitions (so needs to be the
+                -- full, non-erased, term)
             Def -- Ordinary function definition
     ExternDef : (arity : Nat) -> Def
     ForeignDef : (arity : Nat) ->
@@ -159,6 +161,11 @@ data DefFlag
     | SetTotal TotalReq
     | BlockedHint -- a hint, but blocked for the moment (so don't use)
     | Macro
+    | PartialEval (List (Name, Nat)) -- Partially evaluate on completing defintion.
+         -- This means the definition is standing for a specialisation so we
+         -- should evaluate the RHS, with reduction limits on the given names,
+         -- and ensure the name has made progress in doing so (i.e. has reduced
+         -- at least once)
 
 export
 Eq DefFlag where
@@ -169,6 +176,7 @@ Eq DefFlag where
     (==) (SetTotal x) (SetTotal y) = x == y
     (==) BlockedHint BlockedHint = True
     (==) Macro Macro = True
+    (==) (PartialEval x) (PartialEval y) = x == y
     (==) _ _ = False
 
 public export
@@ -205,6 +213,7 @@ record GlobalDef where
                        -- erasable without 'dotting', because their types
                        -- are collapsible relative to non-erased arguments
   specArgs : List Nat -- arguments to specialise by
+  inferrable : List Nat -- arguments which can be inferred from elsewhere in the type
   multiplicity : RigCount
   vars : List Name -- environment name is defined in
   visibility : Visibility
@@ -269,6 +278,8 @@ record Context where
     -- access in a program - in all other cases, we'll assume everything is
     -- visible
     visibleNS : List (List String)
+    allPublic : Bool -- treat everything as public. This is only intended
+                     -- for checking partially evaluated definitions
     inlineOnly : Bool -- only return things with the 'alwaysReduce' flag
 
 export
@@ -295,7 +306,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False)
+         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False False)
 
 export
 initCtxt : Core Context
@@ -494,7 +505,7 @@ export
 newDef : FC -> Name -> RigCount -> List Name ->
          ClosedTerm -> Visibility -> Def -> GlobalDef
 newDef fc n rig vars ty vis def
-    = MkGlobalDef fc n ty [] [] []
+    = MkGlobalDef fc n ty [] [] [] []
                   rig vars vis unchecked [] Nothing Nothing False False False def
                   Nothing Nothing []
 
@@ -506,11 +517,12 @@ newDef fc n rig vars ty vis def
 -- 'NF but we're working with terms rather than values...)
 public export
 data Transform : Type where
-     MkTransform : Env Term vars -> Term vars -> Term vars -> Transform
+     MkTransform : Name -> -- name for identifying the rule
+                   Env Term vars -> Term vars -> Term vars -> Transform
 
 export
 getFnName : Transform -> Maybe Name
-getFnName (MkTransform _ app _)
+getFnName (MkTransform _ _ app _)
     = case getFn app of
            Ref _ _ fn => Just fn
            _ => Nothing
@@ -764,11 +776,12 @@ HasNames GlobalDef where
 
 export
 HasNames Transform where
-  full gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(full gam env) !(full gam lhs) !(full gam rhs)
+  full gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(full gam n) !(full gam env)
+                           !(full gam lhs) !(full gam rhs)
 
-  resolved gam (MkTransform env lhs rhs)
-      = pure $ MkTransform !(resolved gam env)
+  resolved gam (MkTransform n env lhs rhs)
+      = pure $ MkTransform !(resolved gam n) !(resolved gam env)
                            !(resolved gam lhs) !(resolved gam rhs)
 
 public export
@@ -821,6 +834,9 @@ record Defs where
   userHoles : NameMap ()
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
+  peFailures : NameMap ()
+     -- ^ Partial evaluation names which have failed, so don't bother trying
+     -- again
   timings : StringMap (Bool, Integer)
      -- ^ record of timings from logTimeRecord
 
@@ -840,7 +856,7 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] empty []
-                      empty 5381 [] [] [] [] [] empty empty)
+                      empty 5381 [] [] [] [] [] empty empty empty)
 
 -- Reset the context, except for the options
 export
@@ -927,7 +943,7 @@ addBuiltin : {auto x : Ref Ctxt Defs} ->
              Name -> ClosedTerm -> Totality ->
              PrimFn arity -> Core ()
 addBuiltin n ty tot op
-    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] top [] Public tot
+    = do addDef n (MkGlobalDef emptyFC n ty [] [] [] [] top [] Public tot
                                [Inline] Nothing Nothing
                                False False True (Builtin op)
                                Nothing Nothing [])
@@ -1718,6 +1734,23 @@ getVisible : {auto c : Ref Ctxt Defs} ->
 getVisible
     = do defs <- get Ctxt
          pure (visibleNS (gamma defs))
+
+-- set whether all names should be viewed as public. Be careful with this,
+-- it's not intended for when checking user code! It's meant for allowing
+-- easy checking of partially evaluated definitions.
+export
+setAllPublic : {auto c : Ref Ctxt Defs} ->
+               (pub : Bool) -> Core ()
+setAllPublic pub
+    = do defs <- get Ctxt
+         put Ctxt (record { gamma->allPublic = pub } defs)
+
+export
+isAllPublic : {auto c : Ref Ctxt Defs} ->
+              Core Bool
+isAllPublic
+    = do defs <- get Ctxt
+         pure (allPublic (gamma defs))
 
 -- Return True if the given namespace is visible in the context (meaning
 -- the namespace itself, and any namespace it's nested inside)

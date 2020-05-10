@@ -33,15 +33,15 @@ toString (MkDirs wdir sdir bdir edir dfix edirs ldirs ddirs) =
 
 public export
 data CG = Chez
-        | Chicken
         | Racket
+        | Gambit
         | Erlang
 
 export
 Eq CG where
   Chez == Chez = True
-  Chicken == Chicken = True
   Racket == Racket = True
+  Gambit == Gambit = True
   Erlang == Erlang = True
   _ == _ = False
 
@@ -49,8 +49,8 @@ export
 availableCGs : List (String, CG)
 availableCGs
     = [("chez", Chez),
-       ("chicken", Chicken),
        ("racket", Racket),
+       ("gambit", Gambit),
        ("erlang", Erlang)]
 
 export

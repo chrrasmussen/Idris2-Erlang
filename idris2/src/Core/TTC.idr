@@ -716,16 +716,16 @@ TTC CDef where
 export
 TTC CG where
   toBuf b Chez = tag 0
-  toBuf b Chicken = tag 1
   toBuf b Racket = tag 2
-  toBuf b Erlang = tag 3
+  toBuf b Gambit = tag 3
+  toBuf b Erlang = tag 4
 
   fromBuf b
       = case !getTag of
              0 => pure Chez
-             1 => pure Chicken
              2 => pure Racket
-             3 => pure Erlang
+             3 => pure Gambit
+             4 => pure Erlang
              _ => corrupt "CG"
 
 export
@@ -872,6 +872,7 @@ TTC DefFlag where
   toBuf b (SetTotal x) = do tag 6; toBuf b x
   toBuf b BlockedHint = tag 7
   toBuf b Macro = tag 8
+  toBuf b (PartialEval x) = tag 9 -- names not useful any more
 
   fromBuf b
       = case !getTag of
@@ -882,6 +883,7 @@ TTC DefFlag where
              6 => do x <- fromBuf b; pure (SetTotal x)
              7 => pure BlockedHint
              8 => pure Macro
+             9 => pure (PartialEval [])
              _ => corrupt "DefFlag"
 
 export
@@ -916,11 +918,12 @@ TTC GlobalDef where
            toBuf b (map toList (refersToM gdef))
            toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
-           when (isUserName (fullname gdef)) $
+           when (isUserName (fullname gdef) || cwName (fullname gdef)) $
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
                  toBuf b (specArgs gdef)
+                 toBuf b (inferrable gdef)
                  toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
@@ -929,7 +932,11 @@ TTC GlobalDef where
                  toBuf b (invertible gdef)
                  toBuf b (noCycles gdef)
                  toBuf b (sizeChange gdef)
-
+    where
+      cwName : Name -> Bool
+      cwName (CaseBlock _ _) = True
+      cwName (WithBlock _ _) = True
+      cwName _ = False
   fromBuf b
       = do name <- fromBuf b
            def <- fromBuf b
@@ -942,32 +949,36 @@ TTC GlobalDef where
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
                       seargs <- fromBuf b; specargs <- fromBuf b
+                      iargs <- fromBuf b;
                       mul <- fromBuf b; vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
                       c <- fromBuf b
                       sc <- fromBuf b
-                      pure (MkGlobalDef loc name ty eargs seargs specargs
+                      pure (MkGlobalDef loc name ty eargs seargs specargs iargs
                                         mul vars vis
                                         tot fl refs refsR inv c True def cdef Nothing sc)
-              else pure (MkGlobalDef loc name (Erased loc False) [] [] []
+              else pure (MkGlobalDef loc name (Erased loc False) [] [] [] []
                                      top [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 
+export
 TTC Transform where
-  toBuf b (MkTransform {vars} env lhs rhs)
+  toBuf b (MkTransform {vars} n env lhs rhs)
       = do toBuf b vars
+           toBuf b n
            toBuf b env
            toBuf b lhs
            toBuf b rhs
 
   fromBuf b
       = do vars <- fromBuf b
+           n <- fromBuf b
            env <- fromBuf b
            lhs <- fromBuf b
            rhs <- fromBuf b
-           pure (MkTransform {vars} env lhs rhs)
+           pure (MkTransform {vars} n env lhs rhs)
 
 -- decode : Context -> Int -> (update : Bool) -> ContextEntry -> Core GlobalDef
 Core.Context.decode gam idx update (Coded bin)

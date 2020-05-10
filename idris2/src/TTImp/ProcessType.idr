@@ -56,7 +56,8 @@ processFnOpt fc ndef (SpecArgs ns)
               | Nothing => throw (UndefinedName fc ndef)
          nty <- nf defs [] (type gdef)
          ps <- getNamePos 0 nty
-         specs <- collectSpec [] ps nty
+         ddeps <- collectDDeps nty
+         specs <- collectSpec [] ddeps ps nty
          addDef ndef (record { specArgs = specs } gdef)
          pure ()
   where
@@ -69,18 +70,95 @@ processFnOpt fc ndef (SpecArgs ns)
                               then insertDeps acc ps ns
                               else insertDeps (pos :: acc) ps ns
 
-    collectSpec : List Nat -> List (Name, Nat) -> NF [] -> Core (List Nat)
-    collectSpec acc ps (NBind tfc x (Pi _ _ nty) sc)
+    -- Collect the argument names which the dynamic args depend on
+    collectDDeps : NF [] -> Core (List Name)
+    collectDDeps (NBind tfc x (Pi _ _ nty) sc)
         = do defs <- get Ctxt
              empty <- clearDefs defs
              sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
              if x `elem` ns
-                then do aty <- quote empty [] nty
-                        let rs = getRefs (UN "_") aty
-                        let acc' = insertDeps acc ps (x :: keys rs)
-                        collectSpec acc' ps sc'
-                else collectSpec acc ps sc'
-    collectSpec acc ps _ = pure acc
+                then collectDDeps sc'
+                else do aty <- quote empty [] nty
+                        -- Get names depended on by nty
+                        let deps = keys (getRefs (UN "_") aty)
+                        rest <- collectDDeps sc'
+                        pure (rest ++ deps)
+    collectDDeps _ = pure []
+
+    -- Return names the type depends on, and whether it's a parameter
+    mutual
+      getDepsArgs : Bool -> List (NF []) -> NameMap Bool ->
+                    Core (NameMap Bool)
+      getDepsArgs inparam [] ns = pure ns
+      getDepsArgs inparam (a :: as) ns
+          = do ns' <- getDeps inparam a ns
+               getDepsArgs inparam as ns'
+
+      getDeps : Bool -> NF [] -> NameMap Bool ->
+                Core (NameMap Bool)
+      getDeps inparam (NBind _ x (Pi _ _ pty) sc) ns
+          = do ns' <- getDeps inparam pty ns
+               defs <- get Ctxt
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               getDeps inparam sc' ns'
+      getDeps inparam (NBind _ x b sc) ns
+          = do ns' <- getDeps False (binderType b) ns
+               defs <- get Ctxt
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               getDeps False sc' ns
+      getDeps inparam (NApp _ (NRef Bound n) args) ns
+          = do defs <- get Ctxt
+               ns' <- getDepsArgs False !(traverse (evalClosure defs) args) ns
+               pure (insert n inparam ns')
+      getDeps inparam (NDCon _ n t a args) ns
+          = do defs <- get Ctxt
+               getDepsArgs False !(traverse (evalClosure defs) args) ns
+      getDeps inparam (NTCon _ n t a args) ns
+          = do defs <- get Ctxt
+               params <- case !(lookupDefExact n (gamma defs)) of
+                              Just (TCon _ _ ps _ _ _ _ _) => pure ps
+                              _ => pure []
+               let (ps, ds) = splitPs 0 params args
+               ns' <- getDepsArgs True !(traverse (evalClosure defs) ps) ns
+               getDepsArgs False !(traverse (evalClosure defs) ds) ns'
+        where
+          -- Split into arguments in parameter position, and others
+          splitPs : Nat -> List Nat -> List (Closure []) ->
+                    (List (Closure []), List (Closure []))
+          splitPs n params [] = ([], [])
+          splitPs n params (x :: xs)
+              = let (ps', ds') = splitPs (1 + n) params xs in
+                    if n `elem` params
+                       then (x :: ps', ds')
+                       else (ps', x :: ds')
+      getDeps inparam (NDelayed _ _ t) ns = getDeps inparam t ns
+      getDeps inparams nf ns = pure ns
+
+    -- If the name of an argument is in the list of specialisable arguments,
+    -- record the position. Also record the position of anything the argument
+    -- depends on which is only dependend on by declared static arguments.
+    collectSpec : List Nat -> -- specialisable so far
+                  List Name -> -- things depended on by dynamic args
+                               -- We're assuming  it's a short list, so just use
+                               -- List and don't worry about duplicates.
+                  List (Name, Nat) -> NF [] -> Core (List Nat)
+    collectSpec acc ddeps ps (NBind tfc x (Pi _ _ nty) sc)
+        = do defs <- get Ctxt
+             empty <- clearDefs defs
+             sc' <- sc defs (toClosure defaultOpts [] (Ref tfc Bound x))
+             if x `elem` ns
+                then do deps <- getDeps True nty NameMap.empty
+                        -- Get names depended on by nty
+                        -- Keep the ones which are either:
+                        --  * parameters
+                        --  * not depended on by a dynamic argument (the ddeps)
+                        let rs = filter (\x => snd x ||
+                                               not (fst x `elem` ddeps))
+                                        (toList deps)
+                        let acc' = insertDeps acc ps (x :: map fst rs)
+                        collectSpec acc' ddeps ps sc'
+                else collectSpec acc ddeps ps sc'
+    collectSpec acc ddeps ps _ = pure acc
 
     getNamePos : Nat -> NF [] -> Core (List (Name, Nat))
     getNamePos i (NBind tfc x (Pi _ _ _) sc)
@@ -127,6 +205,43 @@ initDef n env ty (ForeignFn cs :: opts)
          pure (ForeignDef a cs')
 initDef n env ty (_ :: opts) = initDef n env ty opts
 
+-- Find the inferrable argument positions in a type. This is useful for
+-- generalising partially evaluated definitions and (potentially) in interactive
+-- editing
+findInferrable : Defs -> NF [] -> Core (List Nat)
+findInferrable defs ty = fi 0 0 [] [] ty
+  where
+    mutual
+      -- Add to the inferrable arguments from the given type. An argument is
+      -- inferrable if it's guarded by a constructor, or on its own
+      findInf : List Nat -> List (Name, Nat) ->
+                NF [] -> Core (List Nat)
+      findInf acc pos (NApp _ (NRef Bound n) [])
+          = case lookup n pos of
+                 Nothing => pure acc
+                 Just p => if p `elem` acc then pure acc else pure (p :: acc)
+      findInf acc pos (NDCon _ _ _ _ args)
+          = do args' <- traverse (evalClosure defs) args
+               findInfs acc pos args'
+      findInf acc pos (NTCon _ _ _ _ args)
+          = do args' <- traverse (evalClosure defs) args
+               findInfs acc pos args'
+      findInf acc pos (NDelayed _ _ t) = findInf acc pos t
+      findInf acc _ _ = pure acc
+
+      findInfs : List Nat -> List (Name, Nat) -> List (NF []) -> Core (List Nat)
+      findInfs acc pos [] = pure acc
+      findInfs acc pos (n :: ns) = findInf !(findInfs acc pos ns) pos n
+
+    fi : Nat -> Int -> List (Name, Nat) -> List Nat -> NF [] -> Core (List Nat)
+    fi pos i args acc (NBind fc x (Pi _ _ aty) sc)
+        = do let argn = MN "inf" i
+             sc' <- sc defs (toClosure defaultOpts [] (Ref fc Bound argn))
+             acc' <- findInf acc args aty
+             rest <- fi (1 + pos) (1 + i) ((argn, pos) :: args) acc' sc'
+             pure rest
+    fi pos i args acc ret = findInf acc args ret
+
 export
 processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -158,10 +273,14 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc n_in ty_raw)
          def <- initDef n env ty opts
          let fullty = abstractEnvType tfc env ty
          (erased, dterased) <- findErased fullty
+         defs <- get Ctxt
+         empty <- clearDefs defs
+         infargs <- findInferrable empty !(nf defs [] fullty)
 
          addDef (Resolved idx)
                 (record { eraseArgs = erased,
-                          safeErase = dterased }
+                          safeErase = dterased,
+                          inferrable = infargs }
                         (newDef fc n rig vars fullty vis def))
          -- Flag it as checked, because we're going to check the clauses
          -- from the top level.

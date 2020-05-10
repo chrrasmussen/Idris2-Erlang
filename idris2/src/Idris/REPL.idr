@@ -1,8 +1,8 @@
 module Idris.REPL
 
 import Compiler.Scheme.Chez
--- import Compiler.Scheme.Chicken
 import Compiler.Scheme.Racket
+import Compiler.Scheme.Gambit
 import Compiler.Common
 import Compiler.Erlang.Erlang
 import Compiler.Erlang.Opts
@@ -60,11 +60,14 @@ showInfo (n, idx, d)
          coreLift $ putStrLn ("Erasable args: " ++ show (eraseArgs d))
          coreLift $ putStrLn ("Detaggable arg types: " ++ show (safeErase d))
          coreLift $ putStrLn ("Specialise args: " ++ show (specArgs d))
+         coreLift $ putStrLn ("Inferrable args: " ++ show (inferrable d))
          case compexpr d of
               Nothing => pure ()
               Just expr => coreLift $ putStrLn ("Compiled: " ++ show expr)
          coreLift $ putStrLn ("Refers to: " ++
                                show !(traverse getFullName (keys (refersTo d))))
+         coreLift $ putStrLn ("Refers to (runtime): " ++
+                               show !(traverse getFullName (keys (refersToRuntime d))))
          when (not (isNil (sizeChange d))) $
             let scinfo = map (\s => show (fnCall s) ++ ": " ++
                                     show (fnArgs s)) !(traverse toFullNames (sizeChange d)) in
@@ -242,9 +245,8 @@ findCG
     = do defs <- get Ctxt
          case codegen (session (options defs)) of
               Chez => pure codegenChez
-              Chicken => throw (InternalError "Chicken CG not available")
-                         -- pure codegenChicken
               Racket => pure codegenRacket
+              Gambit => pure codegenGambit
               Erlang => pure codegenErlang
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool

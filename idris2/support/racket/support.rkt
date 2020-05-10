@@ -136,7 +136,7 @@
       (either-right (op))))
 
 (define (blodwen-putstring p s)
-    (if (port? p) (write-string p s) void)
+    (if (port? p) (write-string s p) void)
     0)
 
 (define (blodwen-open file mode bin)
@@ -241,6 +241,17 @@
 
 (define (blodwen-time) (current-seconds))
 
+(define (blodwen-clock-time-utc) (current-time 'time-utc))
+(define (blodwen-clock-time-monotonic) (current-time 'time-monotonic))
+(define (blodwen-clock-time-duration) (current-time 'time-duration))
+(define (blodwen-clock-time-process) (current-time 'time-process))
+(define (blodwen-clock-time-thread) (current-time 'time-thread))
+(define (blodwen-clock-time-gccpu) 0) ;; unsupported
+(define (blodwen-clock-time-gcreal) 0) ;; unsupported
+(define (blodwen-is-time? clk) (if (time? clk) 1 0))
+(define (blodwen-clock-second time) (time-second time))
+(define (blodwen-clock-nanosecond time) (time-nanosecond time))
+
 (define (blodwen-args)
   (define (blodwen-build-args args)
     (if (null? args)
@@ -254,3 +265,16 @@
   (if (system cmd)
       0
       1))
+
+;; Randoms
+(random-seed (date*-nanosecond (current-date))) ; initialize random seed
+
+(define (blodwen-random-seed s) (random-seed s))
+(define blodwen-random
+  (case-lambda
+    ;; no argument, pick a real value from [0, 1.0)
+    [() (random)]
+    ;; single argument k, pick an integral value from [0, k)
+    [(k) (if (> k 0)
+           (random k)
+           (raise 'blodwen-random-invalid-range-argument))]))

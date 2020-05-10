@@ -241,6 +241,16 @@
        (sleep (make-time 'time-duration (* 1000 micro) sec))))
 
 (define (blodwen-time) (time-second (current-time)))
+(define (blodwen-clock-time-utc) (current-time 'time-utc))
+(define (blodwen-clock-time-monotonic) (current-time 'time-monotonic))
+(define (blodwen-clock-time-duration) (current-time 'time-duration))
+(define (blodwen-clock-time-process) (current-time 'time-process))
+(define (blodwen-clock-time-thread) (current-time 'time-thread))
+(define (blodwen-clock-time-gccpu) (current-time 'time-collector-cpu))
+(define (blodwen-clock-time-gcreal) (current-time 'time-collector-real))
+(define (blodwen-is-time? clk) (if (time? clk) 1 0))
+(define (blodwen-clock-second time) (time-second time))
+(define (blodwen-clock-nanosecond time) (time-nanosecond time))
 
 (define (blodwen-args)
   (define (blodwen-build-args args)
@@ -254,3 +264,28 @@
 
 (define (blodwen-system cmd)
   (system cmd))
+
+;; Randoms
+(define random-seed-register 0)
+(define (initialize-random-seed-once)
+  (if (= (virtual-register random-seed-register) 0)
+      (let ([seed (time-nanosecond (current-time))])
+        (set-virtual-register! random-seed-register seed)
+        (random-seed seed))))
+
+(define (blodwen-random-seed seed)
+  (set-virtual-register! random-seed-register seed)
+  (random-seed seed))
+(define blodwen-random
+  (case-lambda
+    ;; no argument, pick a real value from [0, 1.0)
+    [() (begin
+          (initialize-random-seed-once)
+          (random 1.0))]
+    ;; single argument k, pick an integral value from [0, k)
+    [(k)
+      (begin
+        (initialize-random-seed-once)
+        (if (> k 0)
+              (random k)
+              (assertion-violationf 'blodwen-random "invalid range argument ~a" k)))]))

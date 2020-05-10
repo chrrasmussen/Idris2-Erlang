@@ -333,6 +333,9 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          let ddef = MkData (MkCon dfc n arity fullty) cons
          addData vars vis tidx ddef
 
+         -- Flag data type as a newtype, if possible (See `findNewtype` for criteria).
+         -- Skip optimisation if the data type has specified `noNewtype` in its
+         -- options list.
          when (not (NoNewtype `elem` opts)) $
               findNewtype cons
 
