@@ -64,23 +64,23 @@ listTest = do
 erlAtomTest : IO ()
 erlAtomTest = do
   putStrLn "erlAtomTest"
-  erlPrintLn (MkErlAtom "") -- Surprisingly, this is allowed
-  erlPrintLn (MkErlAtom "ok")
-  erlPrintLn (MkErlAtom ("a" ++ show 42))
+  erlPrintLn (MkAtom "") -- Surprisingly, this is allowed
+  erlPrintLn (MkAtom "ok")
+  erlPrintLn (MkAtom ("a" ++ show 42))
 
 erlBinaryTest : IO ()
 erlBinaryTest = do
   putStrLn "erlBinaryTest"
-  erlPrintLn (MkErlBinary "")
-  erlPrintLn (MkErlBinary "ok")
-  erlPrintLn (MkErlBinary ("a" ++ show 42))
+  erlPrintLn (MkBinary "")
+  erlPrintLn (MkBinary "ok")
+  erlPrintLn (MkBinary ("a" ++ show 42))
 
 erlCharlistTest : IO ()
 erlCharlistTest = do
   putStrLn "erlCharlistTest"
-  erlPrintLn (MkErlCharlist "")
-  erlPrintLn (MkErlCharlist "ok")
-  erlPrintLn (MkErlCharlist ("a" ++ show 42))
+  erlPrintLn (MkCharlist "")
+  erlPrintLn (MkCharlist "ok")
+  erlPrintLn (MkCharlist ("a" ++ show 42))
 
 erlNilTest : IO ()
 erlNilTest = do
@@ -104,12 +104,12 @@ erlListTest = do
 erlTuplesTest : IO ()
 erlTuplesTest = do
   putStrLn "erlTuplesTest"
-  erlPrintLn MkErlTuple0
-  erlPrintLn (MkErlTuple1 "a")
-  erlPrintLn (MkErlTuple2 "a" "b")
-  erlPrintLn (MkErlTuple3 "a" "b" "c")
-  erlPrintLn (MkErlTuple4 "a" "b" "c" "d")
-  erlPrintLn (MkErlTuple5 "a" "b" "c" "d" "e")
+  erlPrintLn MkTuple0
+  erlPrintLn (MkTuple1 "a")
+  erlPrintLn (MkTuple2 "a" "b")
+  erlPrintLn (MkTuple3 "a" "b" "c")
+  erlPrintLn (MkTuple4 "a" "b" "c" "d")
+  erlPrintLn (MkTuple5 "a" "b" "c" "d" "e")
 
 main : IO ()
 main = do

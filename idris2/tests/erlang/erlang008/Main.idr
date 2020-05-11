@@ -42,7 +42,7 @@ funDivEx = unsafePerformIO $ erlUnsafeCall ErlTerm "test_support" "get_fun_div" 
 -- Helper functions
 
 unwrapBinary : ErlBinary -> String
-unwrapBinary (MkErlBinary str) = str
+unwrapBinary (MkBinary str) = str
 
 
 -- Tests
@@ -60,8 +60,8 @@ testErlDecode = do
 testErlDecodeInErlDecode : IO ()
 testErlDecodeInErlDecode = do
   putStrLn "testErlDecodeInErlDecode"
-  putStrLn (erlDecodeDef "not found" (map (\(MkErlTuple1 val) => erlDecodeDef "inner not found" (map show integer) val) (tuple1 any)) (MkErlTuple1 42))
-  putStrLn (erlDecodeDef "not found" (map (\(MkErlBinary str) => erlDecodeDef "inner not found" (map (const "find this") (exact "find this")) str) binary) "find this")
+  putStrLn (erlDecodeDef "not found" (map (\(MkTuple1 val) => erlDecodeDef "inner not found" (map show integer) val) (tuple1 any)) (MkTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map (\(MkBinary str) => erlDecodeDef "inner not found" (map (const "find this") (exact "find this")) str) binary) "find this")
 
 testFail : IO ()
 testFail = do
@@ -73,7 +73,7 @@ testAny : IO ()
 testAny = do
   putStrLn "testAny"
   putStrLn (erlDecodeDef "not found" (map (const "matched on string") any) "match me")
-  putStrLn (erlDecodeDef "not found" (map (const "matched on atom") any) (MkErlAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map (const "matched on atom") any) (MkAtom "ok"))
   putStrLn (erlDecodeDef "not found" (map (const "matched on integer") any) 42)
 
 testExact : IO ()
@@ -81,8 +81,8 @@ testExact = do
   putStrLn "testExact"
   putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) "match me")
   putStrLn (erlDecodeDef "not found" (map (const "match me") (exact "match me")) "something else")
-  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) (MkErlAtom "ok"))
-  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkErlAtom "ok"))) "ok")
+  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkAtom "ok"))) (MkAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map (const "'ok'") (exact (MkAtom "ok"))) "ok")
   putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) 42)
   putStrLn (erlDecodeDef "not found" (map (const "42") (exact 42)) (the Double 42))
 
@@ -116,8 +116,8 @@ testDouble = do
 testAtom : IO ()
 testAtom = do
   putStrLn "testAtom"
-  putStrLn (erlDecodeDef "not found" (map show atom) (MkErlAtom "ok"))
-  putStrLn (erlDecodeDef "not found" (map show atom) (MkErlAtom "error"))
+  putStrLn (erlDecodeDef "not found" (map show atom) (MkAtom "ok"))
+  putStrLn (erlDecodeDef "not found" (map show atom) (MkAtom "error"))
   putStrLn (erlDecodeDef "not found" (map show atom) "string is not an atom")
 
 testBinary : IO ()
@@ -155,7 +155,7 @@ testAnyList : IO ()
 testAnyList = do
   putStrLn "testAnyList"
   putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (the ErlNil []))
-  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (the (ErlCons _ _) (MkErlAtom "ok" :: 42)))
+  putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) (the (ErlCons _ _) (MkAtom "ok" :: 42)))
   putStrLn (erlDecodeDef "not found" (map (const "found list") anyList) "not a list")
 
 testNil : IO ()
@@ -194,16 +194,16 @@ testHList = do
 testTuple : IO ()
 testTuple = do
   putStrLn "testTuple"
-  putStrLn (erlDecodeDef "not found" (map show tuple0) MkErlTuple0)
+  putStrLn (erlDecodeDef "not found" (map show tuple0) MkTuple0)
   putStrLn (erlDecodeDef "not found" (map show tuple0) ())
   putStrLn (erlDecodeDef "not found" (map show tuple0) "not an empty tuple")
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (MkErlTuple1 42))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 integer)) (MkErlTuple1 42))
-  putStrLn (erlDecodeDef "not found" (map show (tuple1 binary)) (MkErlTuple1 "string inside 1-element tuple"))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (MkTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 integer)) (MkTuple1 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple1 binary)) (MkTuple1 "string inside 1-element tuple"))
   putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) 42)
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 binary binary)) (MkErlTuple2 "first string" "second string"))
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (MkErlTuple2 (MkErlAtom "ok") 42))
-  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkErlAtom "ok")) integer)) (MkErlTuple3 (MkErlAtom "ok") 42 "too long tuple"))
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 binary binary)) (MkTuple2 "first string" "second string"))
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkAtom "ok")) integer)) (MkTuple2 (MkAtom "ok") 42))
+  putStrLn (erlDecodeDef "not found" (map show (tuple2 (exact (MkAtom "ok")) integer)) (MkTuple3 (MkAtom "ok") 42 "too long tuple"))
 
 testMapEntry : IO ()
 testMapEntry = do

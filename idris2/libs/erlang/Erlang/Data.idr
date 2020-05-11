@@ -11,17 +11,17 @@ data Raw a = MkRaw a
 public export
 data ErlAtom : Type where
   [noNewtype]
-  MkErlAtom : String -> ErlAtom
+  MkAtom : String -> ErlAtom
 
 public export
 data ErlBinary : Type where
   [noNewtype]
-  MkErlBinary : String -> ErlBinary
+  MkBinary : String -> ErlBinary
 
 public export
 data ErlCharlist : Type where
   [noNewtype]
-  MkErlCharlist : String -> ErlCharlist
+  MkCharlist : String -> ErlCharlist
 
 namespace MaybeImproperList
   public export
@@ -56,28 +56,28 @@ data ErlPort : Type where [external]
 
 public export
 data ErlTuple0 : Type where
-  MkErlTuple0 : ErlTuple0
+  MkTuple0 : ErlTuple0
 
 public export
 data ErlTuple1 : Type -> Type where
   [noNewtype]
-  MkErlTuple1 : a -> ErlTuple1 a
+  MkTuple1 : a -> ErlTuple1 a
 
 public export
 data ErlTuple2 : Type -> Type -> Type where
-  MkErlTuple2 : a -> b -> ErlTuple2 a b
+  MkTuple2 : a -> b -> ErlTuple2 a b
 
 public export
 data ErlTuple3 : Type -> Type -> Type -> Type where
-  MkErlTuple3 : a -> b -> c -> ErlTuple3 a b c
+  MkTuple3 : a -> b -> c -> ErlTuple3 a b c
 
 public export
 data ErlTuple4 : Type -> Type -> Type -> Type -> Type where
-  MkErlTuple4 : a -> b -> c -> d -> ErlTuple4 a b c d
+  MkTuple4 : a -> b -> c -> d -> ErlTuple4 a b c d
 
 public export
 data ErlTuple5 : Type -> Type -> Type -> Type -> Type -> Type where
-  MkErlTuple5 : a -> b -> c -> d -> e -> ErlTuple5 a b c d e
+  MkTuple5 : a -> b -> c -> d -> e -> ErlTuple5 a b c d e
 
 
 -- FUNCTIONS
@@ -85,62 +85,62 @@ data ErlTuple5 : Type -> Type -> Type -> Type -> Type -> Type where
 public export
 data ErlFun0 : Type -> Type where
   [noNewtype]
-  MkErlFun0 : ret -> ErlFun0 ret
+  MkFun0 : ret -> ErlFun0 ret
 
 public export
 data ErlFun1 : Type -> Type -> Type where
   [noNewtype]
-  MkErlFun1 : (a -> ret) -> ErlFun1 a ret
+  MkFun1 : (a -> ret) -> ErlFun1 a ret
 
 public export
 data ErlFun2 : Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlFun2 : (a -> b -> ret) -> ErlFun2 a b ret
+  MkFun2 : (a -> b -> ret) -> ErlFun2 a b ret
 
 public export
 data ErlFun3 : Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlFun3 : (a -> b -> c -> ret) -> ErlFun3 a b c ret
+  MkFun3 : (a -> b -> c -> ret) -> ErlFun3 a b c ret
 
 public export
 data ErlFun4 : Type -> Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlFun4 : (a -> b -> c -> d -> ret) -> ErlFun4 a b c d ret
+  MkFun4 : (a -> b -> c -> d -> ret) -> ErlFun4 a b c d ret
 
 public export
 data ErlFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlFun5 : (a -> b -> c -> d -> e -> ret) -> ErlFun5 a b c d e ret
+  MkFun5 : (a -> b -> c -> d -> e -> ret) -> ErlFun5 a b c d e ret
 
 public export
 data ErlIOFun0 : Type -> Type where
   [noNewtype]
-  MkErlIOFun0  : IO ret -> ErlIOFun0 ret
+  MkIOFun0  : IO ret -> ErlIOFun0 ret
 
 public export
 data ErlIOFun1 : Type -> Type -> Type where
   [noNewtype]
-  MkErlIOFun1  : (a -> IO ret) -> ErlIOFun1 a ret
+  MkIOFun1  : (a -> IO ret) -> ErlIOFun1 a ret
 
 public export
 data ErlIOFun2 : Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlIOFun2  : (a -> b -> IO ret) -> ErlIOFun2 a b ret
+  MkIOFun2  : (a -> b -> IO ret) -> ErlIOFun2 a b ret
 
 public export
 data ErlIOFun3 : Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlIOFun3  : (a -> b -> c -> IO ret) -> ErlIOFun3 a b c ret
+  MkIOFun3  : (a -> b -> c -> IO ret) -> ErlIOFun3 a b c ret
 
 public export
 data ErlIOFun4 : Type -> Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlIOFun4  : (a -> b -> c -> d -> IO ret) -> ErlIOFun4 a b c d ret
+  MkIOFun4  : (a -> b -> c -> d -> IO ret) -> ErlIOFun4 a b c d ret
 
 public export
 data ErlIOFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
   [noNewtype]
-  MkErlIOFun5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIOFun5 a b c d e ret
+  MkIOFun5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIOFun5 a b c d e ret
 
 
 -- ERLANG TYPE PREDICATE

@@ -50,26 +50,26 @@ BinaryFile = FileT True
 
 export
 stdin : File
-stdin = FHandle (cast (MkErlAtom "standard_io"))
+stdin = FHandle (cast (MkAtom "standard_io"))
 
 export
 stdout : File
-stdout = FHandle (cast (MkErlAtom "standard_io"))
+stdout = FHandle (cast (MkAtom "standard_io"))
 
 export
 stderr : File
-stderr = FHandle (cast (MkErlAtom "standard_error"))
+stderr = FHandle (cast (MkAtom "standard_error"))
 
 -- TODO: Match on all cases of Mode?
 fileModes : (isBinary : Bool) -> Mode -> ErlTerm
 fileModes isBinary mode =
   let flags = case mode of
-        Read          => [MkErlAtom "read"]
-        WriteTruncate => [MkErlAtom "write"]
-        Append        => [MkErlAtom "append"]
-        ReadWrite     => [MkErlAtom "read", MkErlAtom "write"]
+        Read          => [MkAtom "read"]
+        WriteTruncate => [MkAtom "write"]
+        Append        => [MkAtom "append"]
+        ReadWrite     => [MkAtom "read", MkAtom "write"]
         _ => []
-      binMode = if isBinary then [MkErlAtom "binary"] else []
+      binMode = if isBinary then [MkAtom "binary"] else []
   in cast $ the (List ErlAtom) (flags ++ binMode)
 
 -- TODO: Is FileReadError correct?
@@ -78,7 +78,7 @@ internalOpenFile isBinary filePath mode = do
   Right result <- erlCall "file" "open" [filePath, fileModes isBinary mode]
     | Left ex => pure (Left FileReadError)
   pure $ erlDecodeDef (Left FileReadError)
-    (map (\(MkErlTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkErlAtom "ok")) pid))
+    (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid))
     result
 
 export
@@ -101,8 +101,8 @@ fGetLine (FHandle f) = do
   Right result <- erlCall "file" "read_line" [f]
     | Left ex => pure (Left FileReadError)
   pure $ erlDecodeDef (Left FileReadError)
-    (map (\(MkErlTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkErlAtom "ok")) any) <|>
-      exact (MkErlAtom "eof") *> pure (Right ""))
+    (map (\(MkTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkAtom "ok")) any) <|>
+      exact (MkAtom "eof") *> pure (Right ""))
     result
 
 export
@@ -111,7 +111,7 @@ fPutStr (FHandle f) str = do
   Right result <- erlCall "file" "write" [f, str]
     | Left ex => pure (Left FileWriteError)
   pure $ erlDecodeDef (Left FileWriteError)
-    (exact (MkErlAtom "ok") *> pure (Right ()))
+    (exact (MkAtom "ok") *> pure (Right ()))
     result
 
 export
@@ -124,19 +124,19 @@ fEOF (FHandle f) = do
   Right readResult <- erlCall "file" "read" [f, 1]
     | Left ex => pure True
   erlDecodeDef (pure True)
-    (tuple2 (exact (MkErlAtom "ok")) any *> pure scanBack <|>
-      exact (MkErlAtom "eof") *> pure (pure True) <|>
-      tuple2 (exact (MkErlAtom "error")) any *> pure (pure True))
+    (tuple2 (exact (MkAtom "ok")) any *> pure scanBack <|>
+      exact (MkAtom "eof") *> pure (pure True) <|>
+      tuple2 (exact (MkAtom "error")) any *> pure (pure True))
     readResult
   where
     -- If `file:read/2` returns `{ok, _}` we need to scan back to the original position
     scanBack : IO Bool
     scanBack = do
-      Right scanResult <- erlCall "file" "position" [f, MkErlTuple2 (MkErlAtom "cur") (-1)]
+      Right scanResult <- erlCall "file" "position" [f, MkTuple2 (MkAtom "cur") (-1)]
         | Left ex => pure True
       pure $ erlDecodeDef True
-        (tuple2 (exact (MkErlAtom "ok")) any *> pure False <|>
-          tuple2 (exact (MkErlAtom "error")) any *> pure True)
+        (tuple2 (exact (MkAtom "ok")) any *> pure False <|>
+          tuple2 (exact (MkAtom "error")) any *> pure True)
         scanResult
 
 export

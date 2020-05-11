@@ -14,4 +14,4 @@ printHello =
 exports : ErlExport
 exports =
   Fun "foo" 42 <+>
-    Fun "print_hello" (MkErlIOFun0 printHello)
+    Fun "print_hello" (MkIOFun0 printHello)

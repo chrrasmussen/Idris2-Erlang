@@ -31,7 +31,7 @@ testReceiveBinary self = do
   erlSpawnLink (do
     sleep 100
     erlSend self "hello")
-  result <- erlReceive defaultTimeout "not found" (map (\(MkErlBinary str) => str) binary)
+  result <- erlReceive defaultTimeout "not found" (map (\(MkBinary str) => str) binary)
   putStrLn result
 
 testTimeout : IO ()

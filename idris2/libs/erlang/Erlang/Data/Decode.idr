@@ -26,13 +26,13 @@ namespace ErlDecoders
 
 public export
 data ErlMapEntry : Type -> Type where
-  MkErlMapEntry : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
+  MkMapEntry : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
 
 infix 9 :=
 
 export %inline
 (:=) : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
-(:=) = MkErlMapEntry
+(:=) = MkMapEntry
 
 namespace ErlMapEntries
   public export
@@ -239,56 +239,56 @@ export
 tuple1 : ErlDecoder a -> ErlDecoder (ErlTuple1 a)
 tuple1 (MkDecoder aDecoder) =
   MkDecoder (\term => do
-    let Just (MkErlTuple1 a) = prim__erlDecodeTuple1 term
+    let Just (MkTuple1 a) = prim__erlDecodeTuple1 term
       | Nothing => Left (Error "Expected a tuple with 1 element")
     aRes <- aDecoder a
-    pure (MkErlTuple1 aRes))
+    pure (MkTuple1 aRes))
 
 export
 tuple2 : ErlDecoder a -> ErlDecoder b -> ErlDecoder (ErlTuple2 a b)
 tuple2 (MkDecoder aDecoder) (MkDecoder bDecoder) =
   MkDecoder (\term => do
-    let Just (MkErlTuple2 a b) = prim__erlDecodeTuple2 term
+    let Just (MkTuple2 a b) = prim__erlDecodeTuple2 term
       | Nothing => Left (Error "Expected a tuple with 2 elements")
     aRes <- aDecoder a
     bRes <- bDecoder b
-    pure (MkErlTuple2 aRes bRes))
+    pure (MkTuple2 aRes bRes))
 
 export
 tuple3 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder (ErlTuple3 a b c)
 tuple3 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) =
   MkDecoder (\term => do
-    let Just (MkErlTuple3 a b c) = prim__erlDecodeTuple3 term
+    let Just (MkTuple3 a b c) = prim__erlDecodeTuple3 term
       | Nothing => Left (Error "Expected a tuple with 3 elements")
     aRes <- aDecoder a
     bRes <- bDecoder b
     cRes <- cDecoder c
-    pure (MkErlTuple3 aRes bRes cRes))
+    pure (MkTuple3 aRes bRes cRes))
 
 export
 tuple4 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder (ErlTuple4 a b c d)
 tuple4 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) =
   MkDecoder (\term => do
-    let Just (MkErlTuple4 a b c d) = prim__erlDecodeTuple4 term
+    let Just (MkTuple4 a b c d) = prim__erlDecodeTuple4 term
       | Nothing => Left (Error "Expected a tuple with 4 elements")
     aRes <- aDecoder a
     bRes <- bDecoder b
     cRes <- cDecoder c
     dRes <- dDecoder d
-    pure (MkErlTuple4 aRes bRes cRes dRes))
+    pure (MkTuple4 aRes bRes cRes dRes))
 
 export
 tuple5 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder (ErlTuple5 a b c d e)
 tuple5 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) (MkDecoder eDecoder) =
   MkDecoder (\term => do
-    let Just (MkErlTuple5 a b c d e) = prim__erlDecodeTuple5 term
+    let Just (MkTuple5 a b c d e) = prim__erlDecodeTuple5 term
       | Nothing => Left (Error "Expected a tuple with 5 elements")
     aRes <- aDecoder a
     bRes <- bDecoder b
     cRes <- cDecoder c
     dRes <- dDecoder d
     eRes <- eDecoder e
-    pure (MkErlTuple5 aRes bRes cRes dRes eRes))
+    pure (MkTuple5 aRes bRes cRes dRes eRes))
 
 export
 list : ErlDecoder a -> ErlDecoder (List a)
@@ -335,21 +335,21 @@ mapEntry key (MkDecoder valueDecoder) =
     let Just m = prim__erlDecodeAnyMap term
       | Nothing => Left (Error "Expected a map")
     let lookupResult = unsafePerformIO $ erlUnsafeCall ErlTerm "maps" "find" [key, m]
-    let Just (MkErlTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
+    let Just (MkTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
       | Nothing => Left (Error "Could not find key in map")
     valueDecoder value)
 
 export
 mapSubset : ErlMapEntries xs -> ErlDecoder (ErlList xs)
 mapSubset [] = anyMap *> pure []
-mapSubset (MkErlMapEntry key valueDecoder :: xs) =
+mapSubset (MkMapEntry key valueDecoder :: xs) =
   (::) <$> mapEntry key valueDecoder <*> mapSubset xs
 
 export
 fun0 : ErlDecoder (IO (Either ErlException ErlTerm))
 fun0 =
   MkDecoder (\term => do
-    let Just (MkErlIOFun0 fun) = prim__erlDecodeFun0 term
+    let Just (MkIOFun0 fun) = prim__erlDecodeFun0 term
       | Nothing => Left (Error "Expected a function of arity 0")
     pure $ erlTryCatch fun)
 
@@ -357,7 +357,7 @@ export
 fun1 : (a : Type) -> ErlDecoder (a -> IO (Either ErlException ErlTerm))
 fun1 aType =
   MkDecoder (\term => do
-    let Just (MkErlIOFun1 fun) = prim__erlDecodeFun1 term
+    let Just (MkIOFun1 fun) = prim__erlDecodeFun1 term
       | Nothing => Left (Error "Expected a function of arity 1")
     pure $ (\a => erlTryCatch (fun a)))
 
@@ -365,7 +365,7 @@ export
 fun2 : (a : Type) -> (b : Type) -> ErlDecoder (a -> b -> IO (Either ErlException ErlTerm))
 fun2 aType bType =
   MkDecoder (\term => do
-    let Just (MkErlIOFun2 fun) = prim__erlDecodeFun2 term
+    let Just (MkIOFun2 fun) = prim__erlDecodeFun2 term
       | Nothing => Left (Error "Expected a function of arity 2")
     pure $ (\a, b => erlTryCatch (fun a b)))
 
@@ -373,7 +373,7 @@ export
 fun3 : (a : Type) -> (b : Type) -> (c : Type) -> ErlDecoder (a -> b -> c -> IO (Either ErlException ErlTerm))
 fun3 aType bType cType =
   MkDecoder (\term => do
-    let Just (MkErlIOFun3 fun) = prim__erlDecodeFun3 term
+    let Just (MkIOFun3 fun) = prim__erlDecodeFun3 term
       | Nothing => Left (Error "Expected a function of arity 3")
     pure $ (\a, b, c => erlTryCatch (fun a b c)))
 
@@ -381,7 +381,7 @@ export
 fun4 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> ErlDecoder (a -> b -> c -> d -> IO (Either ErlException ErlTerm))
 fun4 aType bType cType dType =
   MkDecoder (\term => do
-    let Just (MkErlIOFun4 fun) = prim__erlDecodeFun4 term
+    let Just (MkIOFun4 fun) = prim__erlDecodeFun4 term
       | Nothing => Left (Error "Expected a function of arity 4")
     pure $ (\a, b, c, d => erlTryCatch (fun a b c d)))
 
@@ -389,6 +389,6 @@ export
 fun5 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> (e : Type) -> ErlDecoder (a -> b -> c -> d -> e -> IO (Either ErlException ErlTerm))
 fun5 aType bType cType dType eType =
   MkDecoder (\term => do
-    let Just (MkErlIOFun5 fun) = prim__erlDecodeFun5 term
+    let Just (MkIOFun5 fun) = prim__erlDecodeFun5 term
       | Nothing => Left (Error "Expected a function of arity 5")
     pure $ (\a, b, c, d, e => erlTryCatch (fun a b c d e)))

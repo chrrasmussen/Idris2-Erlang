@@ -24,7 +24,7 @@ data Buffer : Type where
 
 
 etsKey : ErlAtom
-etsKey = MkErlAtom "$idris_rts_ets"
+etsKey = MkAtom "$idris_rts_ets"
 
 
 getBinary : Buffer -> IO ErlBinary
@@ -33,7 +33,7 @@ getBinary (MkBuffer ref _ _) =
 
 setBinary : Buffer -> ErlBinary -> IO ()
 setBinary (MkBuffer ref _ _) binary = do
-  erlCall "ets" "insert" [etsKey, MkErlTuple2 ref binary]
+  erlCall "ets" "insert" [etsKey, MkTuple2 ref binary]
   pure ()
 
 updateBinary : Buffer -> (ErlBinary -> ErlBinary) -> IO ()
@@ -47,7 +47,7 @@ newBuffer : Int -> IO Buffer
 newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   let emptyBinary = prim__erlBufferNew size
-  erlCall "ets" "insert" [etsKey, MkErlTuple2 ref emptyBinary]
+  erlCall "ets" "insert" [etsKey, MkTuple2 ref emptyBinary]
   pure (MkBuffer ref size 0)
 
 export
@@ -123,7 +123,7 @@ readBufferFromFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
   Right result <- erlCall "file" "read" [h, maxBytes]
     | Left _ => pure (Left FileReadError)
-  let Right (MkErlTuple2 _ (MkErlBinary str)) = erlDecode (tuple2 (exact (MkErlAtom "ok")) binary) result
+  let Right (MkTuple2 _ (MkBinary str)) = erlDecode (tuple2 (exact (MkAtom "ok")) binary) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   if strSize <= remainingBytesInBuffer
@@ -139,10 +139,10 @@ writeBufferToFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
   let remainingBytesInBuffer = size - loc
   let max' = if remainingBytesInBuffer < maxBytes then remainingBytesInBuffer else maxBytes
   binary <- getBinary buf
-  Right binaryToBeWritten <- erlCall "binary" "part" [binary, MkErlTuple2 loc max']
+  Right binaryToBeWritten <- erlCall "binary" "part" [binary, MkTuple2 loc max']
     | Left _ => pure (Left FileWriteError)
   Right result <- erlCall "file" "write" [h, binaryToBeWritten]
     | Left _ => pure (Left FileWriteError)
   pure $ erlDecodeDef (Left FileWriteError)
-    (exact (MkErlAtom "ok") *> pure (Right (MkBuffer ref size (loc + max'))))
+    (exact (MkAtom "ok") *> pure (Right (MkBuffer ref size (loc + max'))))
     result

@@ -15,25 +15,25 @@ erlRunCurriedFun2 x = erlUnsafeCall Int "test_support" "run_curried2" [x]
 -- Wrappers around `runX` that takes a pure function
 
 erlRunFun0 : Int -> IO Int
-erlRunFun0 x = erlUnsafeCall Int "test_support" "run0" [MkErlFun0 x]
+erlRunFun0 x = erlUnsafeCall Int "test_support" "run0" [MkFun0 x]
 
 erlRunFun1 : (Int -> Int) -> IO Int
-erlRunFun1 x = erlUnsafeCall Int "test_support" "run1" [MkErlFun1 x]
+erlRunFun1 x = erlUnsafeCall Int "test_support" "run1" [MkFun1 x]
 
 erlRunFun2 : (Int -> Int -> Int) -> IO Int
-erlRunFun2 x = erlUnsafeCall Int "test_support" "run2" [MkErlFun2 x]
+erlRunFun2 x = erlUnsafeCall Int "test_support" "run2" [MkFun2 x]
 
 
 -- Wrappers around `runX` that takes an IO action
 
 erlRunIO0 : IO Int -> IO Int
-erlRunIO0 x = erlUnsafeCall Int "test_support" "run0" [MkErlIOFun0 x]
+erlRunIO0 x = erlUnsafeCall Int "test_support" "run0" [MkIOFun0 x]
 
 erlRunIO1 : (Int -> IO Int) -> IO Int
-erlRunIO1 x = erlUnsafeCall Int "test_support" "run1" [MkErlIOFun1 x]
+erlRunIO1 x = erlUnsafeCall Int "test_support" "run1" [MkIOFun1 x]
 
 erlRunIO2 : (Int -> Int -> IO Int) -> IO Int
-erlRunIO2 x = erlUnsafeCall Int "test_support" "run2" [MkErlIOFun2 x]
+erlRunIO2 x = erlUnsafeCall Int "test_support" "run2" [MkIOFun2 x]
 
 
 -- Tests

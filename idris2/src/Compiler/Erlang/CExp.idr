@@ -123,13 +123,13 @@ genCon namespaceInfo l (NS ["Prelude"] (UN "False")) [] = EAtom l "false"
 genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
 -- ErlAtom
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlAtom")) [x] =
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkAtom")) [x] =
   genUnsafeStringToAtom l x
 -- ErlBinary
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlBinary")) [x] =
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkBinary")) [x] =
   genFunCall l "unicode" "characters_to_binary" [x]
 -- ErlCharlist
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlCharlist")) [x] =
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [x] =
   genFunCall l "unicode" "characters_to_list" [x]
 -- ErlNil
 genCon namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "Nil")) [] = ENil l
@@ -139,26 +139,26 @@ genCon namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "::")) [x
 genCon namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "::")) [x, xs] =  ECons l x xs
 -- ErlTuple/A
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple0")) args = ETuple l args
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple1")) args = ETuple l args
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple2")) args = ETuple l args
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple3")) args = ETuple l args
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple4")) args = ETuple l args
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple5")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple0")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple1")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple2")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple3")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple4")) args = ETuple l args
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple5")) args = ETuple l args
 -- ErlFun/A
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun0")) [fun] = genUncurry l 0 id fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun1")) [fun] = genUncurry l 1 id fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun2")) [fun] = genUncurry l 2 id fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun3")) [fun] = genUncurry l 3 id fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun4")) [fun] = genUncurry l 4 id fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun5")) [fun] = genUncurry l 5 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun0")) [fun] = genUncurry l 0 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun1")) [fun] = genUncurry l 1 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun2")) [fun] = genUncurry l 2 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun3")) [fun] = genUncurry l 3 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun4")) [fun] = genUncurry l 4 id fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun5")) [fun] = genUncurry l 5 id fun
 -- ErlIOFun/A
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun2")) [fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun2")) [fun] = genUncurry l 2 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
 -- Default
 genCon namespaceInfo l name args =
   ECon l (constructorName name) args
@@ -194,15 +194,15 @@ readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [xVar, xsVar] body =
   MCons MAny MAny xVar xsVar body
 -- ErlAtom
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlAtom")) [xVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkAtom")) [xVar] body =
   let tempVar = MN "" 0
       convertAtomMatcher = MTransform MAny tempVar (genAtomToString l (ELocal l First))
   in MTransform convertAtomMatcher xVar body
 -- ErlBinary
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlBinary")) [xVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkBinary")) [xVar] body =
   MTransform MAny xVar body
 -- ErlCharlist
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlCharlist")) [xVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [xVar] body =
   MTransform MAny xVar body
 -- ErlNil
 readConAlt namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "Nil")) [] body =
@@ -218,43 +218,43 @@ readConAlt namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "Nil")) [] b
 readConAlt namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "::")) [xVar, xsVar] body =
   MCons MAny MAny xVar xsVar body
 -- ErlTuple/A
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple0")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple0")) args body =
   MTuple (argsToErlMatchers args) body
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple1")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple1")) args body =
   MTuple (argsToErlMatchers args) body
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple2")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple2")) args body =
   MTuple (argsToErlMatchers args) body
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple3")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple3")) args body =
   MTuple (argsToErlMatchers args) body
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple4")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple4")) args body =
   MTuple (argsToErlMatchers args) body
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlTuple5")) args body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkTuple5")) args body =
   MTuple (argsToErlMatchers args) body
 -- ErlFun/A
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun0")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun0")) [funVar] body =
   readConAltFun l 0 funVar body id
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun1")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun1")) [funVar] body =
   readConAltFun l 1 funVar body id
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun2")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun2")) [funVar] body =
   readConAltFun l 2 funVar body id
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun3")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun3")) [funVar] body =
   readConAltFun l 3 funVar body id
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun4")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun4")) [funVar] body =
   readConAltFun l 4 funVar body id
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlFun5")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkFun5")) [funVar] body =
   readConAltFun l 5 funVar body id
 -- ErlIOFun/A
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun0")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun0")) [funVar] body =
   readConAltFun l 0 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun1")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun1")) [funVar] body =
   readConAltFun l 1 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun2")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun2")) [funVar] body =
   readConAltFun l 2 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun3")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun3")) [funVar] body =
   readConAltFun l 3 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun4")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun4")) [funVar] body =
   readConAltFun l 4 funVar body (genMkIO l)
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkErlIOFun5")) [funVar] body =
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun5")) [funVar] body =
   readConAltFun l 5 funVar body (genMkIO l)
 -- Default
 readConAlt namespaceInfo l name args body =

@@ -29,19 +29,19 @@ ErlType a => Cast a ErlTerm where
 
 export
 Cast () ErlTuple0 where
-  cast MkUnit = MkErlTuple0
+  cast MkUnit = MkTuple0
 
 export
 Cast ErlTuple0 () where
-  cast MkErlTuple0 = MkUnit
+  cast MkTuple0 = MkUnit
 
 
 -- Bool -> ErlAtom
 
 export
 Cast Bool ErlAtom where
-  cast True = MkErlAtom "true"
-  cast False = MkErlAtom "false"
+  cast True = MkAtom "true"
+  cast False = MkAtom "false"
 
 
 -- ErlNil/ErlCons -> List

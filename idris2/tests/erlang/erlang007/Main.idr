@@ -16,17 +16,17 @@ erlCreateCurriedFun2 = erlUnsafeCall (Int -> Int -> Int) "test_support" "create_
 
 erlCreateFun0 : IO Int
 erlCreateFun0 = do
-  MkErlFun0 fun <- erlUnsafeCall (ErlFun0 Int) "test_support" "create_fun0" []
+  MkFun0 fun <- erlUnsafeCall (ErlFun0 Int) "test_support" "create_fun0" []
   pure fun
 
 erlCreateFun1 : IO (Int -> Int)
 erlCreateFun1 = do
-  MkErlFun1 fun <- erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_fun1" []
+  MkFun1 fun <- erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_fun1" []
   pure fun
 
 erlCreateFun2 : IO (Int -> Int -> Int)
 erlCreateFun2 = do
-  MkErlFun2 fun <- erlUnsafeCall (ErlFun2 Int Int Int) "test_support" "create_fun2" []
+  MkFun2 fun <- erlUnsafeCall (ErlFun2 Int Int Int) "test_support" "create_fun2" []
   pure fun
 
 
@@ -34,17 +34,17 @@ erlCreateFun2 = do
 
 erlCreateIO0 : IO (IO Int)
 erlCreateIO0 = do
-  MkErlIOFun0 action <- erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
+  MkIOFun0 action <- erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
   pure action
 
 erlCreateIO1 : IO (Int -> IO Int)
 erlCreateIO1 = do
-  MkErlIOFun1 action <- erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
+  MkIOFun1 action <- erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
   pure action
 
 erlCreateIO2 : IO (Int -> Int -> IO Int)
 erlCreateIO2 = do
-  MkErlIOFun2 action <- erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
+  MkIOFun2 action <- erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
   pure action
 
 
