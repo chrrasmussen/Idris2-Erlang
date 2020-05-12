@@ -47,12 +47,6 @@ unitTest = do
   putStrLn "unitTest"
   erlPrintLn ()
 
-boolTest : IO ()
-boolTest = do
-  putStrLn "boolTest"
-  erlPrintLn True
-  erlPrintLn False
-
 listTest : IO ()
 listTest = do
   putStrLn "listTest"
@@ -119,7 +113,6 @@ main = do
   charTest
   doubleTest
   unitTest
-  boolTest
   listTest
   erlAtomTest
   erlBinaryTest

@@ -39,12 +39,6 @@ unitTest = do
   unit <- erlUnsafeCall Unit "test_support" "unit" []
   printLn unit
 
-boolTest : IO ()
-boolTest = do
-  putStrLn "boolTest"
-  tuple <- erlUnsafeCall (List Bool) "test_support" "bools" []
-  printLn tuple
-
 listTest : IO ()
 listTest = do
   putStrLn "listTest"
@@ -103,7 +97,6 @@ main = do
   charTest
   doubleTest
   unitTest
-  boolTest
   listTest
   erlAtomTest
   erlBinaryTest

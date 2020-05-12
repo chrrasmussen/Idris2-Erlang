@@ -19,9 +19,6 @@ doubleTest
 42.3
 unitTest
 {}
-boolTest
-true
-false
 listTest
 []
 [<<"a">>,<<"b">>,<<"c">>]

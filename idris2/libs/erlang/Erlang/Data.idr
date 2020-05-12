@@ -155,7 +155,6 @@ mutual
     ETChar          : ErlType Char
 
     ETUnit          : ErlType ()
-    ETBool          : ErlType Bool
     ETList          : ErlType a => ErlType (List a)
     ETFun           : (ErlType a, ErlType b) => ErlType (a -> b) -- NOTE: These functions are curried in Erlang as well
 

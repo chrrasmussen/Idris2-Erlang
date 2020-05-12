@@ -13,8 +13,6 @@ doubleTest
 [0.1, -42.2, 42.3]
 unitTest
 ()
-boolTest
-[True, False]
 listTest
 [[], ["a", "b", "c"]]
 erlAtomTest

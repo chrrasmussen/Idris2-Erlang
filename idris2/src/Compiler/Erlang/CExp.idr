@@ -116,9 +116,6 @@ genOp l BelieveMe [_, _, x] = x
 genCon : NamespaceInfo -> Line -> Name -> List (ErlExpr vars) -> ErlExpr vars
 -- Unit
 genCon namespaceInfo l (NS ["Builtin"] (UN "MkUnit")) [] = genMkUnit l
--- Bool
-genCon namespaceInfo l (NS ["Prelude"] (UN "True")) [] = EAtom l "true"
-genCon namespaceInfo l (NS ["Prelude"] (UN "False")) [] = EAtom l "false"
 -- List
 genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
@@ -180,13 +177,6 @@ readConAlt : NamespaceInfo -> Line -> Name -> (args : List Name) -> ErlExpr (arg
 -- Unit
 readConAlt namespaceInfo l (NS ["Builtin"] (UN "MkUnit")) [] body =
   MTuple [] body
--- Bool
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "True")) [] body =
-  let unusedVar = MN "" 0
-  in MTransform (MExact (EAtom l "true")) unusedVar (weaken body)
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "False")) [] body =
-  let unusedVar = MN "" 0
-  in MTransform (MExact (EAtom l "false")) unusedVar (weaken body)
 -- List
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
   let unusedVar = MN "" 0

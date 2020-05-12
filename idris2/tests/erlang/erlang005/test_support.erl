@@ -6,7 +6,6 @@ strings() -> ["", <<"test">>, [97 | <<"b">>]].
 chars() -> [97, 10, 402].
 doubles() -> [0.1, -42.2, 42.3].
 unit() -> {}.
-bools() -> [true, false].
 lists() -> [[], ["a", "b", "c"]].
 erl_atoms() -> ['', ok, a42].
 erl_binaries() -> [<<"">>, <<"ok">>, <<"a42">>].
