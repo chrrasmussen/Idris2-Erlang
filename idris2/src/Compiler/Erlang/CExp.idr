@@ -269,6 +269,7 @@ data ExtPrim
   = PutStr | GetStr
   | VoidElim
   | ErlUnsafeCall | ErlTryCatch | ErlReceive | ErlModule
+  | ErlMatchExact
   | ErlDecodeCodepoint | ErlDecodeInteger | ErlDecodeDouble | ErlDecodeAtom | ErlDecodeBinary
   | ErlDecodePid | ErlDecodeRef | ErlDecodePort | ErlDecodeAnyMap | ErlDecodeAnyList
   | ErlDecodeNil | ErlDecodeCons
@@ -286,6 +287,7 @@ Show ExtPrim where
   show ErlTryCatch = "ErlTryCatch"
   show ErlReceive = "ErlReceive"
   show ErlModule = "ErlModule"
+  show ErlMatchExact = "ErlMatchExact"
   show ErlDecodeCodepoint = "ErlDecodeCodepoint"
   show ErlDecodeInteger = "ErlDecodeInteger"
   show ErlDecodeDouble = "ErlDecodeDouble"
@@ -329,6 +331,7 @@ toPrim (NS _ n) = cond [
   (n == UN "prim__erlTryCatch", Just ErlTryCatch),
   (n == UN "prim__erlReceive", Just ErlReceive),
   (n == UN "prim__erlModule", Just ErlModule),
+  (n == UN "prim__erlMatchExact", Just ErlMatchExact),
   (n == UN "prim__erlDecodeCodepoint", Just ErlDecodeCodepoint),
   (n == UN "prim__erlDecodeInteger", Just ErlDecodeInteger),
   (n == UN "prim__erlDecodeDouble", Just ErlDecodeDouble),
@@ -393,6 +396,8 @@ genExtPrim namespaceInfo l ErlModule [] =
   pure $ EAtom l (currentModuleName namespaceInfo)
 genExtPrim namespaceInfo l ErlBufferNew [size] =
   pure $ EBufferNew l size
+genExtPrim namespaceInfo l ErlMatchExact [x, y] =
+  pure $ genBoolToInt l (EOp l "=:=" x y)
 genExtPrim namespaceInfo l ErlDecodeCodepoint [term] =
   pure $ genDecode l term MCodepoint
 genExtPrim namespaceInfo l ErlDecodeInteger [term] =

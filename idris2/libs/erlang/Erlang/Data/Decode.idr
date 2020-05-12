@@ -102,6 +102,7 @@ erlDecodeDef def decoder term =
 
 -- PRIMITIVES
 
+%extern prim__erlMatchExact       : ErlTerm -> ErlTerm -> Int
 %extern prim__erlDecodeCodepoint  : ErlTerm -> Maybe Char
 %extern prim__erlDecodeInteger    : ErlTerm -> Maybe Integer
 %extern prim__erlDecodeDouble     : ErlTerm -> Maybe Double
@@ -160,8 +161,7 @@ export
 exact : ErlType a => a -> ErlDecoder a
 exact matchValue =
   MkDecoder (\term =>
-    let isEqual = unsafePerformIO (erlUnsafeCall Bool "erlang" "=:=" [term, matchValue])
-    in if isEqual
+    if prim__erlMatchExact term (cast matchValue) == 1
       then Right matchValue
       else Left (Error "Expected the value to match exactly"))
 
