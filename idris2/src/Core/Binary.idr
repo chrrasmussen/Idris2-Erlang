@@ -205,7 +205,7 @@ readTTCFile modns as b
            checkTTCVersion (show modns) ver ttcVersion
            ifaceHash <- fromBuf b
            importHashes <- fromBuf b
-           defs <- logTime ("Definitions " ++ show modns) $ fromBuf b
+           defs <- fromBuf b
            uholes <- fromBuf b
            autohs <- fromBuf b
            typehs <- fromBuf b
@@ -365,9 +365,18 @@ updateTransforms : {auto c : Ref Ctxt Defs} ->
                    List (Name, Transform) -> Core ()
 updateTransforms [] = pure ()
 updateTransforms ((n, t) :: ts)
-    = do defs <- get Ctxt
-         put Ctxt (record { transforms $= insert n t } defs)
+    = do addT !(toResolvedNames n) !(toResolvedNames t)
          updateTransforms ts
+  where
+    addT : Name -> Transform -> Core ()
+    addT n t
+        = do defs <- get Ctxt
+             case lookup n (transforms defs) of
+                  Nothing =>
+                     put Ctxt (record { transforms $= insert n [t] } defs)
+                  Just ts =>
+                     put Ctxt (record { transforms $= insert n (t :: ts) } defs)
+
 
 getNSas : (String, (List String, Bool, List String)) ->
           (List String, List String)
@@ -403,8 +412,7 @@ readFromTTC loc reexp fname modNS importAs
          let as = if importAs == modNS
                      then Nothing
                      else Just importAs
-         ttc <- logTime ("Read file " ++ show modNS) $
-                  readTTCFile modNS as bin
+         ttc <- readTTCFile modNS as bin
 
          -- If it's already imported, but without reexporting, then all we're
          -- interested in is returning which other modules to load.

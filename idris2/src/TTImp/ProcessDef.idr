@@ -11,6 +11,7 @@ import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Termination
+import Core.Transform
 import Core.Value
 import Core.UnifyState
 
@@ -231,13 +232,15 @@ checkLHS {vars} trans mult hashit n opts nest env fc lhs_in
          setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
          setUnboundImplicits autoimp
-         lhs <- implicitsAs defs vars lhs_bound
+         lhs <- if trans
+                   then pure lhs_bound
+                   else implicitsAs defs vars lhs_bound
 
          log 5 $ "Checking LHS of " ++ show !(getFullName (Resolved n)) ++
                  " " ++ show lhs
          logEnv 5 "In env" env
          let lhsMode = if trans
-                          then InExpr
+                          then InTransform
                           else InLHS mult
          (lhstm, lhstyg) <-
              wrapError (InLHS fc !(getFullName (Resolved n))) $
@@ -589,7 +592,8 @@ mkRunTime n
     toErased fc spec (_ ** (env, lhs, rhs))
         = do lhs_erased <- linearCheck fc linear True env lhs
              -- Partially evaluate RHS here, where appropriate
-             rhs' <- applySpecialise env spec rhs
+             rhs' <- applyTransforms env rhs
+             rhs' <- applySpecialise env spec rhs'
              rhs_erased <- linearCheck fc linear True env rhs'
              pure (_ ** (env, lhs_erased, rhs_erased))
 
