@@ -109,6 +109,9 @@ genOp l (Cast StringType DoubleType) [x] = genStringToDouble l x
 genOp l (Cast from to) [x] = genThrow l ("Invalid cast " ++ show from ++ "->" ++ show to)
 
 genOp l BelieveMe [_, _, x] = x
+genOp l Crash [_, msg] =
+  let crashMsg = genFunCall l "unicode" "characters_to_list" [ECons l (ECharlist l "Crash: ") msg]
+  in genFunCall l "erlang" "throw" [crashMsg]
 
 
 -- DATA CONSTRUCTORS
