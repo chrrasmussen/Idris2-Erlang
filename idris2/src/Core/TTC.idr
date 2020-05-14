@@ -914,19 +914,22 @@ TTC GlobalDef where
   toBuf b gdef
       = -- Only write full details for user specified names. The others will
         -- be holes where all we will ever need after loading is the definition
-        do toBuf b (fullname gdef)
-           toBuf b (definition gdef)
-           toBuf b (compexpr gdef)
-           toBuf b (map toList (refersToM gdef))
+        do toBuf b (compexpr gdef)
            toBuf b (map toList (refersToRuntimeM gdef))
            toBuf b (location gdef)
+           -- We don't need any of the rest for code generation, so if
+           -- we're decoding then, we can skip these (see Compiler.Common
+           -- for how it's decoded minimally there)
+           toBuf b (multiplicity gdef)
+           toBuf b (fullname gdef)
+           toBuf b (map toList (refersToM gdef))
+           toBuf b (definition gdef)
            when (isUserName (fullname gdef) || cwName (fullname gdef)) $
               do toBuf b (type gdef)
                  toBuf b (eraseArgs gdef)
                  toBuf b (safeErase gdef)
                  toBuf b (specArgs gdef)
                  toBuf b (inferrable gdef)
-                 toBuf b (multiplicity gdef)
                  toBuf b (vars gdef)
                  toBuf b (visibility gdef)
                  toBuf b (totality gdef)
@@ -940,19 +943,20 @@ TTC GlobalDef where
       cwName (WithBlock _ _) = True
       cwName _ = False
   fromBuf b
-      = do name <- fromBuf b
-           def <- fromBuf b
-           cdef <- fromBuf b
-           refsList <- fromBuf b
+      = do cdef <- fromBuf b
            refsRList <- fromBuf b
-           let refs = map fromList refsList
            let refsR = map fromList refsRList
            loc <- fromBuf b
+           mul <- fromBuf b
+           name <- fromBuf b
+           refsList <- fromBuf b
+           let refs = map fromList refsList
+           def <- fromBuf b
            if isUserName name
               then do ty <- fromBuf b; eargs <- fromBuf b;
                       seargs <- fromBuf b; specargs <- fromBuf b
                       iargs <- fromBuf b;
-                      mul <- fromBuf b; vars <- fromBuf b
+                      vars <- fromBuf b
                       vis <- fromBuf b; tot <- fromBuf b
                       fl <- fromBuf b
                       inv <- fromBuf b
@@ -962,7 +966,7 @@ TTC GlobalDef where
                                         mul vars vis
                                         tot fl refs refsR inv c True def cdef Nothing sc)
               else pure (MkGlobalDef loc name (Erased loc False) [] [] [] []
-                                     top [] Public unchecked [] refs refsR
+                                     mul [] Public unchecked [] refs refsR
                                      False False True def cdef Nothing [])
 
 export

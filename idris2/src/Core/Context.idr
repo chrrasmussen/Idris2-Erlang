@@ -246,7 +246,7 @@ export
 data Arr : Type where
 
 -- A context entry. If it's never been looked up, we haven't decoded the
--- binary blod yet, so decode it first time
+-- binary blob yet, so decode it first time
 public export
 data ContextEntry : Type where
      Coded : Binary -> ContextEntry
@@ -830,8 +830,11 @@ record Defs where
   cgdirectives : List (List String, CG, String)
      -- ^ Code generator directives, which are free form text and thus to
      -- be interpreted however the specific code generator requires
-  toCompile : List Name
+  toCompileCase : List Name
      -- ^ Names which need to be compiled to run time case trees
+  toIR : NameMap ()
+     -- ^ Names which need to be compiled to IR at the end of processing
+     -- the current module
   userHoles : NameMap ()
      -- ^ Metavariables the user still has to fill in. In practice, that's
      -- everything with a user accessible name and a definition of Hole
@@ -857,7 +860,7 @@ initDefs
     = do gam <- initCtxt
          pure (MkDefs gam [] ["Main"] [] defaults empty 100
                       empty empty empty [] [] empty []
-                      empty 5381 [] [] [] [] [] empty empty empty)
+                      empty 5381 [] [] [] [] [] empty empty empty empty)
 
 -- Reset the context, except for the options
 export
@@ -1065,9 +1068,12 @@ depth
 export
 addToSave : {auto c : Ref Ctxt Defs} ->
           Name -> Core ()
-addToSave n
+addToSave n_in
   = do defs <- get Ctxt
-       put Ctxt (record { toSave $= insert !(full (gamma defs) n) () } defs)
+       n <- full (gamma defs) n_in
+       put Ctxt (record { toSave $= insert n (),
+                          toIR $= insert n ()
+                        } defs)
 
 -- Specific lookup functions
 export
