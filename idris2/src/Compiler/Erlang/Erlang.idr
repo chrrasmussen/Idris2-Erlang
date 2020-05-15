@@ -22,6 +22,7 @@ import Core.TT
 
 import Data.IOArray
 import Data.NameMap
+import Utils.Binary
 import System
 import System.Info
 
@@ -155,11 +156,10 @@ concatNamespaceInfo : (ns : String) -> a -> (NamespaceInfo, a)
 concatNamespaceInfo ns x =
   (MkNamespaceInfo (Concat ns), x)
 
-splitNamespaceInfo : (prefix : String) -> Name -> (NamespaceInfo, Name)
-splitNamespaceInfo prefix name =
+splitNamespaceInfo : (prefix : String) -> (Name, FC, CDef) -> (NamespaceInfo, (Name, FC, CDef))
+splitNamespaceInfo prefix x@(name, _, _) =
   let ns = getNamespace name
-  in (MkNamespaceInfo (Split prefix ns), name)
-
+  in (MkNamespaceInfo (Split prefix ns), x)
 
 namespace MainEntrypoint
   -- TODO: Add error handling
@@ -224,104 +224,140 @@ namespace MainEntrypoint
         pure ()
 
 
---namespace Library
---  isExported : Visibility -> Bool
---  isExported Public = True
---  isExported Export = True
---  isExported Private = False
---
---  exportedName : (Name, Maybe GlobalDef) -> Maybe Name
---  exportedName (n, Just gd) = if isExported (visibility gd)
---    then Just n
---    else Nothing
---  exportedName _ = Nothing
---
---  -- Find all the exported names in namespace, and compile them to CExp form (and update that in the Defs)
---  getExportedCompileData : {auto c : Ref Ctxt Defs} -> (Name -> Bool) -> List Name -> Core CompileData
---  getExportedCompileData shouldCompileName extraNames = do
---      defs <- get Ctxt
---      -- -- make an array of Bools to hold which names we've found (quicker
---      -- -- to check than a NameMap!)
---      -- asize <- getNextEntry
---      -- arr <- coreLift $ newArray asize
---      -- -- Find relevant names
---      -- let cns = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
---      -- cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) cns
---      -- let visibleCns = mapMaybe exportedName cnsWithGlobalDef
---      -- resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
---      -- logTime "Get names" $ getAllDesc resolvedNames arr defs
---      -- let allNs = mapMaybe (maybe Nothing (Just . Resolved)) !(coreLift (toList arr))
---      -- allFullNs <- traverse toFullNames allNs
---      -- let allCns = nub (filter skipUnusedNames allFullNs)
---      -- logTime ("Compile defs " ++ show (length allCns) ++ "/" ++ show asize) $
---      --   traverse_ (compileDef tycontags) allCns
---      -- logTime "Inline" $ traverse_ inlineDef allCns
---      -- logTime "Merge lambda" $ traverse_ mergeLamDef allCns
---      -- logTime "Fix arity" $ traverse_ fixArityDef allCns
---      -- logTime "Forget names" $ traverse_ mkForgetDef allCns
---      -- TODO: `Compiler.Common.getCompileData` includes `lambdaLift`, `dumpLifted` and `dumpCases` here
---      pure (MkCompileData (CErased EmptyFC) [] [] [] [])
---    where
---      skipUnusedNames : Name -> Bool
---      skipUnusedNames (NS _ n) = skipUnusedNames n
---      skipUnusedNames (MN _ _) = False
---      skipUnusedNames (Resolved _) = False
---      skipUnusedNames _ = True
---
---  shouldCompileName : Maybe (List Namespace) -> Name -> Bool
---  shouldCompileName Nothing _ = True
---  shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
---
---  -- TODO: Add error handling
---  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core (List String)
---  writeAbstrFiles opts outdir = do
---    ds <- getDirectives Erlang
---    let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
---    let namespacesToCompile = changedNamespaces opts
---    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
---    compileData <- getExportedCompileData (shouldCompileName namespacesToCompile) extraNames
---    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefix opts)) (filter (shouldCompileName namespacesToCompile) (allNames compileData))
---    let validCompdefs = mapMaybe id compdefs
---    let modules = defsPerModule validCompdefs
---    traverse_ (writeErlangModule opts exportFunNames outdir) modules
---    pure (map (currentModuleName . fst) modules)
---
---  -- TODO: Add error handling
---  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
---  writeErlFiles opts outdir = do
---    erl <- coreLift findErlangExecutable
---    tmpDir <- coreLift $ tmpName
---    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
---    generatedModules <- writeAbstrFiles opts tmpDir
---    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
---    coreLift $ system $ generateErlCmd erl generatedFiles outdir
---    pure ()
---
---  -- TODO: Add error handling
---  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
---  writeBeamFiles opts outdir = do
---    erl <- coreLift findErlangExecutable
---    tmpDir <- coreLift $ tmpName
---    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
---    generatedModules <- writeAbstrFiles opts tmpDir
---    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
---    coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
---    pure ()
---
---  export
---  build : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
---  build opts outdir = do
---    coreLift $ system ("mkdir -p " ++ quoted outdir)
---    case outputFormat opts of
---      AbstractFormat => do
---        writeAbstrFiles opts outdir
---        pure ()
---      Erlang => do
---        writeErlFiles opts outdir
---        pure ()
---      Beam => do
---        writeBeamFiles opts outdir
---        pure ()
+namespace Library
+  isExported : Visibility -> Bool
+  isExported Public = True
+  isExported Export = True
+  isExported Private = False
+
+  exportedName : (Name, Maybe GlobalDef) -> Maybe Name
+  exportedName (n, Just gd) = if isExported (visibility gd)
+    then Just n
+    else Nothing
+  exportedName _ = Nothing
+
+  skipUnusedNames : Name -> Bool
+  skipUnusedNames (NS _ n) = skipUnusedNames n
+  skipUnusedNames (MN _ _) = False
+  skipUnusedNames (Resolved _) = False
+  skipUnusedNames _ = True
+
+  getExportedCompileData : {auto c : Ref Ctxt Defs} ->
+                  UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
+  getExportedCompileData phase shouldCompileName extraNames = do
+    defs <- get Ctxt
+    sopts <- getSession
+    -- make an array of Bools to hold which names we've found (quicker
+    -- to check than a NameMap!)
+    asize <- getNextEntry
+    arr <- coreLift $ newArray asize
+
+    let namesToCompile = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
+    cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) namesToCompile
+    let visibleCns = mapMaybe exportedName cnsWithGlobalDef
+
+    resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
+    logTime "Get names" $ getAllDesc resolvedNames arr defs
+
+    let entries = mapMaybe id !(coreLift (toList arr))
+    let allNs = map (Resolved . fst) entries
+    cns <- traverse toFullNames allNs
+
+    -- Do a round of merging/arity fixing for any names which were
+    -- unknown due to cyclic modules (i.e. declared in one, defined in
+    -- another)
+    rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
+    logTime "Merge lambda" $ traverse_ mergeLamDef rcns
+    logTime "Fix arity" $ traverse_ fixArityDef rcns
+    logTime "Forget names" $ traverse_ mkForgetDef rcns
+
+    compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
+    let mainname = MN "__mainExpression" 0
+    (liftedtm, ldefs) <- liftBody mainname compiledtm
+
+    cdefs <- traverse getCDef rcns
+    namedefs <- traverse getNamedDef rcns
+    lifted_in <- if phase >= Lifted
+                    then logTime "Lambda lift" $ traverse lambdaLift rcns
+                    else pure []
+
+    let lifted = (mainname, MkLFun [] [] liftedtm) ::
+                ldefs ++ concat lifted_in
+
+    anf <- if phase >= ANF
+              then logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+              else pure []
+    vmcode <- if phase >= VMCode
+                then logTime "Get VM Code" $ pure (allDefs anf)
+                else pure []
+
+    -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
+    pure (MkCompileData compiledtm
+                        (mapMaybe id cdefs)
+                        (mapMaybe id namedefs)
+                        lifted anf vmcode)
+  where
+    nonErased : Name -> Core Bool
+    nonErased n
+        = do defs <- get Ctxt
+             Just gdef <- lookupCtxtExact n (gamma defs)
+                  | Nothing => pure True
+             pure (multiplicity gdef /= erased)
+
+  shouldCompileName : Maybe (List Namespace) -> Name -> Bool
+  shouldCompileName Nothing _ = True
+  shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
+
+  -- TODO: Add error handling
+  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core (List String)
+  writeAbstrFiles opts outdir = do
+    ds <- getDirectives Erlang
+    let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
+    let namespacesToCompile = changedNamespaces opts
+    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
+    compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
+    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefix opts)) (filter (shouldCompileName namespacesToCompile . fst) (cDefs compileData))
+    let validCompdefs = mapMaybe id compdefs
+    let modules = defsPerModule validCompdefs
+    traverse_ (writeErlangModule opts exportFunNames outdir) modules
+    pure (map (currentModuleName . fst) modules)
+
+  -- TODO: Add error handling
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
+  writeErlFiles opts outdir = do
+    erl <- coreLift findErlangExecutable
+    tmpDir <- coreLift $ tmpName
+    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+    generatedModules <- writeAbstrFiles opts tmpDir
+    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    coreLift $ system $ generateErlCmd erl generatedFiles outdir
+    pure ()
+
+  -- TODO: Add error handling
+  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
+  writeBeamFiles opts outdir = do
+    erl <- coreLift findErlangExecutable
+    tmpDir <- coreLift $ tmpName
+    coreLift $ system ("mkdir -p " ++ quoted tmpDir)
+    generatedModules <- writeAbstrFiles opts tmpDir
+    let generatedFiles = map (\n => tmpDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
+    pure ()
+
+  export
+  build : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core ()
+  build opts outdir = do
+    coreLift $ system ("mkdir -p " ++ quoted outdir)
+    case outputFormat opts of
+      AbstractFormat => do
+        writeAbstrFiles opts outdir
+        pure ()
+      Erlang => do
+        writeErlFiles opts outdir
+        pure ()
+      Beam => do
+        writeBeamFiles opts outdir
+        pure ()
 
 -- TODO: Validate `outfile`
 compileExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
@@ -329,7 +365,7 @@ compileExpr c execDir tm outfile = do
   session <- getSession
   let opts = parseOpts (codegenOptions session)
   if generateAsLibrary opts
-    then pure () -- TODO: Library.build opts outfile
+    then Library.build opts outfile
     else MainEntrypoint.build opts tm outfile
   pure (Just outfile)
 

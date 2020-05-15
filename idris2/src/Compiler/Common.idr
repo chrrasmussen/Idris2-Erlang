@@ -35,6 +35,7 @@ record Codegen where
 public export
 data UsePhase = Cases | Lifted | ANF | VMCode
 
+export
 Eq UsePhase where
   (==) Cases Cases = True
   (==) Lifted Lifted = True
@@ -42,6 +43,7 @@ Eq UsePhase where
   (==) VMCode VMCode = True
   (==) _ _ = False
 
+export
 Ord UsePhase where
   compare x y = compare (tag x) (tag y)
     where
@@ -145,6 +147,7 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs
 
+export
 getCDef : {auto c : Ref Ctxt Defs} ->
           Name -> Core (Maybe (Name, FC, CDef))
 getCDef n
@@ -155,6 +158,7 @@ getCDef n
                                Nothing => pure Nothing
                                Just d => pure (Just (n, location def, d))
 
+export
 getNamedDef : {auto c : Ref Ctxt Defs} ->
               Name -> Core (Maybe (Name, FC, NamedDef))
 getNamedDef n
