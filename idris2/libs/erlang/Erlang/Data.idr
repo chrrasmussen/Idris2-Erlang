@@ -153,8 +153,6 @@ mutual
     ETDouble        : ErlType Double
     ETString        : ErlType String
     ETChar          : ErlType Char
-
-    ETUnit          : ErlType ()
     ETList          : ErlType a => ErlType (List a)
     ETFun           : (ErlType a, ErlType b) => ErlType (a -> b) -- NOTE: These functions are curried in Erlang as well
 

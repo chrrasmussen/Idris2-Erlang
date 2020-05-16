@@ -117,8 +117,6 @@ genOp l Crash [_, msg] =
 -- DATA CONSTRUCTORS
 
 genCon : NamespaceInfo -> Line -> Name -> List (ErlExpr vars) -> ErlExpr vars
--- Unit
-genCon namespaceInfo l (NS ["Builtin"] (UN "MkUnit")) [] = genMkUnit l
 -- List
 genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
@@ -177,9 +175,6 @@ readConAltFun l arity funVar body transform =
   in MTransform curriedFunMatcher funVar body
 
 readConAlt : NamespaceInfo -> Line -> Name -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlMatcher vars
--- Unit
-readConAlt namespaceInfo l (NS ["Builtin"] (UN "MkUnit")) [] body =
-  MTuple [] body
 -- List
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
   let unusedVar = MN "" 0

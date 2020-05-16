@@ -33,12 +33,6 @@ doubleTest = do
   tuple <- erlUnsafeCall (List Double) "test_support" "doubles" []
   printLn tuple
 
-unitTest : IO ()
-unitTest = do
-  putStrLn "unitTest"
-  unit <- erlUnsafeCall Unit "test_support" "unit" []
-  printLn unit
-
 listTest : IO ()
 listTest = do
   putStrLn "listTest"
@@ -96,7 +90,6 @@ main = do
   stringTest
   charTest
   doubleTest
-  unitTest
   listTest
   erlAtomTest
   erlBinaryTest

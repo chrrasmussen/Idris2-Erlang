@@ -42,11 +42,6 @@ doubleTest = do
   erlPrintLn (-42.2)
   erlPrintLn 42.3
 
-unitTest : IO ()
-unitTest = do
-  putStrLn "unitTest"
-  erlPrintLn ()
-
 listTest : IO ()
 listTest = do
   putStrLn "listTest"
@@ -112,7 +107,6 @@ main = do
   stringTest
   charTest
   doubleTest
-  unitTest
   listTest
   erlAtomTest
   erlBinaryTest

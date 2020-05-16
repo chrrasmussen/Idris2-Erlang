@@ -24,7 +24,7 @@ genErased l =
 export
 genMkUnit : Line -> ErlExpr vars
 genMkUnit l =
-  ETuple l []
+  ECon l (constructorName (NS ["Builtin"] (UN "MkUnit"))) []
 
 export
 genJust : Line -> ErlExpr vars -> ErlExpr vars

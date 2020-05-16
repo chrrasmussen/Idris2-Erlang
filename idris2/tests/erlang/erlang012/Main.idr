@@ -6,9 +6,10 @@ import Erlang
 %cg erlang export exports
 
 
-printHello : IO ()
-printHello =
+printHello : IO ErlAtom
+printHello = do
   putStrLn "Hello"
+  pure (MkAtom "ok")
 
 
 exports : ErlExport

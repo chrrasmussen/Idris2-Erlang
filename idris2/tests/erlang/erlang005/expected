@@ -11,8 +11,6 @@ charTest
 ['a', '\n', '\402']
 doubleTest
 [0.1, -42.2, 42.3]
-unitTest
-()
 listTest
 [[], ["a", "b", "c"]]
 erlAtomTest

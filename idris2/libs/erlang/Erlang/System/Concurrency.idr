@@ -17,7 +17,7 @@ erlSelf = erlUnsafeCall ErlPid "erlang" "self" []
 
 export
 erlSpawnLink : IO () -> IO ErlPid
-erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun0 action]
+erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun0 (map MkRaw action)]
 
 -- TODO: Support more receivers than just `ErlPid`
 export

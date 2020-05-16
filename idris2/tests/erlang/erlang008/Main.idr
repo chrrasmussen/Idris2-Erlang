@@ -195,7 +195,6 @@ testTuple : IO ()
 testTuple = do
   putStrLn "testTuple"
   putStrLn (erlDecodeDef "not found" (map show tuple0) MkTuple0)
-  putStrLn (erlDecodeDef "not found" (map show tuple0) ())
   putStrLn (erlDecodeDef "not found" (map show tuple0) "not an empty tuple")
   putStrLn (erlDecodeDef "not found" (map show (tuple1 any)) (MkTuple1 42))
   putStrLn (erlDecodeDef "not found" (map show (tuple1 integer)) (MkTuple1 42))
