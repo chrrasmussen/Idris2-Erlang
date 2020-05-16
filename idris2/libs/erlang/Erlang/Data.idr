@@ -53,8 +53,23 @@ namespace ProperList
 
 -- MAPS
 
+public export
+data ErlMapEntry : Type where
+  MkMapEntry : key -> (valueTy : Type) -> ErlMapEntry
+
+infix 0 :=
+
+public export
+(:=) : key -> (valueTy : Type) -> ErlMapEntry
+(:=) = MkMapEntry
+
+
 export
-data ErlMap : Type where [external]
+data ErlMapSubset : List ErlMapEntry -> Type where [external]
+
+public export
+ErlAnyMap : Type
+ErlAnyMap = ErlMapSubset []
 
 
 -- REFERENCE TYPES
@@ -183,7 +198,8 @@ mutual
     ETErlNil        : ErlType ErlNil
     ETErlCons       : (ErlType a, ErlType b) => ErlType (ErlCons a b)
     ETErlList       : ErlTypes xs => ErlType (ErlList xs)
-    ETErlMap        : ErlType ErlMap
+    ETErlMapSubset  : ErlMapTypes xs => ErlType (ErlMapSubset xs)
+    ETErlAnyMap     : ErlType ErlAnyMap
     ETErlPid        : ErlType ErlPid
     ETErlRef        : ErlType ErlRef
     ETErlPort       : ErlType ErlPort
@@ -210,3 +226,8 @@ mutual
   data ErlTypes : List Type -> Type where
     ETErlTypesNil   : ErlTypes []
     ETErlTypesCons  : (ErlType x, ErlTypes xs) => ErlTypes (x :: xs)
+
+  public export
+  data ErlMapTypes : List ErlMapEntry -> Type where
+    EMTNil : ErlMapTypes []
+    EMTCons : (ErlType keyTy, ErlType valueTy) => (key : keyTy) -> ErlMapTypes xs -> ErlMapTypes (MkMapEntry key valueTy :: xs)

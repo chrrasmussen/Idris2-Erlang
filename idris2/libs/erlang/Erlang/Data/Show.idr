@@ -93,5 +93,5 @@ export
     "{" ++ showSep ", " [show x1, show x2, show x3, show x4, show x5] ++ "}"
 
 export
-Show ErlMap where
+Show (ErlMapSubset xs) where
   show _ = "<Erlang Map>" -- TODO: Implement

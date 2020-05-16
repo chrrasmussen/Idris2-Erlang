@@ -25,20 +25,17 @@ namespace ErlDecoders
     (::) : ErlDecoder a -> ErlDecoders as -> ErlDecoders (a :: as)
 
 public export
-data ErlMapEntry : Type -> Type where
-  MkMapEntry : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
+data ErlMapEntryDecoder : key -> Type -> Type where
+  MkDecoderMapEntry : (key : a) -> ErlDecoder value -> ErlMapEntryDecoder key value
 
-infix 9 :=
+public export
+(:=) : (key : a) -> ErlDecoder value -> ErlMapEntryDecoder key value
+(:=) = MkDecoderMapEntry
 
-export %inline
-(:=) : ErlType key => key -> ErlDecoder value -> ErlMapEntry value
-(:=) = MkMapEntry
-
-namespace ErlMapEntries
-  public export
-  data ErlMapEntries : List Type -> Type where
-    Nil : ErlMapEntries []
-    (::) : ErlMapEntry a -> ErlMapEntries as -> ErlMapEntries (a :: as)
+public export
+data ErlMapDecoders : List ErlMapEntry -> Type where
+  Nil : ErlMapDecoders []
+  (::) : ErlMapEntryDecoder key valueTy -> ErlMapDecoders xs -> ErlMapDecoders (MkMapEntry key valueTy :: xs)
 
 
 -- IMPLEMENTATIONS
@@ -111,7 +108,7 @@ erlDecodeDef def decoder term =
 %extern prim__erlDecodePid        : ErlTerm -> Maybe ErlPid
 %extern prim__erlDecodeRef        : ErlTerm -> Maybe ErlRef
 %extern prim__erlDecodePort       : ErlTerm -> Maybe ErlPort
-%extern prim__erlDecodeAnyMap     : ErlTerm -> Maybe ErlMap
+%extern prim__erlDecodeAnyMap     : ErlTerm -> Maybe ErlAnyMap
 %extern prim__erlDecodeAnyList    : ErlTerm -> Maybe ErlTerm
 %extern prim__erlDecodeNil        : ErlTerm -> Maybe ErlNil
 %extern prim__erlDecodeCons       : ErlTerm -> Maybe (ErlCons ErlTerm ErlTerm)
@@ -206,7 +203,7 @@ port =
   MkDecoder (maybe (Left (Error "Expected a port")) Right . prim__erlDecodePort)
 
 export
-anyMap : ErlDecoder ErlMap
+anyMap : ErlDecoder ErlAnyMap
 anyMap =
   MkDecoder (maybe (Left (Error "Expected a map")) Right . prim__erlDecodeAnyMap)
 
@@ -339,11 +336,13 @@ mapEntry key (MkDecoder valueDecoder) =
       | Nothing => Left (Error "Could not find key in map")
     valueDecoder value)
 
+-- This function does not put any restrictions on the types of the keys and values
+-- because getting them wrong just means you won't get the expected result. It will
+-- not result in any run-time errors.
 export
-mapSubset : ErlMapEntries xs -> ErlDecoder (ErlList xs)
-mapSubset [] = anyMap *> pure []
-mapSubset (MkMapEntry key valueDecoder :: xs) =
-  (::) <$> mapEntry key valueDecoder <*> mapSubset xs
+mapSubset : ErlMapDecoders xs -> ErlDecoder (ErlMapSubset xs)
+mapSubset [] = believe_me anyMap
+mapSubset (MkDecoderMapEntry key valueDecoder :: xs) = believe_me (mapEntry (MkRaw key) valueDecoder *> mapSubset xs)
 
 export
 fun0 : ErlDecoder (IO (Either ErlException ErlTerm))

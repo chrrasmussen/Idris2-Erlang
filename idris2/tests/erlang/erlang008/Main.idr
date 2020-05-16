@@ -5,14 +5,14 @@ import Erlang
 
 -- Wrappers around Erlang functions
 
-mapEmpty : ErlMap
-mapEmpty = unsafePerformIO $ erlUnsafeCall ErlMap "test_support" "get_map_empty" []
+mapEmpty : ErlAnyMap
+mapEmpty = unsafePerformIO $ erlUnsafeCall ErlAnyMap "test_support" "get_map_empty" []
 
-mapEx1 : ErlMap
-mapEx1 = unsafePerformIO $ erlUnsafeCall ErlMap "test_support" "get_map_ex1" []
+mapEx1 : ErlAnyMap
+mapEx1 = unsafePerformIO $ erlUnsafeCall ErlAnyMap "test_support" "get_map_ex1" []
 
-mapEx2 : ErlMap
-mapEx2 = unsafePerformIO $ erlUnsafeCall ErlMap "test_support" "get_map_ex2" []
+mapEx2 : ErlAnyMap
+mapEx2 = unsafePerformIO $ erlUnsafeCall ErlAnyMap "test_support" "get_map_ex2" []
 
 pidEx : ErlPid
 pidEx = unsafePerformIO $ erlUnsafeCall ErlPid "test_support" "get_pid" []
@@ -217,10 +217,10 @@ testMapSubset = do
   putStrLn "testMapSubset"
   putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) mapEx1)
   putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) "not a map")
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary])) mapEx2)
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map show (mapSubset ["first" := binary, "second" := integer])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" := binary])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" := binary])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" := binary, "second" := integer])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" := binary, "second" := integer])) mapEx2)
 
 testOptional : IO ()
 testOptional = do

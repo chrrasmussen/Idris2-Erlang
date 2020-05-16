@@ -106,10 +106,10 @@ ex2
 testMapSubset
 found map
 not found
-[<<"ex1">> | []]
-[<<"ex2">> | []]
+<<"ex1">>
+<<"ex2">>
 not found
-[<<"ex2">> | [42 | []]]
+(<<"ex2">>, 42)
 testOptional
 Just 42
 Nothing
