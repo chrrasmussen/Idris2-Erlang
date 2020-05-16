@@ -4,14 +4,25 @@ module Erlang.Data
 %default total
 
 
+-- Represents any Erlang term.
+export
+data ErlTerm : Type where [external]
+
+-- Pass raw Idris values to Erlang.
 -- `Raw a` is compiled to `a`
 public export
 data Raw a = MkRaw a
+
+
+-- ATOMS
 
 public export
 data ErlAtom : Type where
   [noNewtype]
   MkAtom : String -> ErlAtom
+
+
+-- STRINGS
 
 public export
 data ErlBinary : Type where
@@ -22,6 +33,9 @@ public export
 data ErlCharlist : Type where
   [noNewtype]
   MkCharlist : String -> ErlCharlist
+
+
+-- LISTS
 
 namespace MaybeImproperList
   public export
@@ -36,11 +50,14 @@ namespace ProperList
     Nil : ErlList []
     (::) : x -> ErlList xs -> ErlList (x :: xs)
 
-export
-data ErlTerm : Type where [external]
+
+-- MAPS
 
 export
 data ErlMap : Type where [external]
+
+
+-- REFERENCE TYPES
 
 export
 data ErlPid : Type where [external]
