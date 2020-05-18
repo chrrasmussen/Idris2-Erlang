@@ -83,8 +83,9 @@ export %inline
 cCall : (ret : Type) -> String -> FArgList -> IO ret
 cCall ret fn args = primIO (prim__cCall ret fn args)
 
+%foreign "C:idris2_isNull, libidris2_support"
 export
-%extern prim__nullAnyPtr : AnyPtr -> Int
+prim__nullAnyPtr : AnyPtr -> Int
 
 prim__forgetPtr : Ptr t -> AnyPtr
 prim__forgetPtr = believe_me

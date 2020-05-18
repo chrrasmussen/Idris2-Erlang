@@ -451,9 +451,9 @@ genExtPrim namespaceInfo l ErlBufferSetString [bin, loc, value] =
 genExtPrim namespaceInfo l ErlBufferGetString [bin, loc, len] =
   pure $ EBufferGetString l bin loc len
 -- genExtPrim namespaceInfo l prim args =
---   throw (InternalError ("Badly formed external primitive " ++ show prim)) -- TODO: Is this preferable to run-time error?
+--   throw (InternalError ("Badly formed external primitive " ++ show prim))
 genExtPrim namespaceInfo l prim args =
-  pure $ genThrow l ("Error: Badly formed external primitive " ++ show prim)
+  pure $ genThrow l ("Error: Badly formed external primitive " ++ show prim) -- TODO: Should fail at compile-time instead
 
 
 -- CODE GENERATION
@@ -490,8 +490,7 @@ mutual
   genCExp namespaceInfo vs (CExtPrim fc p args) = do
     let l = genFC fc
     let Just extPrim = toPrim p
-      | Nothing => pure (genThrow l ("Can't compile unknown external primitive " ++ show p))
-      -- TODO: throw (InternalError ("Can't compile unknown external primitive " ++ show p))
+      | Nothing => pure (genThrow l ("Can't compile unknown external primitive " ++ show p)) -- TODO: Should fail at compile-time instead
     genExtPrim namespaceInfo l extPrim !(traverse (genCExp namespaceInfo vs) args)
   genCExp namespaceInfo vs (CForce fc t) = do
     let l = genFC fc
@@ -559,8 +558,11 @@ genDef namespaceInfo l name (MkError body) = do
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   let funDecl = MkFunDecl l Private fnName [] !(genCExp namespaceInfo vs body)
   pure $ Just funDecl
-genDef namespaceInfo l name (MkForeign _ _ _) =
-  pure Nothing
+genDef namespaceInfo l name (MkForeign cs args ret) = do
+  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
+  let argNames = map (const (MN "" 0)) args
+  let funDecl = MkFunDecl l Private fnName argNames (genThrow l "Error: %foreign is unsupported") -- TODO: Should fail at compile-time instead
+  pure $ Just funDecl
 genDef namespaceInfo l name (MkCon tag arity nt) =
   pure Nothing
 
