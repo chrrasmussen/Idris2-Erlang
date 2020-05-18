@@ -2,6 +2,7 @@ module Parser.Lexer
 
 import public Text.Lexer
 import Utils.Hex
+import Utils.Octal
 import Utils.String
 
 %default total
@@ -46,10 +47,6 @@ Show Token where
       dotSep [] = ""
       dotSep [x] = x
       dotSep (x :: xs) = x ++ concat ["." ++ y | y <- xs]
-
-export
-Show (TokenData Token) where
-  show t = show (line t, col t, tok t)
 
 ||| In `comment` we are careful not to parse closing delimiters as
 ||| valid comments. i.e. you may not write many dashes followed by
@@ -233,6 +230,15 @@ fromHexLit str
                   Nothing => 0 -- can't happen if the literal lexed correctly
                   Just n => cast n
 
+fromOctLit : String -> Integer
+fromOctLit str
+  = if length str <= 2
+       then 0
+       else let num = assert_total (strTail (strTail str)) in
+             case fromOct (reverse num) of
+                  Nothing => 0 -- can't happen if the literal lexed correctly
+                  Just n => cast n
+
 rawTokens : TokenMap Token
 rawTokens =
     [(comment, Comment),
@@ -243,6 +249,7 @@ rawTokens =
     map (\x => (exact x, Symbol)) symbols ++
     [(doubleLit, \x => DoubleLit (cast x)),
      (hexLit, \x => Literal (fromHexLit x)),
+     (octLit, \x => Literal (fromOctLit x)),
      (digits, \x => Literal (cast x)),
      (stringLit, \x => StrLit (stripQuotes x)),
      (charLit, \x => CharLit (stripQuotes x)),

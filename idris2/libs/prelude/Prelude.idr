@@ -580,6 +580,12 @@ interface Foldable (t : Type -> Type) where
   foldl : (func : acc -> elem -> acc) -> (init : acc) -> (input : t elem) -> acc
   foldl f z t = foldr (flip (.) . flip f) id t z
 
+||| Similar to `foldl`, but uses a function wrapping its result in a `Monad`.
+||| Consequently, the final value is wrapped in the same `Monad`.
+public export
+foldlM : (Foldable t, Monad m) => (funcM: a -> b -> m a) -> (init: a) -> (input: t b) -> m a
+foldlM fm a0 = foldl (\ma,b => ma >>= flip fm b) (pure a0)
+
 ||| Combine each element of a structure into a monoid.
 public export
 concat : (Foldable t, Monoid a) => t a -> a
@@ -1065,8 +1071,12 @@ reverse = prim__strReverse
 ||| @ subject The string to return a portion of
 public export
 substr : (index : Nat) -> (len : Nat) -> (subject : String) -> String
-substr s e = prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
-                             (prim__cast_IntegerInt (natToInteger e))
+substr s e subj
+    = if natToInteger s < natToInteger (length subj)
+         then prim__strSubstr (prim__cast_IntegerInt (natToInteger s))
+                              (prim__cast_IntegerInt (natToInteger e))
+                              subj
+         else ""
 
 ||| Adds a character to the front of the specified string.
 |||
@@ -1399,6 +1409,11 @@ export
 Show a => Show (Maybe a) where
   showPrec d Nothing  = "Nothing"
   showPrec d (Just x) = showCon d "Just" (showArg x)
+
+export
+(Show a, Show b) => Show (Either a b) where
+  showPrec d (Left x)  = showCon d "Left" $ showArg x
+  showPrec d (Right x) = showCon d "Right" $ showArg x
 
 --------
 -- IO --
