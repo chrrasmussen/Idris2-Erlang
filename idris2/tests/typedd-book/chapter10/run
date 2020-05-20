@@ -1,0 +1,4 @@
+$1 DLFail.idr --check
+$1 All.idr --check
+
+rm -rf build

@@ -1,0 +1,5 @@
+1/5: Building Door (Door.idr)
+2/5: Building Stack (Stack.idr)
+3/5: Building StackIO (StackIO.idr)
+4/5: Building Vending (Vending.idr)
+5/5: Building All (All.idr)

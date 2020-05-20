@@ -1,0 +1,6 @@
+1/6: Building Album (Album.idr)
+2/6: Building Eq (Eq.idr)
+3/6: Building Expr (Expr.idr)
+4/6: Building Fold (Fold.idr)
+5/6: Building Tree (Tree.idr)
+6/6: Building All (All.idr)

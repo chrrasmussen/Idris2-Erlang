@@ -1,0 +1,6 @@
+1/6: Building Elem (Elem.idr)
+2/6: Building ElemBool (ElemBool.idr)
+3/6: Building ElemType (ElemType.idr)
+4/6: Building Hangman (Hangman.idr)
+5/6: Building RemoveElem (RemoveElem.idr)
+6/6: Building All (All.idr)
