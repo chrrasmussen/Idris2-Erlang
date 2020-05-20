@@ -4,7 +4,7 @@ all:
 	@echo "The default task. Does nothing yet..."
 
 setup:
-	git remote add idris2 https://github.com/edwinb/Idris2
+	git remote add idris2 https://github.com/idris-lang/Idris2
 
 pull-idris2:
 	git pull --strategy=subtree idris2 master
