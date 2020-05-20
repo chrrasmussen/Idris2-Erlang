@@ -1,0 +1,9 @@
+{
+    "files.exclude": {
+        "**/*.ibc": true,
+    },
+    "editor.detectIndentation": false,
+    "editor.tabSize": 2,
+    "editor.formatOnSave": false,
+    "idris.executablePath": "idris2"
+}
