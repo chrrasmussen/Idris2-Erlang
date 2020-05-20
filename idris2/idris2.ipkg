@@ -161,4 +161,4 @@ depends = contrib, network
 sourcedir = "src"
 
 main = Idris.Main
-executable = idris2
+executable = idris2erl

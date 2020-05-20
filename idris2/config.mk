@@ -1,6 +1,6 @@
 ##### Options which a user might set before building go here #####
 
-PREFIX ?= $(HOME)/.idris2
+PREFIX ?= $(HOME)/.idris2erl
 
 # For Windows targets. Set to 1 to support Windows 7.
 OLD_WIN ?= 0

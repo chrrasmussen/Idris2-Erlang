@@ -4,7 +4,7 @@ include config.mk
 export IDRIS2_BOOT ?= idris2
 
 # Idris 2 executable we're building
-NAME = idris2
+NAME = idris2erl
 TARGETDIR = build/exec
 TARGET = ${TARGETDIR}/${NAME}
 
