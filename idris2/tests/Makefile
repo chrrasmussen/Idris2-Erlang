@@ -1,4 +1,4 @@
-INTERACTIVE ?= --interactive
+INTERACTIVE ?=
 threads ?= $(shell (nproc || sysctl -n hw.ncpu) 2>/dev/null || echo 1)
 
 .PHONY: testbin test
