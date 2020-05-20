@@ -1,4 +1,4 @@
-# idris2-erlang
+# Idris2-Erlang
 
 Erlang code generator for [Idris 2](https://github.com/edwinb/Idris2). Idris 2 is created by [Edwin Brady](https://github.com/edwinb). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
 
