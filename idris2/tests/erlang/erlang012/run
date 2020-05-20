@@ -1,0 +1,5 @@
+$1 --no-banner --check Main.idr
+$1 --no-banner --codegen erlang --cg-opt "--library" -o . Main.idr
+erlc test_support.erl
+escript test_support.beam
+rm -rf build *.beam

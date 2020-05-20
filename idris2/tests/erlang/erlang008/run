@@ -1,0 +1,4 @@
+$1 --no-banner --codegen erlang Main.idr < input
+erlc -W0 test_support.erl
+escript main.beam
+rm -rf build *.beam

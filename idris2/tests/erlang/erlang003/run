@@ -1,0 +1,2 @@
+$1 --no-banner --codegen erlang Main.idr < input
+rm -rf build temp.txt
