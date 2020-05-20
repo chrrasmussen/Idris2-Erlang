@@ -1,8 +1,0 @@
-package prelude
-
-opts = "--no-prelude"
-
-modules = Builtin,
-          PrimIO,
-          Prelude
-

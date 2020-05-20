@@ -1,3 +1,0 @@
-$1 --yaffle Eta.yaff < input
-
-rm -rf build

@@ -1,2 +1,0 @@
-00001e((:load-file "LocType.idr") 1)
-((:type-of "Vect") 2)

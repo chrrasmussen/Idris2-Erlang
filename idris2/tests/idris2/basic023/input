@@ -1,8 +1,0 @@
-:t Dict
-:t MkDict
-:t lookup
-:t lookupK
-testDict
-lookupK _ 1 testDict
-lookupK _ 2 testDict
-:q

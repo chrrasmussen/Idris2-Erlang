@@ -1,3 +1,0 @@
-$1 --check Implicits.idr
-
-rm -rf build

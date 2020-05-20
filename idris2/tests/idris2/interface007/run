@@ -1,3 +1,0 @@
-$1 --debug-elab-check --check A.idr
-
-rm -rf build

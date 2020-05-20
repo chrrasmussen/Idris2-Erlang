@@ -1,3 +1,0 @@
-$1 DepInt.idr --check
-
-rm -rf build

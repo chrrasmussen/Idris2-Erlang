@@ -1,3 +1,0 @@
-module Loop
-
-import Loop

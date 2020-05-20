@@ -1,3 +1,0 @@
-$1 --check erased.idr
-
-rm -rf build

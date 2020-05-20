@@ -1,3 +1,0 @@
-echo ':q' | $1 --no-banner --no-prelude Test.idr
-
-rm -rf build

@@ -1,3 +1,0 @@
-$1 --check Auto.idr
-
-rm -rf build

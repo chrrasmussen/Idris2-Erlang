@@ -1,3 +1,0 @@
-$1 --check Door.idr
-
-rm -rf build

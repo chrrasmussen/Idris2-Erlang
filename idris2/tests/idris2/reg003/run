@@ -1,3 +1,0 @@
-$1 --no-banner --no-prelude Holes.idr < input
-
-rm -rf build

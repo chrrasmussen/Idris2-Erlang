@@ -1,3 +1,0 @@
-$1 --check lets.idr
-
-rm -rf build

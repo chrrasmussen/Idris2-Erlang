@@ -1,3 +1,0 @@
-$1 cycle.idr --check
-
-rm -rf build

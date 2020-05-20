@@ -1,3 +1,0 @@
-foo (Just 4) (Just 5)
-foo (Just 4) Nothing
-:q

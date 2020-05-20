@@ -1,3 +1,0 @@
-$1 --check ambig.idr
-
-rm -rf build

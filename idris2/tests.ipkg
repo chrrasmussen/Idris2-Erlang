@@ -1,9 +1,0 @@
-package runtests
-
-sourcedir = tests
-executable = runtests
-
-opts = "--warnreach --partial-eval"
-
-main = Main
-

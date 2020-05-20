@@ -1,2 +1,0 @@
-example : String
-example = ?example

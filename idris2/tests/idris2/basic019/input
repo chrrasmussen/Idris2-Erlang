@@ -1,4 +1,0 @@
-:t foo
-:printdef elem
-:printdef io_bind
-:q

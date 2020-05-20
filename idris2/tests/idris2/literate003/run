@@ -1,3 +1,0 @@
-$1 --no-banner IEdit.lidr < input
-
-rm -rf build

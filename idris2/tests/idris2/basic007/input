@@ -1,6 +1,0 @@
-mthings (Just (Just 20)) (Just Nothing)
-mthings (Just Nothing) (Just (Just 54))
-mthings (Just (Just 20)) (Just (Just 54))
-mthings (Just (Just 20)) Nothing
-mthings Nothing (Just (Just 54))
-:q

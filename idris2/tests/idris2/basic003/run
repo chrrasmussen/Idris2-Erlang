@@ -1,4 +1,0 @@
-echo ':q' | $1 --no-banner --no-prelude Ambig1.idr
-echo ':q' | $1 --no-banner --no-prelude Ambig2.idr
-
-rm -rf build

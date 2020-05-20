@@ -1,5 +1,0 @@
-reverse (1 :: 2 :: 3 :: Nil)
-foo 4
-foo 21
-:q
-

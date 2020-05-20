@@ -1,3 +1,0 @@
-$1 --check Cmd.idr
-
-rm -rf build
