@@ -28,6 +28,7 @@ dropExtension fname
                reverse (assert_total (strTail root))
 
 -- Return the name of the first file available in the list
+export
 firstAvailable : List String -> Core (Maybe String)
 firstAvailable [] = pure Nothing
 firstAvailable (f :: fs)

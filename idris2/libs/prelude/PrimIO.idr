@@ -41,9 +41,7 @@ io_bind (MkIO fn) k
                       MkIO res = k x' in
                       res w')
 
-%foreign "C:putchar,libc 6"
-prim__putChar : Char -> (1 x : %World) -> IORes ()
-%foreign "C:getchar,libc 6"
+%extern prim__putChar : Char -> (1 x : %World) -> IORes ()
 %extern prim__getChar : (1 x : %World) -> IORes Char
 
 -- A pointer representing a given parameter type
@@ -100,10 +98,8 @@ prim__nullPtr p = prim__nullAnyPtr (prim__forgetPtr p)
 export
 prim__getString : Ptr String -> String
 
-%foreign "C:idris2_getStr,libidris2_support"
-prim__getStr : PrimIO String
-%foreign "C:idris2_putStr,libidris2_support"
-prim__putStr : String -> PrimIO ()
+%extern prim__getStr : PrimIO String
+%extern prim__putStr : String -> PrimIO ()
 
 ||| Output a string to stdout without a trailing newline.
 export

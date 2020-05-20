@@ -38,12 +38,14 @@ public export
 data CG = Chez
         | Racket
         | Gambit
+        | Erlang
 
 export
 Eq CG where
   Chez == Chez = True
   Racket == Racket = True
   Gambit == Gambit = True
+  Erlang == Erlang = True
   _ == _ = False
 
 export
@@ -51,7 +53,8 @@ availableCGs : List (String, CG)
 availableCGs
     = [("chez", Chez),
        ("racket", Racket),
-       ("gambit", Gambit)]
+       ("gambit", Gambit),
+       ("erlang", Erlang)]
 
 export
 getCG : String -> Maybe CG
@@ -102,6 +105,7 @@ record Session where
   nobanner : Bool
   findipkg : Bool
   codegen : CG
+  codegenOptions : String
   logLevel : Nat
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
@@ -153,7 +157,7 @@ defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez 0 False False
+defaultSession = MkSessionOpts False False False Chez "" 0 False False
                                Nothing Nothing Nothing Nothing
 
 defaultElab : ElabDirectives

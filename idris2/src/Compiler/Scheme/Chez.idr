@@ -321,7 +321,7 @@ compileToSS : Ref Ctxt Defs ->
               String -> ClosedTerm -> (outfile : String) -> Core ()
 compileToSS c appdir tm outfile
     = do ds <- getDirectives Chez
-         libs <- findLibs ds
+         libs <- findLibs (map snd ds)
          traverse_ copyLib libs
          cdata <- getCompileData Cases tm
          let ndefs = namedDefs cdata

@@ -52,7 +52,7 @@ record TTCFile extra where
   rewritenames : Maybe RewriteNames
   primnames : PrimNames
   namedirectives : List (Name, List String)
-  cgdirectives : List (CG, String)
+  cgdirectives : List (List String, CG, String)
   transforms : List (Name, Transform)
   extraData : extra
 
@@ -363,7 +363,7 @@ updateNameDirectives ((t, ns) :: nds)
 
 export
 updateCGDirectives : {auto c : Ref Ctxt Defs} ->
-                     List (CG, String) -> Core ()
+                     List (List String, CG, String) -> Core ()
 updateCGDirectives cgs
     = do defs <- get Ctxt
          let cgs' = nub (cgs ++ cgdirectives defs)

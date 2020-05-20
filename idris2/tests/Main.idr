@@ -108,6 +108,15 @@ ideModeTests : List String
 ideModeTests
   =  [ "ideMode001", "ideMode002", "ideMode003" ]
 
+erlangTests : List String
+erlangTests
+   = ["erlang001", "erlang002", "erlang003", "erlang004", "erlang005",
+      "erlang006", "erlang007", "erlang008", "erlang009", "erlang010",
+      "erlang011", "erlang012",
+      "chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
+      "chez007", "chez008", "chez009"]
+      -- chez010 is disabled for now
+
 ------------------------------------------------------------------------
 -- Options
 
@@ -246,6 +255,9 @@ runChezTests opts tests
                          traverse (runTest opts) tests)
                chexec
 
+runErlangTests : Options -> List String -> IO (List Bool)
+runErlangTests opts tests = traverse (runTest opts) tests
+
 filterTests : Options -> List String -> List String
 filterTests opts = case onlyNames opts of
   [] => id
@@ -265,11 +277,15 @@ main
                  , testPaths "ideMode" ideModeTests
                  ]
          let filteredChezTests = filterTests opts (testPaths "chez" chezTests)
+         let filteredErlangTests = filterTests opts (testPaths "erlang" erlangTests)
          nonCGTestRes <- traverse (runTest opts) filteredNonCGTests
          chezTestRes <- if length filteredChezTests > 0
               then runChezTests opts filteredChezTests
               else pure []
-         let res = nonCGTestRes ++ chezTestRes
+         erlangTestRes <- if length filteredErlangTests > 0
+              then runErlangTests opts filteredErlangTests
+              else pure []
+         let res = nonCGTestRes ++ chezTestRes ++ erlangTestRes
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)

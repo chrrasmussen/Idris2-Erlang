@@ -209,6 +209,7 @@ SExpable REPLOpt where
   toSExp (EvalMode mod) = SExpList [ SymbolAtom "eval", toSExp mod ]
   toSExp (Editor editor) = SExpList [ SymbolAtom "editor", toSExp editor ]
   toSExp (CG str) = SExpList [ SymbolAtom "cg", toSExp str ]
+  toSExp (CGOptions args) = SExpList [ SymbolAtom "cgopt", toSExp args ]
 
 
 sexpName :  Name -> SExp

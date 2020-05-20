@@ -46,6 +46,8 @@ data CLOpt
   ExecFn String |
    ||| Use a specific code generator (default chez)
   SetCG String |
+   ||| Arguments to pass to code generator
+  SetCGOptions String |
    ||| Don't implicitly import Prelude
   NoPrelude |
    ||| Show the installation prefix
@@ -114,6 +116,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Don't implicitly import Prelude"),
            MkOpt ["--codegen", "--cg"] ["backend"] (\f => [SetCG f])
               (Just "Set code generator (default chez)"),
+           MkOpt ["--cg-opt"] ["args"] (\args => [SetCGOptions args])
+              (Just "Arguments to pass to code generator"),
            MkOpt ["--package", "-p"] ["package"] (\f => [PkgPath f])
               (Just "Add a package as a dependency"),
 

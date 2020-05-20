@@ -3,6 +3,8 @@ module Idris.REPL
 import Compiler.Scheme.Chez
 import Compiler.Scheme.Racket
 import Compiler.Scheme.Gambit
+import Compiler.Erlang.Erlang
+import Compiler.Erlang.Opts
 import Compiler.Common
 
 import Core.AutoSearch
@@ -229,6 +231,8 @@ setOpt (CG e)
     = case getCG e of
            Just cg => setCG cg
            Nothing => iputStrLn "No such code generator available"
+setOpt (CGOptions args)
+    = setCGOptions args
 
 getOptions : {auto c : Ref Ctxt Defs} ->
          {auto o : Ref ROpts REPLOpts} ->
@@ -249,6 +253,7 @@ findCG
               Chez => pure codegenChez
               Racket => pure codegenRacket
               Gambit => pure codegenGambit
+              Erlang => pure codegenErlang
 
 anyAt : (FC -> Bool) -> FC -> a -> Bool
 anyAt p loc y = p loc
@@ -517,13 +522,13 @@ execExp ctm
 
 
 export
-compileExp : {auto c : Ref Ctxt Defs} ->
+compileExp' : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              PTerm -> String -> Core REPLResult
-compileExp ctm outfile
+compileExp' ctm outfile
     = do inidx <- resolveName (UN "[input]")
          ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
@@ -533,6 +538,35 @@ compileExp ctm outfile
          maybe (pure CompilationFailed)
                (pure . Compiled)
                ok
+
+-- TODO: Need a version of `compileExp` that does not require a `PTerm` to support generating library.
+-- (Should remove `genLib` and `compileExp` in favor of `compileExp'`)
+export
+genLib : {auto c : Ref Ctxt Defs} ->
+         {auto u : Ref UST UState} ->
+         {auto s : Ref Syn SyntaxInfo} ->
+         {auto m : Ref MD Metadata} ->
+         String -> Core REPLResult
+genLib outfile = do
+  let dummyTerm = PrimVal replFC (I 0)
+  ok <- compile !findCG dummyTerm outfile
+  maybe (pure CompilationFailed)
+        (pure . Compiled)
+        ok
+
+export
+compileExp : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             {auto m : Ref MD Metadata} ->
+             {auto o : Ref ROpts REPLOpts} ->
+             PTerm -> String -> Core REPLResult
+compileExp ctm outfile = do
+  session <- getSession
+  let erlOpts = Erlang.Opts.parseOpts (codegenOptions session)
+  if generateAsLibrary erlOpts
+    then genLib outfile
+    else compileExp' ctm outfile
 
 export
 loadMainFile : {auto c : Ref Ctxt Defs} ->

@@ -276,6 +276,7 @@ data REPLOpt : Type where
      EvalMode : REPLEval -> REPLOpt
      Editor : String -> REPLOpt
      CG : String -> REPLOpt
+     CGOptions : String -> REPLOpt
 
 export
 Show REPLOpt where
@@ -285,6 +286,7 @@ Show REPLOpt where
   show (EvalMode mod) = "eval = " ++ show mod
   show (Editor editor) = "editor = " ++ show editor
   show (CG str) = "cg = " ++ str
+  show (CGOptions args) = "cgopt = " ++ args
 
 
 public export

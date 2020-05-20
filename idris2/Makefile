@@ -62,7 +62,10 @@ network: prelude
 contrib: prelude
 	${MAKE} -C libs/contrib IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
-libs : prelude base network contrib
+erlang: prelude
+	${MAKE} -C libs/erlang IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
+
+libs : prelude base network contrib erlang
 
 test:
 	@${MAKE} -C tests only=$(only) IDRIS2=../../../${TARGET}
@@ -78,6 +81,7 @@ clean-libs:
 	${MAKE} -C libs/base clean
 	${MAKE} -C libs/network clean
 	${MAKE} -C libs/contrib clean
+	${MAKE} -C libs/erlang clean
 
 clean: clean-libs support-clean
 	-${IDRIS2_BOOT} --clean ${IDRIS2_IPKG}
@@ -114,6 +118,7 @@ install-libs: libs
 	${MAKE} -C libs/base install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 	${MAKE} -C libs/network install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH} IDRIS2_VERSION=${IDRIS2_VERSION}
 	${MAKE} -C libs/contrib install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
+	${MAKE} -C libs/erlang install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
 
 .PHONY: bootstrap bootstrap-racket bootstrap-clean

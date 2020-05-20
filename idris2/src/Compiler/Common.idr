@@ -37,6 +37,7 @@ record Codegen where
 public export
 data UsePhase = Cases | Lifted | ANF | VMCode
 
+export
 Eq UsePhase where
   (==) Cases Cases = True
   (==) Lifted Lifted = True
@@ -44,6 +45,7 @@ Eq UsePhase where
   (==) VMCode VMCode = True
   (==) _ _ = False
 
+export
 Ord UsePhase where
   compare x y = compare (tag x) (tag y)
     where
@@ -58,6 +60,7 @@ record CompileData where
   constructor MkCompileData
   mainExpr : CExp [] -- main expression to execute. This also appears in
                      -- the definitions below as MN "__mainExpression" 0
+  cDefs : List (Name, FC, CDef)
   namedDefs : List (Name, FC, NamedDef)
   lambdaLifted : List (Name, LiftedDef)
        -- ^ lambda lifted definitions, if required. Only the top level names
@@ -116,6 +119,7 @@ getMinimalDef (Coded bin)
          pure (def, Just bin)
 
 -- ||| Recursively get all calls in a function definition
+export
 getAllDesc : {auto c : Ref Ctxt Defs} ->
              List Name -> -- calls to check
              IOArray (Int, Maybe Binary) ->
@@ -145,6 +149,19 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs
 
+
+export
+getCDef : {auto c : Ref Ctxt Defs} ->
+          Name -> Core (Maybe (Name, FC, CDef))
+getCDef n
+    = do defs <- get Ctxt
+         case !(lookupCtxtExact n (gamma defs)) of
+              Nothing => pure Nothing
+              Just def => case compexpr def of
+                               Nothing => pure Nothing
+                               Just d => pure (Just (n, location def, d))
+
+export
 getNamedDef : {auto c : Ref Ctxt Defs} ->
               Name -> Core (Maybe (Name, FC, NamedDef))
 getNamedDef n
@@ -162,6 +179,7 @@ replaceEntry (i, Just b)
     = do addContextEntry (Resolved i) b
          pure ()
 
+export
 natHackNames : List Name
 natHackNames
     = [UN "prim__add_Integer",
@@ -268,6 +286,7 @@ getCompileData phase tm_in
          let mainname = MN "__mainExpression" 0
          (liftedtm, ldefs) <- liftBody mainname compiledtm
 
+         cdefs <- traverse getCDef rcns
          namedefs <- traverse getNamedDef rcns
          lifted_in <- if phase >= Lifted
                          then logTime "Lambda lift" $ traverse lambdaLift rcns
@@ -306,6 +325,7 @@ getCompileData phase tm_in
          -- it'll have to decode the definitions again.
          traverse_ replaceEntry entries
          pure (MkCompileData compiledtm
+                             (mapMaybe id cdefs)
                              (mapMaybe id namedefs)
                              lifted anf vmcode)
   where
