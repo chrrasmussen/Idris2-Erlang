@@ -1093,7 +1093,7 @@ strCons = prim__strCons
 public export
 strUncons : String -> Maybe (Char, String)
 strUncons "" = Nothing
-strUncons str = Just (assert_total (prim__strHead str, prim__strTail str))
+strUncons str = assert_total $ Just (prim__strHead str, prim__strTail str)
 
 ||| Turns a list of characters into a string.
 public export
