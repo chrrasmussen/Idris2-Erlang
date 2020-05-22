@@ -275,7 +275,6 @@ namespace Library
     let mainname = MN "__mainExpression" 0
     (liftedtm, ldefs) <- liftBody mainname compiledtm
 
-    cdefs <- traverse getCDef rcns
     namedefs <- traverse getNamedDef rcns
     lifted_in <- if phase >= Lifted
                     then logTime "Lambda lift" $ traverse lambdaLift rcns
@@ -293,7 +292,6 @@ namespace Library
 
     -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
     pure (MkCompileData compiledtm
-                        (mapMaybe id cdefs)
                         (mapMaybe id namedefs)
                         lifted anf vmcode)
   where

@@ -60,7 +60,6 @@ record CompileData where
   constructor MkCompileData
   mainExpr : CExp [] -- main expression to execute. This also appears in
                      -- the definitions below as MN "__mainExpression" 0
-  cDefs : List (Name, FC, CDef)
   namedDefs : List (Name, FC, NamedDef)
   lambdaLifted : List (Name, LiftedDef)
        -- ^ lambda lifted definitions, if required. Only the top level names
@@ -286,7 +285,6 @@ getCompileData phase tm_in
          let mainname = MN "__mainExpression" 0
          (liftedtm, ldefs) <- liftBody mainname compiledtm
 
-         cdefs <- traverse getCDef rcns
          namedefs <- traverse getNamedDef rcns
          lifted_in <- if phase >= Lifted
                          then logTime "Lambda lift" $ traverse lambdaLift rcns
@@ -325,7 +323,6 @@ getCompileData phase tm_in
          -- it'll have to decode the definitions again.
          traverse_ replaceEntry entries
          pure (MkCompileData compiledtm
-                             (mapMaybe id cdefs)
                              (mapMaybe id namedefs)
                              lifted anf vmcode)
   where
