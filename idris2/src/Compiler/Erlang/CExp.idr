@@ -256,6 +256,7 @@ readConAlt namespaceInfo l name args body =
 
 data ExtPrim
   = PutStr | GetStr
+  | FastAppend
   | VoidElim
   | ErlUnsafeCall | ErlTryCatch | ErlReceive | ErlModule
   | ErlMatchExact
@@ -271,6 +272,7 @@ data ExtPrim
 Show ExtPrim where
   show PutStr = "PutStr"
   show GetStr = "GetStr"
+  show FastAppend = "FastAppend"
   show VoidElim = "VoidElim"
   show ErlUnsafeCall = "ErlUnsafeCall"
   show ErlTryCatch = "ErlTryCatch"
@@ -315,6 +317,7 @@ toPrim : Name -> Maybe ExtPrim
 toPrim (NS _ n) = cond [
   (n == UN "prim__putStr", Just PutStr),
   (n == UN "prim__getStr", Just GetStr),
+  (n == UN "prim__fastAppend", Just FastAppend),
   (n == UN "void", Just VoidElim),
   (n == UN "prim__erlUnsafeCall", Just ErlUnsafeCall),
   (n == UN "prim__erlTryCatch", Just ErlTryCatch),
@@ -370,6 +373,8 @@ genExtPrim namespaceInfo l PutStr [arg, world] = do
 genExtPrim namespaceInfo l GetStr [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
   pure $ genMkIORes l getStrCall
+genExtPrim namespaceInfo l FastAppend [xs] = do
+  pure $ xs
 genExtPrim namespaceInfo l VoidElim [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l ErlUnsafeCall [_, ret, modName, fnName, args, world] = do

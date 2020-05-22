@@ -17,9 +17,11 @@ foldl1 f (x::xs) = foldl f x xs
 
 -- This works quickly because when string-append builds the result, it allocates
 -- enough room in advance so there's only one allocation, rather than lots!
+%extern prim__fastAppend : List String -> String
+
 export
 fastAppend : List String -> String
-fastAppend xs = foldl prim__strAppend "" xs -- TODO: Revert to original version
+fastAppend = prim__fastAppend
 
 ||| Splits a character list into a list of whitespace separated character lists.
 |||
