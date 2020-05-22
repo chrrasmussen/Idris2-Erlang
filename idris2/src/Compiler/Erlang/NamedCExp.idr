@@ -1,4 +1,4 @@
-module Compiler.Erlang.CExp
+module Compiler.Erlang.NamedCExp
 
 import Compiler.Common
 import Compiler.CompileExpr
@@ -16,6 +16,12 @@ import Data.Stream
 import Data.Vect
 
 %default covering
+
+
+-- VARS (Temporary)
+
+genLocalVar : Name -> ErlName
+genLocalVar n = MkVar ("V" ++ genName n)
 
 
 -- CONSTANTS
@@ -37,7 +43,7 @@ genConstant WorldType = IWorldType
 
 -- OPERATORS
 
-genOp : {vars : _} -> Line -> PrimFn arity -> Vect arity (ErlExpr vars) -> ErlExpr vars
+genOp : Line -> PrimFn arity -> Vect arity ErlExpr -> ErlExpr
 genOp l (Add IntType) [x, y] = genIntAdd l 63 x y
 genOp l (Sub IntType) [x, y] = genIntSub l 63 x y
 genOp l (Mul IntType) [x, y] = genIntMult l 63 x y
@@ -117,7 +123,7 @@ genOp l Crash [_, msg] =
 
 -- DATA CONSTRUCTORS
 
-genCon : {vars : _} -> NamespaceInfo -> Line -> Name -> List (ErlExpr vars) -> ErlExpr vars
+genCon : NamespaceInfo -> Line -> Name -> List ErlExpr -> ErlExpr
 -- List
 genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] = ENil l
 genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] = ECons l x xs
@@ -165,27 +171,29 @@ genCon namespaceInfo l name args =
 
 -- DATA DECONSTRUCTORS
 
-argsToErlMatchers : (args : List Name) -> ErlMatchers vars args
+argsToErlMatchers : (args : List ErlName) -> ErlMatchers
 argsToErlMatchers [] = []
 argsToErlMatchers (x :: xs) = (::) {newVar=x} MAny (argsToErlMatchers xs)
 
-readConAltFun : {vars : _} -> Line -> (arity : Nat) -> (funVar : Name) -> ErlExpr (funVar :: vars) -> (transform : {vars : _} -> ErlExpr vars -> ErlExpr vars) -> ErlMatcher vars
+readConAltFun : Line -> (arity : Nat) -> (funVar : ErlName) -> ErlExpr -> (transform : ErlExpr -> ErlExpr) -> ErlMatcher
 readConAltFun l arity funVar body transform =
-  let tempVar = MN "" 0
-      curriedFunMatcher = MTransform MAny tempVar (genCurry l arity transform (ELocal l First))
+  -- TODO: Is it safe to use hard-coded variable names in this case?
+  let tempVar = MkVar "TempVar"
+      curriedFunMatcher = MTransform MAny tempVar (genCurry l arity transform (ELocal l tempVar))
   in MTransform curriedFunMatcher funVar body
 
-readConAlt : {vars : _} -> NamespaceInfo -> Line -> Name -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlMatcher vars
+readConAlt : NamespaceInfo -> Line -> Name -> (args : List ErlName) -> ErlExpr -> ErlMatcher
 -- List
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
-  let unusedVar = MN "" 0
-  in MTransform MNil unusedVar (weaken body)
+  let unusedVar = MkVar "_Unused"
+  in MTransform MNil unusedVar body
 readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [xVar, xsVar] body =
   MCons MAny MAny xVar xsVar body
 -- ErlAtom
 readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkAtom")) [xVar] body =
-  let tempVar = MN "" 0
-      convertAtomMatcher = MTransform MAny tempVar (genAtomToString l (ELocal l First))
+  -- TODO: Is it safe to use hard-coded variable names in this case?
+  let tempVar = MkVar "TempVar"
+      convertAtomMatcher = MTransform MAny tempVar (genAtomToString l (ELocal l tempVar))
   in MTransform convertAtomMatcher xVar body
 -- ErlBinary
 readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkBinary")) [xVar] body =
@@ -195,15 +203,15 @@ readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [xVar] body
   MTransform MAny xVar body
 -- ErlNil
 readConAlt namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "Nil")) [] body =
-  let unusedVar = MN "" 0
-  in MTransform MNil unusedVar (weaken body)
+  let unusedVar = MkVar "_Unused"
+  in MTransform MNil unusedVar body
 -- ErlCons
 readConAlt namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "::")) [xVar, yVar] body =
   MCons MAny MAny xVar yVar body
 -- ErlList
 readConAlt namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "Nil")) [] body =
-  let unusedVar = MN "" 0
-  in MTransform MNil unusedVar (weaken body)
+  let unusedVar = MkVar "_Unused"
+  in MTransform MNil unusedVar body
 readConAlt namespaceInfo l (NS ["ProperList", "Data", "Erlang"] (UN "::")) [xVar, xsVar] body =
   MCons MAny MAny xVar xsVar body
 -- ErlTuple/A
@@ -248,8 +256,8 @@ readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun5")) [funVar] body
 -- Default
 readConAlt namespaceInfo l name args body =
   let conAtom = EAtom l (constructorName name)
-      unusedVar = MN "" 0
-  in MTuple ((::) {newVar=unusedVar} (MExact conAtom) (argsToErlMatchers args)) (weaken body)
+      unusedVar = MkVar "_Unused"
+  in MTuple ((::) {newVar=unusedVar} (MExact conAtom) (argsToErlMatchers args)) body
 
 
 -- EXTERNAL PRIMITIVES
@@ -361,11 +369,13 @@ toPrim (NS _ n) = cond [
   Nothing
 toPrim pn = Nothing
 
-genDecode : Line -> ErlExpr vars -> ErlMatcher vars -> ErlExpr vars
+genDecode : Line -> ErlExpr -> ErlMatcher -> ErlExpr
 genDecode l term matcher =
-  EMatcherCase l term [MTransform matcher (MN "" 0) (genJust l (ELocal l First))] (genNothing l)
+  -- TODO: Is it safe to use hard-coded variable names in this case?
+  let tempVar = MkVar "TempVar"
+  in EMatcherCase l term [MTransform matcher tempVar (genJust l (ELocal l tempVar))] (genNothing l)
 
-genExtPrim : {vars : _} -> NamespaceInfo -> Line -> ExtPrim -> List (ErlExpr vars) -> Core (ErlExpr vars)
+genExtPrim : NamespaceInfo -> Line -> ExtPrim -> List ErlExpr -> Core ErlExpr
 genExtPrim namespaceInfo l PutStr [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
   let retVal = genMkIORes l (genMkUnit l)
@@ -384,7 +394,9 @@ genExtPrim namespaceInfo l ErlTryCatch [_, action, world] = do
   let actionExpr = genUnsafePerformIO namespaceInfo l action
   pure $ genMkIORes l (genTryCatch l actionExpr)
 genExtPrim namespaceInfo l ErlReceive [timeout, world] = do
-  let receive = EReceive l [MTransform MAny (MN "" 0) (genJust l (ELocal l First))] timeout (genNothing l)
+  -- TODO: Is it safe to use hard-coded variable names in this case?
+  let tempVar = MkVar "TempVar"
+  let receive = EReceive l [MTransform MAny tempVar (genJust l (ELocal l tempVar))] timeout (genNothing l)
   pure $ genMkIORes l receive
 genExtPrim namespaceInfo l ErlModule [] =
   pure $ EAtom l (currentModuleName namespaceInfo)
@@ -414,20 +426,37 @@ genExtPrim namespaceInfo l ErlDecodeAnyList [term] =
   pure $ genDecode l term MAnyList
 genExtPrim namespaceInfo l ErlDecodeNil [term] =
   pure $ genDecode l term MNil
-genExtPrim namespaceInfo l ErlDecodeCons [term] =
-  pure $ genDecode l term $ MCons MAny MAny (MN "" 0) (MN "" 0) (ECons l (ELocal l First) (ELocal l (Later First)))
+genExtPrim namespaceInfo l ErlDecodeCons [term] = do
+  let hdVar = MkVar "Hd"
+  let tlVar = MkVar "Tl"
+  pure $ genDecode l term $ MCons MAny MAny hdVar tlVar (ECons l (ELocal l hdVar) (ELocal l tlVar))
 genExtPrim namespaceInfo l ErlDecodeTuple0 [term] =
   pure $ genDecode l term $ MTuple [] (ETuple l [])
-genExtPrim namespaceInfo l ErlDecodeTuple1 [term] =
-  pure $ genDecode l term $ MTuple [MAny] (ETuple l [ELocal l First])
-genExtPrim namespaceInfo l ErlDecodeTuple2 [term] =
-  pure $ genDecode l term $ MTuple [MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First)])
-genExtPrim namespaceInfo l ErlDecodeTuple3 [term] =
-  pure $ genDecode l term $ MTuple [MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First))])
-genExtPrim namespaceInfo l ErlDecodeTuple4 [term] =
-  pure $ genDecode l term $ MTuple [MAny, MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First)), ELocal l (Later (Later (Later First)))])
-genExtPrim namespaceInfo l ErlDecodeTuple5 [term] =
-  pure $ genDecode l term $ MTuple [MAny, MAny, MAny, MAny, MAny] (ETuple l [ELocal l First, ELocal l (Later First), ELocal l (Later (Later First)), ELocal l (Later (Later (Later First))), ELocal l (Later (Later (Later (Later First))))])
+genExtPrim namespaceInfo l ErlDecodeTuple1 [term] = do
+  let x1Var = MkVar "X1"
+  pure $ genDecode l term $ MTuple ((::) {newVar=x1Var} MAny Nil) (ETuple l [ELocal l x1Var])
+genExtPrim namespaceInfo l ErlDecodeTuple2 [term] = do
+  let x1Var = MkVar "X1"
+  let x2Var = MkVar "X2"
+  pure $ genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny Nil)) (ETuple l [ELocal l x1Var, ELocal l x2Var])
+genExtPrim namespaceInfo l ErlDecodeTuple3 [term] = do
+  let x1Var = MkVar "X1"
+  let x2Var = MkVar "X2"
+  let x3Var = MkVar "X3"
+  pure $ genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny Nil))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var])
+genExtPrim namespaceInfo l ErlDecodeTuple4 [term] = do
+  let x1Var = MkVar "X1"
+  let x2Var = MkVar "X2"
+  let x3Var = MkVar "X3"
+  let x4Var = MkVar "X4"
+  pure $ genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny ((::) {newVar=x4Var} MAny Nil)))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var, ELocal l x4Var])
+genExtPrim namespaceInfo l ErlDecodeTuple5 [term] = do
+  let x1Var = MkVar "X1"
+  let x2Var = MkVar "X2"
+  let x3Var = MkVar "X3"
+  let x4Var = MkVar "X4"
+  let x5Var = MkVar "X5"
+  pure $ genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny ((::) {newVar=x4Var} MAny ((::) {newVar=x5Var} MAny Nil))))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var, ELocal l x4Var, ELocal l x5Var])
 genExtPrim namespaceInfo l ErlDecodeFun0 [term] =
   pure $ genDecode l term (MFun 0)
 genExtPrim namespaceInfo l ErlDecodeFun1 [_, term] =
@@ -466,110 +495,106 @@ genExtPrim namespaceInfo l prim args =
 
 mutual
   export
-  genCExp : {vars : _} -> NamespaceInfo -> EVars vars -> CExp vars -> Core (ErlExpr vars)
-  genCExp namespaceInfo vs (CLocal fc prf) = do
+  genNmExp : NamespaceInfo -> NamedCExp -> Core ErlExpr
+  genNmExp namespaceInfo (NmLocal fc n) = do
     let l = genFC fc
-    pure $ ELocal l prf
-  genCExp namespaceInfo vs (CRef fc name) = do
+    pure $ ELocal l (genLocalVar n)
+  genNmExp namespaceInfo (NmRef fc name) = do
     let l = genFC fc
     pure $ genRef namespaceInfo l name
-  genCExp namespaceInfo vs (CLam fc x body) = do
+  genNmExp namespaceInfo (NmLam fc x body) = do
     let l = genFC fc
-    let (vs', _) = extendEVars [x] vs
-    body' <- genCExp namespaceInfo vs' body
-    pure $ ELam l [x] body'
-  genCExp namespaceInfo vs (CLet fc x inlineOK val body) = do
+    body' <- genNmExp namespaceInfo body
+    pure $ ELam l [genLocalVar x] body'
+  genNmExp namespaceInfo (NmLet fc x val body) = do
     let l = genFC fc
-    let (vs', _) = extendEVars [x] vs
-    val' <- genCExp namespaceInfo vs val
-    body' <- genCExp namespaceInfo vs' body
-    pure $ genLet l x val' body'
-  genCExp namespaceInfo vs (CApp fc x args) = do
+    val' <- genNmExp namespaceInfo val
+    body' <- genNmExp namespaceInfo body
+    pure $ genLet l (genLocalVar x) val' body'
+  genNmExp namespaceInfo (NmApp fc x args) = do
     let l = genFC fc
-    pure $ EApp l !(genCExp namespaceInfo vs x) !(traverse (genCExp namespaceInfo vs) args)
-  genCExp namespaceInfo vs (CCon fc name tag args) = do
+    pure $ EApp l !(genNmExp namespaceInfo x) !(traverse (genNmExp namespaceInfo) args)
+  genNmExp namespaceInfo (NmCon fc name tag args) = do
     let l = genFC fc
-    pure $ genCon namespaceInfo l name !(traverse (genCExp namespaceInfo vs) args)
-  genCExp namespaceInfo vs (COp fc op args) = do
+    pure $ genCon namespaceInfo l name !(traverse (genNmExp namespaceInfo) args)
+  genNmExp namespaceInfo (NmOp fc op args) = do
     let l = genFC fc
-    pure $ genOp l op !(traverseVect namespaceInfo vs args)
-  genCExp namespaceInfo vs (CExtPrim fc p args) = do
+    pure $ genOp l op !(traverseVect namespaceInfo args)
+  genNmExp namespaceInfo (NmExtPrim fc p args) = do
     let l = genFC fc
     let Just extPrim = toPrim p
       | Nothing => pure (genThrow l ("Can't compile unknown external primitive " ++ show p)) -- TODO: Should fail at compile-time instead
-    genExtPrim namespaceInfo l extPrim !(traverse (genCExp namespaceInfo vs) args)
-  genCExp namespaceInfo vs (CForce fc t) = do
+    genExtPrim namespaceInfo l extPrim !(traverse (genNmExp namespaceInfo) args)
+  genNmExp namespaceInfo (NmForce fc t) = do
     let l = genFC fc
-    pure $ EApp l !(genCExp namespaceInfo vs t) []
-  genCExp namespaceInfo vs (CDelay fc t) = do
+    pure $ EApp l !(genNmExp namespaceInfo t) []
+  genNmExp namespaceInfo (NmDelay fc t) = do
     let l = genFC fc
-    pure $ ELam l [] !(genCExp namespaceInfo vs t)
-  genCExp namespaceInfo vs (CConCase fc sc alts def) = do
+    pure $ ELam l [] !(genNmExp namespaceInfo t)
+  genNmExp namespaceInfo (NmConCase fc sc alts def) = do
     let l = genFC fc
-    sc' <- genCExp namespaceInfo vs sc
-    alts' <- traverse (genConAlt namespaceInfo l vs) alts
+    sc' <- genNmExp namespaceInfo sc
+    alts' <- traverse (genConAlt namespaceInfo l) alts
     def' <- case def of
-          Just defExpr => genCExp namespaceInfo vs defExpr
+          Just defExpr => genNmExp namespaceInfo defExpr
           Nothing => pure $ genThrow l "Error: Unreachable branch"
     pure $ EMatcherCase l sc' alts' def'
-  genCExp namespaceInfo vs (CConstCase fc sc alts def) = do
+  genNmExp namespaceInfo (NmConstCase fc sc alts def) = do
     let l = genFC fc
-    sc' <- genCExp namespaceInfo vs sc
+    sc' <- genNmExp namespaceInfo sc
     let isMatchingOnString = case head' alts of
-          Just (MkConstAlt (Str _) _) => True
+          Just (MkNConstAlt (Str _) _) => True
           _ => False
     let sc'' = if isMatchingOnString
           then genFunCall l "unicode" "characters_to_binary" [sc']
           else sc'
-    alts' <- traverse (genConstAlt namespaceInfo vs) alts
+    alts' <- traverse (genConstAlt namespaceInfo) alts
     def' <- case def of
-          Just defExpr => genCExp namespaceInfo vs defExpr
+          Just defExpr => genNmExp namespaceInfo defExpr
           Nothing => pure $ genThrow l "Error: Unreachable branch"
     pure $ EConstCase l sc'' alts' def'
-  genCExp namespaceInfo vs (CPrimVal fc c) = do
+  genNmExp namespaceInfo (NmPrimVal fc c) = do
     let l = genFC fc
     pure $ EIdrisConstant l (genConstant c)
-  genCExp namespaceInfo vs (CErased fc) = do
+  genNmExp namespaceInfo (NmErased fc) = do
     let l = genFC fc
     pure $ genErased l
-  genCExp namespaceInfo vs (CCrash fc msg) = do
+  genNmExp namespaceInfo (NmCrash fc msg) = do
     let l = genFC fc
     pure $ genThrow l msg
 
-  traverseVect : {vars : _} -> NamespaceInfo -> EVars vars -> Vect n (CExp vars) -> Core (Vect n (ErlExpr vars))
-  traverseVect namespaceInfo vs [] = pure []
-  traverseVect namespaceInfo vs (arg :: args) = pure $ !(genCExp namespaceInfo vs arg) :: !(traverseVect namespaceInfo vs args)
+  traverseVect : NamespaceInfo -> Vect n NamedCExp -> Core (Vect n ErlExpr)
+  traverseVect namespaceInfo [] = pure []
+  traverseVect namespaceInfo (arg :: args) = pure $ !(genNmExp namespaceInfo arg) :: !(traverseVect namespaceInfo args)
 
-  genConAlt : {vars : _} -> NamespaceInfo -> Line -> EVars vars -> CConAlt vars -> Core (ErlMatcher vars)
-  genConAlt namespaceInfo l vs (MkConAlt name tag args body) = do
-    let (vs', _) = extendEVars args vs
-    pure $ readConAlt namespaceInfo l name args !(genCExp namespaceInfo vs' body)
+  genConAlt : NamespaceInfo -> Line -> NamedConAlt -> Core ErlMatcher
+  genConAlt namespaceInfo l (MkNConAlt name tag args body) =
+    pure $ readConAlt namespaceInfo l name (map genLocalVar args) !(genNmExp namespaceInfo body)
 
-  genConstAlt : {vars : _} -> NamespaceInfo -> EVars vars -> CConstAlt vars -> Core (ErlConstAlt vars)
-  genConstAlt namespaceInfo vs (MkConstAlt constant body) = do
-    pure $ MkConstAlt (genConstant constant) !(genCExp namespaceInfo vs body)
+  genConstAlt : NamespaceInfo -> NamedConstAlt -> Core ErlConstAlt
+  genConstAlt namespaceInfo (MkNConstAlt constant body) =
+    pure $ MkConstAlt (genConstant constant) !(genNmExp namespaceInfo body)
 
 
 -- DEFINITIIONS
 
 export
-genDef : NamespaceInfo -> Line -> Name -> CDef -> Core (Maybe ErlFunDecl)
-genDef namespaceInfo l name (MkFun args body) = do
-  let (vs, _) = initEVars args
+genDef : NamespaceInfo -> Line -> Name -> NamedDef -> Core (Maybe ErlFunDecl)
+genDef namespaceInfo l name (MkNmFun args body) = do
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
-  let funDecl = MkFunDecl l Public fnName args !(genCExp namespaceInfo vs body)
+  let vars = map genLocalVar args
+  let funDecl = MkFunDecl l Public fnName vars !(genNmExp namespaceInfo body)
   pure $ Just funDecl
-genDef namespaceInfo l name (MkError body) = do
-  let vs = fst (initEVars [])
+genDef namespaceInfo l name (MkNmError body) = do
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
-  let funDecl = MkFunDecl l Private fnName [] !(genCExp namespaceInfo vs body)
+  let funDecl = MkFunDecl l Private fnName [] !(genNmExp namespaceInfo body)
   pure $ Just funDecl
-genDef namespaceInfo l name (MkForeign cs args ret) = do
+genDef namespaceInfo l name (MkNmForeign cs args ret) = do
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
-  let argNames = map (const (MN "" 0)) args
+  let argNames = map (\i => MkVar ("X" ++ show i)) (natRange (length args))
   let funDecl = MkFunDecl l Private fnName argNames (genThrow l "Error: %foreign is unsupported") -- TODO: Should fail at compile-time instead
   pure $ Just funDecl
-genDef namespaceInfo l name (MkCon tag arity nt) =
+genDef namespaceInfo l name (MkNmCon tag arity nt) =
   pure Nothing
 
 
@@ -577,20 +602,20 @@ genDef namespaceInfo l name (MkCon tag arity nt) =
 
 data InternalArity = Value | Arity Nat
 
-internalArity : CExp vars -> InternalArity
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETFun")) _ _) = Arity 1
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun0")) _ _) = Arity 0
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun1")) _ _) = Arity 1
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun2")) _ _) = Arity 2
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun3")) _ _) = Arity 3
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun4")) _ _) = Arity 4
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlFun5")) _ _) = Arity 5
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun0")) _ _) = Arity 0
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun1")) _ _) = Arity 1
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun2")) _ _) = Arity 2
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun3")) _ _) = Arity 3
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun4")) _ _) = Arity 4
-internalArity (CCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun5")) _ _) = Arity 5
+internalArity : NamedCExp -> InternalArity
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETFun")) _ _) = Arity 1
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun0")) _ _) = Arity 0
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun1")) _ _) = Arity 1
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun2")) _ _) = Arity 2
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun3")) _ _) = Arity 3
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun4")) _ _) = Arity 4
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlFun5")) _ _) = Arity 5
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun0")) _ _) = Arity 0
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun1")) _ _) = Arity 1
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun2")) _ _) = Arity 2
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun3")) _ _) = Arity 3
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun4")) _ _) = Arity 4
+internalArity (NmCon fc (NS ["Data", "Erlang"] (UN "ETErlIOFun5")) _ _) = Arity 5
 internalArity _ = Value
 
 externalArity : InternalArity -> Nat
@@ -599,20 +624,19 @@ externalArity (Arity arity) = arity
 
 -- TODO: Do not require name of exported function to be a static string?
 export
-readExports : NamespaceInfo -> Line -> CExp [] -> Core (List ErlFunDecl)
-readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [exprTy, CPrimVal _ (Str fnName), expr]) = do
+readExports : NamespaceInfo -> Line -> NamedCExp -> Core (List ErlFunDecl)
+readExports namespaceInfo l (NmCon fc (NS ["IO", "Erlang"] (UN "Fun")) tag [exprTy, NmPrimVal _ (Str fnName), expr]) = do
   let intArity = internalArity exprTy
   let extArity = externalArity intArity
-  let args = take extArity (repeat (MN "" 0))
-  let vs = fst (initEVars [])
-  let body : ErlExpr args = rewrite sym (appendNilRightNeutral args) in weakenNs args !(genCExp namespaceInfo vs expr)
+  let args = map (\i => MkVar ("X" ++ show i)) (natRange extArity)
+  body <- genNmExp namespaceInfo expr
   let invokedBody =
       case intArity of
         Value => body
-        Arity arity => EApp l body (rewrite sym (appendNilRightNeutral args) in (genArgsToLocals {vars=[]} l args))
+        Arity arity => EApp l body (genArgsToLocals l args)
   let funDecl = MkFunDecl l Public fnName args invokedBody
   pure $ [funDecl]
-readExports namespaceInfo l (CCon fc (NS ["IO", "Erlang"] (UN "Combine")) tag [exports1, exports2]) =
+readExports namespaceInfo l (NmCon fc (NS ["IO", "Erlang"] (UN "Combine")) tag [exports1, exports2]) =
   pure $ !(readExports namespaceInfo l exports1) ++ !(readExports namespaceInfo l exports2)
 readExports namespaceInfo l tm =
   throw (InternalError ("Invalid export: " ++ show tm))

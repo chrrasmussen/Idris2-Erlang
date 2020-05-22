@@ -3,7 +3,6 @@ module Compiler.Erlang.ErlExpr
 import Data.List
 import Control.Monad.State
 
-import Core.Name
 import Core.TT
 import public Compiler.Erlang.AbstractFormat
 import Compiler.Erlang.ErlBuffer
@@ -13,40 +12,13 @@ import Compiler.Erlang.Utils
 %default total
 
 
--- LOCAL VARIABLES
+-- UNIQUE LOCAL VARIABLES
 
-namespace EVars
-  public export
-  data EVars : List Name -> Type where
-    Nil : EVars []
-    (::) : (name : String) -> EVars ns -> EVars (n :: ns)
+public export
+data ErlName = MkVar String
 
-  export
-  lengthEVars : EVars vars -> Nat
-  lengthEVars [] = 0
-  lengthEVars (x :: xs) = 1 + lengthEVars xs
-
-  export
-  extendEVars : (newVars : List Name) -> EVars vars -> (EVars (newVars ++ vars), Vect (length newVars) String)
-  extendEVars xs vs = extEVars' (cast (lengthEVars vs)) xs vs
-    where
-      extEVars' : Int -> (newVars : List Name) -> EVars vars -> (EVars (newVars ++ vars), Vect (length newVars) String)
-      extEVars' i [] vs = (vs, [])
-      extEVars' i (n :: ns) vs =
-        let (vs', varNames) = extEVars' (i + 1) ns vs
-            newVarName = "V" ++ show i
-        in (newVarName :: vs', newVarName :: varNames)
-
-  export
-  initEVars : (newVars : List Name) -> (EVars newVars, Vect (length newVars) String)
-  initEVars xs =
-    let (vs, varNames) = extendEVars xs []
-    in (rewrite sym (appendNilRightNeutral xs) in vs, varNames)
-
-  export
-  lookupEVar : {idx : Nat} -> (0 prf : IsVar n idx xs) -> EVars xs -> String
-  lookupEVar First (n :: ns) = n
-  lookupEVar (Later p) (n :: ns) = lookupEVar p ns
+showVar : ErlName -> String
+showVar (MkVar index) = "V" ++ index
 
 
 -- EXPRESSIONS
@@ -75,77 +47,77 @@ data IdrisConstant
 
 mutual
   public export
-  data ErlExpr : List Name -> Type where
-    ELocal : {idx : Nat} -> Line -> (0 prf : IsVar x idx vars) -> ErlExpr vars
-    ERef : Line -> (modName : ErlExpr vars) -> (fnName : ErlExpr vars) -> ErlExpr vars
-    ELam : Line -> (args : List Name) -> ErlExpr (args ++ vars) -> ErlExpr vars
-    EApp : Line -> ErlExpr vars -> List (ErlExpr vars) -> ErlExpr vars
-    EOp : Line -> (op : String) -> (lhs : ErlExpr vars) -> (rhs : ErlExpr vars) -> ErlExpr vars
-    ECon : Line -> (name : String) -> List (ErlExpr vars) -> ErlExpr vars
-    EConstCase : Line -> (sc : ErlExpr vars) -> List (ErlConstAlt vars) -> (def : ErlExpr vars) -> ErlExpr vars
-    EMatcherCase : Line -> (sc : ErlExpr vars) -> List (ErlMatcher vars) -> (def : ErlExpr vars) -> ErlExpr vars
-    EReceive : Line -> List (ErlMatcher vars) -> (timeout : ErlExpr vars) -> (def : ErlExpr vars) -> ErlExpr vars
-    ETryCatch : Line -> ErlExpr vars -> (okVar : Name) -> ErlExpr (okVar :: vars) -> (errorVar : Name) -> ErlExpr (errorVar :: vars) -> ErlExpr vars
+  data ErlExpr : Type where
+    ELocal : Line -> ErlName -> ErlExpr
+    ERef : Line -> (modName : ErlExpr) -> (fnName : ErlExpr) -> ErlExpr
+    ELam : Line -> (args : List ErlName) -> ErlExpr -> ErlExpr
+    EApp : Line -> ErlExpr -> List ErlExpr -> ErlExpr
+    EOp : Line -> (op : String) -> (lhs : ErlExpr) -> (rhs : ErlExpr) -> ErlExpr
+    ECon : Line -> (name : String) -> List ErlExpr -> ErlExpr
+    EConstCase : Line -> (sc : ErlExpr) -> List ErlConstAlt -> (def : ErlExpr) -> ErlExpr
+    EMatcherCase : Line -> (sc : ErlExpr) -> List ErlMatcher -> (def : ErlExpr) -> ErlExpr
+    EReceive : Line -> List ErlMatcher -> (timeout : ErlExpr) -> (def : ErlExpr) -> ErlExpr
+    ETryCatch : Line -> ErlExpr -> (okVar : ErlName) -> ErlExpr -> (errorVar : ErlName) -> ErlExpr -> ErlExpr
 
-    EIdrisConstant : Line -> IdrisConstant -> ErlExpr vars
-    EAtom : Line -> String -> ErlExpr vars
-    EChar : Line -> Char -> ErlExpr vars
-    EFloat : Line -> Double -> ErlExpr vars
-    EInteger : Line -> Integer -> ErlExpr vars
-    ECharlist : Line -> String -> ErlExpr vars
-    EBinary : Line -> String -> ErlExpr vars
-    ENil : Line -> ErlExpr vars
-    ECons : Line -> ErlExpr vars -> ErlExpr vars -> ErlExpr vars
-    ETuple : Line -> List (ErlExpr vars) -> ErlExpr vars
-    EMap : Line -> List (ErlExpr vars, ErlExpr vars) -> ErlExpr vars
+    EIdrisConstant : Line -> IdrisConstant -> ErlExpr
+    EAtom : Line -> String -> ErlExpr
+    EChar : Line -> Char -> ErlExpr
+    EFloat : Line -> Double -> ErlExpr
+    EInteger : Line -> Integer -> ErlExpr
+    ECharlist : Line -> String -> ErlExpr
+    EBinary : Line -> String -> ErlExpr
+    ENil : Line -> ErlExpr
+    ECons : Line -> ErlExpr -> ErlExpr -> ErlExpr
+    ETuple : Line -> List ErlExpr -> ErlExpr
+    EMap : Line -> List (ErlExpr, ErlExpr) -> ErlExpr
 
-    EBufferNew       : Line -> (size : ErlExpr vars) -> ErlExpr vars
-    EBufferSetByte   : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
-    EBufferGetByte   : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
-    EBufferSetInt    : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
-    EBufferGetInt    : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
-    EBufferSetDouble : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
-    EBufferGetDouble : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> ErlExpr vars
-    EBufferSetString : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (value : ErlExpr vars) -> ErlExpr vars
-    EBufferGetString : Line -> (bin : ErlExpr vars) -> (loc : ErlExpr vars) -> (len : ErlExpr vars) -> ErlExpr vars
-
-  public export
-  data ErlConstAlt : List Name -> Type where
-    MkConstAlt : IdrisConstant -> ErlExpr vars -> ErlConstAlt vars
+    EBufferNew       : Line -> (size : ErlExpr) -> ErlExpr
+    EBufferSetByte   : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetByte   : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetInt    : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetInt    : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetDouble : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetDouble : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetString : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetString : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (len : ErlExpr) -> ErlExpr
 
   public export
-  data ErlMatcher : List Name -> Type where
-    MExact        : ErlExpr vars -> ErlMatcher vars
-    MAny          : ErlMatcher vars
-    MCodepoint    : ErlMatcher vars
-    MInteger      : ErlMatcher vars
-    MFloat        : ErlMatcher vars
-    MAtom         : ErlMatcher vars
-    MBinary       : ErlMatcher vars
-    MMap          : ErlMatcher vars
-    MPid          : ErlMatcher vars
-    MRef          : ErlMatcher vars
-    MPort         : ErlMatcher vars
-    MAnyList      : ErlMatcher vars
-    MNil          : ErlMatcher vars
-    MCons         : ErlMatcher vars -> ErlMatcher vars -> (hdVar : Name) -> (tlVar : Name) -> ErlExpr (hdVar :: tlVar :: vars) -> ErlMatcher vars
-    MList         : {args : List Name} -> ErlMatchers vars args -> ErlExpr (args ++ vars) -> ErlMatcher vars
-    MTuple        : {args : List Name} -> ErlMatchers vars args -> ErlExpr (args ++ vars) -> ErlMatcher vars
-    MMapSubset    : {args : List Name} -> ErlMapEntryMatchers vars args -> ErlExpr (args ++ vars) -> ErlMatcher vars
-    MFun          : (arity : Nat) -> ErlMatcher vars
-    MTransform    : ErlMatcher vars -> (newVar : Name) -> ErlExpr (newVar :: vars) -> ErlMatcher vars
+  data ErlConstAlt : Type where
+    MkConstAlt : IdrisConstant -> ErlExpr -> ErlConstAlt
+
+  public export
+  data ErlMatcher : Type where
+    MExact        : ErlExpr -> ErlMatcher
+    MAny          : ErlMatcher
+    MCodepoint    : ErlMatcher
+    MInteger      : ErlMatcher
+    MFloat        : ErlMatcher
+    MAtom         : ErlMatcher
+    MBinary       : ErlMatcher
+    MMap          : ErlMatcher
+    MPid          : ErlMatcher
+    MRef          : ErlMatcher
+    MPort         : ErlMatcher
+    MAnyList      : ErlMatcher
+    MNil          : ErlMatcher
+    MCons         : ErlMatcher -> ErlMatcher -> (hdVar : ErlName) -> (tlVar : ErlName) -> ErlExpr -> ErlMatcher
+    MList         : ErlMatchers -> ErlExpr -> ErlMatcher
+    MTuple        : ErlMatchers -> ErlExpr -> ErlMatcher
+    MMapSubset    : {args : List ErlName} -> ErlMapEntryMatchers -> ErlExpr -> ErlMatcher
+    MFun          : (arity : Nat) -> ErlMatcher
+    MTransform    : ErlMatcher -> (newVar : ErlName) -> ErlExpr -> ErlMatcher
 
   namespace ErlMatchers
     public export
-    data ErlMatchers : List Name -> List Name -> Type where
-      Nil : ErlMatchers vars []
-      (::) : {default (MN "" 0) newVar : Name} -> ErlMatcher vars -> ErlMatchers vars args -> ErlMatchers vars (newVar :: args)
+    data ErlMatchers : Type where
+      Nil : ErlMatchers
+      (::) : {newVar : ErlName} -> ErlMatcher -> ErlMatchers -> ErlMatchers
 
   namespace ErlMapEntryMatchers
     public export
-    data ErlMapEntryMatchers : List Name -> List Name -> Type where
-      Nil : ErlMapEntryMatchers vars []
-      (::) : {default (MN "" 0) newVar : Name} -> (ErlExpr vars, ErlMatcher vars) -> ErlMapEntryMatchers vars args -> ErlMapEntryMatchers vars (newVar :: args)
+    data ErlMapEntryMatchers : Type where
+      Nil : ErlMapEntryMatchers
+      (::) : {newVar : ErlName} -> (ErlExpr, ErlMatcher) -> ErlMapEntryMatchers -> ErlMapEntryMatchers
 
 public export
 data ErlModuleName : Type where
@@ -168,7 +140,7 @@ Eq ErlVisibility where
 
 public export
 data ErlFunDecl : Type where
-  MkFunDecl : Line -> (visibility : ErlVisibility) -> (name : String) -> (vars : List Name) -> ErlExpr vars -> ErlFunDecl
+  MkFunDecl : Line -> (visibility : ErlVisibility) -> (name : String) -> (vars : List ErlName) -> ErlExpr -> ErlFunDecl
 
 public export
 record ErlModule where
@@ -209,6 +181,10 @@ namespace LocalVars
 
 -- HELPER FUNCTIONS
 
+varsToVarNames : (vars : List ErlName) -> Vect (length vars) String
+varsToVarNames [] = []
+varsToVarNames (x :: xs) = showVar x :: varsToVarNames xs
+
 toNonEmptyFunClauses : (clauses : List (FunClause arity)) -> (def : FunClause arity) -> Vect (S (length clauses)) (FunClause arity)
 toNonEmptyFunClauses [] def = [def]
 toNonEmptyFunClauses (x :: xs) def = x :: toNonEmptyFunClauses xs def
@@ -231,6 +207,10 @@ wrapGlobal : Line -> (LocalVar, Expr) -> Expr -> Expr
 wrapGlobal l (var, expr) acc =
   AEFunCall l (AEFun l 1 [MkFunClause l [APVar l (show var)] [] [acc]]) [expr]
 
+genBinary : Line -> String -> Expr
+genBinary l str =
+AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+
 
 -- CODE GENERATION
 
@@ -250,39 +230,35 @@ genIdrisConstant l fromString fromLiteral constant =
     IDoubleType => fromLiteral (ALAtom l "double_type")
     IWorldType => fromLiteral (ALAtom l "world_type")
 
-genBinary : Line -> String -> Expr
-genBinary l str =
-  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
-
 mutual
-  genErlExpr : EVars vars -> ErlExpr vars -> State LocalVars Expr
-  genErlExpr vs (ELocal l prf) =
-    pure $ AEVar l (lookupEVar prf vs)
-  genErlExpr vs (ERef l modName fnName) =
-    pure $ AERemoteRef l !(genErlExpr vs modName) !(genErlExpr vs fnName)
-  genErlExpr vs (ELam l args body) = do
-    let (vs', varNames) = extendEVars args vs
-    body' <- genErlExpr vs' body
-    pure $  AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [body']]
-  genErlExpr vs (EApp l expr args) = do
-    expr' <- genErlExpr vs expr
-    args' <- assert_total $ traverse (genErlExpr vs) args
+  genErlExpr : ErlExpr -> State LocalVars Expr
+  genErlExpr (ELocal l name) =
+    pure $ AEVar l (showVar name)
+  genErlExpr (ERef l modName fnName) =
+    pure $ AERemoteRef l !(genErlExpr modName) !(genErlExpr fnName)
+  genErlExpr (ELam l args body) = do
+    let varNames = varsToVarNames args
+    body' <- genErlExpr body
+    pure $ AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [body']]
+  genErlExpr (EApp l expr args) = do
+    expr' <- genErlExpr expr
+    args' <- assert_total $ traverse genErlExpr args
     pure $ AEFunCall l expr' args'
-  genErlExpr vs (EOp l opName x y) =
-    pure $ AEOp l opName !(genErlExpr vs x) !(genErlExpr vs y)
-  genErlExpr vs (ECon l name exprs) = do
-    exprs' <- assert_total $ traverse (genErlExpr vs) exprs
+  genErlExpr (EOp l opName x y) =
+    pure $ AEOp l opName !(genErlExpr x) !(genErlExpr y)
+  genErlExpr (ECon l name exprs) = do
+    exprs' <- assert_total $ traverse genErlExpr exprs
     pure $ AETuple l (AELiteral (ALAtom l name) :: exprs')
-  genErlExpr vs (EConstCase l sc clauses def) = do
-    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr vs def)]
-    generatedClauses <- assert_total $ traverse (genErlConstAlt l vs) clauses
+  genErlExpr (EConstCase l sc clauses def) = do
+    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr def)]
+    generatedClauses <- assert_total $ traverse (genErlConstAlt l) clauses
     let caseExpr = AEFun l 1 (toNonEmptyFunClauses generatedClauses defClause)
-    pure $  AEFunCall l caseExpr [!(genErlExpr vs sc)]
-  genErlExpr vs (EMatcherCase l sc matchers def) = do
-    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr vs def)]
-    generatedClauses <- assert_total (traverse (genErlMatcher l vs) matchers)
+    pure $  AEFunCall l caseExpr [!(genErlExpr sc)]
+  genErlExpr (EMatcherCase l sc matchers def) = do
+    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr def)]
+    generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let caseExpr = AEFun l 1 (toNonEmptyFunClauses (map fst generatedClauses) defClause)
-    pure $ foldr (wrapGlobal l) (AEFunCall l caseExpr [!(genErlExpr vs sc)]) (concat (map snd generatedClauses))
+    pure $ foldr (wrapGlobal l) (AEFunCall l caseExpr [!(genErlExpr sc)]) (concat (map snd generatedClauses))
   -- EReceive generates the following code. This is necessary to avoid leaking variables from the case clauses.
   --
   -- If matchers contain `MExact` or `MMapSubset`, the below expression is wrapped in immediately invoked function
@@ -298,9 +274,9 @@ mutual
   --   end
   -- end()
   -- ```
-  genErlExpr vs (EReceive l matchers timeout def) = do
-    let defClause = TimeoutAfter !(genErlExpr vs timeout) [!(genErlExpr vs def)]
-    generatedClauses <- assert_total (traverse (genErlMatcherCaseClause l vs) matchers)
+  genErlExpr (EReceive l matchers timeout def) = do
+    let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
+    generatedClauses <- assert_total (traverse (genErlMatcherCaseClause l) matchers)
     let receiveExpr = wrapImmediatelyInvokedFunExpr l $ AEReceive l (map fst generatedClauses) defClause
     pure $ foldr (wrapGlobal l) receiveExpr (concat (map snd generatedClauses))
   -- ETryCatch generates the following code. This is necessary to avoid leaking variables from the case/catch clauses.
@@ -319,94 +295,92 @@ mutual
   --   end()
   -- )
   -- ```
-  genErlExpr vs (ETryCatch l expr okVar okFun errorVar errorFun) = do
+  genErlExpr (ETryCatch l expr okVar okFun errorVar errorFun) = do
     let tryCaseClause = MkCaseClause l (APVar l "Value") [] [AETuple l [AELiteral (ALAtom l "ok"), AEVar l "Value"]]
     let tryCatchClause = MkCatchClause l (APVar l "Class") (APVar l "Reason") (APVar l "Stacktrace") [] [AETuple l [AELiteral (ALAtom l "error"), AETuple l [AEVar l "Class", AEVar l "Reason", AEVar l "Stacktrace"]]]
-    let tryResult = wrapImmediatelyInvokedFunExpr l $ AETry l [!(genErlExpr vs expr)] [tryCaseClause] [tryCatchClause] []
-    let (okVs, _) = extendEVars [okVar] vs
-    let (errorVs, _) = extendEVars [errorVar] vs
-    let okBody = AEFun l 1 [MkFunClause l [APVar l (lookupEVar First okVs)] [] [!(genErlExpr okVs okFun)]]
-    let errorBody = AEFun l 1 [MkFunClause l [APVar l (lookupEVar First errorVs)] [] [!(genErlExpr errorVs errorFun)]]
+    let tryResult = wrapImmediatelyInvokedFunExpr l $ AETry l [!(genErlExpr expr)] [tryCaseClause] [tryCatchClause] []
+    let okBody = AEFun l 1 [MkFunClause l [APVar l (showVar okVar)] [] [!(genErlExpr okFun)]]
+    let errorBody = AEFun l 1 [MkFunClause l [APVar l (showVar errorVar)] [] [!(genErlExpr errorFun)]]
     let okClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "ok"), APVar l "Value"]] [] [AEFunCall l okBody [AEVar l "Value"]]
     let errorClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "error"), APVar l "Error"]] [] [AEFunCall l errorBody [AEVar l "Error"]]
     pure $ AEFunCall l (AEFun l 1 [okClause, errorClause]) [tryResult]
-  genErlExpr vs (EIdrisConstant l x) =
+  genErlExpr (EIdrisConstant l x) =
     pure $ genIdrisConstant l (genBinary l) AELiteral x
-  genErlExpr vs (EAtom l x) =
+  genErlExpr (EAtom l x) =
     pure $ AELiteral (ALAtom l x)
-  genErlExpr vs (EChar l x) =
+  genErlExpr (EChar l x) =
     pure $ AELiteral (ALChar l x)
-  genErlExpr vs (EFloat l x) =
+  genErlExpr (EFloat l x) =
     pure $ AELiteral (ALFloat l x)
-  genErlExpr vs (EInteger l x) =
+  genErlExpr (EInteger l x) =
     pure $ AELiteral (ALInteger l x)
-  genErlExpr vs (ECharlist l x) =
+  genErlExpr (ECharlist l x) =
     pure $ AELiteral (ALCharlist l x)
-  genErlExpr vs (EBinary l x) =
+  genErlExpr (EBinary l x) =
     pure $ genBinary l x
-  genErlExpr vs (ENil l) =
+  genErlExpr (ENil l) =
     pure $ AENil l
-  genErlExpr vs (ECons l x y) =
-    pure $ AECons l !(genErlExpr vs x) !(genErlExpr vs y)
-  genErlExpr vs (ETuple l elems) = do
-    elems' <- assert_total $ traverse (genErlExpr vs) elems
+  genErlExpr (ECons l x y) =
+    pure $ AECons l !(genErlExpr x) !(genErlExpr y)
+  genErlExpr (ETuple l elems) = do
+    elems' <- assert_total $ traverse genErlExpr elems
     pure $ AETuple l elems'
-  genErlExpr vs (EMap l entries) = do
-    entries' <- assert_total $ traverse (\(key, value) => pure $ MkAssoc l !(genErlExpr vs key) !(genErlExpr vs value)) entries
+  genErlExpr (EMap l entries) = do
+    entries' <- assert_total $ traverse (\(key, value) => pure $ MkAssoc l !(genErlExpr key) !(genErlExpr value)) entries
     pure $ AEMapNew l entries'
-  genErlExpr vs (EBufferNew l size) =
-    pure $ bufferNew l !(genErlExpr vs size)
-  genErlExpr vs (EBufferSetByte l bin loc value) =
-    pure $ bufferSetByte l !(genErlExpr vs bin) !(genErlExpr vs loc) !(genErlExpr vs value)
-  genErlExpr vs (EBufferGetByte l bin loc) =
-    pure $ bufferGetByte l !(genErlExpr vs bin) !(genErlExpr vs loc)
-  genErlExpr vs (EBufferSetInt l bin loc value) =
-    pure $ bufferSetInt l !(genErlExpr vs bin) !(genErlExpr vs loc) !(genErlExpr vs value)
-  genErlExpr vs (EBufferGetInt l bin loc) =
-    pure $ bufferGetInt l !(genErlExpr vs bin) !(genErlExpr vs loc)
-  genErlExpr vs (EBufferSetDouble l bin loc value) =
-    pure $ bufferSetDouble l !(genErlExpr vs bin) !(genErlExpr vs loc) !(genErlExpr vs value)
-  genErlExpr vs (EBufferGetDouble l bin loc) =
-    pure $ bufferGetDouble l !(genErlExpr vs bin) !(genErlExpr vs loc)
-  genErlExpr vs (EBufferSetString l bin loc value) =
-    pure $ bufferSetString l !(genErlExpr vs bin) !(genErlExpr vs loc) !(genErlExpr vs value)
-  genErlExpr vs (EBufferGetString l bin loc len) =
-    pure $ bufferGetString l !(genErlExpr vs bin) !(genErlExpr vs loc) !(genErlExpr vs len)
+  genErlExpr (EBufferNew l size) =
+    pure $ bufferNew l !(genErlExpr size)
+  genErlExpr (EBufferSetByte l bin loc value) =
+    pure $ bufferSetByte l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetByte l bin loc) =
+    pure $ bufferGetByte l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetInt l bin loc value) =
+    pure $ bufferSetInt l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetInt l bin loc) =
+    pure $ bufferGetInt l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetDouble l bin loc value) =
+    pure $ bufferSetDouble l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetDouble l bin loc) =
+    pure $ bufferGetDouble l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetString l bin loc value) =
+    pure $ bufferSetString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetString l bin loc len) =
+    pure $ bufferGetString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr len)
 
-  genErlConstAlt : Line -> EVars vars -> ErlConstAlt vars -> State LocalVars (FunClause 1)
-  genErlConstAlt l vs (MkConstAlt constant body) = do
+  genErlConstAlt : Line -> ErlConstAlt -> State LocalVars (FunClause 1)
+  genErlConstAlt l (MkConstAlt constant body) = do
     let pattern = genIdrisConstant l stringPattern APLiteral constant
-    pure $ MkFunClause l [pattern] [] [!(genErlExpr vs body)]
+    pure $ MkFunClause l [pattern] [] [!(genErlExpr body)]
   where
     stringPattern : String -> Pattern
     stringPattern str = APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
-  genErlMatcher : Line -> EVars vars -> ErlMatcher vars -> State LocalVars (FunClause 1, List (LocalVar, Expr))
-  genErlMatcher l vs matcher = do
-    clause <- readErlMatcher l vs matcher
+  genErlMatcher : Line -> ErlMatcher -> State LocalVars (FunClause 1, List (LocalVar, Expr))
+  genErlMatcher l matcher = do
+    clause <- readErlMatcher l matcher
     pure (MkFunClause l [pattern clause] [MkGuardAlt [guard clause]] [body clause], globals clause)
 
-  genErlMatcherCaseClause : Line -> EVars vars -> ErlMatcher vars -> State LocalVars (CaseClause, List (LocalVar, Expr))
-  genErlMatcherCaseClause l vs matcher = do
-    clause <- readErlMatcher l vs matcher
+  genErlMatcherCaseClause : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
+  genErlMatcherCaseClause l matcher = do
+    clause <- readErlMatcher l matcher
     pure (MkCaseClause l (pattern clause) [MkGuardAlt [guard clause]] [body clause], globals clause)
 
-  readErlMatcher : Line -> EVars vars -> ErlMatcher vars -> State LocalVars MatcherClause
-  readErlMatcher l vs (MExact expr) = do
+  readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
+  readErlMatcher l (MExact expr) = do
     localVar <- addLocalVar
     matchExactVar <- addLocalVar
-    matchExactValue <- genErlExpr vs expr
+    matchExactValue <- genErlExpr expr
     let pattern = APVar l (show localVar)
     let guard = AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body [(matchExactVar, matchExactValue)]
-  readErlMatcher l vs MAny = do
+  readErlMatcher l MAny = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
     let guard = trueGuard l
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
-  readErlMatcher l vs MCodepoint = do
+  readErlMatcher l MCodepoint = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
     let guardVar = AGVar l (show localVar)
@@ -416,93 +390,96 @@ mutual
     let guard = AGOp l "andalso" isIntegerGuard (AGOp l "andalso" aboveMinValueGuard belowMaxValueGuard)
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
-  readErlMatcher l vs MInteger = readSimpleGuardMatcherClause l vs "is_integer"
-  readErlMatcher l vs MFloat = readSimpleGuardMatcherClause l vs "is_float"
-  readErlMatcher l vs MAtom = readSimpleGuardMatcherClause l vs "is_atom"
-  readErlMatcher l vs MBinary = readSimpleGuardMatcherClause l vs "is_binary"
-  readErlMatcher l vs MMap = readSimpleGuardMatcherClause l vs "is_map"
-  readErlMatcher l vs MPid = readSimpleGuardMatcherClause l vs "is_pid"
-  readErlMatcher l vs MRef = readSimpleGuardMatcherClause l vs "is_reference"
-  readErlMatcher l vs MPort = readSimpleGuardMatcherClause l vs "is_port"
-  readErlMatcher l vs MAnyList = readSimpleGuardMatcherClause l vs "is_list"
-  readErlMatcher l vs MNil = do
+  readErlMatcher l MInteger = readSimpleGuardMatcherClause l "is_integer"
+  readErlMatcher l MFloat = readSimpleGuardMatcherClause l "is_float"
+  readErlMatcher l MAtom = readSimpleGuardMatcherClause l "is_atom"
+  readErlMatcher l MBinary = readSimpleGuardMatcherClause l "is_binary"
+  readErlMatcher l MMap = readSimpleGuardMatcherClause l "is_map"
+  readErlMatcher l MPid = readSimpleGuardMatcherClause l "is_pid"
+  readErlMatcher l MRef = readSimpleGuardMatcherClause l "is_reference"
+  readErlMatcher l MPort = readSimpleGuardMatcherClause l "is_port"
+  readErlMatcher l MAnyList = readSimpleGuardMatcherClause l "is_list"
+  readErlMatcher l MNil = do
     let pattern = APNil l
     let guard = trueGuard l
     let body = AENil l
     pure $ MkMatcherClause pattern guard body []
-  readErlMatcher l vs (MCons x y hdVar tlVar fun) = do
-    xClause <- readErlMatcher l vs x
-    yClause <- readErlMatcher l vs y
-    let (vs', varNames) = extendEVars [hdVar, tlVar] vs
-    let wrappedFun = AEFun l 2 [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr vs' fun)]]
+  readErlMatcher l (MCons x y hdVar tlVar fun) = do
+    xClause <- readErlMatcher l x
+    yClause <- readErlMatcher l y
+    let varNames = varsToVarNames [hdVar, tlVar]
+    let wrappedFun = AEFun l 2 [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APCons l (pattern xClause) (pattern yClause)
     let guard = AGOp l "andalso" (guard xClause) (guard yClause)
     let body = AEFunCall l wrappedFun [body xClause, body yClause]
     pure $ MkMatcherClause pattern guard body (globals xClause ++ globals yClause)
-  readErlMatcher l vs (MList {args} matchers fun) = do
-    clauses <- readErlMatchers l vs matchers
-    let (vs', varNames) = extendEVars args vs
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr vs' fun)]]
+  readErlMatcher l (MList matchers fun) = do
+    erlMatchers <- readErlMatchers l matchers
+    let args = map fst erlMatchers
+    let clauses = map snd erlMatchers
+    let varNames = varsToVarNames args
+    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = foldr (\clause, acc => APCons l (pattern clause) acc) (APNil l) clauses
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
-  readErlMatcher l vs (MTuple {args} matchers fun) = do
-    clauses <- readErlMatchers l vs matchers
-    let (vs', varNames) = extendEVars args vs
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr vs' fun)]]
+  readErlMatcher l (MTuple matchers fun) = do
+    erlMatchers <- readErlMatchers l matchers
+    let args = map fst erlMatchers
+    let clauses = map snd erlMatchers
+    let varNames = varsToVarNames args
+    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APTuple l (map pattern clauses)
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
-  readErlMatcher l vs (MMapSubset {args} matchers fun) = do
-    clauses <- readErlMapEntryMatchers l vs matchers
-    let (vs', varNames) = extendEVars args vs
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr vs' fun)]]
+  readErlMatcher l (MMapSubset {args} matchers fun) = do
+    clauses <- readErlMapEntryMatchers l matchers
+    let varNames = varsToVarNames args
+    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) clauses)
     let guard = foldl (\acc, (keyVar, clause) => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) clauses)
     pure $ MkMatcherClause pattern guard body (concat (map (globals . snd) clauses))
-  readErlMatcher l vs (MFun arity) = do
+  readErlMatcher l (MFun arity) = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
     let guard = AGFunCall l "is_function" [AGVar l (show localVar), AGLiteral (ALInteger l (cast arity))]
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
-  readErlMatcher l vs (MTransform x xVar fun) = do
-    xClause <- readErlMatcher l vs x
-    let (vs', _) = extendEVars [xVar] vs
+  readErlMatcher l (MTransform x xVar fun) = do
+    xClause <- readErlMatcher l x
     let pattern = pattern xClause
     let guard = guard xClause
-    let funClause = MkFunClause l [APVar l (lookupEVar First vs')] [] [!(genErlExpr vs' fun)]
+    let funClause = MkFunClause l [APVar l (showVar xVar)] [] [!(genErlExpr fun)]
     let body = AEFunCall l (AEFun l 1 [funClause]) [body xClause]
     pure $ MkMatcherClause pattern guard body (globals xClause)
 
-  readSimpleGuardMatcherClause : Line -> EVars vars -> (fnName : String) -> State LocalVars MatcherClause
-  readSimpleGuardMatcherClause l vs fnName = do
+  readSimpleGuardMatcherClause : Line -> (fnName : String) -> State LocalVars MatcherClause
+  readSimpleGuardMatcherClause l fnName = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
     let guard = AGFunCall l fnName [AGVar l (show localVar)]
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
 
-  readErlMatchers : Line -> EVars vars -> ErlMatchers vars args -> State LocalVars (List MatcherClause)
-  readErlMatchers l vs [] =
+  readErlMatchers : Line -> ErlMatchers -> State LocalVars (List (ErlName, MatcherClause))
+  readErlMatchers l [] =
     pure []
-  readErlMatchers l vs (x :: xs) = do
-    xClause <- readErlMatcher l vs x
-    xsClauses <- readErlMatchers l vs xs
-    pure (xClause :: xsClauses)
+  readErlMatchers l ((::) {newVar} x xs) = do
+    xClause <- readErlMatcher l x
+    xsClauses <- readErlMatchers l xs
+    pure ((newVar, xClause) :: xsClauses)
 
-  readErlMapEntryMatchers : Line -> EVars vars -> ErlMapEntryMatchers vars args -> State LocalVars (List (LocalVar, MatcherClause))
-  readErlMapEntryMatchers l vs [] =
+  readErlMapEntryMatchers : Line -> ErlMapEntryMatchers -> State LocalVars (List (LocalVar, MatcherClause))
+  readErlMapEntryMatchers l [] =
     pure []
-  readErlMapEntryMatchers l vs ((key, matcher) :: xs) = do
+  readErlMapEntryMatchers l ((key, matcher) :: xs) = do
     keyVar <- addLocalVar
-    keyValue <- genErlExpr vs key
-    xClause <- readErlMatcher l vs matcher
+    keyValue <- genErlExpr key
+    xClause <- readErlMatcher l matcher
     let xClause' = record { globals $= ((keyVar, keyValue) ::) } xClause
-    xsClauses <- readErlMapEntryMatchers l vs xs
+    xsClauses <- readErlMapEntryMatchers l xs
     pure ((keyVar, xClause') :: xsClauses)
 
 genCompileAttr : Line -> PrimTerm -> Decl
@@ -527,96 +504,6 @@ genErlModule exportsLine mod =
       in ADExport exportsLine exports
     genFunDef : ErlFunDecl -> Decl
     genFunDef (MkFunDecl l visibility name args body) =
-      let (vs, varNames) = initEVars args
-          expr = evalState (genErlExpr vs body) initLocalVars
+      let varNames = varsToVarNames args
+          expr = evalState (genErlExpr body) initLocalVars
       in ADFunDef l name (length args) [MkFunClause l (map (APVar l) varNames) [] [expr]]
-
-
--- PROOFS
-
-mutual
-  export
-  thin : {outer, inner : _} -> (n : Name) -> ErlExpr (outer ++ inner) -> ErlExpr (outer ++ n :: inner)
-  thin n (ELocal {idx} l prf) =
-    let MkVar var' = insertVar {n} idx prf
-    in ELocal l var'
-  thin n (ERef l modName fnName) = ERef l (thin n modName) (thin n fnName)
-  thin n (ELam l args body) =
-    let body' = assert_total (thin {outer = args ++ outer} {inner = inner} n (rewrite sym (appendAssociative args outer inner) in body))
-    in ELam l args (rewrite appendAssociative args outer (n :: inner) in body')
-  thin n (EApp l x args) = EApp l (thin n x) (assert_total (map (thin n) args))
-  thin n (EOp l opName x y) = EOp l opName (thin n x) (thin n y)
-  thin n (ECon l name xs) = ECon l name (assert_total (map (thin n) xs))
-  thin n (EConstCase l sc alts def) = EConstCase l (thin n sc) (assert_total (map (thinConstAlt n) alts)) (thin n def)
-  thin n (EMatcherCase l sc alts def) = EMatcherCase l (thin n sc) (assert_total (map (thinErlMatcher n) alts)) (thin n def)
-  thin n (EReceive l alts timeout def) = EReceive l (assert_total (map (thinErlMatcher n) alts)) (thin n timeout) (thin n def)
-  thin n (ETryCatch l expr okVar okFun errorVar errorFun) =
-    let okFun' = thin {outer = okVar :: outer} {inner} n okFun
-        errorFun' = thin {outer = errorVar :: outer} {inner} n errorFun
-    in ETryCatch l (thin n expr) okVar okFun' errorVar errorFun'
-  thin n (EIdrisConstant l x) = EIdrisConstant l x
-  thin n (EAtom l x) = EAtom l x
-  thin n (EChar l x) = EChar l x
-  thin n (EFloat l x) = EFloat l x
-  thin n (EInteger l x) = EInteger l x
-  thin n (ECharlist l x) = ECharlist l x
-  thin n (EBinary l x) = EBinary l x
-  thin n (ENil l) = ENil l
-  thin n (ECons l x y) = ECons l (thin n x) (thin n y)
-  thin n (ETuple l xs) = ETuple l (assert_total (map (thin n) xs))
-  thin n (EMap l xs) = EMap l (assert_total (map (\(key, value) => (thin n key, thin n value)) xs))
-  thin n (EBufferNew l size) = EBufferNew l (thin n size)
-  thin n (EBufferSetByte l bin loc value) = EBufferSetByte l (thin n bin) (thin n loc) (thin n value)
-  thin n (EBufferGetByte l bin loc) = EBufferGetByte l (thin n bin) (thin n loc)
-  thin n (EBufferSetInt l bin loc value) = EBufferSetInt l (thin n bin) (thin n loc) (thin n value)
-  thin n (EBufferGetInt l bin loc) = EBufferGetInt l (thin n bin) (thin n loc)
-  thin n (EBufferSetDouble l bin loc value) = EBufferSetDouble l (thin n bin) (thin n loc) (thin n value)
-  thin n (EBufferGetDouble l bin loc) = EBufferGetDouble l (thin n bin) (thin n loc)
-  thin n (EBufferSetString l bin loc value) = EBufferSetString l (thin n bin) (thin n loc) (thin n value)
-  thin n (EBufferGetString l bin loc len) = EBufferGetString l (thin n bin) (thin n loc) (thin n len)
-
-  thinConstAlt : {outer, inner : _} -> (n : Name) -> ErlConstAlt (outer ++ inner) -> ErlConstAlt (outer ++ n :: inner)
-  thinConstAlt n (MkConstAlt c body) = MkConstAlt c (thin n body)
-
-  thinErlMatcher : {outer, inner : _} -> (n : Name) -> ErlMatcher (outer ++ inner) -> ErlMatcher (outer ++ n :: inner)
-  thinErlMatcher n (MExact x) = MExact (thin n x)
-  thinErlMatcher n MAny = MAny
-  thinErlMatcher n MCodepoint = MCodepoint
-  thinErlMatcher n MInteger = MInteger
-  thinErlMatcher n MFloat = MFloat
-  thinErlMatcher n MAtom = MAtom
-  thinErlMatcher n MBinary = MBinary
-  thinErlMatcher n MMap = MMap
-  thinErlMatcher n MPid = MPid
-  thinErlMatcher n MRef = MRef
-  thinErlMatcher n MPort = MPort
-  thinErlMatcher n MAnyList = MAnyList
-  thinErlMatcher n MNil = MNil
-  thinErlMatcher n (MCons x y hdVar tlVar fun) =
-    let fun' = thin {outer = hdVar :: tlVar :: outer} {inner} n fun
-    in MCons (thinErlMatcher n x) (thinErlMatcher n y) hdVar tlVar fun'
-  thinErlMatcher n (MList {args} xs fun) =
-    let fun' = thin {outer = args ++ outer} {inner = inner} n (rewrite sym (appendAssociative args outer inner) in fun)
-    in MList (thinErlMatchers {outer} {inner} n xs) (rewrite appendAssociative args outer (n :: inner) in fun')
-  thinErlMatcher n (MTuple {args} xs fun) =
-    let fun' = thin {outer = args ++ outer} {inner = inner} n (rewrite sym (appendAssociative args outer inner) in fun)
-    in MTuple (thinErlMatchers {outer} {inner} n xs) (rewrite appendAssociative args outer (n :: inner) in fun')
-  thinErlMatcher n (MMapSubset {args} xs fun) =
-    let fun' = thin {outer = args ++ outer} {inner = inner} n (rewrite sym (appendAssociative args outer inner) in fun)
-    in MMapSubset (thinErlMapEntryMatchers {outer} {inner} n xs) (rewrite appendAssociative args outer (n :: inner) in fun')
-  thinErlMatcher n (MFun arity) = MFun arity
-  thinErlMatcher n (MTransform matcher newVar fun) =
-    let fun' = thin {outer = newVar :: outer} {inner} n fun
-    in MTransform (thinErlMatcher n matcher) newVar fun'
-
-  thinErlMatchers : {outer, inner : _} -> (n : Name) -> ErlMatchers (outer ++ inner) args -> ErlMatchers (outer ++ n :: inner) args
-  thinErlMatchers n [] = []
-  thinErlMatchers n ((::) {newVar} x xs) = (::) {newVar} (thinErlMatcher n x) (thinErlMatchers n xs)
-
-  thinErlMapEntryMatchers : {outer, inner : _} -> (n : Name) -> ErlMapEntryMatchers (outer ++ inner) args -> ErlMapEntryMatchers (outer ++ n :: inner) args
-  thinErlMapEntryMatchers n [] = []
-  thinErlMapEntryMatchers n ((::) {newVar} (key, value) xs) = (::) {newVar} (thin n key, thinErlMatcher n value) (thinErlMapEntryMatchers n xs)
-
-export
-Weaken ErlExpr where
-  weaken expr = thin {outer=[]} n expr

@@ -8,7 +8,7 @@ import Compiler.LambdaLift
 import Compiler.VMCode
 
 import Compiler.Erlang.Opts
-import Compiler.Erlang.CExp
+import Compiler.Erlang.NamedCExp
 import Compiler.Erlang.FileUtils
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
@@ -120,18 +120,18 @@ showModule : ErlModule -> String
 showModule module_ =
   concat (map ((++ ".\n") . showPrimTerm . genDecl) (genErlModule 4242 module_))
 
-getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
+getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core NamedDef
 getCompileExpr name = do
   defs <- get Ctxt
   Just globalDef <- lookupCtxtExact name (gamma defs)
     | Nothing => throw (InternalError ("Compiling undefined name " ++ show name))
-  let Just expr = compexpr globalDef
+  let Just expr = namedcompexpr globalDef
     | Nothing => throw (InternalError ("No compiled definition for " ++ show name))
   pure expr
 
 genExports : {auto c : Ref Ctxt Defs} -> NamespaceInfo -> Line -> Name -> Core (List ErlFunDecl)
 genExports namespaceInfo l name = do
-  MkFun [] expr <- getCompileExpr name
+  MkNmFun [] expr <- getCompileExpr name
     | _ => throw (InternalError ("Expected function definition for " ++ show name))
   readExports namespaceInfo l expr
 
@@ -149,7 +149,7 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
     | Left err => throw (FileErr outfile err)
   pure ()
 
-genCompdef : Line -> (NamespaceInfo, (Name, FC, CDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
+genCompdef : Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
 genCompdef l (namespaceInfo, (name, fc, expr)) = do
   Just funDecl <- genDef namespaceInfo l name expr
     | Nothing => pure Nothing
@@ -159,7 +159,7 @@ concatNamespaceInfo : (ns : String) -> a -> (NamespaceInfo, a)
 concatNamespaceInfo ns x =
   (MkNamespaceInfo (Concat ns), x)
 
-splitNamespaceInfo : (prefixStr : String) -> (Name, FC, CDef) -> (NamespaceInfo, (Name, FC, CDef))
+splitNamespaceInfo : (prefixStr : String) -> (Name, FC, NamedDef) -> (NamespaceInfo, (Name, FC, NamedDef))
 splitNamespaceInfo prefixStr x@(name, _, _) =
   let ns = getNamespace name
   in (MkNamespaceInfo (Split prefixStr ns), x)
@@ -171,12 +171,11 @@ namespace MainEntrypoint
   writeAbstrFiles opts tm outdir modName = do
     let outfile = outdir ++ dirSep ++ modName ++ ".abstr"
     compileData <- getCompileData Cases tm
-    compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (cDefs compileData)
+    compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (namedDefs compileData)
     let namespaceInfo = MkNamespaceInfo (Concat modName)
-    let (vs, _) = initEVars []
-    mainBody <- genCExp namespaceInfo vs (mainExpr compileData)
-    let argsVar = MN "" 0
-    let mainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 (weaken mainBody))
+    mainBody <- genNmExp namespaceInfo (forget (mainExpr compileData))
+    let argsVar = MkVar "Args"
+    let mainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 argsVar mainBody)
     let validCompdefs = (namespaceInfo, mainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts [] outdir) modules
@@ -244,8 +243,7 @@ namespace Library
   skipUnusedNames (Resolved _) = False
   skipUnusedNames _ = True
 
-  getExportedCompileData : {auto c : Ref Ctxt Defs} ->
-                           UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
+  getExportedCompileData : {auto c : Ref Ctxt Defs} -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
   getExportedCompileData phase shouldCompileName extraNames = do
     defs <- get Ctxt
     sopts <- getSession
@@ -318,7 +316,7 @@ namespace Library
     let namespacesToCompile = changedNamespaces opts
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
     compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
-    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (cDefs compileData))
+    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts exportFunNames outdir) modules
