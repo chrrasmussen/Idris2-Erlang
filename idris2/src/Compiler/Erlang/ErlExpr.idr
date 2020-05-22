@@ -514,17 +514,17 @@ genAttribute (Inline l) = genCompileAttr l (PAtom "inline")
 genAttribute (InlineSize l size) = genCompileAttr l (PTuple [PAtom "inline_size", PInteger (cast size)])
 
 export
-genErlModule : ErlModule -> List Decl
-genErlModule mod =
+genErlModule : Line -> ErlModule -> List Decl
+genErlModule exportsLine mod =
   -- NOTE: The order of declarations are important!
-  genModuleName (name mod) :: map genAttribute (attributes mod) ++ genExports (funDecls mod) ++ map genFunDef (funDecls mod)
+  genModuleName (name mod) :: map genAttribute (attributes mod) ++ [genExports (funDecls mod)] ++ map genFunDef (funDecls mod)
   where
     genModuleName : ErlModuleName -> Decl
     genModuleName (MkModuleName l name) = ADModule l name
-    genExport : ErlFunDecl -> Decl
-    genExport (MkFunDecl l visibility name args body) = ADExport l [(name, length args)]
-    genExports : List ErlFunDecl -> List Decl
-    genExports funDecls = map genExport $ filter (\(MkFunDecl l visibility name args body) => visibility == Public) funDecls
+    genExports : List ErlFunDecl -> Decl
+    genExports funDecls =
+      let exports = mapMaybe (\(MkFunDecl l visibility name args body) => if visibility == Public then Just (name, length args) else Nothing) funDecls
+      in ADExport exportsLine exports
     genFunDef : ErlFunDecl -> Decl
     genFunDef (MkFunDecl l visibility name args body) =
       let (vs, varNames) = initEVars args

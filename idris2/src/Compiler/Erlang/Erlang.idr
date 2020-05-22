@@ -118,7 +118,7 @@ getExports ds =
 
 showModule : ErlModule -> String
 showModule module_ =
-  concat (map ((++ ".\n") . showPrimTerm . genDecl) (genErlModule module_))
+  concat (map ((++ ".\n") . showPrimTerm . genDecl) (genErlModule 4242 module_))
 
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core CDef
 getCompileExpr name = do
