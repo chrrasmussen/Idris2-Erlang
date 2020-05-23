@@ -75,8 +75,7 @@ fileModes isBinary mode =
 -- TODO: Is FileReadError correct?
 internalOpenFile : (isBinary : Bool) -> String -> Mode -> IO (Either FileError (FileT isBinary))
 internalOpenFile isBinary filePath mode = do
-  Right result <- erlCall "file" "open" [filePath, fileModes isBinary mode]
-    | Left ex => pure (Left FileReadError)
+  result <- erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes isBinary mode]
   pure $ erlDecodeDef (Left FileReadError)
     (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid))
     result
@@ -92,14 +91,13 @@ openBinaryFile = internalOpenFile True
 export
 closeFile : FileT t -> IO ()
 closeFile (FHandle f) = do
-  erlCall "file" "close" [f]
+  erlUnsafeCall ErlTerm "file" "close" [f]
   pure ()
 
 export
 fGetLine : (h : File) -> IO (Either FileError String)
 fGetLine (FHandle f) = do
-  Right result <- erlCall "file" "read_line" [f]
-    | Left ex => pure (Left FileReadError)
+  result <- erlUnsafeCall ErlTerm "file" "read_line" [f]
   pure $ erlDecodeDef (Left FileReadError)
     (map (\(MkTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkAtom "ok")) any) <|>
       exact (MkAtom "eof") *> pure (Right ""))
@@ -108,8 +106,7 @@ fGetLine (FHandle f) = do
 export
 fPutStr : (h : File) -> String -> IO (Either FileError ())
 fPutStr (FHandle f) str = do
-  Right result <- erlCall "file" "write" [f, str]
-    | Left ex => pure (Left FileWriteError)
+  result <- erlUnsafeCall ErlTerm "file" "write" [f, str]
   pure $ erlDecodeDef (Left FileWriteError)
     (exact (MkAtom "ok") *> pure (Right ()))
     result
@@ -121,8 +118,7 @@ fPutStrLn f str = fPutStr f (str ++ "\n")
 export
 fEOF : (h : File) -> IO Bool
 fEOF (FHandle f) = do
-  Right readResult <- erlCall "file" "read" [f, 1]
-    | Left ex => pure True
+  readResult <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
   erlDecodeDef (pure True)
     (tuple2 (exact (MkAtom "ok")) any *> pure scanBack <|>
       exact (MkAtom "eof") *> pure (pure True) <|>
@@ -132,8 +128,7 @@ fEOF (FHandle f) = do
     -- If `file:read/2` returns `{ok, _}` we need to scan back to the original position
     scanBack : IO Bool
     scanBack = do
-      Right scanResult <- erlCall "file" "position" [f, MkTuple2 (MkAtom "cur") (-1)]
-        | Left ex => pure True
+      scanResult <- erlUnsafeCall ErlTerm "file" "position" [f, MkTuple2 (MkAtom "cur") (-1)]
       pure $ erlDecodeDef True
         (tuple2 (exact (MkAtom "ok")) any *> pure False <|>
           tuple2 (exact (MkAtom "error")) any *> pure True)
@@ -160,3 +155,15 @@ readFile file = do
           Right str <- fGetLine h
             | Left err => pure (Left err)
           read (str :: acc) h
+
+export
+writeFile : (filepath : String) -> (contents : String) -> IO (Either FileError ())
+writeFile fn contents = do
+  Right h <- openFile fn WriteTruncate
+    | Left err => pure (Left err)
+  Right () <- fPutStr h contents
+    | Left err => do
+      closeFile h
+      pure (Left err)
+  closeFile h
+  pure (Right ())
