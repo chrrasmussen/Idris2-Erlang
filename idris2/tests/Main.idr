@@ -116,7 +116,7 @@ erlangTests
       "erlang006", "erlang007", "erlang008", "erlang009", "erlang010",
       "erlang011", "erlang012",
       "chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
-      "chez007", "chez008", "chez009",            "chez011"]
+      "chez007", "chez008", "chez009",            "chez011", "chez012"]
       -- chez010: Calling C functions is not supported
 
 ------------------------------------------------------------------------
