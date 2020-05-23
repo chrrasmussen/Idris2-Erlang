@@ -1,6 +1,9 @@
 module Compiler.Erlang.PrimTerm
 
+import Data.List
+import Compiler.Erlang.CompositeString
 import Compiler.Erlang.Utils
+
 
 %default total
 
@@ -49,11 +52,11 @@ showDouble x =
     else dblStr ++ ".0"
 
 export
-showPrimTerm : PrimTerm -> String
-showPrimTerm (PAtom str) = "'" ++ escapeString (unpack str) "" ++ "'"
-showPrimTerm (PChar x) = "$" ++ escapeChar x ""
-showPrimTerm (PFloat x) = showDouble x
-showPrimTerm (PInteger x) = show x
-showPrimTerm (PTuple xs) = "{" ++ showSep "," (assert_total (map showPrimTerm xs)) ++ "}"
-showPrimTerm (PList xs) = "[" ++ showSep "," (assert_total (map showPrimTerm xs)) ++ "]"
-showPrimTerm (PCharlist str) = "\"" ++ escapeString (unpack str) "" ++ "\""
+genPrimTerm : PrimTerm -> CompositeString
+genPrimTerm (PAtom str) = Nested [Str "'", Str (escapeString (unpack str) ""), Str "'"]
+genPrimTerm (PChar x) = Nested [Str "$", Str (escapeChar x "")]
+genPrimTerm (PFloat x) = Str (showDouble x)
+genPrimTerm (PInteger x) = Str (show x)
+genPrimTerm (PTuple xs) = Nested [Str "{", Nested $ intersperse (Str ",") (assert_total (map genPrimTerm xs)), Str "}"]
+genPrimTerm (PList xs) = Nested [Str "[", Nested $ intersperse (Str ",") (assert_total (map genPrimTerm xs)), Str "]"]
+genPrimTerm (PCharlist str) = Nested [Str "\"", Str (escapeString (unpack str) ""), Str "\""]

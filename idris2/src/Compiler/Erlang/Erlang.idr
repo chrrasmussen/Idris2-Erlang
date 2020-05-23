@@ -116,10 +116,6 @@ getExports : List (Namespace, String) -> List (Namespace, Name)
 getExports ds =
   mapMaybe (\(ns, str) => map (\name => (ns, name)) (parseExport (ns, str))) ds
 
-showModule : ErlModule -> String
-showModule module_ =
-  concat (map ((++ ".\n") . showPrimTerm . genDecl) (genErlModule 4242 module_))
-
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core NamedDef
 getCompileExpr name = do
   defs <- get Ctxt
@@ -135,6 +131,10 @@ genExports namespaceInfo l name = do
     | _ => throw (InternalError ("Expected function definition for " ++ show name))
   readExports namespaceInfo l expr
 
+genModule : ErlModule -> CompositeString
+genModule module_ =
+  Nested $ map (\d => Nested [genPrimTerm (genDecl d), Str ".\n"]) (genErlModule 4242 module_)
+
 writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> String -> (NamespaceInfo, List ErlFunDecl) -> Core ()
 writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
   let inNS = case outputBundle namespaceInfo of
@@ -145,7 +145,8 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
   let modName = currentModuleName namespaceInfo
   let module_ = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] (exportFunDecls ++ funDecls)
   let outfile = targetDir ++ dirSep ++ modName ++ ".abstr"
-  Right () <- coreLift $ writeFile outfile (showModule module_)
+  let content = fastAppend (flatten (genModule module_))
+  Right () <- coreLift $ writeFile outfile content
     | Left err => throw (FileErr outfile err)
   pure ()
 
