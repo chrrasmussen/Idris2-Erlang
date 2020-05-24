@@ -412,8 +412,7 @@ genStringToInteger l str =
   -- TODO: Is it safe to use hard-coded variable names in this case?
   let toIntegerCall = genFunCall l "string" "to_integer" [str]
   in EMatcherCase l toIntegerCall
-      [ MTuple ((::) {newVar=MkVar "X1"} (MExact (EAtom l "error")) ((::) {newVar=MkVar "X2"} (MExact (EAtom l "no_integer")) Nil)) (EInteger l 0)
-      , MTuple ((::) {newVar=MkVar "X1"} MInteger ((::) {newVar=MkVar "X2"} MNil Nil)) (ELocal l (MkVar "X1"))
+      [ MTuple ((::) {newVar=MkVar "X1"} MInteger ((::) {newVar=MkVar "X2"} MNil Nil)) (ELocal l (MkVar "X1"))
       ]
       (EInteger l 0)
 
