@@ -170,6 +170,9 @@ data DefFlag
          -- should evaluate the RHS, with reduction limits on the given names,
          -- and ensure the name has made progress in doing so (i.e. has reduced
          -- at least once)
+    | AllGuarded -- safe to treat as a constructor for the purposes of
+         -- productivity checking. All clauses are guarded by constructors,
+         -- and there are no other function applications
 
 export
 Eq DefFlag where
@@ -181,6 +184,7 @@ Eq DefFlag where
     (==) BlockedHint BlockedHint = True
     (==) Macro Macro = True
     (==) (PartialEval x) (PartialEval y) = x == y
+    (==) AllGuarded AllGuarded = True
     (==) _ _ = False
 
 export
@@ -193,6 +197,7 @@ Show DefFlag where
   show BlockedHint = "blockedhint"
   show Macro = "macro"
   show (PartialEval _) = "partialeval"
+  show AllGuarded = "allguarded"
 
 public export
 data SizeChange = Smaller | Same | Unknown
@@ -889,6 +894,9 @@ clearCtxt
     resetElab : Options -> Options
     resetElab = record { elabDirectives = defaultElab }
 
+-- Beware: if your hashable thing contains (potentially resolved) names,
+-- it'll be better to use addHashWithNames to make the hash independent
+-- of the internal numbering of names.
 export
 addHash : {auto c : Ref Ctxt Defs} ->
           Hashable a => a -> Core ()
@@ -1184,6 +1192,15 @@ prettyName (WithBlock outer idx)
          pure ("with block in " ++ !(prettyName outer'))
 prettyName (NS ns n) = prettyName n
 prettyName n = pure (show n)
+
+-- Add a hash of a thing that contains names,
+-- but convert the internal numbers to full names first.
+-- This makes the hash not depend on the internal numbering,
+-- which is unstable.
+export
+addHashWithNames : {auto c : Ref Ctxt Defs} ->
+  Hashable a => HasNames a => a -> Core ()
+addHashWithNames x = toFullNames x >>= addHash
 
 export
 setFlag : {auto c : Ref Ctxt Defs} ->
