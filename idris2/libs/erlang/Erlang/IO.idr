@@ -33,18 +33,15 @@ erlModule = prim__erlModule
 -- See `erlCall` for a safe way to call Erlang functions.
 export %inline
 erlUnsafeCall : (0 ret : Type) -> {auto 0 retPrf : ErlType ret} ->
-                String ->
-                String ->
-                ErlList xs -> {auto 0 argsPrf : ErlTypes xs} ->
-                IO ret
-erlUnsafeCall ret modName fnName args = primIO (prim__erlUnsafeCall ret modName fnName args)
+                (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 argsPrf : ErlTypes xs} -> IO ret
+erlUnsafeCall ret modName funName args = primIO (prim__erlUnsafeCall ret modName funName args)
 
 export
 erlTryCatch : IO a -> IO (Either ErlException a)
 erlTryCatch action = primIO (prim__erlTryCatch action)
 
 export partial %inline
-erlCall : String -> String -> ErlList xs -> {auto 0 prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
+erlCall : (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 prf : ErlTypes xs} -> IO (Either ErlException ErlTerm)
 erlCall modName fnName args = erlTryCatch (erlUnsafeCall ErlTerm modName fnName args)
 
 
