@@ -3,7 +3,6 @@ module Compiler.Erlang.ErlExpr
 import Data.List
 import Control.Monad.State
 
-import Core.TT
 import Compiler.Erlang.AbstractFormat
 import Compiler.Erlang.ErlBuffer
 import Compiler.Erlang.Utils
@@ -12,13 +11,35 @@ import Compiler.Erlang.Utils
 %default total
 
 
--- UNIQUE LOCAL VARIABLES
+-- LOCAL VARIABLES
 
-public export
-data ErlName = MkVar String
+namespace LocalVars
+  public export
+  record LocalVars where
+    constructor MkLocalVars
+    varPrefix : String
+    nextIndex : Int
 
-showVar : ErlName -> String
-showVar (MkVar index) = "V" ++ index
+  public export
+  record LocalVar where
+    constructor MkLocalVar
+    varPrefix : String
+    index : Int
+
+  export
+  initLocalVars : String -> LocalVars
+  initLocalVars varPrefix = MkLocalVars varPrefix 0
+
+  export
+  addLocalVar : State LocalVars LocalVar
+  addLocalVar = do
+    MkLocalVars varPrefix nextIndex <- get
+    put $ MkLocalVars varPrefix (nextIndex + 1)
+    pure $ MkLocalVar varPrefix nextIndex
+
+  export
+  Show LocalVar where
+    show (MkLocalVar varPrefix index) = varPrefix ++ show index
 
 
 -- EXPRESSIONS
@@ -48,16 +69,16 @@ data IdrisConstant
 mutual
   public export
   data ErlExpr : Type where
-    ELocal : Line -> ErlName -> ErlExpr
+    ELocal : Line -> LocalVar -> ErlExpr
     ERef : Line -> (modName : ErlExpr) -> (fnName : ErlExpr) -> ErlExpr
-    ELam : Line -> (args : List ErlName) -> ErlExpr -> ErlExpr
+    ELam : Line -> (args : List LocalVar) -> ErlExpr -> ErlExpr
     EApp : Line -> ErlExpr -> List ErlExpr -> ErlExpr
     EOp : Line -> (op : String) -> (lhs : ErlExpr) -> (rhs : ErlExpr) -> ErlExpr
     ECon : Line -> (name : String) -> List ErlExpr -> ErlExpr
     EConstCase : Line -> (sc : ErlExpr) -> List ErlConstAlt -> (def : ErlExpr) -> ErlExpr
     EMatcherCase : Line -> (sc : ErlExpr) -> List ErlMatcher -> (def : ErlExpr) -> ErlExpr
     EReceive : Line -> List ErlMatcher -> (timeout : ErlExpr) -> (def : ErlExpr) -> ErlExpr
-    ETryCatch : Line -> ErlExpr -> (okVar : ErlName) -> ErlExpr -> (errorVar : ErlName) -> ErlExpr -> ErlExpr
+    ETryCatch : Line -> ErlExpr -> (okVar : LocalVar) -> ErlExpr -> (errorVar : LocalVar) -> ErlExpr -> ErlExpr
 
     EIdrisConstant : Line -> IdrisConstant -> ErlExpr
     EAtom : Line -> String -> ErlExpr
@@ -100,24 +121,25 @@ mutual
     MPort         : ErlMatcher
     MAnyList      : ErlMatcher
     MNil          : ErlMatcher
-    MCons         : ErlMatcher -> ErlMatcher -> (hdVar : ErlName) -> (tlVar : ErlName) -> ErlExpr -> ErlMatcher
+    MCons         : ErlMatcher -> ErlMatcher -> (hdVar : LocalVar) -> (tlVar : LocalVar) -> ErlExpr -> ErlMatcher
     MList         : ErlMatchers -> ErlExpr -> ErlMatcher
     MTuple        : ErlMatchers -> ErlExpr -> ErlMatcher
-    MMapSubset    : {args : List ErlName} -> ErlMapEntryMatchers -> ErlExpr -> ErlMatcher
+    MMapSubset    : {args : List LocalVar} -> ErlMapEntryMatchers -> ErlExpr -> ErlMatcher
     MFun          : (arity : Nat) -> ErlMatcher
-    MTransform    : ErlMatcher -> (newVar : ErlName) -> ErlExpr -> ErlMatcher
+    MTransform    : ErlMatcher -> (newVar : LocalVar) -> ErlExpr -> ErlMatcher
+    MConst        : ErlMatcher -> ErlExpr -> ErlMatcher
 
   namespace ErlMatchers
     public export
     data ErlMatchers : Type where
       Nil : ErlMatchers
-      (::) : {newVar : ErlName} -> ErlMatcher -> ErlMatchers -> ErlMatchers
+      (::) : {newVar : LocalVar} -> ErlMatcher -> ErlMatchers -> ErlMatchers
 
   namespace ErlMapEntryMatchers
     public export
     data ErlMapEntryMatchers : Type where
       Nil : ErlMapEntryMatchers
-      (::) : {newVar : ErlName} -> (ErlExpr, ErlMatcher) -> ErlMapEntryMatchers -> ErlMapEntryMatchers
+      (::) : {newVar : LocalVar} -> (ErlExpr, ErlMatcher) -> ErlMapEntryMatchers -> ErlMapEntryMatchers
 
 public export
 data ErlModuleName : Type where
@@ -140,7 +162,7 @@ Eq ErlVisibility where
 
 public export
 data ErlFunDecl : Type where
-  MkFunDecl : Line -> (visibility : ErlVisibility) -> (name : String) -> (vars : List ErlName) -> ErlExpr -> ErlFunDecl
+  MkFunDecl : Line -> (visibility : ErlVisibility) -> (name : String) -> (vars : List LocalVar) -> ErlExpr -> ErlFunDecl
 
 public export
 record ErlModule where
@@ -150,40 +172,11 @@ record ErlModule where
   funDecls : List ErlFunDecl
 
 
--- LOCAL VARIABLES
-
-namespace LocalVars
-  export
-  record LocalVars where
-    constructor MkLocalVars
-    nextIndex : Int
-
-  export
-  record LocalVar where
-    constructor MkLocalVar
-    index : Int
-
-  export
-  initLocalVars : LocalVars
-  initLocalVars = MkLocalVars 0
-
-  export
-  addLocalVar : State LocalVars LocalVar
-  addLocalVar = do
-    (MkLocalVars nextIndex) <- get
-    put (MkLocalVars (nextIndex + 1))
-    pure (MkLocalVar nextIndex)
-
-  export
-  Show LocalVar where
-    show (MkLocalVar index) = "L" ++ show index
-
-
 -- HELPER FUNCTIONS
 
-varsToVarNames : (vars : List ErlName) -> Vect (length vars) String
+varsToVarNames : (vars : List LocalVar) -> Vect (length vars) String
 varsToVarNames [] = []
-varsToVarNames (x :: xs) = showVar x :: varsToVarNames xs
+varsToVarNames (x :: xs) = show x :: varsToVarNames xs
 
 toNonEmptyFunClauses : (clauses : List (FunClause arity)) -> (def : FunClause arity) -> Vect (S (length clauses)) (FunClause arity)
 toNonEmptyFunClauses [] def = [def]
@@ -209,7 +202,7 @@ wrapGlobal l (var, expr) acc =
 
 genBinary : Line -> String -> Expr
 genBinary l str =
-AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
 
 -- CODE GENERATION
@@ -232,8 +225,8 @@ genIdrisConstant l fromString fromLiteral constant =
 
 mutual
   genErlExpr : ErlExpr -> State LocalVars Expr
-  genErlExpr (ELocal l name) =
-    pure $ AEVar l (showVar name)
+  genErlExpr (ELocal l var) =
+    pure $ AEVar l (show var)
   genErlExpr (ERef l modName fnName) =
     pure $ AERemoteRef l !(genErlExpr modName) !(genErlExpr fnName)
   genErlExpr (ELam l args body) = do
@@ -299,8 +292,8 @@ mutual
     let tryCaseClause = MkCaseClause l (APVar l "Value") [] [AETuple l [AELiteral (ALAtom l "ok"), AEVar l "Value"]]
     let tryCatchClause = MkCatchClause l (APVar l "Class") (APVar l "Reason") (APVar l "Stacktrace") [] [AETuple l [AELiteral (ALAtom l "error"), AETuple l [AEVar l "Class", AEVar l "Reason", AEVar l "Stacktrace"]]]
     let tryResult = wrapImmediatelyInvokedFunExpr l $ AETry l [!(genErlExpr expr)] [tryCaseClause] [tryCatchClause] []
-    let okBody = AEFun l 1 [MkFunClause l [APVar l (showVar okVar)] [] [!(genErlExpr okFun)]]
-    let errorBody = AEFun l 1 [MkFunClause l [APVar l (showVar errorVar)] [] [!(genErlExpr errorFun)]]
+    let okBody = AEFun l 1 [MkFunClause l [APVar l (show okVar)] [] [!(genErlExpr okFun)]]
+    let errorBody = AEFun l 1 [MkFunClause l [APVar l (show errorVar)] [] [!(genErlExpr errorFun)]]
     let okClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "ok"), APVar l "Value"]] [] [AEFunCall l okBody [AEVar l "Value"]]
     let errorClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "error"), APVar l "Error"]] [] [AEFunCall l errorBody [AEVar l "Error"]]
     pure $ AEFunCall l (AEFun l 1 [okClause, errorClause]) [tryResult]
@@ -451,8 +444,14 @@ mutual
     xClause <- readErlMatcher l x
     let pattern = pattern xClause
     let guard = guard xClause
-    let funClause = MkFunClause l [APVar l (showVar xVar)] [] [!(genErlExpr fun)]
+    let funClause = MkFunClause l [APVar l (show xVar)] [] [!(genErlExpr fun)]
     let body = AEFunCall l (AEFun l 1 [funClause]) [body xClause]
+    pure $ MkMatcherClause pattern guard body (globals xClause)
+  readErlMatcher l (MConst x body) = do
+    xClause <- readErlMatcher l x
+    let pattern = pattern xClause
+    let guard = guard xClause
+    let body = !(genErlExpr body)
     pure $ MkMatcherClause pattern guard body (globals xClause)
 
   readSimpleGuardMatcherClause : Line -> (fnName : String) -> State LocalVars MatcherClause
@@ -463,7 +462,7 @@ mutual
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
 
-  readErlMatchers : Line -> ErlMatchers -> State LocalVars (List (ErlName, MatcherClause))
+  readErlMatchers : Line -> ErlMatchers -> State LocalVars (List (LocalVar, MatcherClause))
   readErlMatchers l [] =
     pure []
   readErlMatchers l ((::) {newVar} x xs) = do
@@ -505,5 +504,5 @@ genErlModule exportsLine mod =
     genFunDef : ErlFunDecl -> Decl
     genFunDef (MkFunDecl l visibility name args body) =
       let varNames = varsToVarNames args
-          expr = evalState (genErlExpr body) initLocalVars
+          expr = evalState (genErlExpr body) (initLocalVars "E")
       in ADFunDef l name (length args) [MkFunClause l (map (APVar l) varNames) [] [expr]]

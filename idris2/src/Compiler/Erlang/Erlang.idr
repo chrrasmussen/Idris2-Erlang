@@ -13,6 +13,7 @@ import Compiler.Erlang.FileUtils
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.RtsSupport
+import Compiler.Erlang.AbstractFormat
 
 import Core.Context
 import Core.Directory
@@ -175,10 +176,11 @@ namespace MainEntrypoint
     compileData <- getCompileData Cases tm
     compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (namedDefs compileData)
     let namespaceInfo = MkNamespaceInfo (Concat modName)
-    mainBody <- genNmExp namespaceInfo (forget (mainExpr compileData))
-    let argsVar = MkVar "Args"
-    let erlMainFunDecl = MkFunDecl 4242 Public "start" [] (genErlMain 4242 mainBody)
-    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 (ELocal 4242 argsVar) mainBody)
+    lv <- newRef LV (initLocalVars "V")
+    mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
+    argsVar <- newLocalVar
+    let erlMainFunDecl = MkFunDecl 4242 Public "start" [] !(genErlMain 4242 mainBody)
+    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] !(genEscriptMain 4242 (ELocal 4242 argsVar) mainBody)
     let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts [] outdir) modules

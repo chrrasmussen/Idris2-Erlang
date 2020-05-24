@@ -1,14 +1,47 @@
 module Compiler.Erlang.RtsSupport
 
 import Data.List
+import Data.NameMap
 import Data.Stream
-import Core.Name
+import Core.Core
 import Core.TT
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
 
 
 %default total
+
+
+-- LOCAL VARIABLES
+
+export
+data LV : Type where
+
+export
+newLocalVar : {auto lv : Ref LV LocalVars} -> Core LocalVar
+newLocalVar = do
+  MkLocalVars varPrefix nextIndex <- get LV
+  put LV $ MkLocalVars varPrefix (nextIndex + 1)
+  pure $ MkLocalVar varPrefix nextIndex
+
+export
+newLocalVars : {auto lv : Ref LV LocalVars} -> (count : Nat) -> Core (List LocalVar)
+newLocalVars Z = pure []
+newLocalVars (S k) = do
+  newVar <- newLocalVar
+  vars <- newLocalVars k
+  pure (newVar :: vars)
+
+export
+addLocalVars : {auto lv : Ref LV LocalVars} -> (args : List Name) -> NameMap LocalVar -> Core (NameMap LocalVar, List LocalVar)
+addLocalVars [] vs = pure (vs, [])
+addLocalVars (n :: ns) vs = do
+  newVar <- newLocalVar
+  (vs', vars) <- addLocalVars ns (insert n newVar vs)
+  pure (vs', newVar :: vars)
+
+
+-- MISC
 
 export
 genFC : FC -> Line
@@ -38,10 +71,12 @@ genNothing : Line -> ErlExpr
 genNothing l =
   ECon l (constructorName (NS ["Prelude"] (UN "Nothing"))) []
 
+export
 genRight : Line -> ErlExpr -> ErlExpr
 genRight l expr =
   ECon l (constructorName (NS ["Prelude"] (UN "Right"))) [expr]
 
+export
 genLeft : Line -> ErlExpr -> ErlExpr
 genLeft l expr =
   ECon l (constructorName (NS ["Prelude"] (UN "Left"))) [expr]
@@ -56,14 +91,12 @@ genMkIORes l expr =
 
 -- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
 export
-genMkIO : Line -> ErlExpr -> ErlExpr
-genMkIO l expr =
-  let worldVar = MkVar "_World"
-      fn = ELam l [worldVar] (genMkIORes l expr)
-  in
-    -- Newtype optimization removes the data constructor:
-    -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
-    fn
+genMkIO : Line -> (worldVar : LocalVar) -> ErlExpr -> ErlExpr
+genMkIO l worldVar expr =
+  let fn = ELam l [worldVar] (genMkIORes l expr)
+  in -- Newtype optimization removes the data constructor:
+     -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
+     fn
 
 
 -- HELPER FUNCTIONS
@@ -86,16 +119,16 @@ genFunCall : Line -> String -> String -> List ErlExpr -> ErlExpr
 genFunCall l modName fnName args =
   EApp l (ERef l (EAtom l modName) (EAtom l fnName)) args
 
+-- TODO: Replace with `ESequence`
 export
-genLet : Line -> (newVar : ErlName) -> ErlExpr -> ErlExpr -> ErlExpr
-genLet l newVar varValue body = EApp l (ELam l [newVar] body) [varValue]
-
-export
-genSequence : Line -> (exprs : List ErlExpr) -> {auto prf : NonEmpty exprs} -> ErlExpr
-genSequence l [lastExpr] = lastExpr
-genSequence l (expr1 :: expr2 :: restExpr) =
-  let unusedVar = MkVar "_Unused"
-  in genLet l unusedVar expr1 (genSequence l (expr2 :: restExpr))
+genSequence : {auto lv : Ref LV LocalVars} -> Line -> (exprs : List ErlExpr) -> {auto prf : NonEmpty exprs} -> Core ErlExpr
+genSequence l [lastExpr] = pure lastExpr
+genSequence l (expr1 :: expr2 :: restExpr) = do
+  unusedVar <- newLocalVar
+  pure $ genLet l unusedVar expr1 !(genSequence l (expr2 :: restExpr))
+  where
+    genLet : Line -> (newVar : LocalVar) -> ErlExpr -> ErlExpr -> ErlExpr
+    genLet l newVar varValue body = EApp l (ELam l [newVar] body) [varValue]
 
 export
 genList : Line -> List ErlExpr -> ErlExpr
@@ -105,16 +138,6 @@ export
 genThrow : Line -> String -> ErlExpr
 genThrow l msg =
   genFunCall l "erlang" "throw" [ECharlist l msg]
-
-export
-genTryCatch : Line -> ErlExpr -> ErlExpr
-genTryCatch l body =
-  -- TODO: Is it safe to use hard-coded variable names in this case?
-  let okVar = MkVar "Ok"
-      errorVar = MkVar "Error"
-      okExpr = genRight l (ELocal l okVar)
-      errorExpr = genLeft l (ELocal l errorVar)
-  in ETryCatch l body okVar okExpr errorVar errorExpr
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr -> ErlExpr
@@ -129,7 +152,7 @@ genAtomToString l expr =
 
 -- TODO: Replace with `map (ELocal l)`
 export
-genArgsToLocals : Line -> (args : List ErlName) -> List ErlExpr
+genArgsToLocals : Line -> (args : List LocalVar) -> List ErlExpr
 genArgsToLocals l [] = []
 genArgsToLocals l (n :: ns) = ELocal l n :: genArgsToLocals l ns
 
@@ -146,15 +169,14 @@ genAppCurriedFun l body (x :: xs) = genAppCurriedFun l (EApp l body [x]) xs
 -- fun(V0) -> fun(V1) -> Transform(UncurriedFun(V0, V1)) end end
 -- ```
 export
-genCurry : Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> (uncurriedFun : ErlExpr) -> ErlExpr
+genCurry : {auto lv : Ref LV LocalVars} -> Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> (uncurriedFun : ErlExpr) -> Core ErlExpr
 genCurry l arity transform uncurriedFun = curry l arity transform uncurriedFun []
   where
-    curry : Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> ErlExpr -> List ErlExpr -> ErlExpr
-    curry l Z transform body args = transform (EApp l body (reverse args))
-    curry l (S k) transform body args =
-      -- TODO: Is it safe to use hard-coded variable in this case?
-      let newVar = MkVar ("X" ++ show k)
-      in ELam l [newVar] (curry l k transform body (ELocal l newVar :: args))
+    curry : Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> ErlExpr -> List ErlExpr -> Core ErlExpr
+    curry l Z transform body args = pure $ transform (EApp l body (reverse args))
+    curry l (S k) transform body args = do
+      newVar <- newLocalVar
+      pure $ ELam l [newVar] !(curry l k transform body (ELocal l newVar :: args))
 
 -- Create an uncurried function from a curried function of a given arity.
 -- The transform function is applied to the inner result.
@@ -164,18 +186,18 @@ genCurry l arity transform uncurriedFun = curry l arity transform uncurriedFun [
 -- fun(V0, V1) -> Transform((CurriedFun(V0))(V1)) end
 -- ```
 export
-genUncurry : Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> (curriedFun : ErlExpr) -> ErlExpr
-genUncurry l arity transform curriedFun =
-  let args = map (\i => MkVar ("X" ++ show i)) (natRange arity)
-  in ELam l args (transform (genAppCurriedFun l curriedFun (genArgsToLocals l args)))
+genUncurry : {auto lv : Ref LV LocalVars} -> Line -> (arity : Nat) -> (transform : ErlExpr -> ErlExpr) -> (curriedFun : ErlExpr) -> Core ErlExpr
+genUncurry l arity transform curriedFun = do
+  vars <- newLocalVars arity
+  pure $ ELam l vars (transform (genAppCurriedFun l curriedFun (genArgsToLocals l vars)))
 
 export
-genEscriptMain : Line -> (args : ErlExpr) -> (body : ErlExpr) -> ErlExpr
-genEscriptMain l args body =
+genEscriptMain : {auto lv : Ref LV LocalVars} -> Line -> (args : ErlExpr) -> (body : ErlExpr) -> Core ErlExpr
+genEscriptMain l args body = do
   let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", args]
-      createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
-      setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
-  in genSequence l
+  let createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
+  let setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
+  genSequence l
       [ saveArgsCall
       , createEtsCall
       , setEncodingCall
@@ -183,19 +205,18 @@ genEscriptMain l args body =
       ]
 
 export
-genErlMain : Line -> (body : ErlExpr) -> ErlExpr
-genErlMain l body =
+genErlMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
+genErlMain l body = do
   let processFlagCall = genFunCall l "erlang" "process_flag" [EAtom l "trap_exit", EAtom l "false"]
-      getArgsCall = genFunCall l "init" "get_plain_arguments" []
-      okVar = MkVar "Ok"
-      errorVar = MkVar "Error"
-      mainProgram =
-        genSequence l
-          [ processFlagCall
-          , genEscriptMain l getArgsCall body
-          , genHalt l 0
-          ]
-  in ETryCatch l mainProgram okVar (ELocal l okVar) errorVar (genSequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
+  let getArgsCall = genFunCall l "init" "get_plain_arguments" []
+  okVar <- newLocalVar
+  errorVar <- newLocalVar
+  mainProgram <- genSequence l
+    [ processFlagCall
+    , !(genEscriptMain l getArgsCall body)
+    , genHalt l 0
+    ]
+  pure $ ETryCatch l mainProgram okVar (ELocal l okVar) errorVar !(genSequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
   where
     genHalt : Line -> (errorCode : Integer) -> ErlExpr
     genHalt l errorCode = genFunCall l "erlang" "halt" [EInteger l errorCode]
@@ -206,10 +227,9 @@ genErlMain l body =
 export
 genBoolToInt : Line -> ErlExpr -> ErlExpr
 genBoolToInt l expr =
-  let unusedVar = MkVar "_Unused"
-  in EMatcherCase l
+  EMatcherCase l
     expr
-    [ MTransform (MExact (EAtom l "false")) unusedVar (EInteger l 0)
+    [ MConst (MExact (EAtom l "false")) (EInteger l 0)
     ]
     (EInteger l 1)
 
@@ -384,7 +404,6 @@ genDoubleToString l double =
 
 -- CAST: Char -> *
 
-
 -- A codepoint is represented by an integer between 0x0 and 0x10FFFF.
 -- Return "replacement character" (0xFFFD) if character is not recognized.
 -- https://en.wikipedia.org/wiki/Specials_(Unicode_block)
@@ -407,31 +426,35 @@ genCharToString l char =
 -- CAST: String -> *
 
 export
-genStringToInteger : Line -> ErlExpr -> ErlExpr
-genStringToInteger l str =
-  -- TODO: Is it safe to use hard-coded variable names in this case?
+genStringToInteger : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> Core ErlExpr
+genStringToInteger l str = do
+  integerVar <- newLocalVar
+  restVar <- newLocalVar
   let toIntegerCall = genFunCall l "string" "to_integer" [str]
-  in EMatcherCase l toIntegerCall
-      [ MTuple ((::) {newVar=MkVar "X1"} MInteger ((::) {newVar=MkVar "X2"} MNil Nil)) (ELocal l (MkVar "X1"))
+  pure $ EMatcherCase l toIntegerCall
+      [ MTuple ((::) {newVar=integerVar} MInteger ((::) {newVar=restVar} MNil Nil)) (ELocal l integerVar)
       ]
       (EInteger l 0)
 
 export
-genStringToInt : Line -> ErlExpr -> ErlExpr
+genStringToInt : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> Core ErlExpr
 genStringToInt l str =
   genStringToInteger l str
 
 -- Try to convert String to Double
 -- If it fails; try to convert String to Integer to Double
 export
-genStringToDouble : Line -> ErlExpr -> ErlExpr
-genStringToDouble l str =
-  -- TODO: Is it safe to use hard-coded variable names in this case?
+genStringToDouble : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> Core ErlExpr
+genStringToDouble l str = do
+  errorAtomVar <- newLocalVar
+  noFloatAtomVar <- newLocalVar
+  floatVar <- newLocalVar
+  restVar <- newLocalVar
   let toFloatCall = genFunCall l "string" "to_float" [str]
-  in EMatcherCase l toFloatCall
-      [ MTuple ((::) {newVar=MkVar "X1"} (MExact (EAtom l "error")) ((::) {newVar=MkVar "X2"} (MExact (EAtom l "no_float")) Nil))
-          (genFunCall l "erlang" "float" [genStringToInteger l str])
-      , MTuple ((::) {newVar=MkVar "X1"} MFloat ((::) {newVar=MkVar "X2"} MNil Nil)) (ELocal l (MkVar "X1"))
+  pure $ EMatcherCase l toFloatCall
+      [ MTuple ((::) {newVar=errorAtomVar} (MExact (EAtom l "error")) ((::) {newVar=noFloatAtomVar} (MExact (EAtom l "no_float")) Nil))
+          (genFunCall l "erlang" "float" [!(genStringToInteger l str)])
+      , MTuple ((::) {newVar=floatVar} MFloat ((::) {newVar=restVar} MNil Nil)) (ELocal l floatVar)
       ]
       (EFloat l 0)
 

@@ -38,8 +38,6 @@ getNamespace : Name -> Namespace
 getNamespace (NS ns _) = ns
 getNamespace n = []
 
--- TODO: Make private
-export
 genName : Name -> String
 genName (NS ns n) = "ns--" ++ showSep "-" ns ++ "--" ++ genName n
 genName (UN n) = "un--" ++ n
