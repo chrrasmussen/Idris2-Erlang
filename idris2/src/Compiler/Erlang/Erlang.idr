@@ -34,9 +34,6 @@ import System.Info
 findErlangExecutable : IO String
 findErlangExecutable = pure "erl"
 
-findEscript : IO String
-findEscript = pure "escript"
-
 escapeCmd : List String -> String
 escapeCmd components = unwords (map escapeComponent components)
   where
@@ -45,6 +42,10 @@ escapeCmd components = unwords (map escapeComponent components)
     escapeChar c    = cast c
     escapeComponent : String -> String
     escapeComponent component = "'" ++ concat (map escapeChar (unpack component)) ++ "'"
+
+runProgramCmd : (erl : String) -> (buildDir : String) -> (modName : String) -> String
+runProgramCmd erl buildDir modName =
+  escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-pa", buildDir, "-run", modName]
 
 evalErlangCmd : (erl : String) -> (code : String) -> String
 evalErlangCmd erl code =
@@ -176,8 +177,9 @@ namespace MainEntrypoint
     let namespaceInfo = MkNamespaceInfo (Concat modName)
     mainBody <- genNmExp namespaceInfo (forget (mainExpr compileData))
     let argsVar = MkVar "Args"
-    let mainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genMainInit 4242 argsVar mainBody)
-    let validCompdefs = (namespaceInfo, mainFunDecl) :: mapMaybe id compdefs
+    let erlMainFunDecl = MkFunDecl 4242 Public "start" [] (genErlMain 4242 mainBody)
+    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 (ELocal 4242 argsVar) mainBody)
+    let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts [] outdir) modules
     pure (map (currentModuleName . fst) modules)
@@ -373,11 +375,8 @@ executeExpr c execDir tm = do
   let outfile = execDir ++ dirSep ++ modName
   let compiledFile = modName ++ ".beam"
   MainEntrypoint.build (record { outputFormat = Beam, generateAsLibrary = False } defaultOpts) tm execDir outfile
-  escript <- coreLift $ findEscript
-  cwd <- coreLift $ map (fromMaybe ".") currentDir -- TODO: Can `currentDir` really be `Maybe`?
-  coreLift $ changeDir execDir
-  coreLift $ system (escript ++ " " ++ quoted compiledFile) -- TODO: Replace `escript`
-  coreLift $ changeDir cwd
+  erl <- coreLift $ findErlangExecutable
+  coreLift $ system (runProgramCmd erl execDir modName)
   pure ()
 
 export

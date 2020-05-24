@@ -170,17 +170,35 @@ genUncurry l arity transform curriedFun =
   in ELam l args (transform (genAppCurriedFun l curriedFun (genArgsToLocals l args)))
 
 export
-genMainInit : Line -> (argsVar : ErlName) -> ErlExpr -> ErlExpr
-genMainInit l argsVar expr =
-  let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", ELocal l argsVar]
+genEscriptMain : Line -> (args : ErlExpr) -> (body : ErlExpr) -> ErlExpr
+genEscriptMain l args body =
+  let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", args]
       createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
       setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
   in genSequence l
       [ saveArgsCall
       , createEtsCall
       , setEncodingCall
-      , expr
+      , body
       ]
+
+export
+genErlMain : Line -> (body : ErlExpr) -> ErlExpr
+genErlMain l body =
+  let processFlagCall = genFunCall l "erlang" "process_flag" [EAtom l "trap_exit", EAtom l "false"]
+      getArgsCall = genFunCall l "init" "get_plain_arguments" []
+      okVar = MkVar "Ok"
+      errorVar = MkVar "Error"
+      mainProgram =
+        genSequence l
+          [ processFlagCall
+          , genEscriptMain l getArgsCall body
+          , genHalt l 0
+          ]
+  in ETryCatch l mainProgram okVar (ELocal l okVar) errorVar (genSequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
+  where
+    genHalt : Line -> (errorCode : Integer) -> ErlExpr
+    genHalt l errorCode = genFunCall l "erlang" "halt" [EInteger l errorCode]
 
 
 -- BOOLEANS
