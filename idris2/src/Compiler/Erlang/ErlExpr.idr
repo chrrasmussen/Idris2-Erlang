@@ -81,7 +81,7 @@ mutual
     EConstCase : Line -> (sc : ErlExpr) -> List ErlConstAlt -> (def : ErlExpr) -> ErlExpr
     EMatcherCase : Line -> (sc : ErlExpr) -> List ErlMatcher -> (def : ErlExpr) -> ErlExpr
     EReceive : Line -> List ErlMatcher -> (timeout : ErlExpr) -> (def : ErlExpr) -> ErlExpr
-    ETryCatch : Line -> ErlExpr -> (okVar : LocalVar) -> ErlExpr -> (errorVar : LocalVar) -> ErlExpr -> ErlExpr
+    ETryCatch : Line -> (tryExpr : ErlExpr) -> (okVar : LocalVar) -> (okExpr : ErlExpr) -> (errorVar : LocalVar) -> (errorExpr : ErlExpr) -> ErlExpr
 
     EIdrisConstant : Line -> IdrisConstant -> ErlExpr
     EAtom : Line -> String -> ErlExpr
@@ -184,10 +184,6 @@ record MatcherClause where
   body : Expr
   preComputedValues : List (LocalVar, Expr)
 
-wrapImmediatelyInvokedFunExpr : Line -> Expr -> Expr
-wrapImmediatelyInvokedFunExpr l body =
-  AEFunCall l (AEFun l 0 [MkFunClause l [] [] [body]]) []
-
 wrapPreComputedValues : Line -> List (LocalVar, Expr) -> Expr -> Expr
 wrapPreComputedValues l preComputedValues body =
   let letBindings = map toLet preComputedValues
@@ -258,51 +254,47 @@ mutual
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let caseExpr = AECase l !(genErlExpr sc) (toNonEmptyClauses (map fst generatedClauses) defClause)
     pure $ wrapPreComputedValues l (concatMap snd generatedClauses) caseExpr
-  -- EReceive generates the following code. This is necessary to avoid leaking variables from the case clauses.
+  -- EReceive generates the following code.
   --
-  -- If matchers contain `MExact` or `MMapSubset`, the below expression is wrapped in immediately invoked function
-  -- expressions to put new variables in scope.
+  -- If matchers contain `MExact` or `MMapSubset`, the values will be pre-computed to allow
+  -- the case expression to refer to existing bindings.
   --
   -- ```
-  -- fun() ->
-  --   receive
-  --     `matchers`
-  --   after
-  --     `timeout` ->
-  --       `def`
-  --   end
-  -- end()
+  -- receive
+  --   `matchers`
+  -- after
+  --   `timeout` ->
+  --     `def`
+  -- end
   -- ```
   genErlExpr (EReceive l matchers timeout def) = do
     let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
-    let receiveExpr = wrapImmediatelyInvokedFunExpr l $ AEReceive l (map fst generatedClauses) defClause
+    let receiveExpr = AEReceive l (map fst generatedClauses) defClause
     pure $ wrapPreComputedValues l (concatMap snd generatedClauses) receiveExpr
-  -- ETryCatch generates the following code. This is necessary to avoid leaking variables from the case/catch clauses.
+  -- ETryCatch generates the following code.
   --
   -- ```
-  -- fun
-  --   ({ok, Value}) -> `okFun`(Value);
-  --   ({error, Error}) -> `errorFun`(Error)
-  -- end(
-  --   fun() ->
-  --     try `expr` of
-  --       Value -> {ok, Value}
-  --     catch
-  --       Class:Reason:Stacktrace -> {error, {Class, Reason, Stacktrace}}
-  --     end
-  --   end()
-  -- )
+  -- try `tryExpr` of
+  --   `okVar` ->
+  --     `okExpr`
+  -- catch
+  --   Class:Reason:Stacktrace ->
+  --     `errorVar` = {Class, Reason, Stacktrace},
+  --     `errorExpr`
+  -- end
   -- ```
-  genErlExpr (ETryCatch l expr okVar okFun errorVar errorFun) = do
-    let tryCaseClause = MkCaseClause l (APVar l "Value") [] [AETuple l [AELiteral (ALAtom l "ok"), AEVar l "Value"]]
-    let tryCatchClause = MkCatchClause l (APVar l "Class") (APVar l "Reason") (APVar l "Stacktrace") [] [AETuple l [AELiteral (ALAtom l "error"), AETuple l [AEVar l "Class", AEVar l "Reason", AEVar l "Stacktrace"]]]
-    let tryResult = wrapImmediatelyInvokedFunExpr l $ AETry l [!(genErlExpr expr)] [tryCaseClause] [tryCatchClause] []
-    let okBody = AEFun l 1 [MkFunClause l [APVar l (show okVar)] [] [!(genErlExpr okFun)]]
-    let errorBody = AEFun l 1 [MkFunClause l [APVar l (show errorVar)] [] [!(genErlExpr errorFun)]]
-    let okClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "ok"), APVar l "Value"]] [] [AEFunCall l okBody [AEVar l "Value"]]
-    let errorClause = MkFunClause l [APTuple l [APLiteral (ALAtom l "error"), APVar l "Error"]] [] [AEFunCall l errorBody [AEVar l "Error"]]
-    pure $ AEFunCall l (AEFun l 1 [okClause, errorClause]) [tryResult]
+  genErlExpr (ETryCatch l tryExpr okVar okExpr errorVar errorExpr) = do
+    exClassVar <- newLocalVar
+    exReasonVar <- newLocalVar
+    exStacktraceVar <- newLocalVar
+    let exceptionValue = AETuple l [AEVar l (show exClassVar), AEVar l (show exReasonVar), AEVar l (show exStacktraceVar)]
+    let tryCaseClause = MkCaseClause l (APVar l (show okVar)) [] [!(genErlExpr okExpr)]
+    let tryCatchClause = MkCatchClause l (APVar l (show exClassVar)) (APVar l (show exReasonVar)) (APVar l (show exStacktraceVar)) []
+          [ AEMatch l (APVar l (show errorVar)) exceptionValue
+          , !(genErlExpr errorExpr)
+          ]
+    pure $ AETry l [!(genErlExpr tryExpr)] [tryCaseClause] [tryCatchClause] []
   genErlExpr (EIdrisConstant l x) =
     pure $ genIdrisConstant l (genBinary l) AELiteral x
   genErlExpr (EAtom l x) =
