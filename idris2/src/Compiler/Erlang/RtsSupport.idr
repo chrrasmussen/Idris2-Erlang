@@ -33,12 +33,18 @@ newLocalVars (S k) = do
   pure (newVar :: vars)
 
 export
+addLocalVar : {auto lv : Ref LV LocalVars} -> (varName : Name) -> NameMap LocalVar -> Core (NameMap LocalVar, LocalVar)
+addLocalVar varName vs = do
+  newVar <- newLocalVar
+  pure (insert varName newVar vs, newVar)
+
+export
 addLocalVars : {auto lv : Ref LV LocalVars} -> (args : List Name) -> NameMap LocalVar -> Core (NameMap LocalVar, List LocalVar)
 addLocalVars [] vs = pure (vs, [])
 addLocalVars (n :: ns) vs = do
-  newVar <- newLocalVar
-  (vs', vars) <- addLocalVars ns (insert n newVar vs)
-  pure (vs', newVar :: vars)
+  (vs', newVar) <- addLocalVar n vs
+  (vs'', vars) <- addLocalVars ns vs'
+  pure (vs'', newVar :: vars)
 
 
 -- MISC

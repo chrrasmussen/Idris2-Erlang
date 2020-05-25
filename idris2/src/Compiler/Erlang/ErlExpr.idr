@@ -72,6 +72,7 @@ mutual
     ELocal : Line -> LocalVar -> ErlExpr
     ERef : Line -> (modName : ErlExpr) -> (fnName : ErlExpr) -> ErlExpr
     ELam : Line -> (args : List LocalVar) -> ErlExpr -> ErlExpr
+    ELet : Line -> (newVar : LocalVar) -> (value : ErlExpr) -> (body : ErlExpr) -> ErlExpr
     EApp : Line -> ErlExpr -> List ErlExpr -> ErlExpr
     EOp : Line -> (op : String) -> (lhs : ErlExpr) -> (rhs : ErlExpr) -> ErlExpr
     ECon : Line -> (name : String) -> List ErlExpr -> ErlExpr
@@ -234,6 +235,14 @@ mutual
     let varNames = varsToVarNames args
     body' <- genErlExpr body
     pure $ AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [body']]
+  genErlExpr (ELet l newVar value body) = do
+    let varName = show newVar
+    value' <- genErlExpr value
+    body' <- genErlExpr body
+    pure $ AEBlock l
+      [ AEMatch l (APVar l varName) value'
+      , body'
+      ]
   genErlExpr (EApp l expr args) = do
     expr' <- genErlExpr expr
     args' <- assert_total $ traverse genErlExpr args

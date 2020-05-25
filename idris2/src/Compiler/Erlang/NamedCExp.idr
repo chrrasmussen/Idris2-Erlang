@@ -410,9 +410,9 @@ mutual
   genNmExp namespaceInfo vs (NmLet fc x val body) = do
     let l = genFC fc
     val' <- genNmExp namespaceInfo vs val
-    (vs', vars) <- addLocalVars [x] vs
+    (vs', xVar) <- addLocalVar x vs
     body' <- genNmExp namespaceInfo vs' body
-    pure $ EApp l (ELam l vars body') [val']
+    pure $ ELet l xVar val' body'
   genNmExp namespaceInfo vs (NmApp fc x args) = do
     let l = genFC fc
     pure $ EApp l !(genNmExp namespaceInfo vs x) !(traverse (genNmExp namespaceInfo vs) args)
