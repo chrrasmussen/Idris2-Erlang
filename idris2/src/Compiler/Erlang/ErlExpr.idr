@@ -125,25 +125,13 @@ mutual
     MAnyList      : ErlMatcher
     MNil          : ErlMatcher
     MCons         : ErlMatcher -> ErlMatcher -> (hdVar : LocalVar) -> (tlVar : LocalVar) -> ErlExpr -> ErlMatcher
-    MList         : ErlMatchers -> ErlExpr -> ErlMatcher
-    MTuple        : ErlMatchers -> ErlExpr -> ErlMatcher
-    MTaggedTuple  : String -> ErlMatchers -> ErlExpr -> ErlMatcher
-    MMapSubset    : {args : List LocalVar} -> ErlMapEntryMatchers -> ErlExpr -> ErlMatcher
+    MList         : List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
+    MTuple        : List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
+    MTaggedTuple  : String -> List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
+    MMapSubset    : List (LocalVar, ErlExpr, ErlMatcher) -> ErlExpr -> ErlMatcher
     MFun          : (arity : Nat) -> ErlMatcher
     MTransform    : ErlMatcher -> (newVar : LocalVar) -> ErlExpr -> ErlMatcher
     MConst        : ErlMatcher -> ErlExpr -> ErlMatcher
-
-  namespace ErlMatchers
-    public export
-    data ErlMatchers : Type where
-      Nil : ErlMatchers
-      (::) : {newVar : LocalVar} -> ErlMatcher -> ErlMatchers -> ErlMatchers
-
-  namespace ErlMapEntryMatchers
-    public export
-    data ErlMapEntryMatchers : Type where
-      Nil : ErlMapEntryMatchers
-      (::) : {newVar : LocalVar} -> (ErlExpr, ErlMatcher) -> ErlMapEntryMatchers -> ErlMapEntryMatchers
 
 public export
 data ErlModuleName : Type where
@@ -449,14 +437,16 @@ mutual
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
-  readErlMatcher l (MMapSubset {args} matchers fun) = do
-    clauses <- readErlMapEntryMatchers l matchers
+  readErlMatcher l (MMapSubset matchers fun) = do
+    erlMatchers <- readErlMapEntryMatchers l matchers
+    let args = map fst erlMatchers
+    let clauses = map snd erlMatchers
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
-    let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) clauses)
-    let guard = foldl (\acc, (keyVar, clause) => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
-    let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) clauses)
-    pure $ MkMatcherClause pattern guard body (concat (map (globals . snd) clauses))
+    let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) erlMatchers)
+    let guard = foldl (\acc, (keyVar, clause) => AGOp l "andalso" (guard clause) acc) (trueGuard l) erlMatchers
+    let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) erlMatchers)
+    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
   readErlMatcher l (MFun arity) = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
@@ -485,24 +475,22 @@ mutual
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
 
-  readErlMatchers : Line -> ErlMatchers -> State LocalVars (List (LocalVar, MatcherClause))
-  readErlMatchers l [] =
-    pure []
-  readErlMatchers l ((::) {newVar} x xs) = do
-    xClause <- readErlMatcher l x
+  readErlMatchers : Line -> List (LocalVar, ErlMatcher) -> State LocalVars (List (LocalVar, MatcherClause))
+  readErlMatchers l [] = pure []
+  readErlMatchers l ((matcherVar, matcher) :: xs) = do
+    xClause <- readErlMatcher l matcher
     xsClauses <- readErlMatchers l xs
-    pure ((newVar, xClause) :: xsClauses)
+    pure ((matcherVar, xClause) :: xsClauses)
 
-  readErlMapEntryMatchers : Line -> ErlMapEntryMatchers -> State LocalVars (List (LocalVar, MatcherClause))
-  readErlMapEntryMatchers l [] =
-    pure []
-  readErlMapEntryMatchers l ((key, matcher) :: xs) = do
+  readErlMapEntryMatchers : Line -> List (LocalVar, ErlExpr, ErlMatcher) -> State LocalVars (List (LocalVar, MatcherClause))
+  readErlMapEntryMatchers l [] = pure []
+  readErlMapEntryMatchers l ((matcherVar, key, matcher) :: xs) = do
     keyVar <- addLocalVar
     keyValue <- genErlExpr key
     xClause <- readErlMatcher l matcher
     let xClause' = record { globals $= ((keyVar, keyValue) ::) } xClause
     xsClauses <- readErlMapEntryMatchers l xs
-    pure ((keyVar, xClause') :: xsClauses)
+    pure ((matcherVar, xClause') :: xsClauses)
 
 genCompileAttr : Line -> PrimTerm -> Decl
 genCompileAttr l primTerm = ADAttribute l "compile" primTerm

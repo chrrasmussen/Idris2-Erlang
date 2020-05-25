@@ -429,7 +429,7 @@ genStringToInteger l str = do
   let toIntegerCall = genFunCall l "string" "to_integer" [str]
   pure $ EMatcherCase l
       toIntegerCall
-      [ MTuple ((::) {newVar=integerVar} MInteger ((::) {newVar=restVar} MAny Nil))
+      [ MTuple [(integerVar, MInteger), (restVar, MAny)]
           (EMatcherCase l
             (genFunCall l "string" "is_empty" [ELocal l restVar])
             [ MConst (MExact (EAtom l "true")) (ELocal l integerVar)
@@ -455,9 +455,9 @@ genStringToDouble l str = do
   let toFloatCall = genFunCall l "string" "to_float" [str]
   pure $ EMatcherCase l
       toFloatCall
-      [ MTuple ((::) {newVar=errorAtomVar} (MExact (EAtom l "error")) ((::) {newVar=noFloatAtomVar} (MExact (EAtom l "no_float")) Nil))
+      [ MTuple [(errorAtomVar, MExact (EAtom l "error")), (noFloatAtomVar, MExact (EAtom l "no_float"))]
           (genFunCall l "erlang" "float" [!(genStringToInteger l str)])
-      , MTuple ((::) {newVar=floatVar} MFloat ((::) {newVar=restVar} MAny Nil))
+      , MTuple [(floatVar, MFloat), (restVar, MAny)]
           (EMatcherCase l
             (genFunCall l "string" "is_empty" [ELocal l restVar])
             [ MConst (MExact (EAtom l "true")) (ELocal l floatVar)

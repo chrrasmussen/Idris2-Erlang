@@ -172,9 +172,8 @@ genCon namespaceInfo l name args =
 
 -- DATA DECONSTRUCTORS
 
-argsToErlMatchers : (args : List LocalVar) -> ErlMatchers
-argsToErlMatchers [] = []
-argsToErlMatchers (x :: xs) = (::) {newVar=x} MAny (argsToErlMatchers xs)
+argsToErlMatchers : (args : List LocalVar) -> List (LocalVar, ErlMatcher)
+argsToErlMatchers xs = map (\arg => (arg, MAny)) xs
 
 readConAltFun : {auto lv : Ref LV LocalVars} -> Line -> (arity : Nat) -> (funVar : LocalVar) -> ErlExpr -> (transform : ErlExpr -> ErlExpr) -> Core ErlMatcher
 readConAltFun l arity funVar body transform = do
@@ -271,6 +270,11 @@ genDecode l term matcher = do
     ]
     (genNothing l)
 
+genDecodeTuple : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> (arity : Nat) -> Core ErlExpr
+genDecodeTuple l term arity = do
+  args <- newLocalVars arity
+  genDecode l term $ MTuple (argsToErlMatchers args) (ETuple l (map (ELocal l) args))
+
 genExtPrim : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
 genExtPrim namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
@@ -327,32 +331,17 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeCons")) [term] = do
   tlVar <- newLocalVar
   genDecode l term $ MCons MAny MAny hdVar tlVar (ECons l (ELocal l hdVar) (ELocal l tlVar))
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple0")) [term] =
-  genDecode l term $ MTuple [] (ETuple l [])
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple1")) [term] = do
-  x1Var <- newLocalVar
-  genDecode l term $ MTuple ((::) {newVar=x1Var} MAny Nil) (ETuple l [ELocal l x1Var])
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple2")) [term] = do
-  x1Var <- newLocalVar
-  x2Var <- newLocalVar
-  genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny Nil)) (ETuple l [ELocal l x1Var, ELocal l x2Var])
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple3")) [term] = do
-  x1Var <- newLocalVar
-  x2Var <- newLocalVar
-  x3Var <- newLocalVar
-  genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny Nil))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var])
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple4")) [term] = do
-  x1Var <- newLocalVar
-  x2Var <- newLocalVar
-  x3Var <- newLocalVar
-  x4Var <- newLocalVar
-  genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny ((::) {newVar=x4Var} MAny Nil)))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var, ELocal l x4Var])
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple5")) [term] = do
-  x1Var <- newLocalVar
-  x2Var <- newLocalVar
-  x3Var <- newLocalVar
-  x4Var <- newLocalVar
-  x5Var <- newLocalVar
-  genDecode l term $ MTuple ((::) {newVar=x1Var} MAny ((::) {newVar=x2Var} MAny ((::) {newVar=x3Var} MAny ((::) {newVar=x4Var} MAny ((::) {newVar=x5Var} MAny Nil))))) (ETuple l [ELocal l x1Var, ELocal l x2Var, ELocal l x3Var, ELocal l x4Var, ELocal l x5Var])
+  genDecodeTuple l term 0
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple1")) [term] =
+  genDecodeTuple l term 1
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple2")) [term] =
+  genDecodeTuple l term 2
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple3")) [term] =
+  genDecodeTuple l term 3
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple4")) [term] =
+  genDecodeTuple l term 4
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple5")) [term] =
+  genDecodeTuple l term 5
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun0")) [term] =
   genDecode l term (MFun 0)
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun1")) [_, term] =
