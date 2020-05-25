@@ -182,15 +182,15 @@ record MatcherClause where
   pattern : Pattern
   guard : Guard
   body : Expr
-  globals : List (LocalVar, Expr)
+  preComputedValues : List (LocalVar, Expr)
 
 wrapImmediatelyInvokedFunExpr : Line -> Expr -> Expr
 wrapImmediatelyInvokedFunExpr l body =
   AEFunCall l (AEFun l 0 [MkFunClause l [] [] [body]]) []
 
-wrapGlobals : Line -> List (LocalVar, Expr) -> Expr -> Expr
-wrapGlobals l globals body =
-  let letBindings = map toLet globals
+wrapPreComputedValues : Line -> List (LocalVar, Expr) -> Expr -> Expr
+wrapPreComputedValues l preComputedValues body =
+  let letBindings = map toLet preComputedValues
   in AEBlock {k=length letBindings} l (rewrite sym (plusCommutative (length letBindings) 1) in fromList letBindings ++ [body])
   where
     toLet : (LocalVar, Expr) -> Expr
@@ -257,7 +257,7 @@ mutual
     let defClause = MkCaseClause l (APUniversal l) [] [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let caseExpr = AECase l !(genErlExpr sc) (toNonEmptyClauses (map fst generatedClauses) defClause)
-    pure $ wrapGlobals l (concatMap snd generatedClauses) caseExpr
+    pure $ wrapPreComputedValues l (concatMap snd generatedClauses) caseExpr
   -- EReceive generates the following code. This is necessary to avoid leaking variables from the case clauses.
   --
   -- If matchers contain `MExact` or `MMapSubset`, the below expression is wrapped in immediately invoked function
@@ -277,7 +277,7 @@ mutual
     let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let receiveExpr = wrapImmediatelyInvokedFunExpr l $ AEReceive l (map fst generatedClauses) defClause
-    pure $ wrapGlobals l (concatMap snd generatedClauses) receiveExpr
+    pure $ wrapPreComputedValues l (concatMap snd generatedClauses) receiveExpr
   -- ETryCatch generates the following code. This is necessary to avoid leaking variables from the case/catch clauses.
   --
   -- ```
@@ -357,7 +357,7 @@ mutual
   genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
   genErlMatcher l matcher = do
     clause <- readErlMatcher l matcher
-    pure (MkCaseClause l (pattern clause) [MkGuardAlt [guard clause]] [body clause], globals clause)
+    pure (MkCaseClause l (pattern clause) [MkGuardAlt [guard clause]] [body clause], preComputedValues clause)
 
   readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
   readErlMatcher l (MExact expr) = do
@@ -406,7 +406,7 @@ mutual
     let pattern = APCons l (pattern xClause) (pattern yClause)
     let guard = AGOp l "andalso" (guard xClause) (guard yClause)
     let body = AEFunCall l wrappedFun [body xClause, body yClause]
-    pure $ MkMatcherClause pattern guard body (globals xClause ++ globals yClause)
+    pure $ MkMatcherClause pattern guard body (preComputedValues xClause ++ preComputedValues yClause)
   readErlMatcher l (MList matchers fun) = do
     erlMatchers <- readErlMatchers l matchers
     let args = map fst erlMatchers
@@ -416,7 +416,7 @@ mutual
     let pattern = foldr (\clause, acc => APCons l (pattern clause) acc) (APNil l) clauses
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
-    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
+    pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MTuple matchers fun) = do
     erlMatchers <- readErlMatchers l matchers
     let args = map fst erlMatchers
@@ -426,7 +426,7 @@ mutual
     let pattern = APTuple l (map pattern clauses)
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
-    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
+    pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MTaggedTuple tag matchers fun) = do
     erlMatchers <- readErlMatchers l matchers
     let args = map fst erlMatchers
@@ -436,7 +436,7 @@ mutual
     let pattern = APTuple l (APLiteral (ALAtom l tag) :: map pattern clauses)
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
-    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
+    pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MMapSubset matchers fun) = do
     erlMatchers <- readErlMapEntryMatchers l matchers
     let args = map fst erlMatchers
@@ -446,7 +446,7 @@ mutual
     let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) erlMatchers)
     let guard = foldl (\acc, (keyVar, clause) => AGOp l "andalso" (guard clause) acc) (trueGuard l) erlMatchers
     let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) erlMatchers)
-    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
+    pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MFun arity) = do
     localVar <- addLocalVar
     let pattern = APVar l (show localVar)
@@ -459,13 +459,13 @@ mutual
     let guard = guard xClause
     let funClause = MkFunClause l [APVar l (show xVar)] [] [!(genErlExpr fun)]
     let body = AEFunCall l (AEFun l 1 [funClause]) [body xClause]
-    pure $ MkMatcherClause pattern guard body (globals xClause)
+    pure $ MkMatcherClause pattern guard body (preComputedValues xClause)
   readErlMatcher l (MConst x body) = do
     xClause <- readErlMatcher l x
     let pattern = pattern xClause
     let guard = guard xClause
     let body = !(genErlExpr body)
-    pure $ MkMatcherClause pattern guard body (globals xClause)
+    pure $ MkMatcherClause pattern guard body (preComputedValues xClause)
 
   readSimpleGuardMatcherClause : Line -> (fnName : String) -> State LocalVars MatcherClause
   readSimpleGuardMatcherClause l fnName = do
@@ -488,7 +488,7 @@ mutual
     keyVar <- addLocalVar
     keyValue <- genErlExpr key
     xClause <- readErlMatcher l matcher
-    let xClause' = record { globals $= ((keyVar, keyValue) ::) } xClause
+    let xClause' = record { preComputedValues $= ((keyVar, keyValue) ::) } xClause
     xsClauses <- readErlMapEntryMatchers l xs
     pure ((matcherVar, xClause') :: xsClauses)
 
