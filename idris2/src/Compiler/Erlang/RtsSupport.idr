@@ -427,8 +427,14 @@ genStringToInteger l str = do
   integerVar <- newLocalVar
   restVar <- newLocalVar
   let toIntegerCall = genFunCall l "string" "to_integer" [str]
-  pure $ EMatcherCase l toIntegerCall
-      [ MTuple ((::) {newVar=integerVar} MInteger ((::) {newVar=restVar} MNil Nil)) (ELocal l integerVar)
+  pure $ EMatcherCase l
+      toIntegerCall
+      [ MTuple ((::) {newVar=integerVar} MInteger ((::) {newVar=restVar} MAny Nil))
+          (EMatcherCase l
+            (genFunCall l "string" "is_empty" [ELocal l restVar])
+            [ MConst (MExact (EAtom l "true")) (ELocal l integerVar)
+            ]
+            (EInteger l 0))
       ]
       (EInteger l 0)
 
@@ -447,10 +453,16 @@ genStringToDouble l str = do
   floatVar <- newLocalVar
   restVar <- newLocalVar
   let toFloatCall = genFunCall l "string" "to_float" [str]
-  pure $ EMatcherCase l toFloatCall
+  pure $ EMatcherCase l
+      toFloatCall
       [ MTuple ((::) {newVar=errorAtomVar} (MExact (EAtom l "error")) ((::) {newVar=noFloatAtomVar} (MExact (EAtom l "no_float")) Nil))
           (genFunCall l "erlang" "float" [!(genStringToInteger l str)])
-      , MTuple ((::) {newVar=floatVar} MFloat ((::) {newVar=restVar} MNil Nil)) (ELocal l floatVar)
+      , MTuple ((::) {newVar=floatVar} MFloat ((::) {newVar=restVar} MAny Nil))
+          (EMatcherCase l
+            (genFunCall l "string" "is_empty" [ELocal l restVar])
+            [ MConst (MExact (EAtom l "true")) (ELocal l floatVar)
+            ]
+            (EFloat l 0))
       ]
       (EFloat l 0)
 
