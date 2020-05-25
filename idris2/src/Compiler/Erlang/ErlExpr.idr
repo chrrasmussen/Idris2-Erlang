@@ -182,9 +182,9 @@ varsToVarNames : (vars : List LocalVar) -> Vect (length vars) String
 varsToVarNames [] = []
 varsToVarNames (x :: xs) = show x :: varsToVarNames xs
 
-toNonEmptyFunClauses : (clauses : List (FunClause arity)) -> (def : FunClause arity) -> Vect (S (length clauses)) (FunClause arity)
-toNonEmptyFunClauses [] def = [def]
-toNonEmptyFunClauses (x :: xs) def = x :: toNonEmptyFunClauses xs def
+toNonEmptyClauses : (clauses : List a) -> (def : a) -> Vect (S (length clauses)) a
+toNonEmptyClauses [] def = [def]
+toNonEmptyClauses (x :: xs) def = x :: toNonEmptyClauses xs def
 
 trueGuard : Line -> Guard
 trueGuard l = AGLiteral (ALAtom l "true")
@@ -262,15 +262,14 @@ mutual
     exprs' <- assert_total $ traverse genErlExpr exprs
     pure $ AETuple l (AELiteral (ALAtom l name) :: exprs')
   genErlExpr (EConstCase l sc clauses def) = do
-    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr def)]
+    let defClause = MkCaseClause l (APUniversal l) [] [!(genErlExpr def)]
     generatedClauses <- assert_total $ traverse (genErlConstAlt l) clauses
-    let caseExpr = AEFun l 1 (toNonEmptyFunClauses generatedClauses defClause)
-    pure $  AEFunCall l caseExpr [!(genErlExpr sc)]
+    pure $ AECase l !(genErlExpr sc) (toNonEmptyClauses generatedClauses defClause)
   genErlExpr (EMatcherCase l sc matchers def) = do
-    let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr def)]
+    let defClause = MkCaseClause l (APUniversal l) [] [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
-    let caseExpr = AEFun l 1 (toNonEmptyFunClauses (map fst generatedClauses) defClause)
-    pure $ wrapGlobals l (concatMap snd generatedClauses) (AEFunCall l caseExpr [!(genErlExpr sc)])
+    let caseExpr = AECase l !(genErlExpr sc) (toNonEmptyClauses (map fst generatedClauses) defClause)
+    pure $ wrapGlobals l (concatMap snd generatedClauses) caseExpr
   -- EReceive generates the following code. This is necessary to avoid leaking variables from the case clauses.
   --
   -- If matchers contain `MExact` or `MMapSubset`, the below expression is wrapped in immediately invoked function
@@ -288,7 +287,7 @@ mutual
   -- ```
   genErlExpr (EReceive l matchers timeout def) = do
     let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
-    generatedClauses <- assert_total (traverse (genErlMatcherCaseClause l) matchers)
+    generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let receiveExpr = wrapImmediatelyInvokedFunExpr l $ AEReceive l (map fst generatedClauses) defClause
     pure $ wrapGlobals l (concatMap snd generatedClauses) receiveExpr
   -- ETryCatch generates the following code. This is necessary to avoid leaking variables from the case/catch clauses.
@@ -359,21 +358,16 @@ mutual
   genErlExpr (EBufferGetString l bin loc len) =
     pure $ bufferGetString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr len)
 
-  genErlConstAlt : Line -> ErlConstAlt -> State LocalVars (FunClause 1)
+  genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do
     let pattern = genIdrisConstant l stringPattern APLiteral constant
-    pure $ MkFunClause l [pattern] [] [!(genErlExpr body)]
+    pure $ MkCaseClause l pattern [] [!(genErlExpr body)]
   where
     stringPattern : String -> Pattern
     stringPattern str = APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
-  genErlMatcher : Line -> ErlMatcher -> State LocalVars (FunClause 1, List (LocalVar, Expr))
+  genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
   genErlMatcher l matcher = do
-    clause <- readErlMatcher l matcher
-    pure (MkFunClause l [pattern clause] [MkGuardAlt [guard clause]] [body clause], globals clause)
-
-  genErlMatcherCaseClause : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
-  genErlMatcherCaseClause l matcher = do
     clause <- readErlMatcher l matcher
     pure (MkCaseClause l (pattern clause) [MkGuardAlt [guard clause]] [body clause], globals clause)
 

@@ -124,7 +124,7 @@ mutual
     AEBitstring : Line -> List (BitSegment Expr) -> Expr
     -- Bitstring comprehension
     AEBlock : Line -> (body : Vect (S k) Expr) -> Expr
-    -- Case expression
+    AECase : Line -> Expr -> (clauses : Vect (S k) CaseClause) -> Expr
     -- Catch expression
     AECons : Line -> Expr -> Expr -> Expr
     -- Function reference
@@ -282,6 +282,8 @@ mutual
     PTuple [PAtom "bin", genLine l, PList (assert_total (map (genBitSegment genExpr) segments))]
   genExpr (AEBlock l body) =
     PTuple [PAtom "block", genLine l, PList (assert_total (map genExpr (toList body)))]
+  genExpr (AECase l sc clauses) =
+    PTuple [PAtom "case", genLine l, genExpr sc, PList (assert_total (map genCaseClause (toList clauses)))]
   genExpr (AECons l x y) =
     PTuple [PAtom "cons", genLine l, genExpr x, genExpr y]
   genExpr (AEFun l arity clauses) =
