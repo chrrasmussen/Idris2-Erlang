@@ -17,5 +17,7 @@ main = do
 
   printLn $ (the Int 6 `div` the Int 3)
   printLn $ (the Integer 6 `div` the Integer 3)
-  printLn $ (cast {to = Int} "6.6" `div` cast "3.9")
+  -- TODO: Disabled for now:
+  -- Scheme converts `"3.9"` to `3`, but I am not sure if that is how it should work.
+  -- printLn $ (cast {to = Int} "6.6" `div` cast "3.9")
   -- printLn $ (cast {to = Integer} "6.6" `div` cast "3.9")
