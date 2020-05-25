@@ -256,10 +256,8 @@ readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkIOFun5")) [funVar] body
   worldVal <- newLocalVar
   readConAltFun l 5 funVar body (genMkIO l worldVal)
 -- Default
-readConAlt namespaceInfo l name args body = do
-  let conAtom = EAtom l (constructorName name)
-  unusedVar <- newLocalVar
-  pure $ MTuple ((::) {newVar=unusedVar} (MExact conAtom) (argsToErlMatchers args)) body
+readConAlt namespaceInfo l name args body =
+  pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
 
 
 -- EXTERNAL PRIMITIVES

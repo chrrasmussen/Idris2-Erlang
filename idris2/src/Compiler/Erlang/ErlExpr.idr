@@ -124,6 +124,7 @@ mutual
     MCons         : ErlMatcher -> ErlMatcher -> (hdVar : LocalVar) -> (tlVar : LocalVar) -> ErlExpr -> ErlMatcher
     MList         : ErlMatchers -> ErlExpr -> ErlMatcher
     MTuple        : ErlMatchers -> ErlExpr -> ErlMatcher
+    MTaggedTuple  : String -> ErlMatchers -> ErlExpr -> ErlMatcher
     MMapSubset    : {args : List LocalVar} -> ErlMapEntryMatchers -> ErlExpr -> ErlMatcher
     MFun          : (arity : Nat) -> ErlMatcher
     MTransform    : ErlMatcher -> (newVar : LocalVar) -> ErlExpr -> ErlMatcher
@@ -423,6 +424,16 @@ mutual
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APTuple l (map pattern clauses)
+    let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
+    let body = AEFunCall l wrappedFun (map body clauses)
+    pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
+  readErlMatcher l (MTaggedTuple tag matchers fun) = do
+    erlMatchers <- readErlMatchers l matchers
+    let args = map fst erlMatchers
+    let clauses = map snd erlMatchers
+    let varNames = varsToVarNames args
+    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let pattern = APTuple l (APLiteral (ALAtom l tag) :: map pattern clauses)
     let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concat (map globals clauses))
