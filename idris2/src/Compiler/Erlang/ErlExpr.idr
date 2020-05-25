@@ -1,6 +1,7 @@
 module Compiler.Erlang.ErlExpr
 
 import Data.List
+import Data.Nat
 import Control.Monad.State
 
 import Compiler.Erlang.AbstractFormat
@@ -199,9 +200,13 @@ wrapImmediatelyInvokedFunExpr : Line -> Expr -> Expr
 wrapImmediatelyInvokedFunExpr l body =
   AEFunCall l (AEFun l 0 [MkFunClause l [] [] [body]]) []
 
-wrapGlobal : Line -> (LocalVar, Expr) -> Expr -> Expr
-wrapGlobal l (var, expr) acc =
-  AEFunCall l (AEFun l 1 [MkFunClause l [APVar l (show var)] [] [acc]]) [expr]
+wrapGlobals : Line -> List (LocalVar, Expr) -> Expr -> Expr
+wrapGlobals l globals body =
+  let letBindings = map toLet globals
+  in AEBlock {k=length letBindings} l (rewrite sym (plusCommutative (length letBindings) 1) in fromList letBindings ++ [body])
+  where
+    toLet : (LocalVar, Expr) -> Expr
+    toLet (var, value) = AEMatch l (APVar l (show var)) value
 
 genBinary : Line -> String -> Expr
 genBinary l str =
@@ -265,7 +270,7 @@ mutual
     let defClause = MkFunClause l [APUniversal l] [] [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let caseExpr = AEFun l 1 (toNonEmptyFunClauses (map fst generatedClauses) defClause)
-    pure $ foldr (wrapGlobal l) (AEFunCall l caseExpr [!(genErlExpr sc)]) (concat (map snd generatedClauses))
+    pure $ wrapGlobals l (concatMap snd generatedClauses) (AEFunCall l caseExpr [!(genErlExpr sc)])
   -- EReceive generates the following code. This is necessary to avoid leaking variables from the case clauses.
   --
   -- If matchers contain `MExact` or `MMapSubset`, the below expression is wrapped in immediately invoked function
@@ -285,7 +290,7 @@ mutual
     let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
     generatedClauses <- assert_total (traverse (genErlMatcherCaseClause l) matchers)
     let receiveExpr = wrapImmediatelyInvokedFunExpr l $ AEReceive l (map fst generatedClauses) defClause
-    pure $ foldr (wrapGlobal l) receiveExpr (concat (map snd generatedClauses))
+    pure $ wrapGlobals l (concatMap snd generatedClauses) receiveExpr
   -- ETryCatch generates the following code. This is necessary to avoid leaking variables from the case/catch clauses.
   --
   -- ```
