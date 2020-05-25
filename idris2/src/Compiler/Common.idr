@@ -148,19 +148,11 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
 getAllDesc (n :: rest) arr defs
   = getAllDesc rest arr defs
 
+warnIfHole : Name -> NamedDef -> Core ()
+warnIfHole n (MkNmError _)
+    = coreLift $ putStrLn $ "Warning: compiling hole " ++ show n
+warnIfHole n _ = pure ()
 
-export
-getCDef : {auto c : Ref Ctxt Defs} ->
-          Name -> Core (Maybe (Name, FC, CDef))
-getCDef n
-    = do defs <- get Ctxt
-         case !(lookupCtxtExact n (gamma defs)) of
-              Nothing => pure Nothing
-              Just def => case compexpr def of
-                               Nothing => pure Nothing
-                               Just d => pure (Just (n, location def, d))
-
-export
 getNamedDef : {auto c : Ref Ctxt Defs} ->
               Name -> Core (Maybe (Name, FC, NamedDef))
 getNamedDef n
@@ -169,7 +161,8 @@ getNamedDef n
               Nothing => pure Nothing
               Just def => case namedcompexpr def of
                                Nothing => pure Nothing
-                               Just d => pure (Just (n, location def, d))
+                               Just d => do warnIfHole n d
+                                            pure (Just (n, location def, d))
 
 replaceEntry : {auto c : Ref Ctxt Defs} ->
                (Int, Maybe Binary) -> Core ()

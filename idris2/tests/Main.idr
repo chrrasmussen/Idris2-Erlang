@@ -42,7 +42,8 @@ idrisTests
        "basic036", "basic037", "basic038", "basic039", "basic040",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
-       "coverage005", "coverage006", "coverage007",
+       "coverage005", "coverage006", "coverage007", "coverage008",
+       "coverage009",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -52,6 +53,7 @@ idrisTests
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
+       "interactive013",
        -- Literate
        "literate001", "literate002", "literate003", "literate004",
        "literate005", "literate006", "literate007", "literate008",
