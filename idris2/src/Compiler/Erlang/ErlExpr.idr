@@ -73,6 +73,7 @@ mutual
     ERef : Line -> (modName : ErlExpr) -> (fnName : ErlExpr) -> ErlExpr
     ELam : Line -> (args : List LocalVar) -> ErlExpr -> ErlExpr
     ELet : Line -> (newVar : LocalVar) -> (value : ErlExpr) -> (body : ErlExpr) -> ErlExpr
+    ESequence : Line -> (statements : Vect (S k) ErlExpr) -> ErlExpr
     EApp : Line -> ErlExpr -> List ErlExpr -> ErlExpr
     EOp : Line -> (op : String) -> (lhs : ErlExpr) -> (rhs : ErlExpr) -> ErlExpr
     ECon : Line -> (name : String) -> List ErlExpr -> ErlExpr
@@ -243,6 +244,9 @@ mutual
       [ AEMatch l (APVar l varName) value'
       , body'
       ]
+  genErlExpr (ESequence l statements) = do
+    statements' <- assert_total $ traverse genErlExpr statements
+    pure $ AEBlock l statements'
   genErlExpr (EApp l expr args) = do
     expr' <- genErlExpr expr
     args' <- assert_total $ traverse genErlExpr args

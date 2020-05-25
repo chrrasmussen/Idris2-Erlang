@@ -275,7 +275,7 @@ genExtPrim : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> Li
 genExtPrim namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
   let retVal = genMkIORes l (genMkUnit l)
-  genSequence l [putStrCall, retVal]
+  pure $ ESequence l [putStrCall, retVal]
 genExtPrim namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
   pure $ genMkIORes l getStrCall

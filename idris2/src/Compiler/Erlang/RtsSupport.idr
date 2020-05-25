@@ -3,6 +3,7 @@ module Compiler.Erlang.RtsSupport
 import Data.List
 import Data.NameMap
 import Data.Stream
+import Data.Vect
 import Core.Core
 import Core.TT
 import Compiler.Erlang.Name
@@ -125,17 +126,6 @@ genFunCall : Line -> String -> String -> List ErlExpr -> ErlExpr
 genFunCall l modName fnName args =
   EApp l (ERef l (EAtom l modName) (EAtom l fnName)) args
 
--- TODO: Replace with `ESequence`
-export
-genSequence : {auto lv : Ref LV LocalVars} -> Line -> (exprs : List ErlExpr) -> {auto prf : NonEmpty exprs} -> Core ErlExpr
-genSequence l [lastExpr] = pure lastExpr
-genSequence l (expr1 :: expr2 :: restExpr) = do
-  unusedVar <- newLocalVar
-  pure $ genLet l unusedVar expr1 !(genSequence l (expr2 :: restExpr))
-  where
-    genLet : Line -> (newVar : LocalVar) -> ErlExpr -> ErlExpr -> ErlExpr
-    genLet l newVar varValue body = EApp l (ELam l [newVar] body) [varValue]
-
 export
 genList : Line -> List ErlExpr -> ErlExpr
 genList l xs = foldr (\x, acc => ECons l x acc) (ENil l) xs
@@ -198,12 +188,12 @@ genUncurry l arity transform curriedFun = do
   pure $ ELam l vars (transform (genAppCurriedFun l curriedFun (genArgsToLocals l vars)))
 
 export
-genEscriptMain : {auto lv : Ref LV LocalVars} -> Line -> (args : ErlExpr) -> (body : ErlExpr) -> Core ErlExpr
-genEscriptMain l args body = do
+genEscriptMain : Line -> (args : ErlExpr) -> (body : ErlExpr) -> ErlExpr
+genEscriptMain l args body =
   let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", args]
-  let createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
-  let setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
-  genSequence l
+      createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
+      setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
+  in ESequence l
       [ saveArgsCall
       , createEtsCall
       , setEncodingCall
@@ -217,12 +207,12 @@ genErlMain l body = do
   let getArgsCall = genFunCall l "init" "get_plain_arguments" []
   okVar <- newLocalVar
   errorVar <- newLocalVar
-  mainProgram <- genSequence l
-    [ processFlagCall
-    , !(genEscriptMain l getArgsCall body)
-    , genHalt l 0
-    ]
-  pure $ ETryCatch l mainProgram okVar (ELocal l okVar) errorVar !(genSequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
+  let mainProgram = ESequence l
+        [ processFlagCall
+        , genEscriptMain l getArgsCall body
+        , genHalt l 0
+        ]
+  pure $ ETryCatch l mainProgram okVar (ELocal l okVar) errorVar (ESequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
   where
     genHalt : Line -> (errorCode : Integer) -> ErlExpr
     genHalt l errorCode = genFunCall l "erlang" "halt" [EInteger l errorCode]
