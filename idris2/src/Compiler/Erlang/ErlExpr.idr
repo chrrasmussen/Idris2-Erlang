@@ -32,8 +32,8 @@ namespace LocalVars
   initLocalVars varPrefix = MkLocalVars varPrefix 0
 
   export
-  addLocalVar : State LocalVars LocalVar
-  addLocalVar = do
+  newLocalVar : State LocalVars LocalVar
+  newLocalVar = do
     MkLocalVars varPrefix nextIndex <- get
     put $ MkLocalVars varPrefix (nextIndex + 1)
     pure $ MkLocalVar varPrefix nextIndex
@@ -361,21 +361,21 @@ mutual
 
   readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
   readErlMatcher l (MExact expr) = do
-    localVar <- addLocalVar
-    matchExactVar <- addLocalVar
+    localVar <- newLocalVar
+    matchExactVar <- newLocalVar
     matchExactValue <- genErlExpr expr
     let pattern = APVar l (show localVar)
     let guard = AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body [(matchExactVar, matchExactValue)]
   readErlMatcher l MAny = do
-    localVar <- addLocalVar
+    localVar <- newLocalVar
     let pattern = APVar l (show localVar)
     let guard = trueGuard l
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
   readErlMatcher l MCodepoint = do
-    localVar <- addLocalVar
+    localVar <- newLocalVar
     let pattern = APVar l (show localVar)
     let guardVar = AGVar l (show localVar)
     let isIntegerGuard = AGFunCall l "is_integer" [guardVar]
@@ -448,7 +448,7 @@ mutual
     let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) erlMatchers)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MFun arity) = do
-    localVar <- addLocalVar
+    localVar <- newLocalVar
     let pattern = APVar l (show localVar)
     let guard = AGFunCall l "is_function" [AGVar l (show localVar), AGLiteral (ALInteger l (cast arity))]
     let body = AEVar l (show localVar)
@@ -469,7 +469,7 @@ mutual
 
   readSimpleGuardMatcherClause : Line -> (fnName : String) -> State LocalVars MatcherClause
   readSimpleGuardMatcherClause l fnName = do
-    localVar <- addLocalVar
+    localVar <- newLocalVar
     let pattern = APVar l (show localVar)
     let guard = AGFunCall l fnName [AGVar l (show localVar)]
     let body = AEVar l (show localVar)
@@ -485,7 +485,7 @@ mutual
   readErlMapEntryMatchers : Line -> List (LocalVar, ErlExpr, ErlMatcher) -> State LocalVars (List (LocalVar, MatcherClause))
   readErlMapEntryMatchers l [] = pure []
   readErlMapEntryMatchers l ((matcherVar, key, matcher) :: xs) = do
-    keyVar <- addLocalVar
+    keyVar <- newLocalVar
     keyValue <- genErlExpr key
     xClause <- readErlMatcher l matcher
     let xClause' = record { preComputedValues $= ((keyVar, keyValue) ::) } xClause
