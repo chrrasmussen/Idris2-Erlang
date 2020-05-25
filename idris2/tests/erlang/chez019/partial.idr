@@ -1,6 +1,8 @@
 import Erlang
 import Erlang.Debug
 
+%default partial
+
 foo : Maybe a -> a
 foo (Just x) = x
 

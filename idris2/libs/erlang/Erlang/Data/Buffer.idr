@@ -4,9 +4,6 @@ import Erlang
 import Erlang.System.File
 
 
-%default total
-
-
 %extern prim__erlBufferNew : (size : Int) -> ErlBinary
 %extern prim__erlBufferSetByte : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
 %extern prim__erlBufferGetByte : (bin : ErlBinary) -> (loc : Int) -> Int

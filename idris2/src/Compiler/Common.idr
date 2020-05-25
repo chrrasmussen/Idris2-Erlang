@@ -153,6 +153,7 @@ warnIfHole n (MkNmError _)
     = coreLift $ putStrLn $ "Warning: compiling hole " ++ show n
 warnIfHole n _ = pure ()
 
+export
 getNamedDef : {auto c : Ref Ctxt Defs} ->
               Name -> Core (Maybe (Name, FC, NamedDef))
 getNamedDef n

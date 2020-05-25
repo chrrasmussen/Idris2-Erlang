@@ -30,15 +30,18 @@ data Flag
   | SetGenerateAsLibrary
   | SetChangedNamespaces (List Namespace)
 
+flagToOpts : Flag -> Opts -> Opts
+flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
+flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
+flagToOpts (SetGenerateAsLibrary) opts = record { generateAsLibrary = True } opts
+flagToOpts (SetChangedNamespaces namespaces) opts = record { changedNamespaces = Just namespaces } opts
+
 flagsToOpts : List Flag -> Opts
 flagsToOpts flags = flagsToOpts' flags defaultOpts
   where
     flagsToOpts' : List Flag -> Opts -> Opts
     flagsToOpts' [] opts = opts
-    flagsToOpts' (SetOutputFormat outputFormat :: rest) opts = record { outputFormat = outputFormat } (flagsToOpts' rest opts)
-    flagsToOpts' (SetPrefix prefixStr :: rest) opts = record { prefixStr = prefixStr } (flagsToOpts' rest opts)
-    flagsToOpts' (SetGenerateAsLibrary :: rest) opts = record { generateAsLibrary = True } (flagsToOpts' rest opts)
-    flagsToOpts' (SetChangedNamespaces namespaces :: rest) opts = record { changedNamespaces = Just namespaces } (flagsToOpts' rest opts)
+    flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
 
 splitNamespaces : String -> List Namespace
 splitNamespaces namespaces = map toNamespace (splitOn ',' (unpack namespaces))

@@ -5,9 +5,6 @@ import Data.Strings
 import Erlang
 
 
-%default total
-
-
 public export
 data Mode = Read | WriteTruncate | Append | ReadWrite | ReadWriteTruncate | ReadAppend
 
