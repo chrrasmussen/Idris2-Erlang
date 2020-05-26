@@ -50,7 +50,7 @@ splitNamespaces namespaces = map toNamespace (splitOn ',' (unpack namespaces))
     toNamespace ns = reverse (map pack (splitOn '.' ns))
 
 stringToFlags : String -> List Flag
-stringToFlags str = parseFlags (words str)
+stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `assert_total` when `words` is total
   where
     parseFlags : List String -> List Flag
     parseFlags [] = []
