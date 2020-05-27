@@ -4,7 +4,7 @@ import Data.List
 import Data.Nat
 import Control.Monad.State
 
-import Compiler.Erlang.AbstractFormat
+import public Compiler.Erlang.AbstractFormat
 import Compiler.Erlang.ErlBuffer
 import Compiler.Erlang.Utils
 

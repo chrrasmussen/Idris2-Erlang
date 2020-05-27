@@ -13,7 +13,7 @@ import Compiler.Erlang.FileUtils
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.RtsSupport
-import Compiler.Erlang.AbstractFormat
+import Compiler.Erlang.CompositeString
 
 import Core.Context
 import Core.Directory
@@ -29,6 +29,7 @@ import Data.Strings
 import Utils.Binary
 import System
 import System.Info
+import System.File
 
 %default covering
 
