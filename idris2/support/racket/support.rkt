@@ -160,7 +160,7 @@
     0
     -1))
 
-; See blodown-read-bytevec for what 'dir' is for
+; See blodwen-read-bytevec for what 'dir' is for
 (define (blodwen-write-bytevec dir fname vec max)
    (let ((origdir (current-directory)))
      (begin
