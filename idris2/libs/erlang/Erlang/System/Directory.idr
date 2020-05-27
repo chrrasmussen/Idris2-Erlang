@@ -4,21 +4,6 @@ import Erlang
 import public Erlang.System.File
 
 
--- TODO: Move to Erlang.System.File
-unknownError : FileError
-unknownError = GenericFileError 0
-
-reason : ErlDecoder FileError
-reason =
-  (exact (MkAtom "enoent") *> pure FileNotFound)
-    <|> (exact (MkAtom "eacces") *> pure PermissionDenied)
-    <|> (exact (MkAtom "eexist") *> pure FileExists)
-    <|> pure unknownError
-
-error : ErlDecoder FileError
-error =
-  map (\(MkTuple2 _ reason) => reason) (tuple2 (exact (MkAtom "error")) reason)
-
 export
 createDir : String -> IO (Either FileError ())
 createDir dir = do

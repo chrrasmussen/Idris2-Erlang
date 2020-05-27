@@ -26,24 +26,27 @@ Show FileError where
   show PermissionDenied = "Permission Denied"
   show FileExists = "File Exists"
 
-toFileError : Int -> FileError
-toFileError 1 = FileReadError
-toFileError 2 = FileWriteError
-toFileError 3 = FileNotFound
-toFileError 4 = PermissionDenied
-toFileError x = GenericFileError (x - 256)
+export
+unknownError : FileError
+unknownError = GenericFileError 0
 
-public export
-data FileT : Bool -> Type where
-  FHandle : ErlTerm -> FileT bin
+export
+reason : ErlDecoder FileError
+reason =
+  (exact (MkAtom "enoent") *> pure FileNotFound)
+    <|> (exact (MkAtom "eacces") *> pure PermissionDenied)
+    <|> (exact (MkAtom "eexist") *> pure FileExists)
+    <|> pure unknownError
 
-public export
-File : Type
-File = FileT False
+export
+error : ErlDecoder FileError
+error =
+  map (\(MkTuple2 _ reason) => reason) (tuple2 (exact (MkAtom "error")) reason)
 
-public export
-BinaryFile : Type
-BinaryFile = FileT True
+
+export
+data File : Type where
+  FHandle : ErlTerm -> File
 
 export
 stdin : File
@@ -58,35 +61,27 @@ stderr : File
 stderr = FHandle (cast (MkAtom "standard_error"))
 
 -- TODO: Match on all cases of Mode?
-fileModes : (isBinary : Bool) -> Mode -> ErlTerm
-fileModes isBinary mode =
+fileModes : Mode -> ErlTerm
+fileModes mode =
   let flags = case mode of
         Read          => [MkAtom "read"]
         WriteTruncate => [MkAtom "write"]
         Append        => [MkAtom "append"]
         ReadWrite     => [MkAtom "read", MkAtom "write"]
         _ => []
-      binMode = if isBinary then [MkAtom "binary"] else []
-  in cast $ the (List ErlAtom) (flags ++ binMode)
+  in cast $ the (List ErlAtom) (MkAtom "binary" :: flags)
 
--- TODO: Is FileReadError correct?
-internalOpenFile : (isBinary : Bool) -> String -> Mode -> IO (Either FileError (FileT isBinary))
-internalOpenFile isBinary filePath mode = do
-  result <- erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes isBinary mode]
-  pure $ erlDecodeDef (Left FileReadError)
-    (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid))
+export
+openFile : (filePath : String) -> Mode -> IO (Either FileError File)
+openFile filePath mode = do
+  result <- erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes mode]
+  pure $ erlDecodeDef (Left unknownError)
+    (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid)
+      <|> map Left error)
     result
 
 export
-openFile : String -> Mode -> IO (Either FileError File)
-openFile = internalOpenFile False
-
-export
-openBinaryFile : String -> Mode -> IO (Either FileError BinaryFile)
-openBinaryFile = internalOpenFile True
-
-export
-closeFile : FileT t -> IO ()
+closeFile : File -> IO ()
 closeFile (FHandle f) = do
   erlUnsafeCall ErlTerm "file" "close" [f]
   pure ()
@@ -95,17 +90,19 @@ export
 fGetLine : (h : File) -> IO (Either FileError String)
 fGetLine (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read_line" [f]
-  pure $ erlDecodeDef (Left FileReadError)
-    (map (\(MkTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkAtom "ok")) any) <|>
-      exact (MkAtom "eof") *> pure (Right ""))
+  pure $ erlDecodeDef (Left unknownError)
+    (map (\(MkTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkAtom "ok")) any)
+      <|> exact (MkAtom "eof") *> pure (Right "")
+      <|> map Left error)
     result
 
 export
 fPutStr : (h : File) -> String -> IO (Either FileError ())
 fPutStr (FHandle f) str = do
   result <- erlUnsafeCall ErlTerm "file" "write" [f, str]
-  pure $ erlDecodeDef (Left FileWriteError)
-    (exact (MkAtom "ok") *> pure (Right ()))
+  pure $ erlDecodeDef (Left unknownError)
+    (exact (MkAtom "ok") *> pure (Right ())
+      <|> map Left error)
     result
 
 export
@@ -155,8 +152,8 @@ readFile file = do
 
 export
 writeFile : (filepath : String) -> (contents : String) -> IO (Either FileError ())
-writeFile fn contents = do
-  Right h <- openFile fn WriteTruncate
+writeFile filePath contents = do
+  Right h <- openFile filePath WriteTruncate
     | Left err => pure (Left err)
   Right () <- fPutStr h contents
     | Left err => do
@@ -164,3 +161,96 @@ writeFile fn contents = do
       pure (Left err)
   closeFile h
   pure (Right ())
+
+
+-- TODO: Is this necessary? Currently a no-op.
+export
+fflush : (h : File) -> IO ()
+fflush (FHandle f) = do
+  pure ()
+
+fileInfo : (filePath : String) -> (fieldIndex : Nat) -> ErlDecoder a -> IO (Either FileError a)
+fileInfo filePath fieldIndex decoder = do
+  result <- erlUnsafeCall ErlTerm "file" "read_file_info" [filePath, the (ErlList _) [MkTuple2 (MkAtom "time") (MkAtom "posix")]]
+  let Right (MkTuple2 _ info) = erlDecodeDef
+        (Left unknownError)
+        (map Right (tuple2 (exact (MkAtom "ok")) any)
+          <|> map Left error)
+        result
+        | Left err => pure (Left err)
+  Right fieldValue <- erlCall "erlang" "element" [cast fieldIndex + 2, info]
+    | Left _ => pure (Left unknownError)
+  pure $ erlDecodeDef
+    (Left unknownError)
+    (map Right decoder)
+    fieldValue
+
+export
+fileSize : (filePath : String) -> IO (Either FileError Int)
+fileSize filePath =
+   fileInfo filePath 0 (map cast integer)
+
+export
+fileAccessTime : (filePath : String) -> IO (Either FileError Int)
+fileAccessTime filePath =
+  fileInfo filePath 3 (map cast integer)
+
+export
+fileModifiedTime : (filePath : String) -> IO (Either FileError Int)
+fileModifiedTime filePath =
+  fileInfo filePath 4 (map cast integer)
+
+export
+fileStatusTime : (filePath : String) -> IO (Either FileError Int)
+fileStatusTime filePath =
+  fileInfo filePath 5 (map cast integer)
+
+export
+removeFile : String -> IO (Either FileError ())
+removeFile fname = do
+  result <- erlUnsafeCall ErlTerm "file" "delete" [fname]
+  pure $ erlDecodeDef
+    (Left unknownError)
+    ((exact (MkAtom "ok") *> pure (Right ()))
+      <|> map Left error)
+    result
+
+-- TODO: Add `fPoll`? It is not used in the project.
+
+
+namespace FileMode
+public export
+data FileMode = Read | Write | Execute
+
+public export
+record Permissions where
+  constructor MkPermissions
+  user   : List FileMode
+  group  : List FileMode
+  others : List FileMode
+
+mkMode : Permissions -> Int
+mkMode p =
+  getMs (user p) * 64 + getMs (group p) * 8 + getMs (others p)
+  where
+    getM : FileMode -> Int
+    getM Read = 4
+    getM Write = 2
+    getM Execute = 1
+
+    getMs : List FileMode -> Int
+    getMs = sum . map getM
+
+export
+chmodRaw : (filePath : String) -> Int -> IO (Either FileError ())
+chmodRaw fname p = do
+  result <- erlUnsafeCall ErlTerm "file" "change_mode" [fname, p]
+  pure $ erlDecodeDef
+    (Left unknownError)
+    ((exact (MkAtom "ok") *> pure (Right ()))
+      <|> map Left error)
+    result
+
+export
+chmod : String -> Permissions -> IO (Either FileError ())
+chmod fname p = chmodRaw fname (mkMode p)
