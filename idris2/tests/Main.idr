@@ -85,6 +85,8 @@ idrisTests
        "real001", "real002",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004",
+       -- Quotation and reflection
+       "reflection001",
        -- Miscellaneous regressions
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
@@ -108,7 +110,7 @@ chezTests
    = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
       "chez013", "chez014", "chez015", "chez016", "chez017", "chez018",
-      "chez019",
+      "chez019", "chez020",
       "reg001"]
 
 ideModeTests : List String
@@ -168,10 +170,6 @@ fail : String -> IO ()
 fail err
     = do putStrLn err
          exitWith (ExitFailure 1)
-
-
-isWindows : Bool
-isWindows = os `elem` ["windows", "mingw32", "cygwin32"]
 
 -- on Windows, we just ignore backslashes and slashes when comparing,
 -- similarity up to that is good enough. Leave errors that depend

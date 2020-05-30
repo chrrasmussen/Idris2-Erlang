@@ -312,9 +312,10 @@ mutual
       = pure (MkPatClause fc !(toPTerm startPrec lhs)
                              !(toPTerm startPrec rhs)
                              [])
-  toPClause (WithClause fc lhs rhs cs)
+  toPClause (WithClause fc lhs rhs flags cs)
       = pure (MkWithClause fc !(toPTerm startPrec lhs)
                               !(toPTerm startPrec rhs)
+                              flags
                               !(traverse toPClause cs))
   toPClause (ImpossibleClause fc lhs)
       = pure (MkImpossible fc !(toPTerm startPrec lhs))
@@ -323,7 +324,7 @@ mutual
                 {auto s : Ref Syn SyntaxInfo} ->
                 ImpTy -> Core PTypeDecl
   toPTypeDecl (MkImpTy fc n ty)
-      = pure (MkPTy fc n !(toPTerm startPrec ty))
+      = pure (MkPTy fc n "" !(toPTerm startPrec ty))
 
   toPData : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->

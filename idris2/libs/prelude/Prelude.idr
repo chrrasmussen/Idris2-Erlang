@@ -3,6 +3,8 @@ module Prelude
 import public Builtin
 import public PrimIO
 
+%default total
+
 {-
 The Prelude is minimal (since it is effectively part of the language
 specification, this seems to be desirable - we should, nevertheless, aim to
@@ -371,6 +373,7 @@ interface Num ty => Integral ty where
 
 -- Integer
 
+%inline
 public export
 Num Integer where
   (+) = prim__add_Integer
@@ -406,6 +409,7 @@ defaultInteger = %search
 
 -- Int
 
+%inline
 public export
 Num Int where
   (+) = prim__add_Int
@@ -719,8 +723,8 @@ public export
 data Nat =
   ||| Zero.
     Z
-  ||| Successor.
-  | S Nat
+  | ||| Successor.
+  S Nat
 
 %name Nat k, j, i
 
@@ -912,11 +916,13 @@ public export
   Right x == Right x' = x == x'
   _ == _ = False
 
+%inline
 public export
 Functor (Either e) where
   map f (Left x) = Left x
   map f (Right x) = Right (f x)
 
+%inline
 public export
 Applicative (Either e) where
     pure = Right
@@ -940,8 +946,8 @@ data List a =
   ||| Empty list
   Nil
 
-  ||| A non-empty list, consisting of a head element and the rest of the list.
-  | (::) a (List a)
+  | ||| A non-empty list, consisting of a head element and the rest of the list.
+  (::) a (List a)
 
 %name List xs, ys, zs
 
@@ -1439,6 +1445,7 @@ public export
 Functor IO where
   map f io = io_bind io (\b => io_pure (f b))
 
+%inline
 public export
 Applicative IO where
   pure x = io_pure x

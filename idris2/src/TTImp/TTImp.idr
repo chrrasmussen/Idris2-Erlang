@@ -293,9 +293,18 @@ mutual
           showSep "\n\t" (map show fields) ++ "\n"
 
   public export
+  data WithFlag
+         = Syntactic -- abstract syntactically, rather than by value
+
+  export
+  Eq WithFlag where
+      Syntactic == Syntactic = True
+
+  public export
   data ImpClause : Type where
        PatClause : FC -> (lhs : RawImp) -> (rhs : RawImp) -> ImpClause
        WithClause : FC -> (lhs : RawImp) -> (wval : RawImp) ->
+                    (flags : List WithFlag) ->
                     List ImpClause -> ImpClause
        ImpossibleClause : FC -> (lhs : RawImp) -> ImpClause
 
@@ -303,7 +312,7 @@ mutual
   Show ImpClause where
     show (PatClause fc lhs rhs)
        = show lhs ++ " = " ++ show rhs
-    show (WithClause fc lhs wval block)
+    show (WithClause fc lhs wval flags block)
        = show lhs ++ " with " ++ show wval ++ "\n\t" ++ show block
     show (ImpossibleClause fc lhs)
        = show lhs ++ " impossible"
@@ -328,7 +337,7 @@ mutual
 
   export
   Show ImpDecl where
-    show (IClaim _ _ _ _ ty) = show ty
+    show (IClaim _ _ _ opts ty) = show opts ++ " " ++ show ty
     show (IData _ _ d) = show d
     show (IDef _ n cs) = "(%def " ++ show n ++ " " ++ show cs ++ ")"
     show (IParameters _ ps ds)
@@ -392,6 +401,8 @@ findIBinds (IImplicitApp fc fn n av)
     = findIBinds fn ++ findIBinds av
 findIBinds (IWithApp fc fn av)
     = findIBinds fn ++ findIBinds av
+findIBinds (IAs fc _ (UN n) pat)
+    = n :: findIBinds pat
 findIBinds (IAs fc _ n pat)
     = findIBinds pat
 findIBinds (IMustUnify fc r pat)
@@ -833,7 +844,7 @@ mutual
         = do tag 0; toBuf b fc; toBuf b lhs; toBuf b rhs
     toBuf b (ImpossibleClause fc lhs)
         = do tag 1; toBuf b fc; toBuf b lhs
-    toBuf b (WithClause fc lhs wval cs)
+    toBuf b (WithClause fc lhs wval flags cs)
         = do tag 2; toBuf b fc; toBuf b lhs; toBuf b wval; toBuf b cs
 
     fromBuf b
@@ -845,7 +856,7 @@ mutual
                        pure (ImpossibleClause fc lhs)
                2 => do fc <- fromBuf b; lhs <- fromBuf b;
                        wval <- fromBuf b; cs <- fromBuf b
-                       pure (WithClause fc lhs wval cs)
+                       pure (WithClause fc lhs wval [] cs)
                _ => corrupt "ImpClause"
 
   export
