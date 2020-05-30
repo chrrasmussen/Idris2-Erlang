@@ -27,6 +27,7 @@ import Data.NameMap
 import Data.List
 import Data.Strings
 import Utils.Binary
+import Utils.Path
 import System
 import System.Info
 import System.File
@@ -147,7 +148,7 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
   exportFunDecls <- maybe (pure []) (genExports namespaceInfo 4242) exportFunName
   let modName = currentModuleName namespaceInfo
   let module_ = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] (exportFunDecls ++ funDecls)
-  let outfile = targetDir ++ dirSep ++ modName ++ ".abstr"
+  let outfile = targetDir </> modName ++ ".abstr"
   let content = fastAppend (flatten (genModule module_))
   Right () <- coreLift $ writeFile outfile content
     | Left err => throw (FileErr outfile err)
@@ -173,7 +174,7 @@ namespace MainEntrypoint
   -- TODO: Add error handling
   writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core (List String)
   writeAbstrFiles opts tm outdir modName = do
-    let outfile = outdir ++ dirSep ++ modName ++ ".abstr"
+    let outfile = outdir </> modName ++ ".abstr"
     compileData <- getCompileData Cases tm
     compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (namedDefs compileData)
     let namespaceInfo = MkNamespaceInfo (Concat modName)
@@ -193,7 +194,7 @@ namespace MainEntrypoint
     erl <- coreLift findErlangExecutable
     coreLift $ system ("mkdir -p " ++ quoted buildDir)
     generatedModules <- writeAbstrFiles opts tm buildDir modName
-    let generatedFiles = map (\n => buildDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
     coreLift $ system $ generateErlCmd erl generatedFiles outdir
     pure ()
 
@@ -203,7 +204,7 @@ namespace MainEntrypoint
     erl <- coreLift findErlangExecutable
     coreLift $ system ("mkdir -p " ++ quoted buildDir)
     generatedModules <- writeAbstrFiles opts tm buildDir modName
-    let generatedFiles = map (\n => buildDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
     coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
     pure ()
 
@@ -332,7 +333,7 @@ namespace Library
     erl <- coreLift findErlangExecutable
     coreLift $ system ("mkdir -p " ++ quoted buildDir)
     generatedModules <- writeAbstrFiles opts buildDir
-    let generatedFiles = map (\n => buildDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
     coreLift $ system $ generateErlCmd erl generatedFiles outdir
     pure ()
 
@@ -342,7 +343,7 @@ namespace Library
     erl <- coreLift findErlangExecutable
     coreLift $ system ("mkdir -p " ++ quoted buildDir)
     generatedModules <- writeAbstrFiles opts buildDir
-    let generatedFiles = map (\n => buildDir ++ dirSep ++ n ++ ".abstr") generatedModules
+    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
     coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
     pure ()
 
@@ -375,7 +376,7 @@ compileExpr c execDir tm outfile = do
 executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
 executeExpr c execDir tm = do
   let modName = "main"
-  let outfile = execDir ++ dirSep ++ modName
+  let outfile = execDir </> modName
   let compiledFile = modName ++ ".beam"
   MainEntrypoint.build (record { outputFormat = Beam, generateAsLibrary = False } defaultOpts) tm execDir outfile
   erl <- coreLift $ findErlangExecutable
