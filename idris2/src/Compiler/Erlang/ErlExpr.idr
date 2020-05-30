@@ -104,10 +104,18 @@ mutual
     EMap : Line -> List (ErlExpr, ErlExpr) -> ErlExpr
 
     EBufferNew       : Line -> (size : ErlExpr) -> ErlExpr
-    EBufferSetByte   : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
-    EBufferGetByte   : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
-    EBufferSetInt    : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
-    EBufferGetInt    : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetBits8  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetBits8  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetBits16 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetBits16 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetBits32 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetBits32 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetBits64 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetBits64 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetInt32  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetInt32  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
+    EBufferSetInt64  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    EBufferGetInt64  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
     EBufferSetDouble : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
     EBufferGetDouble : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
     EBufferSetString : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
@@ -337,14 +345,30 @@ mutual
     pure $ AEMapNew l entries'
   genErlExpr (EBufferNew l size) =
     pure $ bufferNew l !(genErlExpr size)
-  genErlExpr (EBufferSetByte l bin loc value) =
-    pure $ bufferSetByte l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
-  genErlExpr (EBufferGetByte l bin loc) =
-    pure $ bufferGetByte l !(genErlExpr bin) !(genErlExpr loc)
-  genErlExpr (EBufferSetInt l bin loc value) =
-    pure $ bufferSetInt l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
-  genErlExpr (EBufferGetInt l bin loc) =
-    pure $ bufferGetInt l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetBits8 l bin loc value) =
+    pure $ bufferSetUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetBits8 l bin loc) =
+    pure $ bufferGetUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetBits16 l bin loc value) =
+    pure $ bufferSetUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetBits16 l bin loc) =
+    pure $ bufferGetUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetBits32 l bin loc value) =
+    pure $ bufferSetUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetBits32 l bin loc) =
+    pure $ bufferGetUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetBits64 l bin loc value) =
+    pure $ bufferSetUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetBits64 l bin loc) =
+    pure $ bufferGetUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetInt32 l bin loc value) =
+    pure $ bufferSetSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetInt32 l bin loc) =
+    pure $ bufferGetSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
+  genErlExpr (EBufferSetInt64 l bin loc value) =
+    pure $ bufferSetSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+  genErlExpr (EBufferGetInt64 l bin loc) =
+    pure $ bufferGetSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetDouble l bin loc value) =
     pure $ bufferSetDouble l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetDouble l bin loc) =

@@ -1,14 +1,24 @@
 module Erlang.Data.Buffer
 
 import Erlang
-import Erlang.System.File
+import public Erlang.System.File
 
 
 %extern prim__erlBufferNew : (size : Int) -> ErlBinary
 %extern prim__erlBufferSetByte : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
 %extern prim__erlBufferGetByte : (bin : ErlBinary) -> (loc : Int) -> Int
-%extern prim__erlBufferSetInt : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
-%extern prim__erlBufferGetInt : (bin : ErlBinary) -> (loc : Int) -> Int
+%extern prim__erlBufferSetBits8 : (bin : ErlBinary) -> (loc : Int) -> (value : Bits8) -> ErlBinary
+%extern prim__erlBufferGetBits8 : (bin : ErlBinary) -> (loc : Int) -> Bits8
+%extern prim__erlBufferSetBits16 : (bin : ErlBinary) -> (loc : Int) -> (value : Bits16) -> ErlBinary
+%extern prim__erlBufferGetBits16 : (bin : ErlBinary) -> (loc : Int) -> Bits16
+%extern prim__erlBufferSetBits32 : (bin : ErlBinary) -> (loc : Int) -> (value : Bits32) -> ErlBinary
+%extern prim__erlBufferGetBits32 : (bin : ErlBinary) -> (loc : Int) -> Bits32
+%extern prim__erlBufferSetBits64 : (bin : ErlBinary) -> (loc : Int) -> (value : Bits64) -> ErlBinary
+%extern prim__erlBufferGetBits64 : (bin : ErlBinary) -> (loc : Int) -> Bits64
+%extern prim__erlBufferSetInt32 : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
+%extern prim__erlBufferGetInt32 : (bin : ErlBinary) -> (loc : Int) -> Int
+%extern prim__erlBufferSetInt64 : (bin : ErlBinary) -> (loc : Int) -> (value : Int) -> ErlBinary
+%extern prim__erlBufferGetInt64 : (bin : ErlBinary) -> (loc : Int) -> Int
 %extern prim__erlBufferSetDouble : (bin : ErlBinary) -> (loc : Int) -> (value : Double) -> ErlBinary
 %extern prim__erlBufferGetDouble : (bin : ErlBinary) -> (loc : Int) -> Double
 %extern prim__erlBufferSetString : (bin : ErlBinary) -> (loc : Int) -> (value : String) -> ErlBinary
@@ -40,22 +50,23 @@ updateBinary buf updateFn = do
 
 
 export
-newBuffer : Int -> IO Buffer
+newBuffer : Int -> IO (Maybe Buffer)
 newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   let emptyBinary = prim__erlBufferNew size
   erlCall "ets" "insert" [etsKey, MkTuple2 ref emptyBinary]
-  pure (MkBuffer ref size 0)
+  pure $ Just (MkBuffer ref size 0)
+
+-- might be needed if we do this in C...
+export
+freeBuffer : Buffer -> IO ()
+freeBuffer buf = pure ()
 
 export
-rawSize : Buffer -> IO Int
-rawSize buf@(MkBuffer ref _ _) = do
+rawSize : Buffer -> Int
+rawSize buf@(MkBuffer ref _ _) = unsafePerformIO $ do
   binary <- getBinary buf
   erlUnsafeCall Int "erlang" "byte_size" [binary]
-
-export
-size : Buffer -> Int
-size (MkBuffer _ s _) = s
 
 -- Assumes val is in the range 0-255
 export
@@ -70,15 +81,70 @@ getByte buf loc = do
   pure $ prim__erlBufferGetByte bin loc
 
 export
+setBits8 : Buffer -> (loc : Int) -> (val : Bits8) -> IO ()
+setBits8 buf loc val = do
+  updateBinary buf (\bin => prim__erlBufferSetBits8 bin loc val)
+
+export
+getBits8 : Buffer -> (loc : Int) -> IO Bits8
+getBits8 buf loc = do
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetBits8 bin loc
+
+export
+setBits16 : Buffer -> (loc : Int) -> (val : Bits16) -> IO ()
+setBits16 buf loc val = do
+  updateBinary buf (\bin => prim__erlBufferSetBits16 bin loc val)
+
+export
+getBits16 : Buffer -> (loc : Int) -> IO Bits16
+getBits16 buf loc = do
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetBits16 bin loc
+
+export
+setBits32 : Buffer -> (loc : Int) -> (val : Bits32) -> IO ()
+setBits32 buf loc val = do
+  updateBinary buf (\bin => prim__erlBufferSetBits32 bin loc val)
+
+export
+getBits32 : Buffer -> (loc : Int) -> IO Bits32
+getBits32 buf loc = do
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetBits32 bin loc
+
+export
+setBits64 : Buffer -> (loc : Int) -> (val : Bits64) -> IO ()
+setBits64 buf loc val = do
+  updateBinary buf (\bin => prim__erlBufferSetBits64 bin loc val)
+
+export
+getBits64 : Buffer -> (loc : Int) -> IO Bits64
+getBits64 buf loc = do
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetBits64 bin loc
+
+export
+setInt32 : Buffer -> (loc : Int) -> (val : Int) -> IO ()
+setInt32 buf loc val = do
+  updateBinary buf (\bin => prim__erlBufferSetInt32 bin loc val)
+
+export
+getInt32 : Buffer -> (loc : Int) -> IO Int
+getInt32 buf loc = do
+  bin <- getBinary buf
+  pure $ prim__erlBufferGetInt32 bin loc
+
+export
 setInt : Buffer -> (loc : Int) -> (val : Int) -> IO ()
 setInt buf loc val = do
-  updateBinary buf (\bin => prim__erlBufferSetInt bin loc val)
+  updateBinary buf (\bin => prim__erlBufferSetInt64 bin loc val)
 
 export
 getInt : Buffer -> (loc : Int) -> IO Int
 getInt buf loc = do
   bin <- getBinary buf
-  pure $ prim__erlBufferGetInt bin loc
+  pure $ prim__erlBufferGetInt64 bin loc
 
 export
 setDouble : Buffer -> (loc : Int) -> (val : Double) -> IO ()
@@ -90,6 +156,12 @@ getDouble : Buffer -> (loc : Int) -> IO Double
 getDouble buf loc = do
   bin <- getBinary buf
   pure $ prim__erlBufferGetDouble bin loc
+
+export
+stringByteLength : String -> Int
+stringByteLength str = unsafePerformIO $ do
+  binary <- erlUnsafeCall ErlTerm "unicode" "characters_to_binary" [str]
+  erlUnsafeCall Int "erlang" "byte_size" [binary]
 
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
@@ -105,7 +177,7 @@ getString buf loc len = do
 export
 bufferData : Buffer -> IO (List Int)
 bufferData buf = do
-  len <- rawSize buf
+  let len = rawSize buf
   unpackTo [] len
   where
     unpackTo : List Int -> Int -> IO (List Int)
@@ -115,31 +187,41 @@ bufferData buf = do
       unpackTo (val :: acc) (loc - 1)
 
 export
-readBufferFromFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO (Either FileError Buffer)
-readBufferFromFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
-  let remainingBytesInBuffer = size - loc
-  Right result <- erlCall "file" "read" [h, maxBytes]
-    | Left _ => pure (Left FileReadError)
+copyData : (src : Buffer) -> (start, len : Int) -> (dest : Buffer) -> (loc : Int) -> IO ()
+copyData src start len dest loc = do
+  srcBinary <- getString src start len
+  setString dest loc srcBinary
+
+-- Create a new buffer by reading all the contents from the given file
+-- Fails if no bytes can be read or buffer can't be created
+export
+createBufferFromFile : (filePath : String) -> IO (Either FileError Buffer)
+createBufferFromFile filePath = do
+  result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
   let Right (MkTuple2 _ (MkBinary str)) = erlDecode (tuple2 (exact (MkAtom "ok")) binary) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
-  if strSize <= remainingBytesInBuffer
-    then do
-      setString buf loc str
-      pure (Right (MkBuffer ref size (loc + strSize)))
-    else
-      pure (Left FileReadError)
+  ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
+  erlCall "ets" "insert" [etsKey, MkTuple2 ref str]
+  pure (Right (MkBuffer ref strSize 0))
+
+-- TODO: `maxbytes` is unused
+export
+writeBufferToFile : (filePath : String) -> Buffer -> (maxbytes : Int) -> IO (Either FileError ())
+writeBufferToFile filePath buf@(MkBuffer ref size loc) maxBytes = do
+  bin <- getBinary buf
+  result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, bin]
+  pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export
-writeBufferToFile : BinaryFile -> Buffer -> (maxbytes : Int) -> IO (Either FileError Buffer)
-writeBufferToFile (FHandle h) buf@(MkBuffer ref size loc) maxBytes = do
-  let remainingBytesInBuffer = size - loc
-  let max' = if remainingBytesInBuffer < maxBytes then remainingBytesInBuffer else maxBytes
-  binary <- getBinary buf
-  Right binaryToBeWritten <- erlCall "binary" "part" [binary, MkTuple2 loc max']
-    | Left _ => pure (Left FileWriteError)
-  Right result <- erlCall "file" "write" [h, binaryToBeWritten]
-    | Left _ => pure (Left FileWriteError)
-  pure $ erlDecodeDef (Left FileWriteError)
-    (exact (MkAtom "ok") *> pure (Right (MkBuffer ref size (loc + max'))))
-    result
+resizeBuffer : Buffer -> Int -> IO (Maybe Buffer)
+resizeBuffer old newsize = do
+  Just buf <- newBuffer newsize
+    | Nothing => pure Nothing
+  -- If the new buffer is smaller than the old one, just copy what
+  -- fits
+  let oldsize = rawSize old
+  let len = if newsize < oldsize then newsize else oldsize
+  copyData old 0 len buf 0
+  freeBuffer old
+  pure (Just buf)

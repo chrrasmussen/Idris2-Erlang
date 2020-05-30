@@ -410,13 +410,33 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun5")) [_, _, _, _, _, ter
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferNew")) [size] =
   pure $ EBufferNew l size
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetByte")) [bin, loc, value] =
-  pure $ EBufferSetByte l bin loc value
+  pure $ EBufferSetBits8 l bin loc value
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetByte")) [bin, loc] =
-  pure $ EBufferGetByte l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetInt")) [bin, loc, value] =
-  pure $ EBufferSetInt l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetInt")) [bin, loc] =
-  pure $ EBufferGetInt l bin loc
+  pure $ EBufferGetBits8 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits8")) [bin, loc, value] =
+  pure $ EBufferSetBits8 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits8")) [bin, loc] =
+  pure $ EBufferGetBits8 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits16")) [bin, loc, value] =
+  pure $ EBufferSetBits16 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits16")) [bin, loc] =
+  pure $ EBufferGetBits16 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits32")) [bin, loc, value] =
+  pure $ EBufferSetBits32 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits32")) [bin, loc] =
+  pure $ EBufferGetBits32 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits64")) [bin, loc, value] =
+  pure $ EBufferSetBits64 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits64")) [bin, loc] =
+  pure $ EBufferGetBits64 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetInt32")) [bin, loc, value] =
+  pure $ EBufferSetInt32 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetInt32")) [bin, loc] =
+  pure $ EBufferGetInt32 l bin loc
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetInt64")) [bin, loc, value] =
+  pure $ EBufferSetInt64 l bin loc value
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetInt64")) [bin, loc] =
+  pure $ EBufferGetInt64 l bin loc
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetDouble")) [bin, loc, value] =
   pure $ EBufferSetDouble l bin loc value
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetDouble")) [bin, loc] =

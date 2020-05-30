@@ -59,20 +59,20 @@ bufferGetGeneric targetTSL targetSize l bin loc =
   in AEFunCall l funExpr [bin, loc]
 
 export
-bufferSetByte : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetByte = bufferSetGeneric (MkTSL Nothing Nothing (Just ABInteger) Nothing) 8
+bufferSetUnsignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetUnsignedInt = bufferSetGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferGetByte : Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetByte = bufferGetGeneric (MkTSL Nothing Nothing (Just ABInteger) Nothing) 8
+bufferGetUnsignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetUnsignedInt = bufferGetGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferSetInt : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetInt = bufferSetGeneric (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing) 64
+bufferSetSignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetSignedInt = bufferSetGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferGetInt : Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetInt = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing) 64
+bufferGetSignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetSignedInt = bufferGetGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
 bufferSetDouble : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
