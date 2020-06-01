@@ -248,10 +248,11 @@ mutual
   desugarB side ps (PPrimVal fc x) = pure $ IPrimVal fc x
   desugarB side ps (PQuote fc tm)
       = pure $ IQuote fc !(desugarB side ps tm)
+  desugarB side ps (PQuoteName fc n)
+      = pure $ IQuoteName fc n
   desugarB side ps (PQuoteDecl fc x)
-      = do [x'] <- desugarDecl ps x
-              | _ => throw (GenericMsg fc "Can't quote this declaration")
-           pure $ IQuoteDecl fc x'
+      = do xs <- traverse (desugarDecl ps) x
+           pure $ IQuoteDecl fc (concat xs)
   desugarB side ps (PUnquote fc tm)
       = pure $ IUnquote fc !(desugarB side ps tm)
   desugarB side ps (PRunElab fc tm)
@@ -795,6 +796,9 @@ mutual
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs
            pure [ITransform fc (UN n) blhs rhs']
+  desugarDecl ps (PRunElabDecl fc tm)
+      = do tm' <- desugar AnyExpr ps tm
+           pure [IRunElabDecl fc tm']
   desugarDecl ps (PDirective fc d)
       = case d of
              Hide n => pure [IPragma (\nest, env => hide fc n)]

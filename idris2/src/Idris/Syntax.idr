@@ -53,7 +53,8 @@ mutual
        PSearch : FC -> (depth : Nat) -> PTerm
        PPrimVal : FC -> Constant -> PTerm
        PQuote : FC -> PTerm -> PTerm
-       PQuoteDecl : FC -> PDecl -> PTerm
+       PQuoteName : FC -> Name -> PTerm
+       PQuoteDecl : FC -> List PDecl -> PTerm
        PUnquote : FC -> PTerm -> PTerm
        PRunElab : FC -> PTerm -> PTerm
        PHole : FC -> (bracket : Bool) -> (holename : String) -> PTerm
@@ -239,6 +240,7 @@ mutual
        PFixity : FC -> Fixity -> Nat -> OpStr -> PDecl
        PNamespace : FC -> List String -> List PDecl -> PDecl
        PTransform : FC -> String -> PTerm -> PTerm -> PDecl
+       PRunElabDecl : FC -> PTerm -> PDecl
        PDirective : FC -> Directive -> PDecl
 
 definedInData : PDataDecl -> List Name
@@ -441,7 +443,8 @@ mutual
         = showPrec d f ++ " {" ++ showPrec d n ++ " = " ++ showPrec d a ++ "}"
     showPrec _ (PSearch _ _) = "%search"
     showPrec d (PQuote _ tm) = "`(" ++ showPrec d tm ++ ")"
-    showPrec d (PQuoteDecl _ tm) = "`( <<declaration>> )"
+    showPrec d (PQuoteName _ n) = "`{{" ++ showPrec d n ++ "}}"
+    showPrec d (PQuoteDecl _ tm) = "`[ <<declaration>> ]"
     showPrec d (PUnquote _ tm) = "~(" ++ showPrec d tm ++ ")"
     showPrec d (PRunElab _ tm) = "%runElab " ++ showPrec d tm
     showPrec d (PPrimVal _ c) = showPrec d c
@@ -691,8 +694,9 @@ mapPTermM f = goPTerm where
     goPTerm (PQuote fc x) =
       PQuote fc <$> goPTerm x
       >>= f
+    goPTerm t@(PQuoteName _ _) = f t
     goPTerm (PQuoteDecl fc x) =
-      PQuoteDecl fc <$> goPDecl x
+      PQuoteDecl fc <$> traverse goPDecl x
       >>= f
     goPTerm (PUnquote fc x) =
       PUnquote fc <$> goPTerm x
@@ -858,6 +862,7 @@ mapPTermM f = goPTerm where
     goPDecl p@(PFixity _ _ _ _) = pure p
     goPDecl (PNamespace fc strs ps) = PNamespace fc strs <$> goPDecls ps
     goPDecl (PTransform fc n a b) = PTransform fc n <$> goPTerm a <*> goPTerm b
+    goPDecl (PRunElabDecl fc a) = PRunElabDecl fc <$> goPTerm a
     goPDecl p@(PDirective _ _) = pure p
 
 

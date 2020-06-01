@@ -1,6 +1,6 @@
 module Language.Reflection.TTImp
 
-import Language.Reflection.TT
+import public Language.Reflection.TT
 
 -- Unchecked terms and declarations in the intermediate language
 mutual
@@ -61,6 +61,7 @@ mutual
 
        -- Quasiquotation
        IQuote : FC -> TTImp -> TTImp
+       IQuoteName : FC -> Name -> TTImp
        IQuoteDecl : FC -> TTImp -> TTImp
        IUnquote : FC -> TTImp -> TTImp
 

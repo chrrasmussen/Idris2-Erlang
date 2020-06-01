@@ -158,8 +158,8 @@ symbols
     = [".(", -- for things such as Foo.Bar.(+)
        "@{",
        "[|", "|]",
-       "(", ")", "{", "}", "[", "]", ",", ";", "_",
-       "`(", "`"]
+       "(", ")", "{", "}}", "}", "[", "]", ",", ";", "_",
+       "`(", "`{{", "`[", "`"]
 
 export
 isOpChar : Char -> Bool
@@ -174,7 +174,7 @@ reservedSymbols : List String
 reservedSymbols
     = symbols ++
       ["%", "\\", ":", "=", "|", "|||", "<-", "->", "=>", "?", "!",
-       "&", "**", ".."]
+       "&", "**", "..", "~"]
 
 fromHexLit : String -> Integer
 fromHexLit str

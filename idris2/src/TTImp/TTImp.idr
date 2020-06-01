@@ -91,7 +91,8 @@ mutual
 
        -- Quasiquoting
        IQuote : FC -> RawImp -> RawImp
-       IQuoteDecl : FC -> ImpDecl -> RawImp
+       IQuoteName : FC -> Name -> RawImp
+       IQuoteDecl : FC -> List ImpDecl -> RawImp
        IUnquote : FC -> RawImp -> RawImp
        IRunElab : FC -> RawImp -> RawImp
 
@@ -164,6 +165,7 @@ mutual
       show (IDelay fc tm) = "(%delay " ++ show tm ++ ")"
       show (IForce fc tm) = "(%force " ++ show tm ++ ")"
       show (IQuote fc tm) = "(%quote " ++ show tm ++ ")"
+      show (IQuoteName fc tm) = "(%quotename " ++ show tm ++ ")"
       show (IQuoteDecl fc tm) = "(%quotedecl " ++ show tm ++ ")"
       show (IUnquote fc tm) = "(%unquote " ++ show tm ++ ")"
       show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
@@ -330,6 +332,7 @@ mutual
                  Visibility -> ImpRecord -> ImpDecl
        INamespace : FC -> List String -> List ImpDecl -> ImpDecl
        ITransform : FC -> Name -> RawImp -> RawImp -> ImpDecl
+       IRunElabDecl : FC -> RawImp -> ImpDecl
        IPragma : ({vars : _} ->
                   NestedNames vars -> Env Term vars -> Core ()) ->
                  ImpDecl
@@ -349,6 +352,8 @@ mutual
           showSep "\n" (assert_total $ map show decls)
     show (ITransform _ n lhs rhs)
         = "%transform " ++ show n ++ " " ++ show lhs ++ " ==> " ++ show rhs
+    show (IRunElabDecl _ tm)
+        = "%runElab " ++ show tm
     show (IPragma _) = "[externally defined pragma]"
     show (ILog lvl) = "%logging " ++ show lvl
 
@@ -600,6 +605,7 @@ getFC (IDelayed x _ _) = x
 getFC (IDelay x _) = x
 getFC (IForce x _) = x
 getFC (IQuote x _) = x
+getFC (IQuoteName x _) = x
 getFC (IQuoteDecl x _) = x
 getFC (IUnquote x _) = x
 getFC (IRunElab x _) = x
@@ -678,25 +684,27 @@ mutual
 
     toBuf b (IQuote fc t)
         = do tag 21; toBuf b fc; toBuf b t
-    toBuf b (IQuoteDecl fc t)
+    toBuf b (IQuoteName fc t)
         = do tag 22; toBuf b fc; toBuf b t
-    toBuf b (IUnquote fc t)
+    toBuf b (IQuoteDecl fc t)
         = do tag 23; toBuf b fc; toBuf b t
-    toBuf b (IRunElab fc t)
+    toBuf b (IUnquote fc t)
         = do tag 24; toBuf b fc; toBuf b t
+    toBuf b (IRunElab fc t)
+        = do tag 25; toBuf b fc; toBuf b t
 
     toBuf b (IPrimVal fc y)
-        = do tag 25; toBuf b fc; toBuf b y
+        = do tag 26; toBuf b fc; toBuf b y
     toBuf b (IType fc)
-        = do tag 26; toBuf b fc
+        = do tag 27; toBuf b fc
     toBuf b (IHole fc y)
-        = do tag 27; toBuf b fc; toBuf b y
+        = do tag 28; toBuf b fc; toBuf b y
     toBuf b (IUnifyLog fc lvl x) = toBuf b x
 
     toBuf b (Implicit fc i)
-        = do tag 28; toBuf b fc; toBuf b i
+        = do tag 29; toBuf b fc; toBuf b i
     toBuf b (IWithUnambigNames fc ns rhs)
-        = do tag 29; toBuf b ns; toBuf b rhs
+        = do tag 30; toBuf b ns; toBuf b rhs
 
     fromBuf b
         = case !getTag of
@@ -766,22 +774,24 @@ mutual
                21 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IQuote fc y)
                22 => do fc <- fromBuf b; y <- fromBuf b
-                        pure (IQuoteDecl fc y)
+                        pure (IQuoteName fc y)
                23 => do fc <- fromBuf b; y <- fromBuf b
-                        pure (IUnquote fc y)
+                        pure (IQuoteDecl fc y)
                24 => do fc <- fromBuf b; y <- fromBuf b
+                        pure (IUnquote fc y)
+               25 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IRunElab fc y)
 
-               25 => do fc <- fromBuf b; y <- fromBuf b
+               26 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IPrimVal fc y)
-               26 => do fc <- fromBuf b
+               27 => do fc <- fromBuf b
                         pure (IType fc)
-               27 => do fc <- fromBuf b; y <- fromBuf b
+               28 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IHole fc y)
-               28 => do fc <- fromBuf b
+               29 => do fc <- fromBuf b
                         i <- fromBuf b
                         pure (Implicit fc i)
-               29 => do fc <- fromBuf b
+               30 => do fc <- fromBuf b
                         ns <- fromBuf b
                         rhs <- fromBuf b
                         pure (IWithUnambigNames fc ns rhs)
@@ -964,9 +974,11 @@ mutual
         = do tag 5; toBuf b fc; toBuf b xs; toBuf b ds
     toBuf b (ITransform fc n lhs rhs)
         = do tag 6; toBuf b fc; toBuf b n; toBuf b lhs; toBuf b rhs
+    toBuf b (IRunElabDecl fc tm)
+        = do tag 7; toBuf b fc; toBuf b tm
     toBuf b (IPragma f) = throw (InternalError "Can't write Pragma")
     toBuf b (ILog n)
-        = do tag 7; toBuf b n
+        = do tag 8; toBuf b n
 
     fromBuf b
         = case !getTag of
@@ -992,7 +1004,9 @@ mutual
                6 => do fc <- fromBuf b; n <- fromBuf b
                        lhs <- fromBuf b; rhs <- fromBuf b
                        pure (ITransform fc n lhs rhs)
-               7 => do n <- fromBuf b
+               7 => do fc <- fromBuf b; tm <- fromBuf b
+                       pure (IRunElabDecl fc tm)
+               8 => do n <- fromBuf b
                        pure (ILog n)
                _ => corrupt "ImpDecl"
 

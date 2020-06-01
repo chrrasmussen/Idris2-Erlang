@@ -380,6 +380,18 @@ mutual
            end <- location
            pure (PQuote (MkFC fname start end) e)
     <|> do start <- location
+           symbol "`{{"
+           n <- name
+           symbol "}}"
+           end <- location
+           pure (PQuoteName (MkFC fname start end) n)
+    <|> do start <- location
+           symbol "`["
+           ns <- nonEmptyBlock (topDecl fname)
+           symbol "]"
+           end <- location
+           pure (PQuoteDecl (MkFC fname start end) (collectDefs (concat ns)))
+    <|> do start <- location
            symbol "~"
            e <- simpleExpr fname indents
            end <- location
@@ -401,6 +413,11 @@ mutual
            symbol "|]"
            end <- location
            pure (PIdiom (MkFC fname start end) e)
+    <|> do start <- location
+           pragma "runElab"
+           e <- expr pdef fname indents
+           end <- location
+           pure (PRunElab (MkFC fname start end) e)
     <|> do start <- location
            pragma "logging"
            lvl <- intLit
@@ -1035,7 +1052,9 @@ onoff
 
 extension : Rule LangExt
 extension
-    = do exactIdent "Borrowing"
+    = do exactIdent "ElabReflection"
+         pure ElabReflection
+  <|> do exactIdent "Borrowing"
          pure Borrowing
 
 totalityOpt : Rule TotalReq
@@ -1155,6 +1174,14 @@ transformDecl fname indents
          rhs <- expr pnowith fname indents
          end <- location
          pure (PTransform (MkFC fname start end) n lhs rhs)
+
+runElabDecl : FileName -> IndentInfo -> Rule PDecl
+runElabDecl fname indents
+    = do start <- location
+         pragma "runElab"
+         tm <- expr pnowith fname indents
+         end <- location
+         pure (PRunElabDecl (MkFC fname start end) tm)
 
 mutualDecls : FileName -> IndentInfo -> Rule PDecl
 mutualDecls fname indents
@@ -1485,6 +1512,8 @@ topDecl fname indents
   <|> do d <- paramDecls fname indents
          pure [d]
   <|> do d <- usingDecls fname indents
+         pure [d]
+  <|> do d <- runElabDecl fname indents
          pure [d]
   <|> do d <- transformDecl fname indents
          pure [d]
