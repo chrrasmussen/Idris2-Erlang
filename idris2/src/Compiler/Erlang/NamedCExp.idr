@@ -24,12 +24,20 @@ import Data.Vect
 genConstant : Constant -> IdrisConstant
 genConstant (I x) = IInt x
 genConstant (BI x) = IInteger x
+genConstant (B8 x) = IB8 x
+genConstant (B16 x) = IB16 x
+genConstant (B32 x) = IB32 x
+genConstant (B64 x) = IB64 x
 genConstant (Str x) = IString x
 genConstant (Ch x) = IChar x
 genConstant (Db x) = IDouble x
 genConstant WorldVal = IWorldVal
 genConstant IntType = IIntType
 genConstant IntegerType = IIntegerType
+genConstant Bits8Type = IBits8Type
+genConstant Bits16Type = IBits16Type
+genConstant Bits32Type = IBits32Type
+genConstant Bits64Type = IBits64Type
 genConstant StringType = IStringType
 genConstant CharType = ICharType
 genConstant DoubleType = IDoubleType
@@ -43,6 +51,22 @@ genOp l (Add IntType) [x, y] = pure $ genIntAdd l 63 x y
 genOp l (Sub IntType) [x, y] = pure $ genIntSub l 63 x y
 genOp l (Mul IntType) [x, y] = pure $ genIntMult l 63 x y
 genOp l (Div IntType) [x, y] = pure $ genIntDiv l 63 x y
+genOp l (Add Bits8Type) [x, y] = pure $ genIntAdd l 8 x y
+genOp l (Sub Bits8Type) [x, y] = pure $ genIntSub l 8 x y
+genOp l (Mul Bits8Type) [x, y] = pure $ genIntMult l 8 x y
+genOp l (Div Bits8Type) [x, y] = pure $ genIntDiv l 8 x y
+genOp l (Add Bits16Type) [x, y] = pure $ genIntAdd l 16 x y
+genOp l (Sub Bits16Type) [x, y] = pure $ genIntSub l 16 x y
+genOp l (Mul Bits16Type) [x, y] = pure $ genIntMult l 16 x y
+genOp l (Div Bits16Type) [x, y] = pure $ genIntDiv l 16 x y
+genOp l (Add Bits32Type) [x, y] = pure $ genIntAdd l 32 x y
+genOp l (Sub Bits32Type) [x, y] = pure $ genIntSub l 32 x y
+genOp l (Mul Bits32Type) [x, y] = pure $ genIntMult l 32 x y
+genOp l (Div Bits32Type) [x, y] = pure $ genIntDiv l 32 x y
+genOp l (Add Bits64Type) [x, y] = pure $ genIntAdd l 64 x y
+genOp l (Sub Bits64Type) [x, y] = pure $ genIntSub l 64 x y
+genOp l (Mul Bits64Type) [x, y] = pure $ genIntMult l 64 x y
+genOp l (Div Bits64Type) [x, y] = pure $ genIntDiv l 64 x y
 genOp l (Add ty) [x, y] = pure $ EOp l "+" x y
 genOp l (Sub ty) [x, y] = pure $ EOp l "-" x y
 genOp l (Mul ty) [x, y] = pure $ EOp l "*" x y
@@ -50,6 +74,11 @@ genOp l (Div IntegerType) [x, y] = pure $ EOp l "div" x y -- NOTE: Is allowed to
 genOp l (Div ty) [x, y] = pure $ EOp l "/" x y -- NOTE: Is allowed to be partial
 genOp l (Mod ty) [x, y] = pure $ EOp l "rem" x y -- NOTE: Is allowed to be partial
 genOp l (Neg ty) [x] = pure $ genFunCall l "erlang" "-" [x]
+genOp l (ShiftL IntType) [x, y] = pure $ genIntShiftL l 63 x y
+genOp l (ShiftL Bits8Type) [x, y] = pure $ genIntShiftL l 8 x y
+genOp l (ShiftL Bits16Type) [x, y] = pure $ genIntShiftL l 16 x y
+genOp l (ShiftL Bits32Type) [x, y] = pure $ genIntShiftL l 32 x y
+genOp l (ShiftL Bits64Type) [x, y] = pure $ genIntShiftL l 64 x y
 genOp l (ShiftL ty) [x, y] = pure $ EOp l "bsl" x y
 genOp l (ShiftR ty) [x, y] = pure $ EOp l "bsr" x y
 genOp l (BAnd ty) [x, y] = pure $ EOp l "band" x y
@@ -90,6 +119,10 @@ genOp l DoubleCeiling [x] = pure $ genFunCall l "erlang" "ceil" [x]
 genOp l (Cast IntegerType IntType) [x] = pure $ genIntegerToInt l x
 genOp l (Cast IntegerType DoubleType) [x] = pure $ genIntegerToDouble l x
 genOp l (Cast IntegerType StringType) [x] = pure $ genIntegerToString l x
+genOp l (Cast IntegerType Bits8Type) [x] = pure $ genIntegerToBits l 8 x
+genOp l (Cast IntegerType Bits16Type) [x] = pure $ genIntegerToBits l 16 x
+genOp l (Cast IntegerType Bits32Type) [x] = pure $ genIntegerToBits l 32 x
+genOp l (Cast IntegerType Bits64Type) [x] = pure $ genIntegerToBits l 64 x
 
 genOp l (Cast IntType IntegerType) [x] = pure $ genIntToInteger l x
 genOp l (Cast IntType DoubleType) [x] = pure $ genIntToDouble l x
@@ -107,6 +140,22 @@ genOp l (Cast CharType StringType) [x] = pure $ genCharToString l x
 genOp l (Cast StringType IntegerType) [x] = genStringToInteger l x
 genOp l (Cast StringType IntType) [x] = genStringToInt l x
 genOp l (Cast StringType DoubleType) [x] = genStringToDouble l x
+
+genOp l (Cast Bits8Type IntType) [x] = pure $ x
+genOp l (Cast Bits8Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits8Type StringType) [x] = pure $ genIntegerToString l x
+
+genOp l (Cast Bits16Type IntType) [x] = pure $ x
+genOp l (Cast Bits16Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits16Type StringType) [x] = pure $ genIntegerToString l x
+
+genOp l (Cast Bits32Type IntType) [x] = pure $ x
+genOp l (Cast Bits32Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits32Type StringType) [x] = pure $ genIntegerToString l x
+
+-- Bits64Type->IntType is omitted because Int may not be big enough to store a 64-bit unsigned integer
+genOp l (Cast Bits64Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits64Type StringType) [x] = pure $ genIntegerToString l x
 
 genOp l (Cast from to) [x] = pure $ genThrow l ("Invalid cast " ++ show from ++ "->" ++ show to)
 

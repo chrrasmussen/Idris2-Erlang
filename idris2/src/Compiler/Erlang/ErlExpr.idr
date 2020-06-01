@@ -56,12 +56,20 @@ public export
 data IdrisConstant
   = IInt Int
   | IInteger Integer
+  | IB8 Int
+  | IB16 Int
+  | IB32 Int
+  | IB64 Integer
   | IString String
   | IChar Char
   | IDouble Double
   | IWorldVal
   | IIntType
   | IIntegerType
+  | IBits8Type
+  | IBits16Type
+  | IBits32Type
+  | IBits64Type
   | IStringType
   | ICharType
   | IDoubleType
@@ -204,12 +212,20 @@ genIdrisConstant l fromString fromLiteral constant =
   case constant of
     IInt x => fromLiteral (ALInteger l (cast x))
     IInteger x => fromLiteral (ALInteger l x)
+    IB8 x => fromLiteral (ALInteger l (cast x))
+    IB16 x => fromLiteral (ALInteger l (cast x))
+    IB32 x => fromLiteral (ALInteger l (cast x))
+    IB64 x => fromLiteral (ALInteger l x)
     IString x => fromString x
     IChar x => fromLiteral (ALChar l x)
     IDouble x => fromLiteral (ALFloat l x)
     IWorldVal => fromLiteral (ALAtom l "world_val")
     IIntType => fromLiteral (ALAtom l "int_type")
     IIntegerType => fromLiteral (ALAtom l "integer_type")
+    IBits8Type => fromLiteral (ALAtom l "bits8_type")
+    IBits16Type => fromLiteral (ALAtom l "bits16_type")
+    IBits32Type => fromLiteral (ALAtom l "bits32_type")
+    IBits64Type => fromLiteral (ALAtom l "bits64_type")
     IStringType => fromLiteral (ALAtom l "string_type")
     ICharType => fromLiteral (ALAtom l "char_type")
     IDoubleType => fromLiteral (ALAtom l "double_type")

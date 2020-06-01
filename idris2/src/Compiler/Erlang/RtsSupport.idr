@@ -254,6 +254,18 @@ export
 genIntDiv : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
 genIntDiv = genIntOp "div"
 
+export
+genIntShiftL : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
+genIntShiftL = genIntOp "bsl"
+
+genMod : Line -> ErlExpr -> ErlExpr -> ErlExpr
+genMod l x y =
+  EMatcherCase l
+    (EOp l ">=" x (EInteger l 0))
+    [ MConst (MExact (EAtom l "true")) (EOp l "rem" x y)
+    ]
+    (EOp l "rem" (EOp l "+" x y) y)
+
 
 -- STRINGS
 
@@ -353,6 +365,11 @@ export
 genIntegerToString : Line -> ErlExpr -> ErlExpr
 genIntegerToString l integer =
   genFunCall l "erlang" "integer_to_binary" [integer]
+
+export
+genIntegerToBits : Line -> (bits : Nat) -> ErlExpr -> ErlExpr
+genIntegerToBits l bits integer =
+  genMod l integer (EInteger l (integerPower 2 bits))
 
 
 -- CAST: Int -> *
