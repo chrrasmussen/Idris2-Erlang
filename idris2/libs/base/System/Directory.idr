@@ -2,7 +2,6 @@ module System.Directory
 
 import public System.File
 
-public export
 DirPtr : Type
 DirPtr = AnyPtr
 
@@ -47,7 +46,6 @@ prim_removeDir : String -> PrimIO ()
 %foreign support "idris2_nextDirEntry"
 prim_dirEntry : DirPtr -> PrimIO (Ptr String)
 
-export
 data Directory : Type where
      MkDir : DirPtr -> Directory
 
@@ -74,6 +72,9 @@ currentDir
             else pure (Just (prim__getString res))
 
 export
+removeDir : String -> IO ()
+removeDir dirName = primIO (prim_removeDir dirName)
+
 openDir : String -> IO (Either FileError Directory)
 openDir d
     = do res <- primIO (prim_openDir d)
@@ -81,18 +82,35 @@ openDir d
             then returnError
             else ok (MkDir res)
 
-export
 closeDir : Directory -> IO ()
 closeDir (MkDir d) = primIO (prim_closeDir d)
 
-export
-removeDir : String -> IO ()
-removeDir dirName = primIO (prim_removeDir dirName)
-
-export
 dirEntry : Directory -> IO (Either FileError String)
 dirEntry (MkDir d)
     = do res <- primIO (prim_dirEntry d)
          if prim__nullPtr res /= 0
             then returnError
             else ok (prim__getString res)
+
+getEntries : Directory -> IO (List String)
+getEntries d
+    = do Right f <- dirEntry d
+             | Left err => pure []
+         ds <- assert_total $ getEntries d
+         pure (f :: ds)
+
+export
+dirEntries : String -> IO (Either FileError (List String))
+dirEntries dir
+    = do Right d <- openDir dir
+             | Left err => pure (Left err)
+         ds <- getEntries d
+         closeDir d
+         pure (Right ds)
+
+export
+dirExists : String -> IO Bool
+dirExists dir = do Right d <- openDir dir
+                       | Left _ => pure False
+                   closeDir d
+                   pure True
