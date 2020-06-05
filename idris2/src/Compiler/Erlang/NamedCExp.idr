@@ -336,6 +336,10 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__fastAppend")) [xs] = do
   pure $ xs
 genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
+genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
+  genOsType l
+genExtPrim namespaceInfo l (NS _ (UN "prim__codegen")) [] =
+  pure $ EBinary l "erlang"
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args, world] = do
   let erlCall = genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
   pure $ genMkIORes l erlCall

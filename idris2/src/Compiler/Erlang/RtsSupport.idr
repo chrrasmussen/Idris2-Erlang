@@ -218,6 +218,29 @@ genErlMain l body = do
     genHalt l errorCode = genFunCall l "erlang" "halt" [EInteger l errorCode]
 
 
+-- OS
+
+export
+genOsType : {auto lv : Ref LV LocalVars} -> Line -> Core ErlExpr
+genOsType l = do
+  unixOsFamilyVar <- newLocalVar
+  unixOsNameVar <- newLocalVar
+  winOsFamilyVar <- newLocalVar
+  winOsNameVar <- newLocalVar
+  let osTypeCall = genFunCall l "os" "type" []
+  let unixOsName = EMatcherCase l
+        (ELocal l unixOsNameVar)
+        [ MConst (MExact (EAtom l "darwin")) (EBinary l "darwin")
+        ]
+        (EBinary l "unix")
+  pure $ EMatcherCase l
+    osTypeCall
+    [ MTuple [(unixOsFamilyVar, MExact (EAtom l "unix")), (unixOsNameVar, MAny)] unixOsName
+    , MTuple [(winOsFamilyVar, MExact (EAtom l "win32")), (winOsNameVar, MAny)] (EBinary l "windows")
+    ]
+    (EBinary l "unknown")
+
+
 -- BOOLEANS
 
 export
