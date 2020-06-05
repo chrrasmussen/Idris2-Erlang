@@ -59,6 +59,14 @@ unsetEnv var = do
   result <- erlUnsafeCall ErlTerm "os" "unsetenv" [MkCharlist var]
   pure True
 
+-- TODO: Implement with exit code
+export
+system : String -> IO Int
+system cmd = do
+  output <- erlUnsafeCall String "os" "cmd" [MkCharlist cmd]
+  putStr output
+  pure 0
+
 export
 time : IO Integer
 time = do
