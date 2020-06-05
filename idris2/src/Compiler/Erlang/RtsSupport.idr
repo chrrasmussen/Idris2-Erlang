@@ -349,6 +349,16 @@ genUnicodeStringSubstr l start len str =
   genFunCall l "string" "substr" [str, start, len]
 
 
+-- CHARACTERS
+
+-- A codepoint is represented by an integer between 0x0 and 0x10FFFF.
+-- Return "replacement character" (0xFFFD) if character is not recognized.
+-- https://en.wikipedia.org/wiki/Specials_(Unicode_block)
+genValidChar : Line -> ErlExpr -> ErlExpr
+genValidChar l x =
+  EMatcherCase l x [MCodepoint] (EInteger l 65533)
+
+
 -- CAST: Integer -> *
 
 export
@@ -388,7 +398,7 @@ genIntToDouble l int =
 export
 genIntToChar : Line -> ErlExpr -> ErlExpr
 genIntToChar l int =
-  int
+  genValidChar l int
 
 export
 genIntToString : Line -> ErlExpr -> ErlExpr
@@ -417,18 +427,15 @@ genDoubleToString l double =
 
 -- CAST: Char -> *
 
--- A codepoint is represented by an integer between 0x0 and 0x10FFFF.
--- Return "replacement character" (0xFFFD) if character is not recognized.
--- https://en.wikipedia.org/wiki/Specials_(Unicode_block)
 export
 genCharToInteger : Line -> ErlExpr -> ErlExpr
 genCharToInteger l char =
-  EMatcherCase l char [MCodepoint] (EInteger l 65533)
+  genValidChar l char
 
 export
 genCharToInt : Line -> ErlExpr -> ErlExpr
 genCharToInt l char =
-  genCharToInteger l char
+  genValidChar l char
 
 export
 genCharToString : Line -> ErlExpr -> ErlExpr
