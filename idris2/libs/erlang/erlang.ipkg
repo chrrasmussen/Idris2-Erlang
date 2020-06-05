@@ -13,4 +13,5 @@ modules = Erlang,
           Erlang.IO,
           Erlang.System,
           Erlang.System.Concurrency,
+          Erlang.System.Directory,
           Erlang.System.File

@@ -125,14 +125,13 @@ erlangTests
       "erlang011", "erlang012",
       "chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009",            "chez011", "chez012",
-                            "chez015", "chez016",            "chez018",
+                            "chez015", "chez016", "chez017", "chez018",
       "chez019",            "chez021",
       "reg001"]
       -- Disabled tests:
       -- * chez010: Calling C functions is not supported
       -- * chez013: Calling C functions is not supported
       -- * chez014: Calling C functions is not supported
-      -- * chez017: Require System.Directory
       -- * chez020: Require System.File.popen (Might be possible to implement)
 
 ------------------------------------------------------------------------
