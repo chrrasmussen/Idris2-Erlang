@@ -97,6 +97,16 @@ fGetLine (FHandle f) = do
     result
 
 export
+fGetChar : File -> IO (Either FileError Char)
+fGetChar (FHandle f) = do
+  result <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
+  pure $ erlDecodeDef (Left unknownError)
+    (map (\(MkTuple2 ok character) => Right character) (tuple2 (exact (MkAtom "ok")) codepoint)
+      <|> exact (MkAtom "eof") *> pure (Left FileReadError)
+      <|> map Left error)
+    result
+
+export
 fPutStr : File -> String -> IO (Either FileError ())
 fPutStr (FHandle f) str = do
   result <- erlUnsafeCall ErlTerm "file" "write" [f, str]
