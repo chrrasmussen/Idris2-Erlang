@@ -332,6 +332,8 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
 genExtPrim namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
   pure $ genMkIORes l getStrCall
+genExtPrim namespaceInfo l (NS _ (UN "prim__fastPack")) [xs] = do
+  pure $ genFunCall l "unicode" "characters_to_binary" [xs]
 genExtPrim namespaceInfo l (NS _ (UN "prim__unpack")) [str] = do
   pure $ genFunCall l "string" "to_graphemes" [str]
 genExtPrim namespaceInfo l (NS _ (UN "prim__fastAppend")) [xs] = do
