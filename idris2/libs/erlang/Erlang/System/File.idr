@@ -87,7 +87,7 @@ closeFile (FHandle f) = do
   pure ()
 
 export
-fGetLine : (h : File) -> IO (Either FileError String)
+fGetLine : File -> IO (Either FileError String)
 fGetLine (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read_line" [f]
   pure $ erlDecodeDef (Left unknownError)
@@ -97,7 +97,7 @@ fGetLine (FHandle f) = do
     result
 
 export
-fPutStr : (h : File) -> String -> IO (Either FileError ())
+fPutStr : File -> String -> IO (Either FileError ())
 fPutStr (FHandle f) str = do
   result <- erlUnsafeCall ErlTerm "file" "write" [f, str]
   pure $ erlDecodeDef (Left unknownError)
@@ -106,11 +106,11 @@ fPutStr (FHandle f) str = do
     result
 
 export
-fPutStrLn : (h : File) -> String -> IO (Either FileError ())
+fPutStrLn : File -> String -> IO (Either FileError ())
 fPutStrLn f str = fPutStr f (str ++ "\n")
 
 export
-fEOF : (h : File) -> IO Bool
+fEOF : File -> IO Bool
 fEOF (FHandle f) = do
   readResult <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
   erlDecodeDef (pure True)
@@ -165,7 +165,7 @@ writeFile filePath contents = do
 
 -- TODO: Is this necessary? Currently a no-op.
 export
-fflush : (h : File) -> IO ()
+fflush : File -> IO ()
 fflush (FHandle f) = do
   pure ()
 
