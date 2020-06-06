@@ -12,8 +12,8 @@ import Libraries.Text.PrettyPrint.Prettyprinter
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
 
 import public Data.IORef
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 %default covering
 

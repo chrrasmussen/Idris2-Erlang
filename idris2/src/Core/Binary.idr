@@ -15,10 +15,10 @@ import Core.TT
 import Core.TTC
 import Core.UnifyState
 
-import Data.Buffer
+import Erlang.Data.Buffer
 import Data.List
 
-import System.File
+import Erlang.System.File
 
 import Libraries.Data.IntMap
 import Libraries.Data.NameMap

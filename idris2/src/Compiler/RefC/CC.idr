@@ -4,7 +4,7 @@ import Core.Context
 import Core.Context.Log
 import Core.Options
 
-import System
+import Erlang.System
 
 import Idris.Version
 import Libraries.Utils.Path

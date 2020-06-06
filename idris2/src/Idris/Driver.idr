@@ -28,9 +28,9 @@ import Data.List
 import Data.List1
 import Data.So
 import Data.String
-import System
-import System.Directory
-import System.File
+import Erlang.System
+import Erlang.System.Directory
+import Erlang.System.File
 import Libraries.Utils.Path
 import Libraries.Utils.Term
 

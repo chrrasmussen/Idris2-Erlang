@@ -14,7 +14,7 @@ import Data.Maybe
 import Data.String
 import Data.Either
 
-import System
+import Erlang.System
 
 %default total
 

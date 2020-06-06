@@ -15,7 +15,7 @@ import Libraries.Text.Parser
 import Libraries.Text.Quantity
 
 import System.Info
-import System.File
+import Erlang.System.File
 
 %default total
 

@@ -10,7 +10,7 @@ import Data.List
 import Data.List1
 import Libraries.Data.List.Extra
 import Data.String
-import System.File
+import Erlang.System.File
 import Libraries.Data.String.Extra
 
 %hide Data.String.lines

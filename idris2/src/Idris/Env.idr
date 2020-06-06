@@ -5,7 +5,7 @@ module Idris.Env
 import public Data.List
 import public Data.Maybe
 
-import System
+import Erlang.System
 
 %default total
 

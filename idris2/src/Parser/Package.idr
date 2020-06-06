@@ -9,7 +9,7 @@ import public Parser.Support
 import Core.Core
 import Core.FC
 import Core.Name.Namespace
-import System.File
+import Erlang.System.File
 
 %default total
 

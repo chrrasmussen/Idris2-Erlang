@@ -13,7 +13,7 @@ import public Core.TT
 import Libraries.Utils.Binary
 
 import Data.Fin
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Data.IntMap
 import Data.List
 import Data.List1
@@ -23,9 +23,9 @@ import Libraries.Data.NameMap
 import Libraries.Data.StringMap
 import Libraries.Text.Distance.Levenshtein
 
-import System
 import System.Clock
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 
 %default covering
 

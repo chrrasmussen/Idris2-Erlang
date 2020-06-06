@@ -42,8 +42,8 @@ import Libraries.Data.NameMap
 import Libraries.Data.SortedMap
 import Libraries.Utils.Path
 
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 %default covering
 

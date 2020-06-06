@@ -13,7 +13,7 @@ import Core.TT
 import Core.TTC
 
 import Data.List
-import System.File
+import Erlang.System.File
 import Libraries.Data.PosMap
 import Libraries.Utils.Binary
 

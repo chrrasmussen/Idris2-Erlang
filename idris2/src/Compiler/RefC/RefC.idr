@@ -18,8 +18,8 @@ import Data.String
 import Libraries.Data.SortedSet
 import Data.Vect
 
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 import Libraries.Utils.Hex
 import Libraries.Utils.Path

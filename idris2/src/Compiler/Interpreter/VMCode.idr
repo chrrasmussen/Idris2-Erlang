@@ -8,7 +8,7 @@ import Core.Primitives
 import Core.Value
 import Compiler.Common
 import Compiler.VMCode
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Data.NameMap
 import Data.Nat
 import Data.SnocList

@@ -24,9 +24,9 @@ import Data.Vect
 
 import Idris.Env
 
-import System
-import System.Directory
-import System.File
+import Erlang.System
+import Erlang.System.Directory
+import Erlang.System.File
 import System.Info
 
 %default covering

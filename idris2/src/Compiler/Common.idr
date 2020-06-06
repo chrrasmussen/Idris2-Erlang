@@ -13,7 +13,7 @@ import Core.Directory
 import Core.Options
 import Core.TT
 import Core.TTC
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Utils.Binary
 import Libraries.Utils.Path
 
@@ -24,9 +24,9 @@ import Data.String as String
 
 import Idris.Env
 
-import System.Directory
+import Erlang.System.Directory
 import System.Info
-import System.File
+import Erlang.System.File
 
 %default covering
 

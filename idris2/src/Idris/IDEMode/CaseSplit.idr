@@ -25,7 +25,7 @@ import Data.List1
 import Libraries.Data.List.Extra
 import Libraries.Data.String.Extra
 import Data.String
-import System.File
+import Erlang.System.File
 
 %hide Data.String.lines
 %hide Data.String.lines'

@@ -24,7 +24,7 @@ import Yaffle.REPL
 import Data.List
 import Data.So
 import Data.String
-import System
+import Erlang.System
 
 %default covering
 

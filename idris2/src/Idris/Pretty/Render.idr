@@ -9,7 +9,7 @@ import Libraries.Text.PrettyPrint.Prettyprinter
 import public Libraries.Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Libraries.Utils.Term
 
-import System
+import Erlang.System
 
 %default total
 

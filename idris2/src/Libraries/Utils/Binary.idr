@@ -3,7 +3,7 @@ module Libraries.Utils.Binary
 import Core.Core
 import Core.Name
 
-import Data.Buffer
+import Erlang.Data.Buffer
 import Data.List
 import Data.List.Elem
 import Data.List1
@@ -12,12 +12,12 @@ import Data.String
 import Data.Vect
 
 import System.Info
-import System.File
+import Erlang.System.File
 
 import Libraries.Data.PosMap
 import Libraries.Utils.String
 
-import public Libraries.Data.IOArray
+import public Erlang.Data.IOArray
 
 -- Serialising data as binary. Provides an interface TTC which allows
 -- reading and writing to chunks of memory, "Binary", which can be written

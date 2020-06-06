@@ -49,9 +49,9 @@ import Libraries.Text.PrettyPrint.Prettyprinter.Render.Terminal
 import Libraries.Utils.Path
 import Libraries.System.Directory.Tree
 
-import System
-import System.File
-import System.Directory
+import Erlang.System
+import Erlang.System.File
+import Erlang.System.Directory
 
 %default covering
 

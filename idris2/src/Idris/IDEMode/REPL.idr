@@ -46,9 +46,8 @@ import TTImp.ProcessDecls
 import Libraries.Utils.Hex
 import Libraries.Utils.Path
 
-import Data.List
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 import Network.Socket
 import Network.Socket.Data
