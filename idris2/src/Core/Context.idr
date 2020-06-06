@@ -13,13 +13,13 @@ import public Core.TT
 import Utils.Binary
 
 import Data.IntMap
-import Data.IOArray
+import Erlang.Data.IOArray
 import Data.List
 import Data.NameMap
 import Data.StringMap
 
-import System
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 
 %default covering
 

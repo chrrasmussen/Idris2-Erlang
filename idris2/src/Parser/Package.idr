@@ -6,7 +6,7 @@ import public Text.Lexer
 import public Text.Parser
 import public Parser.Support
 
-import System.File
+import Erlang.System.File
 import Utils.Either
 
 %default total

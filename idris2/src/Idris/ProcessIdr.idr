@@ -28,7 +28,7 @@ import Idris.Pretty
 import Data.List
 import Data.NameMap
 
-import System.File
+import Erlang.System.File
 
 %default covering
 

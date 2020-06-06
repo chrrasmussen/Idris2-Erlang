@@ -3,15 +3,15 @@ module Utils.Binary
 import Core.Core
 import Core.Name
 
-import Data.Buffer
-import public Data.IOArray
+import Erlang.Data.Buffer
+import public Erlang.Data.IOArray
 import Data.List
 import Data.List.Elem
 import Data.List1
 import Data.Nat
 import Data.Vect
 
-import System.File
+import Erlang.System.File
 
 -- Serialising data as binary. Provides an interface TTC which allows
 -- reading and writing to chunks of memory, "Binary", which can be written

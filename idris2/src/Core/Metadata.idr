@@ -10,7 +10,7 @@ import Core.TT
 import Core.TTC
 
 import Data.List
-import System.File
+import Erlang.System.File
 import Utils.Binary
 
 %default covering

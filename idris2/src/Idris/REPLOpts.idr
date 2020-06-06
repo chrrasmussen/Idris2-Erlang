@@ -8,7 +8,7 @@ import TTImp.TTImp
 
 import Data.List
 import Data.Strings
-import System.File
+import Erlang.System.File
 
 %default total
 

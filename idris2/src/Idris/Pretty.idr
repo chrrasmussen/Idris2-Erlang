@@ -4,7 +4,7 @@ import Data.List
 import Data.Strings
 import Control.ANSI.SGR
 import public Text.PrettyPrint.Prettyprinter
-import public Text.PrettyPrint.Prettyprinter.Render.Terminal
+import public Erlang.Text.PrettyPrint.Prettyprinter.Render.Terminal
 import public Text.PrettyPrint.Prettyprinter.Util
 
 import Algebra

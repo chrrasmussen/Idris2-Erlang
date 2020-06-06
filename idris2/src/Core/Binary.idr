@@ -14,7 +14,7 @@ import Data.IntMap
 import Data.List
 import Data.NameMap
 
-import System.File
+import Erlang.System.File
 
 -- Reading and writing 'Defs' from/to  a binary file
 -- In order to be saved, a name must have been flagged using 'toSave'.
@@ -23,7 +23,7 @@ import System.File
 
 import public Utils.Binary
 
-import Data.Buffer
+import Erlang.Data.Buffer
 
 %default covering
 

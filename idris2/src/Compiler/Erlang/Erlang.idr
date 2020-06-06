@@ -26,8 +26,8 @@ import Data.SortedMap
 import Data.Strings
 import Utils.Binary
 import Utils.Path
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 
 %default covering

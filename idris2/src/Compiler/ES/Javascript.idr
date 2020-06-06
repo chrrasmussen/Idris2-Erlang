@@ -9,8 +9,8 @@ import Core.Context
 import Core.TT
 import Utils.Path
 
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 import Data.Maybe
 import Data.Strings

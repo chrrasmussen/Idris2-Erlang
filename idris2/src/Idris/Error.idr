@@ -23,7 +23,7 @@ import Data.Strings
 import Data.String.Extra
 import Text.PrettyPrint.Prettyprinter
 import Text.PrettyPrint.Prettyprinter.Util
-import System.File
+import Erlang.System.File
 import Utils.String
 
 %default covering

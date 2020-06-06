@@ -10,9 +10,9 @@ import Parser.Source
 import Text.PrettyPrint.Prettyprinter
 import Text.PrettyPrint.Prettyprinter.Util
 
-import public Data.IORef
-import System
-import System.File
+import public Erlang.Data.IORef
+import Erlang.System
+import Erlang.System.File
 
 %default covering
 

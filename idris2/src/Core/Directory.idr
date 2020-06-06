@@ -11,8 +11,8 @@ import Data.List
 import Data.Strings
 import Data.Maybe
 
-import System.Directory
-import System.File
+import Erlang.System.Directory
+import Erlang.System.File
 import System.Info
 
 %default total

@@ -14,14 +14,14 @@ import Core.TT
 import Core.TTC
 import Utils.Binary
 
-import Data.IOArray
+import Erlang.Data.IOArray
 import Data.List
 import Data.NameMap
 import Data.Strings
 
-import System.Directory
+import Erlang.System.Directory
 import System.Info
-import System.File
+import Erlang.System.File
 
 %default covering
 
