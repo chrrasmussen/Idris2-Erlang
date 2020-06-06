@@ -39,8 +39,12 @@ prim__arraySet (MkArrayData ref) pos value = do
 export
 record IOArray elem where
   constructor MkIOArray
-  max : Int
+  maxSize : Int
   content : ArrayData (Maybe elem)
+
+export
+max : IOArray elem -> Int
+max = maxSize
 
 export
 newArray : Int -> IO (IOArray elem)
