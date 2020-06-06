@@ -19,17 +19,17 @@ bufferNew l size =
 --   <<Start:Loc/binary, _:8/integer, End/binary>> = Bin,
 --   <<Start/binary, Value:8/integer, End/binary>>.
 -- ```
-bufferSetGeneric : (targetSize : Integer) -> (targetTSL : TypeSpecifierList) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetGeneric targetSize targetTSL l bin loc value =
+bufferSetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetGeneric targetTSL targetSize l bin loc value =
   let binaryPattern = APBitstring l
-        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")          (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPUniversal l)   (ABSInteger l targetSize) targetTSL
-        , MkBitSegment l (ABPVar l "End")   ABSDefault                (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (ABPUniversal l)   (ABSInteger l (cast targetSize)) targetTSL
+        , MkBitSegment l (ABPVar l "End")   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       constructedBinary = AEBitstring l
-        [ MkBitSegment l (AEVar l "Start") ABSDefault                (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "Value") (ABSInteger l targetSize) targetTSL
-        , MkBitSegment l (AEVar l "End")   ABSDefault                (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Start") ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (AEVar l "Value") (ABSInteger l (cast targetSize)) targetTSL
+        , MkBitSegment l (AEVar l "End")   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       body =
         [ AEMatch l binaryPattern (AEVar l "Bin")
@@ -44,12 +44,12 @@ bufferSetGeneric targetSize targetTSL l bin loc value =
 --   <<_Start:Loc/binary, Value:8/integer, _End/binary>> = Bin,
 --   Value.
 -- ```
-bufferGetGeneric : (targetSize : Integer) -> (targetTSL : TypeSpecifierList) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetGeneric targetSize targetTSL l bin loc =
+bufferGetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetGeneric targetTSL targetSize l bin loc =
   let binaryPattern = APBitstring l
-        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc")          (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPVar l "Value") (ABSInteger l targetSize) targetTSL
-        , MkBitSegment l (ABPUniversal l)   ABSDefault                (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (ABPVar l "Value") (ABSInteger l (cast targetSize)) targetTSL
+        , MkBitSegment l (ABPUniversal l)   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       body =
         [ AEMatch l binaryPattern (AEVar l "Bin")
@@ -60,27 +60,27 @@ bufferGetGeneric targetSize targetTSL l bin loc =
 
 export
 bufferSetByte : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetByte = bufferSetGeneric 8 (MkTSL Nothing Nothing (Just ABInteger) Nothing)
+bufferSetByte = bufferSetGeneric (MkTSL Nothing Nothing (Just ABInteger) Nothing) 8
 
 export
 bufferGetByte : Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetByte = bufferGetGeneric 8 (MkTSL Nothing Nothing (Just ABInteger) Nothing)
+bufferGetByte = bufferGetGeneric (MkTSL Nothing Nothing (Just ABInteger) Nothing) 8
 
 export
 bufferSetInt : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetInt = bufferSetGeneric 64 (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing)
+bufferSetInt = bufferSetGeneric (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing) 64
 
 export
 bufferGetInt : Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetInt = bufferGetGeneric 64 (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing)
+bufferGetInt = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABInteger) Nothing) 64
 
 export
 bufferSetDouble : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetDouble = bufferSetGeneric 64 (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing)
+bufferSetDouble = bufferSetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64
 
 export
 bufferGetDouble : Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetDouble = bufferGetGeneric 64 (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing)
+bufferGetDouble = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64
 
 -- Similar to the following Erlang code:
 -- ```
