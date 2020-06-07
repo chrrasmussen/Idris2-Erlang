@@ -369,7 +369,7 @@ genUnicodeStringReverse l str =
 export
 genUnicodeStringSubstr : Line -> (start : ErlExpr) -> (len : ErlExpr) -> (str : ErlExpr) -> ErlExpr
 genUnicodeStringSubstr l start len str =
-  genFunCall l "string" "substr" [str, start, len]
+  genFunCall l "string" "slice" [str, start, len]
 
 
 -- CHARACTERS
