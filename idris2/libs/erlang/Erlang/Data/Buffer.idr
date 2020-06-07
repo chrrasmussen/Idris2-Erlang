@@ -160,7 +160,7 @@ getDouble buf loc = do
 export
 stringByteLength : String -> Int
 stringByteLength str = unsafePerformIO $ do
-  binary <- erlUnsafeCall ErlTerm "unicode" "characters_to_binary" [str]
+  binary <- erlUnsafeCall ErlTerm "erlang" "iolist_to_binary" [str]
   erlUnsafeCall Int "erlang" "byte_size" [binary]
 
 export
