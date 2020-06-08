@@ -64,7 +64,7 @@ idrisTests
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014", "interface015",
        -- Miscellaneous REPL
-       "interpreter001",
+       "interpreter001", "interpreter002",
        -- Implicit laziness, lazy evaluation
        "lazy001",
        -- QTT and linearity related
@@ -92,6 +92,7 @@ idrisTests
        "reg001", "reg002", "reg003", "reg004", "reg005", "reg006", "reg007",
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
+       "reg022", "reg023",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006", "total007", "total008",
@@ -237,6 +238,9 @@ runTest opts testPath
                      | Left err => do print err
                                       pure False
                  let result = normalize out == normalize exp
+                 -- The issue #116 that made this necessary is fixed, but
+                 -- please resist putting 'result' here until it's also
+                 -- fixed in Idris2-boot!
                  if normalize out == normalize exp
                     then putStrLn "success"
                     else do
