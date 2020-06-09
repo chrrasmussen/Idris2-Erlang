@@ -256,11 +256,12 @@ quitOpts (Help (Just HelpPragma) :: _)
 quitOpts (_ :: opts) = quitOpts opts
 
 export
-mainWithCodegens : List (String, Codegen) -> IO ()
-mainWithCodegens cgs = do
-  Right opts <- getCmdOpts
-    | Left err => do putStrLn err
-                     putStrLn usage
+mainWithCodegens : List (String, Codegen) -> (args : List String) -> IO ()
+mainWithCodegens cgs args = do
+  let Right opts = getOpts args
+        | Left err => do
+          putStrLn err
+          putStrLn usage
   continue <- quitOpts opts
   when continue $ do
     setupTerm
