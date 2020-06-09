@@ -197,7 +197,7 @@ copyData src start len dest loc = do
 export
 createBufferFromFile : (filePath : String) -> IO (Either FileError Buffer)
 createBufferFromFile filePath = do
-  result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
+  result <- erlUnsafeCall ErlTerm "file" "read_file" [MkBinary filePath]
   let Right (MkTuple2 _ (MkBinary str)) = erlDecode (tuple2 (exact (MkAtom "ok")) binary) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
@@ -210,7 +210,7 @@ export
 writeBufferToFile : (filePath : String) -> Buffer -> (maxbytes : Int) -> IO (Either FileError ())
 writeBufferToFile filePath buf@(MkBuffer ref size loc) maxBytes = do
   bin <- getBinary buf
-  result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, bin]
+  result <- erlUnsafeCall ErlTerm "file" "write_file" [MkBinary filePath, bin]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export
