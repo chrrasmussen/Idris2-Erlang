@@ -58,13 +58,31 @@ compileAbstrCmd : (erl : String) -> (srcfiles : List String) -> (outdir : String
 compileAbstrCmd erl srcfiles outdir =
   let code =
       unwords
-        [ "CompileAbstr = fun(File, OutputDir) ->"
+        [ "Collect = fun"
+        ,   "Collect([]) -> [];"
+        ,   "Collect([{Pid, MRef} | Next]) ->"
+        ,     "receive"
+        ,       "{Pid, Res} ->"
+        ,         "erlang:demonitor(MRef, [flush]),"
+        ,         "[{ok, Res} | Collect(Next)];"
+        ,       "{'DOWN', MRef, process, Pid, Reason} ->"
+        ,         "[{error, Reason} | Collect(Next)]"
+        ,     "end"
+        , "end,"
+        , "Pmap = fun(F, Es) ->"
+        ,   "Parent = self(),"
+        ,   "Running = ["
+        ,     "spawn_monitor(fun() -> Parent ! {self(), F(E)} end)"
+        ,       "|| E <- Es],"
+        ,   "Collect(Running)"
+        , "end,"
+        , "CompileAbstr = fun(File, OutputDir) ->"
         ,   "{ok, Forms} = file:consult(File),"
         ,   "{ok, ModuleName, BinaryOrCode} = compile:noenv_forms(Forms, []),"
         ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".beam\"),"
         ,   "file:write_file(OutputFile, BinaryOrCode)"
         , "end,"
-        , "lists:map(fun(File) -> CompileAbstr(File, " ++ show outdir ++ ") end, " ++ show srcfiles ++ "),"
+        , "Pmap(fun(File) -> CompileAbstr(File, " ++ show outdir ++ ") end, " ++ show srcfiles ++ "),"
         , "halt(0)"
         ]
   in evalErlangCmd erl code
