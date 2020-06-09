@@ -24,7 +24,7 @@ Show ErlPid where
     pure ("#Pid" ++ str)
 
 export
-Show ErlRef where
+Show ErlReference where
   show x = unsafePerformIO $ do
     MkCharlist str <- erlUnsafeCall ErlCharlist "erlang" "ref_to_list" [x]
     pure str

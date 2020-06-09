@@ -17,8 +17,8 @@ mapEx2 = unsafePerformIO $ erlUnsafeCall ErlAnyMap "test_support" "get_map_ex2" 
 pidEx : ErlPid
 pidEx = unsafePerformIO $ erlUnsafeCall ErlPid "test_support" "get_pid" []
 
-refEx : ErlRef
-refEx = unsafePerformIO $ erlUnsafeCall ErlRef "test_support" "get_ref" []
+refEx : ErlReference
+refEx = unsafePerformIO $ erlUnsafeCall ErlReference "test_support" "get_ref" []
 
 portEx : ErlPort
 portEx = unsafePerformIO $ erlUnsafeCall ErlPort "test_support" "get_port" []
@@ -132,11 +132,11 @@ testPid = do
   putStrLn (erlDecodeDef "not found" (map show pid) pidEx)
   putStrLn (erlDecodeDef "not found" (map show pid) "not a pid")
 
-testRef : IO ()
-testRef = do
-  putStrLn "testRef"
-  putStrLn (erlDecodeDef "not found" (map show ref) refEx)
-  putStrLn (erlDecodeDef "not found" (map show ref) "not a ref")
+testReference : IO ()
+testReference = do
+  putStrLn "testReference"
+  putStrLn (erlDecodeDef "not found" (map show reference) refEx)
+  putStrLn (erlDecodeDef "not found" (map show reference) "not a ref")
 
 testPort : IO ()
 testPort = do
@@ -282,7 +282,7 @@ main = do
   testAtom
   testBinary
   testPid
-  testRef
+  testReference
   testPort
   testAnyMap
   testAnyList

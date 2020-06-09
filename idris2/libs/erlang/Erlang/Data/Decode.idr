@@ -106,7 +106,7 @@ erlDecodeDef def decoder term =
 %extern prim__erlDecodeAtom       : ErlTerm -> Maybe ErlAtom
 %extern prim__erlDecodeBinary     : ErlTerm -> Maybe ErlBinary
 %extern prim__erlDecodePid        : ErlTerm -> Maybe ErlPid
-%extern prim__erlDecodeRef        : ErlTerm -> Maybe ErlRef
+%extern prim__erldecodeReference  : ErlTerm -> Maybe ErlReference
 %extern prim__erlDecodePort       : ErlTerm -> Maybe ErlPort
 %extern prim__erlDecodeAnyMap     : ErlTerm -> Maybe ErlAnyMap
 %extern prim__erlDecodeAnyList    : ErlTerm -> Maybe ErlTerm
@@ -193,9 +193,9 @@ pid =
   MkDecoder (maybe (Left (Error "Expected a pid")) Right . prim__erlDecodePid)
 
 export
-ref : ErlDecoder ErlRef
-ref =
-  MkDecoder (maybe (Left (Error "Expected a ref")) Right . prim__erlDecodeRef)
+reference : ErlDecoder ErlReference
+reference =
+  MkDecoder (maybe (Left (Error "Expected a reference")) Right . prim__erldecodeReference)
 
 export
 port : ErlDecoder ErlPort

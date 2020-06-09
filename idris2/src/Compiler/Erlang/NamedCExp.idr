@@ -369,7 +369,7 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeBinary")) [term] =
   genDecode l term MBinary
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodePid")) [term] =
   genDecode l term MPid
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeRef")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN "prim__erldecodeReference")) [term] =
   genDecode l term MRef
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodePort")) [term] =
   genDecode l term MPort

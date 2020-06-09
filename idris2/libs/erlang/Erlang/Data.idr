@@ -78,7 +78,7 @@ export
 data ErlPid : Type where [external]
 
 export
-data ErlRef : Type where [external]
+data ErlReference : Type where [external]
 
 export
 data ErlPort : Type where [external]
@@ -200,7 +200,7 @@ mutual
     ETErlList       : ErlTypes xs => ErlType (ErlList xs)
     ETErlMapSubset  : ErlMapTypes xs => ErlType (ErlMapSubset xs)
     ETErlPid        : ErlType ErlPid
-    ETErlRef        : ErlType ErlRef
+    ETErlReference  : ErlType ErlReference
     ETErlPort       : ErlType ErlPort
     ETErlTuple0     : ErlType ErlTuple0
     ETErlTuple1     : ErlTypes [a]                  => ErlType (ErlTuple1 a)
