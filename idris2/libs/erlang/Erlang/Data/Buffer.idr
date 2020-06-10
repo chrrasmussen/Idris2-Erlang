@@ -63,8 +63,8 @@ freeBuffer : Buffer -> IO ()
 freeBuffer buf = pure ()
 
 export
-rawSize : Buffer -> Int
-rawSize buf@(MkBuffer ref _ _) = unsafePerformIO $ do
+rawSize : Buffer -> IO Int
+rawSize buf@(MkBuffer ref _ _) = do
   binary <- getBinary buf
   erlUnsafeCall Int "erlang" "byte_size" [binary]
 
@@ -177,7 +177,7 @@ getString buf loc len = do
 export
 bufferData : Buffer -> IO (List Int)
 bufferData buf = do
-  let len = rawSize buf
+  len <- rawSize buf
   unpackTo [] len
   where
     unpackTo : List Int -> Int -> IO (List Int)
@@ -220,7 +220,7 @@ resizeBuffer old newsize = do
     | Nothing => pure Nothing
   -- If the new buffer is smaller than the old one, just copy what
   -- fits
-  let oldsize = rawSize old
+  oldsize <- rawSize old
   let len = if newsize < oldsize then newsize else oldsize
   copyData old 0 len buf 0
   freeBuffer old

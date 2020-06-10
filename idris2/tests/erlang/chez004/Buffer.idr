@@ -4,7 +4,7 @@ main : IO ()
 main
     = do Just buf <- newBuffer 100
               | Nothing => putStrLn "Buffer creation failed"
-         let s = rawSize buf
+         s <- rawSize buf
          printLn s
 
          setInt32 buf 1 94
