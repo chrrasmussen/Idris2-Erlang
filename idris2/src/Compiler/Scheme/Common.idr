@@ -179,7 +179,7 @@ schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg +
 public export
 data ExtPrim = CCall | SchemeCall
              | PutStr | GetStr | PutChar | GetChar
-             | FastAppend
+             | Unpack | FastAppend
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
@@ -197,6 +197,7 @@ Show ExtPrim where
   show GetStr = "GetStr"
   show PutChar = "PutChar"
   show GetChar = "GetChar"
+  show Unpack = "Unpack"
   show FastAppend = "FastAppend"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
@@ -222,6 +223,7 @@ toPrim pn@(NS _ n)
             (n == UN "prim__getStr", GetStr),
             (n == UN "prim__putChar", PutChar),
             (n == UN "prim__getChar", GetChar),
+            (n == UN "prim__unpack", Unpack),
             (n == UN "prim__fastAppend", FastAppend),
             (n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
@@ -452,6 +454,8 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor schString (NS ["Builtin"] (UN "MkUnit")) (Just 0) []) ++ ")" -- code for MkUnit
   schExtCommon i GetChar [world]
       = pure $ mkWorld "(blodwen-get-char (current-input-port))"
+  schExtCommon i Unpack [str]
+      = pure $ ("(blodwen-string-unpack " ++ !(schExp i str) ++ ")")
   schExtCommon i FastAppend [xs]
       = pure $ ("(apply string-append (blodwen-read-list " ++ !(schExp i xs) ++ "))")
   schExtCommon i NewIORef [_, val, world]

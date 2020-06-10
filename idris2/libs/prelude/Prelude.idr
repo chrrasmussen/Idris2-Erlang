@@ -1220,20 +1220,16 @@ fastPack xs
     toFArgs [] = []
     toFArgs (x :: xs) = x :: toFArgs xs
 
+%extern prim__unpack : String -> List Char
+
 ||| Turns a string into a list of characters.
 |||
 ||| ```idris example
 ||| unpack "ABC"
 ||| ```
-public export
+export
 unpack : String -> List Char
-unpack str = unpack' 0 (prim__cast_IntegerInt (natToInteger (length str))) str
-  where
-    unpack' : Int -> Int -> String -> List Char
-    unpack' pos len str
-        = if pos >= len
-             then []
-             else assert_total (prim__strIndex str pos) :: assert_total (unpack' (pos + 1) len str)
+unpack = prim__unpack
 
 public export
 Semigroup String where
