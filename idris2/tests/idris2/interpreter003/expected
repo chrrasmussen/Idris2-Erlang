@@ -8,7 +8,7 @@ Main> Error: Undefined name fromMaybe.
 Main> Imported module Data.Maybe
 Main> "test"
 Main> Imported module Data.Strings
-Main> "hello"
+Main> pack (map toLower (prim__unpack "HELLO"))
 Main> True
 Main> Error loading module DoesNotExists: Module DoesNotExists not found
 
