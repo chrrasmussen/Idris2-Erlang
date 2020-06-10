@@ -137,6 +137,7 @@ genThrow l msg =
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr -> ErlExpr
+genUnsafeStringToAtom l (EIdrisConstant _ (IString x)) = EAtom l x
 genUnsafeStringToAtom l expr =
   let binary = genFunCall l "unicode" "characters_to_binary" [expr]
   in genFunCall l "erlang" "binary_to_atom" [binary, EAtom l "utf8"]
