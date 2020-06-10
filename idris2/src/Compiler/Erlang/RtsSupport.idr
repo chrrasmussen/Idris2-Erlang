@@ -192,11 +192,9 @@ export
 genEscriptMain : Line -> (args : ErlExpr) -> (body : ErlExpr) -> ErlExpr
 genEscriptMain l args body =
   let saveArgsCall = genFunCall l "persistent_term" "put" [EAtom l "$idris_rts_args", args]
-      createEtsCall = genFunCall l "ets" "new" [EAtom l "$idris_rts_ets", genList l [EAtom l "public", EAtom l "named_table"]]
       setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
   in ESequence l
       [ saveArgsCall
-      , createEtsCall
       , setEncodingCall
       , body
       ]

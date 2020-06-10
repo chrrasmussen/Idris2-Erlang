@@ -7,9 +7,6 @@ import Erlang
 data ArrayData : Type -> Type where
   MkArrayData : ErlTerm -> ArrayData a
 
-etsKey : ErlAtom
-etsKey = MkAtom "$idris_rts_ets"
-
 
 -- 'unsafe' primitive access, backend dependent
 -- get and set assume that the bounds have been checked. Behavious is undefined
@@ -19,20 +16,20 @@ prim__newArray : Int -> a -> IO (ArrayData a)
 prim__newArray size value = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   arr <- erlUnsafeCall ErlTerm "array" "new" [size, MkTuple2 (MkAtom "default") (MkRaw value)]
-  erlUnsafeCall ErlTerm "ets" "insert" [etsKey, MkTuple2 ref arr]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, arr]
   pure (MkArrayData ref)
 
 prim__arrayGet : ArrayData a -> Int -> IO a
 prim__arrayGet (MkArrayData ref) pos = do
-  arr <- erlUnsafeCall ErlTerm "ets" "lookup_element" [etsKey, ref, 2]
+  arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
   MkRaw value <- erlUnsafeCall (Raw a) "array" "get" [pos, arr]
   pure value
 
 prim__arraySet : ArrayData a -> Int -> a -> IO ()
 prim__arraySet (MkArrayData ref) pos value = do
-  arr <- erlUnsafeCall ErlTerm "ets" "lookup_element" [etsKey, ref, 2]
+  arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
   newArr <- erlUnsafeCall ErlTerm "array" "set" [pos, MkRaw value, arr]
-  erlUnsafeCall ErlTerm "ets" "insert" [etsKey, MkTuple2 ref newArr]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, newArr]
   pure ()
 
 

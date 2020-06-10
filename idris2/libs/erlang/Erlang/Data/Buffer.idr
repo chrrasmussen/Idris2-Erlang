@@ -30,19 +30,18 @@ data Buffer : Type where
   MkBuffer : ErlTerm -> (size : Int) -> (loc : Int) -> Buffer
 
 
-etsKey : ErlAtom
-etsKey = MkAtom "$idris_rts_ets"
-
-
+%inline
 getBinary : Buffer -> IO ErlBinary
 getBinary (MkBuffer ref _ _) =
-  erlUnsafeCall ErlBinary "ets" "lookup_element" [etsKey, ref, 2]
+  erlUnsafeCall ErlBinary "erlang" "get" [ref]
 
+%inline
 setBinary : Buffer -> ErlBinary -> IO ()
 setBinary (MkBuffer ref _ _) binary = do
-  erlCall "ets" "insert" [etsKey, MkTuple2 ref binary]
+  erlCall "erlang" "put" [ref, binary]
   pure ()
 
+%inline
 updateBinary : Buffer -> (ErlBinary -> ErlBinary) -> IO ()
 updateBinary buf updateFn = do
   old <- getBinary buf
@@ -54,7 +53,7 @@ newBuffer : Int -> IO (Maybe Buffer)
 newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   let emptyBinary = prim__erlBufferNew size
-  erlCall "ets" "insert" [etsKey, MkTuple2 ref emptyBinary]
+  erlCall "erlang" "put" [ref, emptyBinary]
   pure $ Just (MkBuffer ref size 0)
 
 -- might be needed if we do this in C...
@@ -202,7 +201,7 @@ createBufferFromFile filePath = do
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
-  erlCall "ets" "insert" [etsKey, MkTuple2 ref str]
+  erlCall "erlang" "put" [ref, str]
   pure (Right (MkBuffer ref strSize 0))
 
 -- TODO: `maxbytes` is unused
