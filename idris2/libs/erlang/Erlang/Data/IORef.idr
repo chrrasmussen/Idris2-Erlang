@@ -15,7 +15,7 @@ export
 newIORef : a -> IO (IORef a)
 newIORef val = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
-  erlCall "erlang" "put" [ref, MkRaw val]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure (MkIORef ref)
 
 export
@@ -27,7 +27,7 @@ readIORef (MkIORef ref) = do
 export
 writeIORef : IORef a -> (val : a) -> IO ()
 writeIORef (MkIORef ref) val = do
-  erlCall "erlang" "put" [ref, MkRaw val]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure ()
 
 export

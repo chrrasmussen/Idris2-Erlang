@@ -13,12 +13,13 @@ import Erlang
 export
 sleep : Int -> IO ()
 sleep sec = do
-  erlCall "timer" "sleep" [sec * 1000]
+  erlUnsafeCall ErlTerm "timer" "sleep" [sec * 1000]
   pure ()
 
 export
 getArgs : IO (List String)
 getArgs = do
+  -- Returns an exception if key does not exist
   Right result <- erlCall "persistent_term" "get" [MkAtom "$idris_rts_args"]
     | Left _ => pure []
   pure $ erlDecodeDef [] (map (erlUnsafeCast (List String)) anyList) result

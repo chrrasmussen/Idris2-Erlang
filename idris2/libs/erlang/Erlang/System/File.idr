@@ -188,6 +188,7 @@ fileInfo filePath fieldIndex decoder = do
           <|> map Left error)
         result
         | Left err => pure (Left err)
+  -- Returns an exception if index does not exist
   Right fieldValue <- erlCall "erlang" "element" [cast fieldIndex + 2, info]
     | Left _ => pure (Left unknownError)
   pure $ erlDecodeDef

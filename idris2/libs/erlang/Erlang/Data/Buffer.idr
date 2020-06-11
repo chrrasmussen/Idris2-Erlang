@@ -38,7 +38,7 @@ getBinary (MkBuffer ref _ _) =
 %inline
 setBinary : Buffer -> ErlBinary -> IO ()
 setBinary (MkBuffer ref _ _) binary = do
-  erlCall "erlang" "put" [ref, binary]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, binary]
   pure ()
 
 %inline
@@ -53,7 +53,7 @@ newBuffer : Int -> IO (Maybe Buffer)
 newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   let emptyBinary = prim__erlBufferNew size
-  erlCall "erlang" "put" [ref, emptyBinary]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, emptyBinary]
   pure $ Just (MkBuffer ref size 0)
 
 -- might be needed if we do this in C...
@@ -201,7 +201,7 @@ createBufferFromFile filePath = do
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
-  erlCall "erlang" "put" [ref, str]
+  erlUnsafeCall ErlTerm "erlang" "put" [ref, str]
   pure (Right (MkBuffer ref strSize 0))
 
 -- TODO: `maxbytes` is unused

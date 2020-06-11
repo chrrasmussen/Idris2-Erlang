@@ -9,7 +9,7 @@ import Erlang
 export
 erlPrintLn : a -> IO ()
 erlPrintLn x = do
-  erlCall "io" "format" ["~p~n", the (List _) [MkRaw x]]
+  erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (List _) [MkRaw x]]
   pure ()
 
 export
