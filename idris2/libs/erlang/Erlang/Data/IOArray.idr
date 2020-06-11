@@ -2,10 +2,11 @@ module Erlang.Data.IOArray
 
 import Data.List
 import Erlang
+import Erlang.Data.IORef
 
 
 data ArrayData : Type -> Type where
-  MkArrayData : ErlTerm -> ArrayData a
+  MkArrayData : IORef ErlTerm -> ArrayData a
 
 
 -- 'unsafe' primitive access, backend dependent
@@ -14,23 +15,21 @@ data ArrayData : Type -> Type where
 
 prim__newArray : HasIO io => Int -> a -> io (ArrayData a)
 prim__newArray size value = do
-  ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   arr <- erlUnsafeCall ErlTerm "array" "new" [size, MkTuple2 (MkAtom "default") (MkRaw value)]
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, arr]
+  ref <- newIORef arr
   pure (MkArrayData ref)
 
 prim__arrayGet : HasIO io => ArrayData a -> Int -> io a
 prim__arrayGet (MkArrayData ref) pos = do
-  arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
+  arr <- readIORef ref
   MkRaw value <- erlUnsafeCall (Raw a) "array" "get" [pos, arr]
   pure value
 
 prim__arraySet : HasIO io => ArrayData a -> Int -> a -> io ()
 prim__arraySet (MkArrayData ref) pos value = do
-  arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
+  arr <- readIORef ref
   newArr <- erlUnsafeCall ErlTerm "array" "set" [pos, MkRaw value, arr]
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, newArr]
-  pure ()
+  writeIORef ref newArr
 
 
 export
