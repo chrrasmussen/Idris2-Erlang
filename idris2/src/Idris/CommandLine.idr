@@ -4,6 +4,8 @@ import IdrisPaths
 
 import Idris.Version
 
+import Core.Options
+
 import Data.List
 import Data.Maybe
 import Data.Strings
@@ -44,7 +46,7 @@ data CLOpt
   OutputFile String |
    ||| Execute a given function after checking the source file
   ExecFn String |
-   ||| Use a specific code generator (default chez)
+   ||| Use a specific code generator
   SetCG String |
    ||| Arguments to pass to code generator
   SetCGOptions String |
@@ -115,7 +117,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            MkOpt ["--no-prelude"] [] [NoPrelude]
               (Just "Don't implicitly import Prelude"),
            MkOpt ["--codegen", "--cg"] ["backend"] (\f => [SetCG f])
-              (Just "Set code generator (default chez)"),
+              (Just $ "Set code generator (default \""++ show (codegen defaultSession) ++ "\")"),
            MkOpt ["--cg-opt"] ["args"] (\args => [SetCGOptions args])
               (Just "Arguments to pass to code generator"),
            MkOpt ["--package", "-p"] ["package"] (\f => [PkgPath f])
