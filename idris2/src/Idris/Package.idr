@@ -500,6 +500,7 @@ errorMsg = unlines
   , "    --dumpvmcode <file>"
   , "    --debug-elab-check"
   , "    --codegen <cg>"
+  , "    --cg-opt <opts>"
   ]
 
 
@@ -507,7 +508,6 @@ filterPackageOpts : POptsFilterResult -> List CLOpt -> Core (POptsFilterResult)
 filterPackageOpts acc Nil                  = pure acc
 filterPackageOpts acc (Package cmd f ::xs) = filterPackageOpts (record {pkgDetails = Just (cmd, f)}  acc) xs
 
-filterPackageOpts acc (SetCG f       ::xs) = filterPackageOpts (record {oopts $= (SetCG f::)}        acc) xs
 filterPackageOpts acc (Quiet         ::xs) = filterPackageOpts (record {oopts $= (Quiet::)}          acc) xs
 filterPackageOpts acc (Verbose       ::xs) = filterPackageOpts (record {oopts $= (Verbose::)}        acc) xs
 filterPackageOpts acc (Timing        ::xs) = filterPackageOpts (record {oopts $= (Timing::)}         acc) xs
@@ -515,6 +515,8 @@ filterPackageOpts acc (DumpCases f   ::xs) = filterPackageOpts (record {oopts $=
 filterPackageOpts acc (DumpLifted f  ::xs) = filterPackageOpts (record {oopts $= (DumpLifted f::)}   acc) xs
 filterPackageOpts acc (DumpVMCode f  ::xs) = filterPackageOpts (record {oopts $= (DumpVMCode f::)}   acc) xs
 filterPackageOpts acc (DebugElabCheck::xs) = filterPackageOpts (record {oopts $= (DebugElabCheck::)} acc) xs
+filterPackageOpts acc (SetCG f       ::xs) = filterPackageOpts (record {oopts $= (SetCG f::)}        acc) xs
+filterPackageOpts acc (SetCGOptions f::xs) = filterPackageOpts (record {oopts $= (SetCGOptions f::)} acc) xs
 
 filterPackageOpts acc (x::xs) = pure (record {hasError = True} acc)
 
