@@ -12,8 +12,8 @@ public export
 data PrimTerm
   = PAtom String
   | PChar Char
-  | PFloat Double -- TODO: Only positive doubles
-  | PInteger Integer -- TODO: Only positive integers (Use Nat?)
+  | PFloat Double
+  | PInteger Integer
   | PTuple (List PrimTerm)
   | PList (List PrimTerm)
   | PCharlist String
