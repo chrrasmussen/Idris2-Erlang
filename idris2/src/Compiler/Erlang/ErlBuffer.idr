@@ -11,7 +11,8 @@ export
 bufferNew : Line -> (size : Expr) -> Expr
 bufferNew l size =
   let zeroBinary = AEBitstring l [MkBitSegment l (AELiteral (ALInteger l 0)) ABSDefault (MkTSL Nothing Nothing Nothing Nothing)]
-  in genFunCall l "binary" "copy" [zeroBinary, size]
+      paddedBinary = genFunCall l "binary" "copy" [zeroBinary, size]
+  in AETuple l [paddedBinary, size]
 
 -- Similar to the following Erlang code:
 -- ```
@@ -19,8 +20,8 @@ bufferNew l size =
 --   <<Start:Loc/binary, _:8/integer, End/binary>> = Bin,
 --   <<Start/binary, Value:8/integer, End/binary>>.
 -- ```
-bufferSetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetGeneric targetTSL targetSize l bin loc value =
+bufferSetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetGeneric targetTSL targetSize l buf loc value =
   let binaryPattern = APBitstring l
         [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         , MkBitSegment l (ABPUniversal l)   (ABSInteger l (cast targetSize)) targetTSL
@@ -33,10 +34,10 @@ bufferSetGeneric targetTSL targetSize l bin loc value =
         ]
       body =
         [ AEMatch l binaryPattern (AEVar l "Bin")
-        , constructedBinary
+        , AETuple l [constructedBinary, AEVar l "BufSize"]
         ]
-      funExpr = AEFun l 3 [MkFunClause l [APVar l "Bin", APVar l "Loc", APVar l "Value"] [] body]
-  in AEFunCall l funExpr [bin, loc, value]
+      funExpr = AEFun l 3 [MkFunClause l [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"] [] body]
+  in AEFunCall l funExpr [buf, loc, value]
 
 -- Similar to the following Erlang code:
 -- ```
@@ -44,8 +45,8 @@ bufferSetGeneric targetTSL targetSize l bin loc value =
 --   <<_Start:Loc/binary, Value:8/integer, _End/binary>> = Bin,
 --   Value.
 -- ```
-bufferGetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
-bufferGetGeneric targetTSL targetSize l bin loc =
+bufferGetGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
+bufferGetGeneric targetTSL targetSize l buf loc =
   let binaryPattern = APBitstring l
         [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         , MkBitSegment l (ABPVar l "Value") (ABSInteger l (cast targetSize)) targetTSL
@@ -55,31 +56,31 @@ bufferGetGeneric targetTSL targetSize l bin loc =
         [ AEMatch l binaryPattern (AEVar l "Bin")
         , AEVar l "Value"
         ]
-      funExpr = AEFun l 2 [MkFunClause l [APVar l "Bin", APVar l "Loc"] [] body]
-  in AEFunCall l funExpr [bin, loc]
+      funExpr = AEFun l 2 [MkFunClause l [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc"] [] body]
+  in AEFunCall l funExpr [buf, loc]
 
 export
-bufferSetUnsignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetUnsignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
 bufferSetUnsignedInt = bufferSetGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferGetUnsignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetUnsignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
 bufferGetUnsignedInt = bufferGetGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferSetSignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetSignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
 bufferSetSignedInt = bufferSetGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferGetSignedInt : (size : Int) -> Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetSignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
 bufferGetSignedInt = bufferGetGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing)
 
 export
-bufferSetDouble : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetDouble : Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
 bufferSetDouble = bufferSetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64
 
 export
-bufferGetDouble : Line -> (bin : Expr) -> (loc : Expr) -> Expr
+bufferGetDouble : Line -> (buf : Expr) -> (loc : Expr) -> Expr
 bufferGetDouble = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64
 
 -- Similar to the following Erlang code:
@@ -91,8 +92,8 @@ bufferGetDouble = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat)
 --   <<Start/binary, ValueAsBin/binary, End/binary>>.
 -- ```
 export
-bufferSetString : Line -> (bin : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-bufferSetString l bin loc value =
+bufferSetString : Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
+bufferSetString l buf loc value =
   let binaryPattern = APBitstring l
         [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")  (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         , MkBitSegment l (ABPUniversal l)   (ABSVar l "Size") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
@@ -107,10 +108,10 @@ bufferSetString l bin loc value =
         [ AEMatch l (APVar l "ValueAsBin") (genFunCall l "erlang" "iolist_to_binary" [AEVar l "Value"])
         , AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "ValueAsBin"])
         , AEMatch l binaryPattern (AEVar l "Bin")
-        , constructedBinary
+        , AETuple l [constructedBinary, AEVar l "BufSize"]
         ]
-      funExpr = AEFun l 3 [MkFunClause l [APVar l "Bin", APVar l "Loc", APVar l "Value"] [] body]
-  in AEFunCall l funExpr [bin, loc, value]
+      funExpr = AEFun l 3 [MkFunClause l [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"] [] body]
+  in AEFunCall l funExpr [buf, loc, value]
 
 -- Similar to the following Erlang code:
 -- ```
@@ -119,8 +120,8 @@ bufferSetString l bin loc value =
 --   Value.
 -- ```
 export
-bufferGetString : Line -> (bin : Expr) -> (loc : Expr) -> (len : Expr) -> Expr
-bufferGetString l bin loc len =
+bufferGetString : Line -> (buf : Expr) -> (loc : Expr) -> (len : Expr) -> Expr
+bufferGetString l buf loc len =
   let binaryPattern = APBitstring l
         [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         , MkBitSegment l (ABPVar l "Value") (ABSVar l "Len") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
@@ -130,5 +131,5 @@ bufferGetString l bin loc len =
         [ AEMatch l binaryPattern (AEVar l "Bin")
         , AEVar l "Value"
         ]
-      funExpr = AEFun l 3 [MkFunClause l [APVar l "Bin", APVar l "Loc", APVar l "Len"] [] body]
-  in AEFunCall l funExpr [bin, loc, len]
+      funExpr = AEFun l 3 [MkFunClause l [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Len"] [] body]
+  in AEFunCall l funExpr [buf, loc, len]
