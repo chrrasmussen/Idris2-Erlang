@@ -86,10 +86,9 @@ bufferGetDouble = bufferGetGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat)
 -- Similar to the following Erlang code:
 -- ```
 -- buffer_set_string(Bin, Loc, Value) ->
---   ValueAsBin = erlang:iolist_to_binary(Value),
---   Size = erlang:byte_size(ValueAsBin),
+--   Size = erlang:byte_size(Value),
 --   <<Start:Loc/binary, _:Size/binary, End/binary>> = Bin,
---   <<Start/binary, ValueAsBin/binary, End/binary>>.
+--   <<Start/binary, Value/binary, End/binary>>.
 -- ```
 export
 bufferSetString : Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
@@ -100,13 +99,12 @@ bufferSetString l buf loc value =
         , MkBitSegment l (ABPVar l "End")   ABSDefault        (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       constructedBinary = AEBitstring l
-        [ MkBitSegment l (AEVar l "Start")      ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "ValueAsBin") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "End")        ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Start") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (AEVar l "Value") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (AEVar l "End")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       body =
-        [ AEMatch l (APVar l "ValueAsBin") (genFunCall l "erlang" "iolist_to_binary" [AEVar l "Value"])
-        , AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "ValueAsBin"])
+        [ AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "Value"])
         , AEMatch l binaryPattern (AEVar l "Bin")
         , AETuple l [constructedBinary, AEVar l "BufSize"]
         ]

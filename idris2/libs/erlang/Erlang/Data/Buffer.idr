@@ -24,8 +24,8 @@ BufferPayload = ErlTuple2 ErlBinary Int
 %extern prim__erlBufferGetInt64  : (buf : BufferPayload) -> (loc : Int) -> Int
 %extern prim__erlBufferSetDouble : (buf : BufferPayload) -> (loc : Int) -> (value : Double) -> BufferPayload
 %extern prim__erlBufferGetDouble : (buf : BufferPayload) -> (loc : Int) -> Double
-%extern prim__erlBufferSetString : (buf : BufferPayload) -> (loc : Int) -> (value : String) -> BufferPayload
-%extern prim__erlBufferGetString : (buf : BufferPayload) -> (loc : Int) -> (len : Int) -> String
+%extern prim__erlBufferSetString : (buf : BufferPayload) -> (loc : Int) -> (value : ErlBinary) -> BufferPayload
+%extern prim__erlBufferGetString : (buf : BufferPayload) -> (loc : Int) -> (len : Int) -> ErlBinary
 
 
 export
@@ -169,13 +169,15 @@ stringByteLength str = unsafePerformIO $ do
 export
 setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
 setString buf loc val = do
-  updateBufferPayload buf (\payload => prim__erlBufferSetString payload loc val)
+  binary <- erlUnsafeCall ErlBinary "erlang" "iolist_to_binary" [val]
+  updateBufferPayload buf (\payload => prim__erlBufferSetString payload loc binary)
 
 export
 getString : Buffer -> (loc : Int) -> (len : Int) -> IO String
 getString buf loc len = do
   payload <- getBufferPayload buf
-  pure $ prim__erlBufferGetString payload loc len
+  let MkBinary str = prim__erlBufferGetString payload loc len
+  pure str
 
 export
 bufferData : Buffer -> IO (List Int)
