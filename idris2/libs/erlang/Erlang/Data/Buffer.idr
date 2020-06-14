@@ -27,17 +27,17 @@ import public Erlang.System.File
 
 export
 data Buffer : Type where
-  MkBuffer : ErlTerm -> (size : Int) -> (loc : Int) -> Buffer
+  MkBuffer : ErlTerm -> Buffer
 
 
 %inline
 getBinary : Buffer -> IO ErlBinary
-getBinary (MkBuffer ref _ _) =
+getBinary (MkBuffer ref) =
   erlUnsafeCall ErlBinary "erlang" "get" [ref]
 
 %inline
 setBinary : Buffer -> ErlBinary -> IO ()
-setBinary (MkBuffer ref _ _) binary = do
+setBinary (MkBuffer ref) binary = do
   erlUnsafeCall ErlTerm "erlang" "put" [ref, binary]
   pure ()
 
@@ -54,7 +54,7 @@ newBuffer size = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   let emptyBinary = prim__erlBufferNew size
   erlUnsafeCall ErlTerm "erlang" "put" [ref, emptyBinary]
-  pure $ Just (MkBuffer ref size 0)
+  pure $ Just (MkBuffer ref)
 
 -- might be needed if we do this in C...
 export
@@ -63,7 +63,7 @@ freeBuffer buf = pure ()
 
 export
 rawSize : Buffer -> IO Int
-rawSize buf@(MkBuffer ref _ _) = do
+rawSize buf@(MkBuffer ref) = do
   binary <- getBinary buf
   erlUnsafeCall Int "erlang" "byte_size" [binary]
 
@@ -202,12 +202,12 @@ createBufferFromFile filePath = do
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   erlUnsafeCall ErlTerm "erlang" "put" [ref, str]
-  pure (Right (MkBuffer ref strSize 0))
+  pure (Right (MkBuffer ref))
 
 -- TODO: `maxbytes` is unused
 export
 writeBufferToFile : (filePath : String) -> Buffer -> (maxbytes : Int) -> IO (Either FileError ())
-writeBufferToFile filePath buf@(MkBuffer ref size loc) maxBytes = do
+writeBufferToFile filePath buf@(MkBuffer ref) maxBytes = do
   bin <- getBinary buf
   result <- erlUnsafeCall ErlTerm "file" "write_file" [MkBinary filePath, bin]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
