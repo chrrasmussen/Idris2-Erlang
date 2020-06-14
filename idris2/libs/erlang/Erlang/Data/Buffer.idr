@@ -8,6 +8,7 @@ BufferPayload : Type
 BufferPayload = ErlTuple2 ErlBinary Int
 
 %extern prim__erlBufferNew       : (size : Int) -> BufferPayload
+%extern prim__erlBufferFlatten   : (buf : BufferPayload) -> BufferPayload
 %extern prim__erlBufferSetByte   : (buf : BufferPayload) -> (loc : Int) -> (value : Int) -> BufferPayload
 %extern prim__erlBufferGetByte   : (buf : BufferPayload) -> (loc : Int) -> Int
 %extern prim__erlBufferSetBits8  : (buf : BufferPayload) -> (loc : Int) -> (value : Bits8) -> BufferPayload
@@ -67,9 +68,13 @@ freeBuffer buf = pure ()
 
 export
 rawSize : Buffer -> IO Int
-rawSize buf@(MkBuffer ref) = do
+rawSize buf = do
   MkTuple2 _ size <- getBufferPayload buf
   pure size
+
+flatten : Buffer -> IO ()
+flatten buf = do
+  updateBufferPayload buf (\payload => prim__erlBufferFlatten payload)
 
 -- Assumes val is in the range 0-255
 export
@@ -213,7 +218,8 @@ createBufferFromFile filePath = do
 -- TODO: `maxbytes` is unused
 export
 writeBufferToFile : (filePath : String) -> Buffer -> (maxbytes : Int) -> IO (Either FileError ())
-writeBufferToFile filePath buf@(MkBuffer ref) maxBytes = do
+writeBufferToFile filePath buf maxBytes = do
+  flatten buf
   MkTuple2 binary _ <- getBufferPayload buf
   result <- erlUnsafeCall ErlTerm "file" "write_file" [MkBinary filePath, binary]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
