@@ -104,7 +104,7 @@ mutual
     EMap : Line -> List (ErlExpr, ErlExpr) -> ErlExpr
 
     EBufferNew       : Line -> (size : ErlExpr) -> ErlExpr
-    EBufferFlatten   : Line -> (bin : ErlExpr) -> ErlExpr
+    EBufferFlatten   : Line -> (bin : ErlExpr) -> (maxbytes : ErlExpr) -> ErlExpr
     EBufferSetBits8  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
     EBufferGetBits8  : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> ErlExpr
     EBufferSetBits16 : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
@@ -346,8 +346,8 @@ mutual
     pure $ AEMapNew l entries'
   genErlExpr (EBufferNew l size) =
     pure $ bufferNew l !(genErlExpr size)
-  genErlExpr (EBufferFlatten l bin) =
-    pure $ bufferFlatten l !(genErlExpr bin)
+  genErlExpr (EBufferFlatten l bin maxbytes) =
+    pure $ bufferFlatten l !(genErlExpr bin) !(genErlExpr maxbytes)
   genErlExpr (EBufferSetBits8 l bin loc value) =
     pure $ bufferSetUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetBits8 l bin loc) =

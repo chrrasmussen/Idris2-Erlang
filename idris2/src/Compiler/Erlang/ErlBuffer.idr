@@ -23,9 +23,9 @@ bufferNew l size =
   AETuple l [emptyBinary l, size]
 
 export
-bufferFlatten : Line -> (buf : Expr) -> Expr
-bufferFlatten l buf =
-  let paddingSize = AEOp l "-" (AEVar l "BufSize") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
+bufferFlatten : Line -> (buf : Expr) -> (maxbytes : Expr) -> Expr
+bufferFlatten l buf maxbytes =
+  let paddingSize = AEOp l "-" (AEVar l "MaxBytes") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       paddedBinaryValue = AEBitstring l
         [ MkBitSegment l (AEVar l "Bin")     ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
@@ -38,17 +38,17 @@ bufferFlatten l buf =
       shrinkedBody =
         [ AETuple l [shrinkedBinary, AEVar l "BufSize"]
         ]
-      funExpr = AEFun l 1
+      funExpr = AEFun l 2
         [ MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"]]
-            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "BufSize")]]
+            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "MaxBytes"]
+            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "MaxBytes")]]
             extendedBody
-        ,  MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"]]
+        , MkFunClause l
+            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "MaxBytes"]
             []
             shrinkedBody
         ]
-  in AEFunCall l funExpr [buf]
+  in AEFunCall l funExpr [buf, maxbytes]
 
 -- Similar to the following Erlang code:
 -- ```
