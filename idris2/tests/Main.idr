@@ -80,7 +80,7 @@ idrisTests
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        -- Packages and ipkg files
-       "pkg001", "pkg002", "pkg003",
+       "pkg001", "pkg002", "pkg003", "pkg004",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
@@ -113,7 +113,7 @@ chezTests
    = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
       "chez013", "chez014", "chez015", "chez016", "chez017", "chez018",
-      "chez019", "chez020", "chez021", "chez022",
+      "chez019", "chez020", "chez021", "chez022", "chez023",
       "reg001"]
 
 ideModeTests : List String

@@ -132,7 +132,6 @@ stMain opts
          defs <- initDefs
          c <- newRef Ctxt defs
          s <- newRef Syn initSyntax
-         m <- newRef MD initMetadata
          addPrimitives
 
          setWorkingDir "."
@@ -145,7 +144,7 @@ stMain opts
 
          finish <- showInfo opts
          if finish
-            then pure () 
+            then pure ()
             else do
 
            -- If there's a --build or --install, just do that then quit
@@ -158,6 +157,7 @@ stMain opts
                  when (checkVerbose opts) $ -- override Quiet if implicitly set
                      setOutput (REPL False)
                  u <- newRef UST initUState
+                 m <- newRef MD initMetadata
                  updateREPLOpts
                  session <- getSession
                  when (not $ nobanner session) $
@@ -181,7 +181,7 @@ stMain opts
                        setOutput (IDEMode 0 stdin stdout)
                        replIDE {c} {u} {m}
                      else do
-                       let (host, port) = ideSocketModeHostPort opts
+                       let (host, port) = ideSocketModeAddress opts
                        f <- coreLift $ initIDESocketFile host port
                        case f of
                          Left err => do
