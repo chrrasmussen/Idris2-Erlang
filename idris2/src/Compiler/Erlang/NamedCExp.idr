@@ -413,6 +413,8 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun5")) [_, _, _, _, _, ter
   genDecode l term (MFun 5)
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferNew")) [size] =
   pure $ EBufferNew l size
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferResize")) [bin, newSize] =
+  pure $ EBufferResize l bin newSize
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferFlatten")) [bin, maxbytes] =
   pure $ EBufferFlatten l bin maxbytes
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetByte")) [bin, loc, value] =

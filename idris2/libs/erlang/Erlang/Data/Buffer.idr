@@ -8,6 +8,7 @@ BufferPayload : Type
 BufferPayload = ErlTuple2 ErlBinary Int
 
 %extern prim__erlBufferNew       : (size : Int) -> BufferPayload
+%extern prim__erlBufferResize    : (buf : BufferPayload) -> (newSize : Int) -> BufferPayload
 %extern prim__erlBufferFlatten   : (buf : BufferPayload) -> (maxbytes : Int) -> BufferPayload
 %extern prim__erlBufferSetByte   : (buf : BufferPayload) -> (loc : Int) -> (value : Int) -> BufferPayload
 %extern prim__erlBufferGetByte   : (buf : BufferPayload) -> (loc : Int) -> Int
@@ -226,13 +227,6 @@ writeBufferToFile filePath buf maxbytes = do
 
 export
 resizeBuffer : Buffer -> Int -> IO (Maybe Buffer)
-resizeBuffer old newsize = do
-  Just buf <- newBuffer newsize
-    | Nothing => pure Nothing
-  -- If the new buffer is smaller than the old one, just copy what
-  -- fits
-  oldsize <- rawSize old
-  let len = if newsize < oldsize then newsize else oldsize
-  copyData old 0 len buf 0
-  freeBuffer old
-  pure (Just buf)
+resizeBuffer buf newSize = do
+  updateBufferPayload buf (\payload => prim__erlBufferResize payload newSize)
+  pure $ Just buf

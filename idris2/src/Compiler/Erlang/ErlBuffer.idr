@@ -23,6 +23,28 @@ bufferNew l size =
   AETuple l [emptyBinary l, size]
 
 export
+bufferResize : Line -> (buf : Expr) -> (newSize : Expr) -> Expr
+bufferResize l buf newSize =
+  let extendedBody =
+        [ AETuple l [AEVar l "Bin", AEVar l "NewSize"]
+        ]
+      shrinkedBinary = genFunCall l "binary" "part" [AEVar l "Bin", AELiteral (ALInteger l 0), AEVar l "NewSize"]
+      shrinkedBody =
+        [ AETuple l [shrinkedBinary, AEVar l "NewSize"]
+        ]
+      funExpr = AEFun l 2
+        [ MkFunClause l
+            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "NewSize"]
+            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "NewSize")]]
+            extendedBody
+        , MkFunClause l
+            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "NewSize"]
+            []
+            shrinkedBody
+        ]
+  in AEFunCall l funExpr [buf, newSize]
+
+export
 bufferFlatten : Line -> (buf : Expr) -> (maxbytes : Expr) -> Expr
 bufferFlatten l buf maxbytes =
   let paddingSize = AEOp l "-" (AEVar l "MaxBytes") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
