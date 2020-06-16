@@ -334,7 +334,7 @@ namespace Library
   -- TODO: Add error handling
   writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core (List String)
   writeAbstrFiles opts outdir = do
-    ds <- getDirectives Erlang
+    ds <- getDirectives (Other "erlang")
     let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
     let namespacesToCompile = changedNamespaces opts
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))

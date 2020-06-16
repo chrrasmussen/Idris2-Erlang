@@ -71,6 +71,7 @@ updateEnv
          defs <- get Ctxt
          addPkgDir "prelude"
          addPkgDir "base"
+         addPkgDir "erlang"
          addDataDir (dir_prefix (dirs (options defs)) </>
                         ("idris2-" ++ showVersion False version) </> "support")
          addLibDir (dir_prefix (dirs (options defs)) </>

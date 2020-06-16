@@ -494,6 +494,7 @@ genLib : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
          {auto s : Ref Syn SyntaxInfo} ->
          {auto m : Ref MD Metadata} ->
+         {auto o : Ref ROpts REPLOpts} ->
          String -> Core REPLResult
 genLib outfile = do
   let dummyTerm = PrimVal replFC (I 0)

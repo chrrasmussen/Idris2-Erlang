@@ -51,7 +51,7 @@ setEnv var value overwrite = do
   when shouldSetEnv $ do
     erlUnsafeCall ErlTerm "os" "putenv" [MkCharlist var, MkCharlist value]
     pure ()
-  pure shouldSetEnv
+  pure True
 
 export
 unsetEnv : String -> IO Bool
