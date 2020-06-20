@@ -46,16 +46,16 @@ escapeCmd components = unwords (map escapeComponent components)
     escapeComponent : String -> String
     escapeComponent component = "'" ++ concat (map escapeChar (unpack component)) ++ "'"
 
-runProgramCmd : (erl : String) -> (buildDir : String) -> (modName : String) -> String
-runProgramCmd erl buildDir modName =
-  escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-pa", buildDir, "-run", modName]
+runProgramCmd : (erl : String) -> (outputDir : String) -> (modName : String) -> String
+runProgramCmd erl outputDir modName =
+  escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-pa", outputDir, "-run", modName]
 
 evalErlangCmd : (erl : String) -> (code : String) -> String
 evalErlangCmd erl code =
   escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-eval", code]
 
-compileAbstrCmd : (erl : String) -> (srcfiles : List String) -> (outdir : String) -> String
-compileAbstrCmd erl srcfiles outdir =
+compileAbstrCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
+compileAbstrCmd erl srcfiles outputDir =
   let code =
       unwords
         [ "Collect = fun"
@@ -82,13 +82,13 @@ compileAbstrCmd erl srcfiles outdir =
         ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".beam\"),"
         ,   "file:write_file(OutputFile, BinaryOrCode)"
         , "end,"
-        , "Pmap(fun(File) -> CompileAbstr(File, " ++ show outdir ++ ") end, " ++ show srcfiles ++ "),"
+        , "Pmap(fun(File) -> CompileAbstr(File, " ++ show outputDir ++ ") end, " ++ show srcfiles ++ "),"
         , "halt(0)"
         ]
   in evalErlangCmd erl code
 
-generateErlCmd : (erl : String) -> (srcfiles : List String) -> (outdir : String) -> String
-generateErlCmd erl srcfiles outdir =
+generateErlCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
+generateErlCmd erl srcfiles outputDir =
   let code =
       unwords
         [ "ModuleNameFromForms = fun(Forms) ->"
@@ -105,7 +105,7 @@ generateErlCmd erl srcfiles outdir =
         ,   "ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms)),"
         ,   "file:write_file(OutputFile, ErlangSource)"
         , "end,"
-        , "lists:map(fun(File) -> GenerateErl(File, " ++ show outdir ++ ") end, " ++ show srcfiles ++ "),"
+        , "lists:map(fun(File) -> GenerateErl(File, " ++ show outputDir ++ ") end, " ++ show srcfiles ++ "),"
         , "halt(0)"
         ]
   in evalErlangCmd erl code
@@ -190,9 +190,9 @@ splitNamespaceInfo prefixStr x@(name, _, _) =
 
 namespace MainEntrypoint
   -- TODO: Add error handling
-  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outdir : String) -> (modName : String) -> Core (List String)
-  writeAbstrFiles opts tm outdir modName = do
-    let outfile = outdir </> modName ++ ".abstr"
+  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outputDir : String) -> (modName : String) -> Core (List String)
+  writeAbstrFiles opts tm outputDir modName = do
+    let outfile = outputDir </> modName ++ ".abstr"
     compileData <- getCompileData Cases tm
     compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (namedDefs compileData)
     let namespaceInfo = MkNamespaceInfo (Concat modName)
@@ -203,50 +203,39 @@ namespace MainEntrypoint
     let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 (ELocal 4242 argsVar) mainBody)
     let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
-    traverse_ (writeErlangModule opts [] outdir) modules
+    traverse_ (writeErlangModule opts [] outputDir) modules
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (buildDir : String) -> (outdir : String) -> (modName : String) -> Core ()
-  writeErlFiles opts tm buildDir outdir modName = do
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
+  writeErlFiles opts tm tmpDir outputDir modName = do
     erl <- coreLift findErlangExecutable
-    coreLift $ system ("mkdir -p " ++ quoted buildDir)
-    generatedModules <- writeAbstrFiles opts tm buildDir modName
-    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd erl generatedFiles outdir
+    generatedModules <- writeAbstrFiles opts tm tmpDir modName
+    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
+    coreLift $ system $ generateErlCmd erl generatedFiles outputDir
     pure ()
 
   -- TODO: Add error handling
-  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (buildDir : String) -> (outdir : String) -> (modName : String) -> Core ()
-  writeBeamFiles opts tm buildDir outdir modName = do
+  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
+  writeBeamFiles opts tm tmpDir outputDir modName = do
     erl <- coreLift findErlangExecutable
-    coreLift $ system ("mkdir -p " ++ quoted buildDir)
-    generatedModules <- writeAbstrFiles opts tm buildDir modName
-    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
+    generatedModules <- writeAbstrFiles opts tm tmpDir modName
+    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
+    coreLift $ system $ compileAbstrCmd erl generatedFiles outputDir
     pure ()
 
-  erlangModuleName : (outfile : String) -> Maybe (String, String)
-  erlangModuleName outfile = do
-    let outdir = maybe "." id (dirname outfile)
-    modName <- basename outfile
-    pure (outdir, modName)
-
   export
-  build : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (buildDir : String) -> (outfile : String) -> Core ()
-  build opts tm buildDir outfile = do
-    let Just (outdir, modName) = erlangModuleName outfile
-      | Nothing => throw (InternalError ("Invalid module name: " ++ outfile))
-    coreLift $ system ("mkdir -p " ++ quoted outdir)
+  build : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
+  build opts tm tmpDir outputDir modName = do
     case outputFormat opts of
       AbstractFormat => do
-        writeAbstrFiles opts tm outdir modName
+        writeAbstrFiles opts tm outputDir modName
         pure ()
       Erlang => do
-        writeErlFiles opts tm buildDir outdir modName
+        writeErlFiles opts tm tmpDir outputDir modName
         pure ()
       Beam => do
-        writeBeamFiles opts tm buildDir outdir modName
+        writeBeamFiles opts tm tmpDir outputDir modName
         pure ()
 
 
@@ -332,8 +321,8 @@ namespace Library
   shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
 
   -- TODO: Add error handling
-  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outdir : String) -> Core (List String)
-  writeAbstrFiles opts outdir = do
+  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> Core (List String)
+  writeAbstrFiles opts outputDir = do
     ds <- getDirectives (Other "erlang")
     let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
     let namespacesToCompile = changedNamespaces opts
@@ -342,63 +331,58 @@ namespace Library
     compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
-    traverse_ (writeErlangModule opts exportFunNames outdir) modules
+    traverse_ (writeErlangModule opts exportFunNames outputDir) modules
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (buildDir : String) -> (outdir : String) -> Core ()
-  writeErlFiles opts buildDir outdir = do
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
+  writeErlFiles opts tmpDir outputDir = do
     erl <- coreLift findErlangExecutable
-    coreLift $ system ("mkdir -p " ++ quoted buildDir)
-    generatedModules <- writeAbstrFiles opts buildDir
-    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd erl generatedFiles outdir
+    generatedModules <- writeAbstrFiles opts tmpDir
+    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
+    coreLift $ system $ generateErlCmd erl generatedFiles outputDir
     pure ()
 
   -- TODO: Add error handling
-  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (buildDir : String) -> (outdir : String) -> Core ()
-  writeBeamFiles opts buildDir outdir = do
+  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
+  writeBeamFiles opts tmpDir outputDir = do
     erl <- coreLift findErlangExecutable
-    coreLift $ system ("mkdir -p " ++ quoted buildDir)
-    generatedModules <- writeAbstrFiles opts buildDir
-    let generatedFiles = map (\n => buildDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ compileAbstrCmd erl generatedFiles outdir
+    generatedModules <- writeAbstrFiles opts tmpDir
+    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
+    coreLift $ system $ compileAbstrCmd erl generatedFiles outputDir
     pure ()
 
   export
-  build : {auto c : Ref Ctxt Defs} -> Opts -> (buildDir : String) -> (outdir : String) -> Core ()
-  build opts buildDir outdir = do
-    coreLift $ system ("mkdir -p " ++ quoted outdir)
+  build : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
+  build opts tmpDir outputDir = do
     case outputFormat opts of
       AbstractFormat => do
-        writeAbstrFiles opts outdir
+        writeAbstrFiles opts outputDir
         pure ()
       Erlang => do
-        writeErlFiles opts buildDir outdir
+        writeErlFiles opts tmpDir outputDir
         pure ()
       Beam => do
-        writeBeamFiles opts buildDir outdir
+        writeBeamFiles opts tmpDir outputDir
         pure ()
 
 -- TODO: Validate `outfile`
-compileExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c execDir tm outfile = do
+compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compileExpr c tmpDir outputDir tm outfile = do
   session <- getSession
   let opts = parseOpts (codegenOptions session)
   if generateAsLibrary opts
-    then Library.build opts execDir outfile
-    else MainEntrypoint.build opts tm execDir outfile
+    then Library.build opts tmpDir outputDir
+    else MainEntrypoint.build opts tm tmpDir outputDir outfile
   pure (Just outfile)
 
 -- TODO: Add error handling
-executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
-executeExpr c execDir tm = do
+executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
+executeExpr c tmpDir tm = do
   let modName = "main"
-  let outfile = execDir </> modName
-  let compiledFile = modName ++ ".beam"
-  MainEntrypoint.build (record { outputFormat = Beam, generateAsLibrary = False } defaultOpts) tm execDir outfile
+  MainEntrypoint.build (record { outputFormat = Beam, generateAsLibrary = False } defaultOpts) tm tmpDir tmpDir modName
   erl <- coreLift $ findErlangExecutable
-  coreLift $ system (runProgramCmd erl execDir modName)
+  coreLift $ system (runProgramCmd erl tmpDir modName)
   pure ()
 
 export
