@@ -314,7 +314,16 @@ startRacket : String -> String -> String -> String
 startRacket racket appdir target = unlines
     [ "#!/bin/sh"
     , ""
-    , "DIR=\"`realpath $0`\""
+    , "case `uname -s` in            "
+    , "    OpenBSD|FreeBSD|NetBSD)   "
+    , "        DIR=\"`grealpath $0`\""
+    , "        ;;                    "
+    , "                              "
+    , "    *)                        "
+    , "        DIR=\"`realpath $0`\" "
+    , "        ;;                    "
+    , "esac                          "
+    , ""
     , "export LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH:`dirname \"$DIR\"`/\"" ++ appdir ++ "\"\""
     , racket ++ "\"`dirname \"$DIR\"`\"/\"" ++ target ++ "\" \"$@\""
     ]
@@ -330,7 +339,17 @@ startRacketCmd racket appdir target = unlines
 startRacketWinSh : String -> String -> String -> String
 startRacketWinSh racket appdir target = unlines
     [ "#!/bin/sh"
-    , "DIR=\"`realpath \"$0\"`\""
+    , ""
+    , "case `uname -s` in            "
+    , "    OpenBSD|FreeBSD|NetBSD)   "
+    , "        DIR=\"`grealpath $0`\""
+    , "        ;;                    "
+    , "                              "
+    , "    *)                        "
+    , "        DIR=\"`realpath $0`\" "
+    , "        ;;                    "
+    , "esac                          "
+    , ""
     , "export PATH=\"`dirname \"$DIR\"`/\"" ++ appdir ++ "\":$PATH\""
     , racket ++ "\"" ++ target ++ "\" \"$@\""
     ]
@@ -376,20 +395,20 @@ makeShWindows racket outShRel appdir outAbs
             | Left err => throw (FileErr outShRel err)
          pure ()
 
-compileExpr : Bool -> Ref Ctxt Defs -> (execDir : String) ->
+compileExpr : Bool -> Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
               ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr mkexec c execDir tm outfile
+compileExpr mkexec c tmpDir outputDir tm outfile
     = do let appDirRel = outfile ++ "_app" -- relative to build dir
-         let appDirGen = execDir </> appDirRel -- relative to here
+         let appDirGen = outputDir </> appDirRel -- relative to here
          coreLift $ mkdirAll appDirGen
          Just cwd <- coreLift currentDir
               | Nothing => throw (InternalError "Can't get current directory")
-          
+
          let ext = if isWindows then ".exe" else ""
          let outRktFile = appDirRel </> outfile <.> "rkt"
          let outBinFile = appDirRel </> outfile <.> ext
-         let outRktAbs = cwd </> execDir </> outRktFile
-         let outBinAbs = cwd </> execDir </> outBinFile
+         let outRktAbs = cwd </> outputDir </> outRktFile
+         let outBinAbs = cwd </> outputDir </> outBinFile
 
          compileToRKT c appDirGen tm outRktAbs
          raco <- coreLift findRacoExe
@@ -402,7 +421,7 @@ compileExpr mkexec c execDir tm outfile
                   else pure 0
          if ok == 0
             then do -- TODO: add launcher script
-                    let outShRel = execDir </> outfile
+                    let outShRel = outputDir </> outfile
                     the (Core ()) $ if isWindows
                        then if mkexec
                                then makeShWindows "" outShRel appDirRel outBinFile
@@ -414,9 +433,9 @@ compileExpr mkexec c execDir tm outfile
                     pure (Just outShRel)
             else pure Nothing
 
-executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
-executeExpr c execDir tm
-    = do Just sh <- compileExpr False c execDir tm "_tmpracket"
+executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
+executeExpr c tmpDir tm
+    = do Just sh <- compileExpr False c tmpDir tmpDir tm "_tmpracket"
             | Nothing => throw (InternalError "compileExpr returned Nothing")
          coreLift $ system sh
          pure ()
@@ -424,4 +443,3 @@ executeExpr c execDir tm
 export
 codegenRacket : Codegen
 codegenRacket = MkCG (compileExpr True) executeExpr
-

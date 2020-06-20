@@ -1,4 +1,4 @@
-module Main
+module Idris.Main
 
 import Compiler.Common
 import Compiler.Erlang.Erlang
