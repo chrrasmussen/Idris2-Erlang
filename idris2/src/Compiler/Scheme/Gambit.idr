@@ -407,6 +407,11 @@ executeExpr c tmpDir tm
               Just outn => map (const ()) $ coreLift $ system outn
               Nothing => pure ()
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 export
 codegenGambit : Codegen
-codegenGambit = MkCG compileExpr executeExpr
+codegenGambit = MkCG compileExpr executeExpr compileLibrary

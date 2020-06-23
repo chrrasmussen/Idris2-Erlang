@@ -240,82 +240,6 @@ namespace MainEntrypoint
 
 
 namespace Library
-  isExported : Visibility -> Bool
-  isExported Public = True
-  isExported Export = True
-  isExported Private = False
-
-  exportedName : (Name, Maybe GlobalDef) -> Maybe Name
-  exportedName (n, Just gd) = if isExported (visibility gd)
-    then Just n
-    else Nothing
-  exportedName _ = Nothing
-
-  skipUnusedNames : Name -> Bool
-  skipUnusedNames (NS _ n) = skipUnusedNames n
-  skipUnusedNames (MN _ _) = False
-  skipUnusedNames (Resolved _) = False
-  skipUnusedNames _ = True
-
-  getExportedCompileData : {auto c : Ref Ctxt Defs} -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
-  getExportedCompileData phase shouldCompileName extraNames = do
-    defs <- get Ctxt
-    sopts <- getSession
-    -- make an array of Bools to hold which names we've found (quicker
-    -- to check than a NameMap!)
-    asize <- getNextEntry
-    arr <- coreLift $ newArray asize
-
-    let namesToCompile = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
-    cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) namesToCompile
-    let visibleCns = mapMaybe exportedName cnsWithGlobalDef
-
-    resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
-    logTime "Get names" $ getAllDesc resolvedNames arr defs
-
-    let entries = mapMaybe id !(coreLift (toList arr))
-    let allNs = map (Resolved . fst) entries
-    cns <- traverse toFullNames allNs
-
-    -- Do a round of merging/arity fixing for any names which were
-    -- unknown due to cyclic modules (i.e. declared in one, defined in
-    -- another)
-    rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
-    logTime "Merge lambda" $ traverse_ mergeLamDef rcns
-    logTime "Fix arity" $ traverse_ fixArityDef rcns
-    logTime "Forget names" $ traverse_ mkForgetDef rcns
-
-    compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
-    let mainname = MN "__mainExpression" 0
-    (liftedtm, ldefs) <- liftBody mainname compiledtm
-
-    namedefs <- traverse getNamedDef rcns
-    lifted_in <- if phase >= Lifted
-                    then logTime "Lambda lift" $ traverse lambdaLift rcns
-                    else pure []
-
-    let lifted = (mainname, MkLFun [] [] liftedtm) ::
-                ldefs ++ concat lifted_in
-
-    anf <- if phase >= ANF
-              then logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
-              else pure []
-    vmcode <- if phase >= VMCode
-                then logTime "Get VM Code" $ pure (allDefs anf)
-                else pure []
-
-    -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
-    pure (MkCompileData compiledtm
-                        (mapMaybe id namedefs)
-                        lifted anf vmcode)
-  where
-    nonErased : Name -> Core Bool
-    nonErased n
-        = do defs <- get Ctxt
-             Just gdef <- lookupCtxtExact n (gamma defs)
-                  | Nothing => pure True
-             pure (multiplicity gdef /= erased)
-
   shouldCompileName : Maybe (List Namespace) -> Name -> Bool
   shouldCompileName Nothing _ = True
   shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
@@ -371,20 +295,25 @@ compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> Clos
 compileExpr c tmpDir outputDir tm outfile = do
   session <- getSession
   let opts = parseOpts (codegenOptions session)
-  if generateAsLibrary opts
-    then Library.build opts tmpDir outputDir
-    else MainEntrypoint.build opts tm tmpDir outputDir outfile
+  MainEntrypoint.build opts tm tmpDir outputDir outfile
   pure (Just outfile)
 
 -- TODO: Add error handling
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
   let modName = "main"
-  MainEntrypoint.build (record { outputFormat = Beam, generateAsLibrary = False } defaultOpts) tm tmpDir tmpDir modName
+  MainEntrypoint.build (record { outputFormat = Beam } defaultOpts) tm tmpDir tmpDir modName
   erl <- coreLift $ findErlangExecutable
   coreLift $ system (runProgramCmd erl tmpDir modName)
   pure ()
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  session <- getSession
+  let opts = parseOpts (codegenOptions session)
+  Library.build opts tmpDir outputDir
+  pure (Just (libName, [])) -- TODO: Improve
+
 export
 codegenErlang : Codegen
-codegenErlang = MkCG compileExpr executeExpr
+codegenErlang = MkCG compileExpr executeExpr compileLibrary

@@ -33,13 +33,15 @@ record Codegen where
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
   executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
+  ||| Compile modules into a library.
+  compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
+                   (libName : String) -> Core (Maybe (String, List String))
 
 -- Say which phase of compilation is the last one to use - it saves time if 
 -- you only ask for what you need.
 public export
 data UsePhase = Cases | Lifted | ANF | VMCode
 
-export
 Eq UsePhase where
   (==) Cases Cases = True
   (==) Lifted Lifted = True
@@ -47,7 +49,6 @@ Eq UsePhase where
   (==) VMCode VMCode = True
   (==) _ _ = False
 
-export
 Ord UsePhase where
   compare x y = compare (tag x) (tag y)
     where
@@ -102,6 +103,22 @@ cgExecuteExpr {c} cg tm
          ensureDirectoryExists tmpDir
          executeExpr cg c tmpDir tm
 
+||| Compile library
+||| Given a value of type Codegen, produce a standalone function
+||| that executes the `compileLibrary` method of the Codegen
+export
+cgCompileLibrary : {auto c : Ref Ctxt Defs} ->
+                   Codegen ->
+                   (libName : String) -> Core (Maybe (String, List String))
+cgCompileLibrary {c} cg libName
+    = do d <- getDirs
+         let tmpDir = execBuildDir d
+         let outputDir = outputDirWithDefault d
+         ensureDirectoryExists tmpDir
+         ensureDirectoryExists outputDir
+         logTime "Code generation overall" $
+             compileLibrary cg c tmpDir outputDir libName
+
 -- If an entry isn't already decoded, get the minimal entry we need for
 -- compilation, and record the Binary so that we can put it back when we're
 -- done (so that we don't obliterate the definition)
@@ -123,7 +140,6 @@ getMinimalDef (Coded bin)
          pure (def, Just bin)
 
 -- ||| Recursively get all calls in a function definition
-export
 getAllDesc : {auto c : Ref Ctxt Defs} ->
              List Name -> -- calls to check
              IOArray (Int, Maybe Binary) ->
@@ -177,7 +193,6 @@ replaceEntry (i, Just b)
     = do addContextEntry (Resolved i) b
          pure ()
 
-export
 natHackNames : List Name
 natHackNames
     = [UN "prim__add_Integer",
@@ -249,6 +264,13 @@ dumpVMCode fn lns
 
     dumpDef : (Name, VMDef) -> String
     dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
+
+nonErased : {auto c : Ref Ctxt Defs} -> Name -> Core Bool
+nonErased n
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure True
+         pure (multiplicity gdef /= erased)
 
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs).
@@ -324,13 +346,76 @@ getCompileData phase tm_in
          pure (MkCompileData compiledtm
                              (mapMaybe id namedefs)
                              lifted anf vmcode)
-  where
-    nonErased : Name -> Core Bool
-    nonErased n
-        = do defs <- get Ctxt
-             Just gdef <- lookupCtxtExact n (gamma defs)
-                  | Nothing => pure True
-             pure (multiplicity gdef /= erased)
+
+isExported : Visibility -> Bool
+isExported Public = True
+isExported Export = True
+isExported Private = False
+
+exportedName : (Name, Maybe GlobalDef) -> Maybe Name
+exportedName (n, Just gd) = if isExported (visibility gd)
+  then Just n
+  else Nothing
+exportedName _ = Nothing
+
+skipUnusedNames : Name -> Bool
+skipUnusedNames (NS _ n) = skipUnusedNames n
+skipUnusedNames (MN _ _) = False
+skipUnusedNames (Resolved _) = False
+skipUnusedNames _ = True
+
+export
+getExportedCompileData : {auto c : Ref Ctxt Defs} -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
+getExportedCompileData phase shouldCompileName extraNames = do
+  defs <- get Ctxt
+  sopts <- getSession
+  -- make an array of Bools to hold which names we've found (quicker
+  -- to check than a NameMap!)
+  asize <- getNextEntry
+  arr <- coreLift $ newArray asize
+
+  let namesToCompile = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
+  cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) namesToCompile
+  let visibleCns = mapMaybe exportedName cnsWithGlobalDef
+
+  resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
+  logTime "Get names" $ getAllDesc resolvedNames arr defs
+
+  let entries = mapMaybe id !(coreLift (toList arr))
+  let allNs = map (Resolved . fst) entries
+  cns <- traverse toFullNames allNs
+
+  -- Do a round of merging/arity fixing for any names which were
+  -- unknown due to cyclic modules (i.e. declared in one, defined in
+  -- another)
+  rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
+  logTime "Merge lambda" $ traverse_ mergeLamDef rcns
+  logTime "Fix arity" $ traverse_ fixArityDef rcns
+  logTime "Forget names" $ traverse_ mkForgetDef rcns
+
+  compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
+  let mainname = MN "__mainExpression" 0
+  (liftedtm, ldefs) <- liftBody mainname compiledtm
+
+  namedefs <- traverse getNamedDef rcns
+  lifted_in <- if phase >= Lifted
+                  then logTime "Lambda lift" $ traverse lambdaLift rcns
+                  else pure []
+
+  let lifted = (mainname, MkLFun [] [] liftedtm) ::
+              ldefs ++ concat lifted_in
+
+  anf <- if phase >= ANF
+            then logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+            else pure []
+  vmcode <- if phase >= VMCode
+              then logTime "Get VM Code" $ pure (allDefs anf)
+              else pure []
+
+  -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
+  pure (MkCompileData compiledtm
+                      (mapMaybe id namedefs)
+                      lifted anf vmcode)
 
 -- Some things missing from Prelude.File
 

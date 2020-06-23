@@ -55,6 +55,7 @@ record PkgDesc where
   modules : List (List String, String) -- modules to install (namespace, filename)
   mainmod : Maybe (List String, String) -- main file (i.e. file to load at REPL)
   executable : Maybe String -- name of executable
+  library : Maybe String -- name of library
   options : Maybe (FC, String)
   sourcedir : Maybe String
   builddir : Maybe String
@@ -81,6 +82,7 @@ Show PkgDesc where
              "Modules: " ++ show (map snd (modules pkg)) ++ "\n" ++
              maybe "" (\m => "Main: " ++ snd m ++ "\n") (mainmod pkg) ++
              maybe "" (\m => "Exec: " ++ m ++ "\n") (executable pkg) ++
+             maybe "" (\m => "Library: " ++ m ++ "\n") (library pkg) ++
              maybe "" (\m => "Opts: " ++ snd m ++ "\n") (options pkg) ++
              maybe "" (\m => "SourceDir: " ++ m ++ "\n") (sourcedir pkg) ++
              maybe "" (\m => "BuildDir: " ++ m ++ "\n") (builddir pkg) ++
@@ -98,7 +100,7 @@ initPkgDesc pname
                 Nothing Nothing Nothing Nothing Nothing
                 [] []
                 Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-                Nothing Nothing Nothing Nothing
+                Nothing Nothing Nothing Nothing Nothing
 
 data DescField : Type where
   PVersion     : FC -> String -> DescField
@@ -114,6 +116,7 @@ data DescField : Type where
   PModules     : List (FC, List String) -> DescField
   PMainMod     : FC -> List String -> DescField
   PExec        : String -> DescField
+  PLibrary     : String -> DescField
   POpts        : FC -> String -> DescField
   PSourceDir   : FC -> String -> DescField
   PBuildDir    : FC -> String -> DescField
@@ -168,6 +171,10 @@ field fname
            equals
            e <- (stringLit <|> packageName)
            pure (PExec e)
+    <|> do exactProperty "library"
+           equals
+           libName <- (stringLit <|> packageName)
+           pure (PLibrary libName)
   where
     strField : (FC -> String -> DescField) -> String -> Rule DescField
     strField fieldConstructor fieldName
@@ -210,6 +217,7 @@ addField (PModules ms)       pkg = do put ParsedMods ms
 addField (PMainMod loc n)    pkg = do put MainMod (Just (loc, n))
                                       pure pkg
 addField (PExec e)           pkg = pure $ record { executable = Just e } pkg
+addField (PLibrary e)        pkg = pure $ record { library = Just e } pkg
 addField (POpts fc e)        pkg = pure $ record { options = Just (fc, e) } pkg
 addField (PSourceDir fc a)   pkg = pure $ record { sourcedir = Just a } pkg
 addField (PBuildDir fc a)    pkg = pure $ record { builddir = Just a } pkg
@@ -276,6 +284,17 @@ compileMain mainn mmod exec
          compileExp (PRef replFC mainn) exec
          pure ()
 
+compileLibHelper : {auto c : Ref Ctxt Defs} ->
+                   {auto s : Ref Syn SyntaxInfo} ->
+                   {auto o : Ref ROpts REPLOpts} ->
+                   (libName : String) -> (namespaces : List (List String)) -> Core ()
+compileLibHelper libName namespaces
+    = do m <- newRef MD initMetadata
+         u <- newRef UST initUState
+         loadModules namespaces
+         compileLib libName
+         pure ()
+
 build : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         {auto o : Ref ROpts REPLOpts} ->
@@ -301,6 +320,9 @@ build pkg opts
                                | Nothing => throw (GenericMsg emptyFC "No main module given")
                       let mainName = NS mainNS (UN "main")
                       compileMain mainName mainFile exec
+         case library pkg of
+              Nothing => pure ()
+              Just libName => compileLibHelper libName (map fst (modules pkg))
          runScript (postbuild pkg)
          pure []
 

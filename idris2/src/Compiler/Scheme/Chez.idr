@@ -463,7 +463,12 @@ executeExpr c tmpDir tm
          coreLift $ system sh
          pure ()
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 ||| Codegen wrapper for Chez scheme implementation.
 export
 codegenChez : Codegen
-codegenChez = MkCG (compileExpr True) executeExpr
+codegenChez = MkCG (compileExpr True) executeExpr compileLibrary

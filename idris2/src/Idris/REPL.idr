@@ -430,6 +430,7 @@ data REPLResult : Type where
   CurrentDirectory : String -> REPLResult
   CompilationFailed: REPLResult
   Compiled : String -> REPLResult
+  CompiledLibrary : (String, List String) -> REPLResult
   ProofFound : PTerm -> REPLResult
   Missed : List MissedResult -> REPLResult
   CheckedTotal : List (Name, Totality) -> REPLResult
@@ -473,13 +474,13 @@ execDecls decls = do
       traverse_ (processDecl [] (MkNested []) []) i
 
 export
-compileExp' : {auto c : Ref Ctxt Defs} ->
+compileExp : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
              {auto m : Ref MD Metadata} ->
              {auto o : Ref ROpts REPLOpts} ->
              PTerm -> String -> Core REPLResult
-compileExp' ctm outfile
+compileExp ctm outfile
     = do inidx <- resolveName (UN "[input]")
          ttimp <- desugar AnyExpr [] (PApp replFC (PRef replFC (UN "unsafePerformIO")) ctm)
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
@@ -490,35 +491,15 @@ compileExp' ctm outfile
                (pure . Compiled)
                ok
 
--- TODO: Need a version of `compileExp` that does not require a `PTerm` to support generating library.
--- (Should remove `genLib` and `compileExp` in favor of `compileExp'`)
 export
-genLib : {auto c : Ref Ctxt Defs} ->
-         {auto u : Ref UST UState} ->
-         {auto s : Ref Syn SyntaxInfo} ->
-         {auto m : Ref MD Metadata} ->
-         {auto o : Ref ROpts REPLOpts} ->
-         String -> Core REPLResult
-genLib outfile = do
-  let dummyTerm = PrimVal replFC (I 0)
-  ok <- compile !findCG dummyTerm outfile
-  maybe (pure CompilationFailed)
-        (pure . Compiled)
-        ok
-
-export
-compileExp : {auto c : Ref Ctxt Defs} ->
-             {auto u : Ref UST UState} ->
-             {auto s : Ref Syn SyntaxInfo} ->
-             {auto m : Ref MD Metadata} ->
+compileLib : {auto c : Ref Ctxt Defs} ->
              {auto o : Ref ROpts REPLOpts} ->
-             PTerm -> String -> Core REPLResult
-compileExp ctm outfile = do
-  session <- getSession
-  let erlOpts = Erlang.Opts.parseOpts (codegenOptions session)
-  if generateAsLibrary erlOpts
-    then genLib outfile
-    else compileExp' ctm outfile
+             String -> Core REPLResult
+compileLib libName = do
+  ok <- cgCompileLibrary !findCG libName
+  maybe (pure CompilationFailed)
+        (pure . CompiledLibrary)
+        ok
 
 export
 loadMainFile : {auto c : Ref Ctxt Defs} ->
@@ -863,6 +844,7 @@ mutual
   displayResult  (CurrentDirectory dir) = printResult ("Current working directory is '" ++ dir ++ "'")
   displayResult  CompilationFailed = printError "Compilation failed"
   displayResult  (Compiled f) = printResult $ "File " ++ f ++ " written"
+  displayResult  (CompiledLibrary (libName, files)) = printResult $ "Compiled " ++ libName ++ ". Written files " ++ show files
   displayResult  (ProofFound x) = printResult $ show x
   displayResult  (Missed cases) = printResult $ showSep "\n" $ map handleMissing cases
   displayResult  (CheckedTotal xs) = printResult $ showSep "\n" $ map (\ (fn, tot) => (show fn ++ " is " ++ show tot)) xs

@@ -440,6 +440,11 @@ executeExpr c tmpDir tm
          coreLift $ system sh
          pure ()
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 export
 codegenRacket : Codegen
-codegenRacket = MkCG (compileExpr True) executeExpr
+codegenRacket = MkCG (compileExpr True) executeExpr compileLibrary

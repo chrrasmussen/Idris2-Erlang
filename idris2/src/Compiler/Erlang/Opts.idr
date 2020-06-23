@@ -16,24 +16,21 @@ record Opts where
   constructor MkOpts
   outputFormat : OutputFormat
   prefixStr : String
-  generateAsLibrary : Bool
   changedNamespaces : Maybe (List Namespace)
 
 export
 defaultOpts : Opts
-defaultOpts = MkOpts Beam "Idris" False Nothing
+defaultOpts = MkOpts Beam "Idris" Nothing
 
 
 data Flag
   = SetOutputFormat OutputFormat
   | SetPrefix String
-  | SetGenerateAsLibrary
   | SetChangedNamespaces (List Namespace)
 
 flagToOpts : Flag -> Opts -> Opts
 flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
 flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
-flagToOpts (SetGenerateAsLibrary) opts = record { generateAsLibrary = True } opts
 flagToOpts (SetChangedNamespaces namespaces) opts = record { changedNamespaces = Just namespaces } opts
 
 flagsToOpts : List Flag -> Opts
@@ -58,7 +55,6 @@ stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `asser
     parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat Erlang :: parseFlags rest
     parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat Beam :: parseFlags rest
     parseFlags ("--prefix" :: prefixStr :: rest) = SetPrefix prefixStr :: parseFlags rest
-    parseFlags ("--library" :: rest) = SetGenerateAsLibrary :: parseFlags rest
     parseFlags ("--changed" :: namespaces :: rest) = SetChangedNamespaces (splitNamespaces namespaces) :: parseFlags rest
     parseFlags (_ :: rest) = parseFlags rest
 

@@ -56,6 +56,7 @@ processDecls decls
          errs <- getTotalityErrors
          pure (mapMaybe id xs ++ errs)
 
+export
 readModule : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
