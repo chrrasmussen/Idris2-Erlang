@@ -78,10 +78,10 @@ record CompileData where
 ||| Given a value of type Codegen, produce a standalone function
 ||| that executes the `compileExpr` method of the Codegen
 export
-compile : {auto c : Ref Ctxt Defs} ->
-          Codegen ->
-          ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compile {c} cg tm out
+cgCompileExpr : {auto c : Ref Ctxt Defs} ->
+                Codegen ->
+                ClosedTerm -> (outfile : String) -> Core (Maybe String)
+cgCompileExpr {c} cg tm out
     = do d <- getDirs
          let tmpDir = execBuildDir d
          let outputDir = outputDirWithDefault d
@@ -94,14 +94,13 @@ compile {c} cg tm out
 ||| As with `compile`, produce a functon that executes
 ||| the `executeExpr` method of the given Codegen
 export
-execute : {auto c : Ref Ctxt Defs} ->
-          Codegen -> ClosedTerm -> Core ()
-execute {c} cg tm
+cgExecuteExpr : {auto c : Ref Ctxt Defs} ->
+                Codegen -> ClosedTerm -> Core ()
+cgExecuteExpr {c} cg tm
     = do d <- getDirs
          let tmpDir = execBuildDir d
          ensureDirectoryExists tmpDir
          executeExpr cg c tmpDir tm
-         pure ()
 
 -- If an entry isn't already decoded, get the minimal entry we need for
 -- compilation, and record the Binary so that we can put it back when we're

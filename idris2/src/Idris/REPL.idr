@@ -454,7 +454,7 @@ execExp ctm
          (tm, ty) <- elabTerm inidx InExpr [] (MkNested [])
                                  [] ttimp Nothing
          tm_erased <- linearCheck replFC linear True [] tm
-         execute !findCG tm_erased
+         cgExecuteExpr !findCG tm_erased
          pure $ Executed ctm
 
 
@@ -485,7 +485,7 @@ compileExp' ctm outfile
          (tm, gty) <- elabTerm inidx InExpr [] (MkNested [])
                                [] ttimp Nothing
          tm_erased <- linearCheck replFC linear True [] tm
-         ok <- compile !findCG tm_erased outfile
+         ok <- cgCompileExpr !findCG tm_erased outfile
          maybe (pure CompilationFailed)
                (pure . Compiled)
                ok
