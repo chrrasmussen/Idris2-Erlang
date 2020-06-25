@@ -42,7 +42,7 @@ IDRIS2_BOOT_TEST_LIBS := ${IDRIS2_CURDIR}/bootstrap/${NAME}-${IDRIS2_VERSION}/li
 IDRIS2_BOOT_TEST_DATA := ${IDRIS2_CURDIR}/bootstrap/${NAME}-${IDRIS2_VERSION}/support
 
 # These are the library path in the build dir to be used during build
-export IDRIS2_BOOT_PATH := "${IDRIS2_CURDIR}/libs/prelude/build/ttc${SEP}${IDRIS2_CURDIR}/libs/base/build/ttc${SEP}${IDRIS2_CURDIR}/libs/network/build/ttc"
+export IDRIS2_BOOT_PATH := "${IDRIS2_CURDIR}/libs/prelude/build/ttc${SEP}${IDRIS2_CURDIR}/libs/base/build/ttc${SEP}${IDRIS2_CURDIR}/libs/contrib/build/ttc${SEP}${IDRIS2_CURDIR}/libs/network/build/ttc"
 
 export SCHEME
 
@@ -76,7 +76,7 @@ contrib: prelude
 erlang: prelude
 	${MAKE} -C libs/erlang IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
-libs : prelude base network contrib erlang
+libs : prelude base contrib network erlang
 
 testbin:
 	@${MAKE} -C tests testbin
@@ -93,8 +93,8 @@ support-clean:
 clean-libs:
 	${MAKE} -C libs/prelude clean
 	${MAKE} -C libs/base clean
-	${MAKE} -C libs/network clean
 	${MAKE} -C libs/contrib clean
+	${MAKE} -C libs/network clean
 	${MAKE} -C libs/erlang clean
 
 clean: clean-libs support-clean
@@ -131,8 +131,8 @@ install-support: support
 install-libs: libs
 	${MAKE} -C libs/prelude install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 	${MAKE} -C libs/base install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
-	${MAKE} -C libs/network install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 	${MAKE} -C libs/contrib install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
+	${MAKE} -C libs/network install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 	${MAKE} -C libs/erlang install IDRIS2=../../${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
 

@@ -434,13 +434,22 @@ concreteDets {vars} fc defaults env top pos dets (arg :: args)
                  concrete defs argnf True
                  concreteDets fc defaults env top (1 + pos) dets args
   where
+    drop : Nat -> List Nat -> List t -> List t
+    drop i ns [] = []
+    drop i ns (x :: xs)
+        = if i `elem` ns
+             then x :: drop (1+i) ns xs
+             else drop (1+i) ns xs
+
     concrete : Defs -> NF vars -> (atTop : Bool) -> Core ()
     concrete defs (NBind nfc x b sc) atTop
         = do scnf <- sc defs (toClosure defaultOpts env (Erased nfc False))
              concrete defs scnf False
     concrete defs (NTCon nfc n t a args) atTop
-        = do traverse (\ parg => do argnf <- evalClosure defs parg
-                                    concrete defs argnf False) args
+        = do sd <- getSearchData nfc False n
+             let args' = drop 0 (detArgs sd) args
+             traverse (\ parg => do argnf <- evalClosure defs parg
+                                    concrete defs argnf False) args'
              pure ()
     concrete defs (NDCon nfc n t a args) atTop
         = do traverse (\ parg => do argnf <- evalClosure defs parg
@@ -516,7 +525,7 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
                              when checkdets $
                                  checkConcreteDets fc defaults env top
                                                    (NTCon tfc tyn t a args)
-                             if defaults
+                             if defaults && checkdets
                                 then tryGroups Nothing nty (hintGroups sd)
                                 else handleUnify
                                        (searchLocal fc rigc defaults trying' depth def top env nty)
