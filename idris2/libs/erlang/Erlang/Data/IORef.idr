@@ -12,26 +12,26 @@ data IORef : Type -> Type where
 
 
 export
-newIORef : a -> IO (IORef a)
+newIORef : HasIO io => a -> io (IORef a)
 newIORef val = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure (MkIORef ref)
 
 export
-readIORef : IORef a -> IO a
+readIORef : HasIO io => IORef a -> io a
 readIORef (MkIORef ref) = do
   MkRaw val <- erlUnsafeCall (Raw a) "erlang" "get" [ref]
   pure val
 
 export
-writeIORef : IORef a -> (val : a) -> IO ()
+writeIORef : HasIO io => IORef a -> (val : a) -> io ()
 writeIORef (MkIORef ref) val = do
   erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure ()
 
 export
-modifyIORef : IORef a -> (a -> a) -> IO ()
+modifyIORef : HasIO io => IORef a -> (a -> a) -> io ()
 modifyIORef ref f = do
   val <- readIORef ref
   writeIORef ref (f val)

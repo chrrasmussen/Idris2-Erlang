@@ -35,10 +35,14 @@ ex2 : IO ()
 ex2 = printLn $ lookup (FS FZ) [1,2,3,4]
 
 ex3 : IO ()
-ex3 = printLn $ lookup' (FS FZ) [1,2,3,4]
+ex3 = do
+  putStr "" -- TODO: Workaround to avoid pruning this function
+  printLn $ lookup' (FS FZ) [1,2,3,4]
 
 ex4 : IO ()
-ex4 = printLn $ lookup'' (FS FZ) [1,2,3,4]
+ex4 = do
+  putStr "" -- TODO: Workaround to avoid pruning this function
+  printLn $ lookup'' (FS FZ) [1,2,3,4]
 
 try : IO () -> IO ()
 try action = do

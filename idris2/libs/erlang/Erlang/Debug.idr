@@ -7,7 +7,7 @@ import Erlang
 
 
 export
-erlPrintLn : a -> IO ()
+erlPrintLn : HasIO io => a -> io ()
 erlPrintLn x = do
   erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (List _) [MkRaw x]]
   pure ()

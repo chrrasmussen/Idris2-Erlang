@@ -12,23 +12,23 @@ import Erlang.IO
 
 
 export
-erlSelf : IO ErlPid
+erlSelf : HasIO io => io ErlPid
 erlSelf = erlUnsafeCall ErlPid "erlang" "self" []
 
 export
-erlSpawnLink : IO () -> IO ErlPid
+erlSpawnLink : HasIO io => IO () -> io ErlPid
 erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun0 (map MkRaw action)]
 
 -- TODO: Support more receivers than just `ErlPid`
 export
-erlSend : ErlType a => ErlPid -> a -> IO ()
+erlSend : (HasIO io, ErlType a) => ErlPid -> a -> io ()
 erlSend receiver value = do
   erlUnsafeCall ErlTerm "erlang" "send" [receiver, value]
   pure ()
 
 -- TODO: Add proof that `ms` is in proper range: 0 - 16#FFFFFFFF (http://erlang.org/doc/reference_manual/expressions.html#receive)
 export %inline
-erlReceive : (ms : Int) -> a -> ErlDecoder a -> IO a
+erlReceive : HasIO io => (ms : Int) -> a -> ErlDecoder a -> io a
 erlReceive ms def decoder = do
   Just term <- primIO (prim__erlReceive ms)
     | Nothing => pure def

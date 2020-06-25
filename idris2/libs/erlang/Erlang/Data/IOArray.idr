@@ -12,20 +12,20 @@ data ArrayData : Type -> Type where
 -- get and set assume that the bounds have been checked. Behavious is undefined
 -- otherwise.
 
-prim__newArray : Int -> a -> IO (ArrayData a)
+prim__newArray : HasIO io => Int -> a -> io (ArrayData a)
 prim__newArray size value = do
   ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
   arr <- erlUnsafeCall ErlTerm "array" "new" [size, MkTuple2 (MkAtom "default") (MkRaw value)]
   erlUnsafeCall ErlTerm "erlang" "put" [ref, arr]
   pure (MkArrayData ref)
 
-prim__arrayGet : ArrayData a -> Int -> IO a
+prim__arrayGet : HasIO io => ArrayData a -> Int -> io a
 prim__arrayGet (MkArrayData ref) pos = do
   arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
   MkRaw value <- erlUnsafeCall (Raw a) "array" "get" [pos, arr]
   pure value
 
-prim__arraySet : ArrayData a -> Int -> a -> IO ()
+prim__arraySet : HasIO io => ArrayData a -> Int -> a -> io ()
 prim__arraySet (MkArrayData ref) pos value = do
   arr <- erlUnsafeCall ErlTerm "erlang" "get" [ref]
   newArr <- erlUnsafeCall ErlTerm "array" "set" [pos, MkRaw value, arr]
