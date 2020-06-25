@@ -1,5 +1,5 @@
 {application, idris2,
- [{description, "An escript"},
+ [{description, "Erlang code generator for Idris 2"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications,
@@ -8,7 +8,6 @@
    ]},
   {env,[]},
   {modules, []},
-
-  {licenses, ["Apache 2.0"]},
+  {licenses, ["BSD-3-Clause"]},
   {links, []}
  ]}.
