@@ -18,11 +18,8 @@ sleep sec = do
 
 export
 getArgs : HasIO io => io (List String)
-getArgs = do
-  -- Returns an exception if key does not exist
-  Right result <- erlCall "persistent_term" "get" [MkAtom "$idris_rts_args"]
-    | Left _ => pure []
-  pure $ erlDecodeDef [] (map (erlUnsafeCast (List String)) anyList) result
+getArgs =
+  erlUnsafeCall (List String) "init" "get_plain_arguments" []
 
 export
 getEnvironment : HasIO io => io (List (String, String))

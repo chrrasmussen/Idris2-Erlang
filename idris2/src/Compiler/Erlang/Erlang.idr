@@ -200,7 +200,7 @@ namespace MainEntrypoint
     mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
     argsVar <- newLocalVar
     let erlMainFunDecl = MkFunDecl 4242 Public "start" [] !(genErlMain 4242 mainBody)
-    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 (ELocal 4242 argsVar) mainBody)
+    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 mainBody)
     let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts [] outputDir) modules
