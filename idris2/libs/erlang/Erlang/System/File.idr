@@ -101,7 +101,7 @@ fGetChar : HasIO io => File -> io (Either FileError Char)
 fGetChar (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\(MkTuple2 ok character) => Right character) (tuple2 (exact (MkAtom "ok")) codepoint)
+    (map (\(MkTuple2 ok (MkCharlist str)) => maybe (Left FileReadError) (Right . fst) (strUncons str)) (tuple2 (exact (MkAtom "ok")) charlist)
       <|> exact (MkAtom "eof") *> pure (Left FileReadError)
       <|> map Left error)
     result
