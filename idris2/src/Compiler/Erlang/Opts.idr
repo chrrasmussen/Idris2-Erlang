@@ -9,7 +9,7 @@ import Compiler.Erlang.Name
 
 
 public export
-data OutputFormat = AbstractFormat | Erlang | Beam
+data OutputFormat = AbstractFormat | Erlang | ErlangMinified | Beam
 
 public export
 record Opts where
@@ -53,6 +53,7 @@ stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `asser
     parseFlags [] = []
     parseFlags ("--format" :: "abstr" :: rest) = SetOutputFormat AbstractFormat :: parseFlags rest
     parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat Erlang :: parseFlags rest
+    parseFlags ("--format" :: "erl-minified" :: rest) = SetOutputFormat ErlangMinified :: parseFlags rest
     parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat Beam :: parseFlags rest
     parseFlags ("--prefix" :: prefixStr :: rest) = SetPrefix prefixStr :: parseFlags rest
     parseFlags ("--changed" :: namespaces :: rest) = SetChangedNamespaces (splitNamespaces namespaces) :: parseFlags rest

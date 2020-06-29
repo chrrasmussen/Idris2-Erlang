@@ -98,9 +98,15 @@ compileAbstrCmd erl srcfiles outputDir =
           ]
   in evalErlangCmd erl code
 
-generateErlCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
-generateErlCmd erl srcfiles outputDir =
-  let code =
+generateErlCmd : (isMinified : Bool) -> (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
+generateErlCmd isMinified erl srcfiles outputDir =
+  let columnWidth : Int =
+        if isMinified
+          then 10000
+          else 120
+      prettyOpts =
+        "[{paper, " ++ show columnWidth ++ "}, {ribbon, " ++ show columnWidth ++ "}]"
+      code =
         unwords
           [ pmapErlFun ++ ","
           , "ModuleNameFromForms = fun(Forms) ->"
@@ -114,7 +120,7 @@ generateErlCmd erl srcfiles outputDir =
           ,   "{ok, Forms} = file:consult(File),"
           ,   "{ok, ModuleName} = ModuleNameFromForms(Forms),"
           ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".erl\"),"
-          ,   "ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms)),"
+          ,   "ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms), " ++ prettyOpts ++ "),"
           ,   "file:write_file(OutputFile, ErlangSource)"
           , "end,"
           , "Pmap(fun(File) -> GenerateErl(File, " ++ show outputDir ++ ") end, " ++ show srcfiles ++ "),"
@@ -219,12 +225,12 @@ namespace MainEntrypoint
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
-  writeErlFiles opts tm tmpDir outputDir modName = do
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
+  writeErlFiles isMinified opts tm tmpDir outputDir modName = do
     erl <- coreLift findErlangExecutable
     generatedModules <- writeAbstrFiles opts tm tmpDir modName
     let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd erl generatedFiles outputDir
+    coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
     pure ()
 
   -- TODO: Add error handling
@@ -244,7 +250,10 @@ namespace MainEntrypoint
         writeAbstrFiles opts tm outputDir modName
         pure ()
       Erlang => do
-        writeErlFiles opts tm tmpDir outputDir modName
+        writeErlFiles False opts tm tmpDir outputDir modName
+        pure ()
+      ErlangMinified => do
+        writeErlFiles True opts tm tmpDir outputDir modName
         pure ()
       Beam => do
         writeBeamFiles opts tm tmpDir outputDir modName
@@ -271,12 +280,12 @@ namespace Library
     pure (map (currentModuleName . fst) modules)
 
   -- TODO: Add error handling
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
-  writeErlFiles opts tmpDir outputDir = do
+  writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
+  writeErlFiles isMinified opts tmpDir outputDir = do
     erl <- coreLift findErlangExecutable
     generatedModules <- writeAbstrFiles opts tmpDir
     let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd erl generatedFiles outputDir
+    coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
     pure ()
 
   -- TODO: Add error handling
@@ -296,7 +305,10 @@ namespace Library
         writeAbstrFiles opts outputDir
         pure ()
       Erlang => do
-        writeErlFiles opts tmpDir outputDir
+        writeErlFiles False opts tmpDir outputDir
+        pure ()
+      ErlangMinified => do
+        writeErlFiles True opts tmpDir outputDir
         pure ()
       Beam => do
         writeBeamFiles opts tmpDir outputDir
