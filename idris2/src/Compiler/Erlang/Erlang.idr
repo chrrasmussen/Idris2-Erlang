@@ -37,6 +37,11 @@ import System.File
 findErlangExecutable : IO String
 findErlangExecutable = pure "erl"
 
+-- TODO: Ideally, line numbers should be retrieved from the NamedCExp, and not
+-- use a default placeholder line number.
+defLine : Line
+defLine = 4242
+
 escapeCmd : List String -> String
 escapeCmd components = unwords (map escapeComponent components)
   where
@@ -162,7 +167,7 @@ genExports namespaceInfo l name = do
 
 genModule : ErlModule -> CompositeString
 genModule module_ =
-  Nested $ map (\d => Nested [genPrimTerm (genDecl d), Str ".\n"]) (genErlModule 4242 module_)
+  Nested $ map (\d => Nested [genPrimTerm (genDecl d), Str ".\n"]) (genErlModule defLine module_)
 
 writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> String -> (NamespaceInfo, List ErlFunDecl) -> Core ()
 writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
@@ -170,9 +175,9 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
         Concat _ => Nothing
         Split _ inNS => Just inNS
   let exportFunName = inNS >>= (\ns => lookup ns exportFunNames)
-  exportFunDecls <- maybe (pure []) (genExports namespaceInfo 4242) exportFunName
+  exportFunDecls <- maybe (pure []) (genExports namespaceInfo defLine) exportFunName
   let modName = currentModuleName namespaceInfo
-  let module_ = MkModule (MkModuleName 4242 modName) [NoAutoImport 4242] (exportFunDecls ++ funDecls)
+  let module_ = MkModule (MkModuleName defLine modName) [NoAutoImport defLine] (exportFunDecls ++ funDecls)
   let outfile = targetDir </> modName ++ ".abstr"
   let content = fastAppend (flatten (genModule module_))
   Right () <- coreLift $ writeFile outfile content
@@ -201,13 +206,13 @@ namespace MainEntrypoint
   writeAbstrFiles opts tm outputDir modName = do
     let outfile = outputDir </> modName ++ ".abstr"
     compileData <- getCompileData Cases tm
-    compdefs <- traverse (genCompdef 4242 . concatNamespaceInfo modName) (namedDefs compileData)
+    compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
     let namespaceInfo = MkNamespaceInfo (Concat modName)
     lv <- newRef LV (initLocalVars "V")
     mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
     argsVar <- newLocalVar
-    let erlMainFunDecl = MkFunDecl 4242 Public "start" [] !(genErlMain 4242 mainBody)
-    let escriptMainFunDecl = MkFunDecl 4242 Public "main" [argsVar] (genEscriptMain 4242 mainBody)
+    let erlMainFunDecl = MkFunDecl defLine Public "start" [] !(genErlMain defLine mainBody)
+    let escriptMainFunDecl = MkFunDecl defLine Public "main" [argsVar] (genEscriptMain defLine mainBody)
     let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts [] outputDir) modules
@@ -259,7 +264,7 @@ namespace Library
     let namespacesToCompile = changedNamespaces opts
     let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
     compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
-    compdefs <- traverse (genCompdef 4242 . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
+    compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
     let validCompdefs = mapMaybe id compdefs
     let modules = defsPerModule validCompdefs
     traverse_ (writeErlangModule opts exportFunNames outputDir) modules
