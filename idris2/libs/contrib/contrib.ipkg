@@ -2,6 +2,7 @@ package contrib
 
 modules = Control.Delayed,
           Control.Linear.LIO,
+          Control.Monad.Syntax,
 
           Data.Linear.Array,
 
@@ -24,6 +25,7 @@ modules = Control.Delayed,
           Data.SortedMap,
           Data.SortedSet,
           Data.String.Extra,
+          Data.String.Interpolation,
 
           Debug.Buffer,
 
