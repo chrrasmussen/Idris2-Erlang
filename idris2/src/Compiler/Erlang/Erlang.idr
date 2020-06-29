@@ -207,7 +207,6 @@ splitNamespaceInfo prefixStr x@(name, _, _) =
 
 
 namespace MainEntrypoint
-  -- TODO: Add error handling
   writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outputDir : String) -> (modName : String) -> Core (List String)
   writeAbstrFiles opts tm outputDir modName = do
     let outfile = outputDir </> modName ++ ".abstr"
@@ -224,7 +223,6 @@ namespace MainEntrypoint
     traverse_ (writeErlangModule opts [] outputDir) modules
     pure (map (currentModuleName . fst) modules)
 
-  -- TODO: Add error handling
   writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
   writeErlFiles isMinified opts tm tmpDir outputDir modName = do
     erl <- coreLift findErlangExecutable
@@ -233,7 +231,6 @@ namespace MainEntrypoint
     coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
     pure ()
 
-  -- TODO: Add error handling
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
   writeBeamFiles opts tm tmpDir outputDir modName = do
     erl <- coreLift findErlangExecutable
@@ -265,13 +262,12 @@ namespace Library
   shouldCompileName Nothing _ = True
   shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
 
-  -- TODO: Add error handling
   writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> Core (List String)
   writeAbstrFiles opts outputDir = do
     ds <- getDirectives (Other "erlang")
-    let exportFunNames = getExports ds -- TODO: Filter using `shouldCompileName`
+    let exportFunNames = getExports ds
     let namespacesToCompile = changedNamespaces opts
-    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: (filter (shouldCompileName namespacesToCompile) (map snd exportFunNames))
+    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
     compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
     compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
     let validCompdefs = mapMaybe id compdefs
@@ -279,7 +275,6 @@ namespace Library
     traverse_ (writeErlangModule opts exportFunNames outputDir) modules
     pure (map (currentModuleName . fst) modules)
 
-  -- TODO: Add error handling
   writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
   writeErlFiles isMinified opts tmpDir outputDir = do
     erl <- coreLift findErlangExecutable
@@ -288,7 +283,6 @@ namespace Library
     coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
     pure ()
 
-  -- TODO: Add error handling
   writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
   writeBeamFiles opts tmpDir outputDir = do
     erl <- coreLift findErlangExecutable
@@ -314,7 +308,6 @@ namespace Library
         writeBeamFiles opts tmpDir outputDir
         pure ()
 
--- TODO: Validate `outfile`
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
   session <- getSession
@@ -322,7 +315,6 @@ compileExpr c tmpDir outputDir tm outfile = do
   MainEntrypoint.build opts tm tmpDir outputDir outfile
   pure (Just outfile)
 
--- TODO: Add error handling
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
   let modName = "main"
