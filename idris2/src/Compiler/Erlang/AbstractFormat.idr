@@ -176,6 +176,27 @@ data Decl : Type where
   ADAttribute : Line -> (attr : String) -> (value : PrimTerm) -> Decl
 
 
+-- LINE HELPERS
+
+export
+getLiteralLine : Literal -> Line
+getLiteralLine (ALAtom l _) = l
+getLiteralLine (ALChar l _) = l
+getLiteralLine (ALFloat l _) = l
+getLiteralLine (ALInteger l _) = l
+getLiteralLine (ALCharlist l _) = l
+
+export
+getGuardLine : Guard -> Line
+getGuardLine (AGLiteral lit) = getLiteralLine lit
+getGuardLine (AGCons l _ _) = l
+getGuardLine (AGFunCall l _ _) = l
+getGuardLine (AGNil l) = l
+getGuardLine (AGOp l _ _ _) = l
+getGuardLine (AGTuple l _) = l
+getGuardLine (AGVar l _) = l
+
+
 -- CODE GENERATION
 
 genLine : Line -> PrimTerm

@@ -182,6 +182,27 @@ record ErlModule where
   funDecls : List ErlFunDecl
 
 
+-- AND-GUARD
+
+data AndGuard : Type where
+  MkAndGuard : Maybe Guard -> AndGuard
+
+fromGuard : Guard -> AndGuard
+fromGuard guard = MkAndGuard (Just guard)
+
+andGuardToGuardAlts : AndGuard -> List GuardAlt
+andGuardToGuardAlts (MkAndGuard Nothing) = []
+andGuardToGuardAlts (MkAndGuard (Just guard)) = [MkGuardAlt [guard]]
+
+Semigroup AndGuard where
+  MkAndGuard Nothing <+> y = y
+  x <+> MkAndGuard Nothing = x
+  MkAndGuard (Just x) <+> MkAndGuard (Just y) = MkAndGuard (Just (AGOp (getGuardLine x) "andalso" x y))
+
+Monoid AndGuard where
+  neutral = MkAndGuard Nothing
+
+
 -- HELPER FUNCTIONS
 
 varsToVarNames : (vars : List LocalVar) -> Vect (length vars) String
@@ -192,13 +213,10 @@ toNonEmptyClauses : (clauses : List a) -> (def : a) -> Vect (S (length clauses))
 toNonEmptyClauses [] def = [def]
 toNonEmptyClauses (x :: xs) def = x :: toNonEmptyClauses xs def
 
-trueGuard : Line -> Guard
-trueGuard l = AGLiteral (ALAtom l "true")
-
 record MatcherClause where
   constructor MkMatcherClause
   pattern : Pattern
-  guard : Guard
+  guard : AndGuard
   body : Expr
   preComputedValues : List (LocalVar, Expr)
 
@@ -395,7 +413,7 @@ mutual
   genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
   genErlMatcher l matcher = do
     clause <- readErlMatcher l matcher
-    pure (MkCaseClause l (pattern clause) [MkGuardAlt [guard clause]] [body clause], preComputedValues clause)
+    pure (MkCaseClause l (pattern clause) (andGuardToGuardAlts (guard clause)) [body clause], preComputedValues clause)
 
   readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
   readErlMatcher l (MExact expr) = do
@@ -403,23 +421,23 @@ mutual
     matchExactVar <- newLocalVar
     matchExactValue <- genErlExpr expr
     let pattern = APVar l (show localVar)
-    let guard = AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
+    let guard = fromGuard $ AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body [(matchExactVar, matchExactValue)]
   readErlMatcher l MAny = do
     localVar <- newLocalVar
     let pattern = APVar l (show localVar)
-    let guard = trueGuard l
+    let guard = neutral
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
   readErlMatcher l MCodepoint = do
     localVar <- newLocalVar
     let pattern = APVar l (show localVar)
     let guardVar = AGVar l (show localVar)
-    let isIntegerGuard = AGFunCall l "is_integer" [guardVar]
-    let aboveMinValueGuard = AGOp l ">=" guardVar (AGLiteral (ALInteger l 0))
-    let belowMaxValueGuard = AGOp l "=<" guardVar (AGLiteral (ALInteger l 1114111)) -- 0x10FFFF
-    let guard = AGOp l "andalso" isIntegerGuard (AGOp l "andalso" aboveMinValueGuard belowMaxValueGuard)
+    let isIntegerGuard = fromGuard $ AGFunCall l "is_integer" [guardVar]
+    let aboveMinValueGuard = fromGuard $ AGOp l ">=" guardVar (AGLiteral (ALInteger l 0))
+    let belowMaxValueGuard = fromGuard $ AGOp l "=<" guardVar (AGLiteral (ALInteger l 1114111)) -- 0x10FFFF
+    let guard = isIntegerGuard <+> aboveMinValueGuard <+> belowMaxValueGuard
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
   readErlMatcher l MInteger = readSimpleGuardMatcherClause l "is_integer"
@@ -433,7 +451,7 @@ mutual
   readErlMatcher l MAnyList = readSimpleGuardMatcherClause l "is_list"
   readErlMatcher l MNil = do
     let pattern = APNil l
-    let guard = trueGuard l
+    let guard = neutral
     let body = AENil l
     pure $ MkMatcherClause pattern guard body []
   readErlMatcher l (MCons x y hdVar tlVar fun) = do
@@ -442,7 +460,7 @@ mutual
     let varNames = varsToVarNames [hdVar, tlVar]
     let wrappedFun = AEFun l 2 [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APCons l (pattern xClause) (pattern yClause)
-    let guard = AGOp l "andalso" (guard xClause) (guard yClause)
+    let guard = guard xClause <+> guard yClause
     let body = AEFunCall l wrappedFun [body xClause, body yClause]
     pure $ MkMatcherClause pattern guard body (preComputedValues xClause ++ preComputedValues yClause)
   readErlMatcher l (MList matchers fun) = do
@@ -452,7 +470,7 @@ mutual
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = foldr (\clause, acc => APCons l (pattern clause) acc) (APNil l) clauses
-    let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
+    let guard = foldl (\acc, clause => guard clause <+> acc) (the AndGuard neutral) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MTuple matchers fun) = do
@@ -462,7 +480,7 @@ mutual
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APTuple l (map pattern clauses)
-    let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
+    let guard = foldl (\acc, clause => guard clause <+> acc) (the AndGuard neutral) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MTaggedTuple tag matchers fun) = do
@@ -472,7 +490,7 @@ mutual
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APTuple l (APLiteral (ALAtom l tag) :: map pattern clauses)
-    let guard = foldl (\acc, clause => AGOp l "andalso" (guard clause) acc) (trueGuard l) clauses
+    let guard = foldl (\acc, clause => guard clause <+> acc) (the AndGuard neutral) clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MMapSubset matchers fun) = do
@@ -482,13 +500,13 @@ mutual
     let varNames = varsToVarNames args
     let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
     let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) erlMatchers)
-    let guard = foldl (\acc, (keyVar, clause) => AGOp l "andalso" (guard clause) acc) (trueGuard l) erlMatchers
+    let guard = foldl (\acc, (keyVar, clause) => guard clause <+> acc) (the AndGuard neutral) erlMatchers
     let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) erlMatchers)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
   readErlMatcher l (MFun arity) = do
     localVar <- newLocalVar
     let pattern = APVar l (show localVar)
-    let guard = AGFunCall l "is_function" [AGVar l (show localVar), AGLiteral (ALInteger l (cast arity))]
+    let guard = fromGuard $ AGFunCall l "is_function" [AGVar l (show localVar), AGLiteral (ALInteger l (cast arity))]
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
   readErlMatcher l (MTransform x xVar fun) = do
@@ -509,7 +527,7 @@ mutual
   readSimpleGuardMatcherClause l fnName = do
     localVar <- newLocalVar
     let pattern = APVar l (show localVar)
-    let guard = AGFunCall l fnName [AGVar l (show localVar)]
+    let guard = fromGuard $ AGFunCall l fnName [AGVar l (show localVar)]
     let body = AEVar l (show localVar)
     pure $ MkMatcherClause pattern guard body []
 
