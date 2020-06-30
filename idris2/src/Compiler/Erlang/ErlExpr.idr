@@ -221,7 +221,8 @@ record MatcherClause where
   preComputedValues : List (LocalVar, Expr)
 
 wrapPreComputedValues : Line -> List (LocalVar, Expr) -> Expr -> Expr
-wrapPreComputedValues l preComputedValues body =
+wrapPreComputedValues l [] body = body
+wrapPreComputedValues l preComputedValues@(_ :: _) body =
   let letBindings = map toLet preComputedValues
   in AEBlock {k=length letBindings} l (rewrite sym (plusCommutative (length letBindings) 1) in fromList letBindings ++ [body])
   where
