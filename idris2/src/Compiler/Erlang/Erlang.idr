@@ -183,7 +183,10 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
   let exportFunName = inNS >>= (\ns => lookup ns exportFunNames)
   exportFunDecls <- maybe (pure []) (genExports namespaceInfo defLine) exportFunName
   let modName = currentModuleName namespaceInfo
-  let module_ = MkModule (MkModuleName defLine modName) [NoAutoImport defLine] (exportFunDecls ++ funDecls)
+  let inlineAttrs = if inlineSize opts > 0
+        then [Inline defLine, InlineSize defLine (inlineSize opts)]
+        else []
+  let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
   let outfile = targetDir </> modName ++ ".abstr"
   let content = fastAppend (flatten (genModule module_))
   Right () <- coreLift $ writeFile outfile content

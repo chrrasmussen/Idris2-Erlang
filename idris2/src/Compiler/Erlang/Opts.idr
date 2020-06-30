@@ -16,21 +16,24 @@ record Opts where
   constructor MkOpts
   outputFormat : OutputFormat
   prefixStr : String
+  inlineSize : Nat
   changedNamespaces : Maybe (List Namespace)
 
 export
 defaultOpts : Opts
-defaultOpts = MkOpts Beam "Idris" Nothing
+defaultOpts = MkOpts Beam "Idris" 0 Nothing
 
 
 data Flag
   = SetOutputFormat OutputFormat
   | SetPrefix String
+  | SetInlineSize Nat
   | SetChangedNamespaces (List Namespace)
 
 flagToOpts : Flag -> Opts -> Opts
 flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
 flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
+flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = inlineSize } opts
 flagToOpts (SetChangedNamespaces namespaces) opts = record { changedNamespaces = Just namespaces } opts
 
 flagsToOpts : List Flag -> Opts
@@ -56,6 +59,7 @@ stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `asser
     parseFlags ("--format" :: "erl-minified" :: rest) = SetOutputFormat ErlangMinified :: parseFlags rest
     parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat Beam :: parseFlags rest
     parseFlags ("--prefix" :: prefixStr :: rest) = SetPrefix prefixStr :: parseFlags rest
+    parseFlags ("--inline" :: inlineSize :: rest) = SetInlineSize (integerToNat (cast inlineSize)) :: parseFlags rest
     parseFlags ("--changed" :: namespaces :: rest) = SetChangedNamespaces (splitNamespaces namespaces) :: parseFlags rest
     parseFlags (_ :: rest) = parseFlags rest
 
