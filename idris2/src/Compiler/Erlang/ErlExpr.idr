@@ -229,9 +229,13 @@ wrapPreComputedValues l preComputedValues@(_ :: _) body =
     toLet : (LocalVar, Expr) -> Expr
     toLet (var, value) = AEMatch l (APVar l (show var)) value
 
-genBinary : Line -> String -> Expr
-genBinary l str =
+genBinaryExpr : Line -> String -> Expr
+genBinaryExpr l str =
   AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+
+genBinaryPattern : Line -> String -> Pattern
+genBinaryPattern l str =
+  APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
 
 -- CODE GENERATION
@@ -259,6 +263,57 @@ genIdrisConstant l fromString fromLiteral constant =
     ICharType => fromLiteral (ALAtom l "char_type")
     IDoubleType => fromLiteral (ALAtom l "double_type")
     IWorldType => fromLiteral (ALAtom l "world_type")
+
+constExprToPattern : ErlExpr -> Maybe Pattern
+constExprToPattern (ELocal l var) = pure $ APVar l (show var)
+constExprToPattern (ERef l modName fnName) = Nothing
+constExprToPattern (ELam l args body) = Nothing
+constExprToPattern (ELet l newVar value body) = Nothing
+constExprToPattern (ESequence l statements) = Nothing
+constExprToPattern (EApp l expr args) = Nothing
+constExprToPattern (EOp l op lhs rhs) = Nothing -- TODO: Could potentially work
+constExprToPattern (ECon l name xs) = do
+  exprs <- assert_total $ traverse constExprToPattern xs
+  pure $ APTuple l (APLiteral (ALAtom l name) :: exprs)
+constExprToPattern (EConstCase l sc xs def) = Nothing
+constExprToPattern (EMatcherCase l sc xs def) = Nothing
+constExprToPattern (EReceive l xs timeout def) = Nothing
+constExprToPattern (ETryCatch l tryExpr okVar okExpr errorVar errorExpr) = Nothing
+constExprToPattern (EIdrisConstant l x) = pure $ genIdrisConstant l (genBinaryPattern l) APLiteral x
+constExprToPattern (EAtom l x) = pure $ APLiteral (ALAtom l x)
+constExprToPattern (EChar l x) = pure $ APLiteral (ALChar l x)
+constExprToPattern (EFloat l x) = pure $ APLiteral (ALFloat l x)
+constExprToPattern (EInteger l x) = pure $ APLiteral (ALInteger l x)
+constExprToPattern (ECharlist l x) = pure $ APLiteral (ALCharlist l x)
+constExprToPattern (EBinary l x) = pure $ genBinaryPattern l x
+constExprToPattern (ENil l) = pure $ APNil l
+constExprToPattern (ECons l x y) = pure $ APCons l !(constExprToPattern x) !(constExprToPattern y)
+constExprToPattern (ETuple l xs) = do
+  elems <- assert_total $ traverse constExprToPattern xs
+  pure $ APTuple l elems
+constExprToPattern (EMap l xs) = Nothing -- TODO: Could potentially work
+constExprToPattern (EBufferNew l size) = Nothing
+constExprToPattern (EBufferResize l bin newSize) = Nothing
+constExprToPattern (EBufferFlatten l bin maxbytes) = Nothing
+constExprToPattern (EBufferSetBits8 l bin loc value) = Nothing
+constExprToPattern (EBufferGetBits8 l bin loc) = Nothing
+constExprToPattern (EBufferSetBits16 l bin loc value) = Nothing
+constExprToPattern (EBufferGetBits16 l bin loc) = Nothing
+constExprToPattern (EBufferSetBits32 l bin loc value) = Nothing
+constExprToPattern (EBufferGetBits32 l bin loc) = Nothing
+constExprToPattern (EBufferSetBits64 l bin loc value) = Nothing
+constExprToPattern (EBufferGetBits64 l bin loc) = Nothing
+constExprToPattern (EBufferSetInt32 l bin loc value) = Nothing
+constExprToPattern (EBufferGetInt32 l bin loc) = Nothing
+constExprToPattern (EBufferSetInt64 l bin loc value) = Nothing
+constExprToPattern (EBufferGetInt64 l bin loc) = Nothing
+constExprToPattern (EBufferSetDouble l bin loc value) = Nothing
+constExprToPattern (EBufferGetDouble l bin loc) = Nothing
+constExprToPattern (EBufferSetString l bin loc value) = Nothing
+constExprToPattern (EBufferGetString l bin loc len) = Nothing
+
+
+-- CODE GENERATION
 
 mutual
   genErlExpr : ErlExpr -> State LocalVars Expr
@@ -341,7 +396,7 @@ mutual
           ]
     pure $ AETry l [!(genErlExpr tryExpr)] [tryCaseClause] [tryCatchClause] []
   genErlExpr (EIdrisConstant l x) =
-    pure $ genIdrisConstant l (genBinary l) AELiteral x
+    pure $ genIdrisConstant l (genBinaryExpr l) AELiteral x
   genErlExpr (EAtom l x) =
     pure $ AELiteral (ALAtom l x)
   genErlExpr (EChar l x) =
@@ -353,7 +408,7 @@ mutual
   genErlExpr (ECharlist l x) =
     pure $ AELiteral (ALCharlist l x)
   genErlExpr (EBinary l x) =
-    pure $ genBinary l x
+    pure $ genBinaryExpr l x
   genErlExpr (ENil l) =
     pure $ AENil l
   genErlExpr (ECons l x y) =
@@ -405,11 +460,8 @@ mutual
 
   genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do
-    let pattern = genIdrisConstant l stringPattern APLiteral constant
+    let pattern = genIdrisConstant l (genBinaryPattern l) APLiteral constant
     pure $ MkCaseClause l pattern [] [!(genErlExpr body)]
-  where
-    stringPattern : String -> Pattern
-    stringPattern str = APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
 
   genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
   genErlMatcher l matcher = do
@@ -417,14 +469,20 @@ mutual
     pure (MkCaseClause l (pattern clause) (andGuardToGuardAlts (guard clause)) [body clause], preComputedValues clause)
 
   readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
-  readErlMatcher l (MExact expr) = do
-    localVar <- newLocalVar
-    matchExactVar <- newLocalVar
-    matchExactValue <- genErlExpr expr
-    let pattern = APVar l (show localVar)
-    let guard = fromGuard $ AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
-    let body = AEVar l (show localVar)
-    pure $ MkMatcherClause pattern guard body [(matchExactVar, matchExactValue)]
+  readErlMatcher l (MExact expr) =
+    case constExprToPattern expr of
+      Just pattern => do
+        let guard = neutral
+        let body = !(genErlExpr expr)
+        pure $ MkMatcherClause pattern guard body []
+      Nothing => do
+        localVar <- newLocalVar
+        matchExactVar <- newLocalVar
+        matchExactValue <- genErlExpr expr
+        let pattern = APVar l (show localVar)
+        let guard = fromGuard $ AGOp l "=:=" (AGVar l (show localVar)) (AGVar l (show matchExactVar))
+        let body = AEVar l (show localVar)
+        pure $ MkMatcherClause pattern guard body [(matchExactVar, matchExactValue)]
   readErlMatcher l MAny = do
     localVar <- newLocalVar
     let pattern = APVar l (show localVar)
