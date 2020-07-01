@@ -36,25 +36,25 @@ data Buffer : Type where
 
 
 %inline
-getBufferPayload : Buffer -> IO BufferPayload
+getBufferPayload : HasIO io => Buffer -> io BufferPayload
 getBufferPayload (MkBuffer ref) =
   erlUnsafeCall BufferPayload "erlang" "get" [ref]
 
 %inline
-setBufferPayload : Buffer -> BufferPayload -> IO ()
+setBufferPayload : HasIO io => Buffer -> BufferPayload -> io ()
 setBufferPayload (MkBuffer ref) content = do
   erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
   pure ()
 
 %inline
-updateBufferPayload : Buffer -> (BufferPayload -> BufferPayload) -> IO ()
+updateBufferPayload : HasIO io => Buffer -> (BufferPayload -> BufferPayload) -> io ()
 updateBufferPayload buf updateFn = do
   old <- getBufferPayload buf
   setBufferPayload buf (updateFn old)
 
 
 export
-newBuffer : Int -> IO (Maybe Buffer)
+newBuffer : HasIO io => Int -> io (Maybe Buffer)
 newBuffer size = do
   ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
   let payload = prim__erlBufferNew size
@@ -64,104 +64,104 @@ newBuffer size = do
 
 -- might be needed if we do this in C...
 export
-freeBuffer : Buffer -> IO ()
+freeBuffer : HasIO io => Buffer -> io ()
 freeBuffer buf = pure ()
 
 export
-rawSize : Buffer -> IO Int
+rawSize : HasIO io => Buffer -> io Int
 rawSize buf = do
   MkTuple2 _ size <- getBufferPayload buf
   pure size
 
-flatten : Buffer -> (maxbytes : Int) -> IO ()
+flatten : HasIO io => Buffer -> (maxbytes : Int) -> io ()
 flatten buf maxbytes = do
   updateBufferPayload buf (\payload => prim__erlBufferFlatten payload maxbytes)
 
 -- Assumes val is in the range 0-255
 export
-setByte : Buffer -> (loc : Int) -> (val : Int) -> IO ()
+setByte : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setByte buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetByte payload loc val)
 
 export
-getByte : Buffer -> (loc : Int) -> IO Int
+getByte : HasIO io => Buffer -> (loc : Int) -> io Int
 getByte buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetByte payload loc
 
 export
-setBits8 : Buffer -> (loc : Int) -> (val : Bits8) -> IO ()
+setBits8 : HasIO io => Buffer -> (loc : Int) -> (val : Bits8) -> io ()
 setBits8 buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetBits8 payload loc val)
 
 export
-getBits8 : Buffer -> (loc : Int) -> IO Bits8
+getBits8 : HasIO io => Buffer -> (loc : Int) -> io Bits8
 getBits8 buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetBits8 payload loc
 
 export
-setBits16 : Buffer -> (loc : Int) -> (val : Bits16) -> IO ()
+setBits16 : HasIO io => Buffer -> (loc : Int) -> (val : Bits16) -> io ()
 setBits16 buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetBits16 payload loc val)
 
 export
-getBits16 : Buffer -> (loc : Int) -> IO Bits16
+getBits16 : HasIO io => Buffer -> (loc : Int) -> io Bits16
 getBits16 buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetBits16 payload loc
 
 export
-setBits32 : Buffer -> (loc : Int) -> (val : Bits32) -> IO ()
+setBits32 : HasIO io => Buffer -> (loc : Int) -> (val : Bits32) -> io ()
 setBits32 buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetBits32 payload loc val)
 
 export
-getBits32 : Buffer -> (loc : Int) -> IO Bits32
+getBits32 : HasIO io => Buffer -> (loc : Int) -> io Bits32
 getBits32 buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetBits32 payload loc
 
 export
-setBits64 : Buffer -> (loc : Int) -> (val : Bits64) -> IO ()
+setBits64 : HasIO io => Buffer -> (loc : Int) -> (val : Bits64) -> io ()
 setBits64 buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetBits64 payload loc val)
 
 export
-getBits64 : Buffer -> (loc : Int) -> IO Bits64
+getBits64 : HasIO io => Buffer -> (loc : Int) -> io Bits64
 getBits64 buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetBits64 payload loc
 
 export
-setInt32 : Buffer -> (loc : Int) -> (val : Int) -> IO ()
+setInt32 : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setInt32 buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetInt32 payload loc val)
 
 export
-getInt32 : Buffer -> (loc : Int) -> IO Int
+getInt32 : HasIO io => Buffer -> (loc : Int) -> io Int
 getInt32 buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetInt32 payload loc
 
 export
-setInt : Buffer -> (loc : Int) -> (val : Int) -> IO ()
+setInt : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setInt buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetInt64 payload loc val)
 
 export
-getInt : Buffer -> (loc : Int) -> IO Int
+getInt : HasIO io => Buffer -> (loc : Int) -> io Int
 getInt buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetInt64 payload loc
 
 export
-setDouble : Buffer -> (loc : Int) -> (val : Double) -> IO ()
+setDouble : HasIO io => Buffer -> (loc : Int) -> (val : Double) -> io ()
 setDouble buf loc val = do
   updateBufferPayload buf (\payload => prim__erlBufferSetDouble payload loc val)
 
 export
-getDouble : Buffer -> (loc : Int) -> IO Double
+getDouble : HasIO io => Buffer -> (loc : Int) -> io Double
 getDouble buf loc = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetDouble payload loc
@@ -173,32 +173,32 @@ stringByteLength str = unsafePerformIO $ do
   erlUnsafeCall Int "erlang" "byte_size" [binary]
 
 export
-setString : Buffer -> (loc : Int) -> (val : String) -> IO ()
+setString : HasIO io => Buffer -> (loc : Int) -> (val : String) -> io ()
 setString buf loc val = do
   binary <- erlUnsafeCall ErlBinary "erlang" "iolist_to_binary" [val]
   updateBufferPayload buf (\payload => prim__erlBufferSetString payload loc binary)
 
 export
-getString : Buffer -> (loc : Int) -> (len : Int) -> IO String
+getString : HasIO io => Buffer -> (loc : Int) -> (len : Int) -> io String
 getString buf loc len = do
   payload <- getBufferPayload buf
   let MkBinary str = prim__erlBufferGetString payload loc len
   pure str
 
 export
-bufferData : Buffer -> IO (List Int)
+bufferData : HasIO io => Buffer -> io (List Int)
 bufferData buf = do
   len <- rawSize buf
   unpackTo [] len
   where
-    unpackTo : List Int -> Int -> IO (List Int)
+    unpackTo : List Int -> Int -> io (List Int)
     unpackTo acc 0 = pure acc
     unpackTo acc loc = do
       val <- getByte buf (loc - 1)
       unpackTo (val :: acc) (loc - 1)
 
 export
-copyData : (src : Buffer) -> (start, len : Int) -> (dest : Buffer) -> (loc : Int) -> IO ()
+copyData : HasIO io => (src : Buffer) -> (start, len : Int) -> (dest : Buffer) -> (loc : Int) -> io ()
 copyData src start len dest loc = do
   srcBinary <- getString src start len
   setString dest loc srcBinary
@@ -206,7 +206,7 @@ copyData src start len dest loc = do
 -- Create a new buffer by reading all the contents from the given file
 -- Fails if no bytes can be read or buffer can't be created
 export
-createBufferFromFile : (filePath : String) -> IO (Either FileError Buffer)
+createBufferFromFile : HasIO io => (filePath : String) -> io (Either FileError Buffer)
 createBufferFromFile filePath = do
   result <- erlUnsafeCall ErlTerm "file" "read_file" [MkBinary filePath]
   let Right (MkTuple2 _ (MkBinary str)) = erlDecode (tuple2 (exact (MkAtom "ok")) binary) result
@@ -218,7 +218,7 @@ createBufferFromFile filePath = do
 
 -- TODO: `maxbytes` is unused
 export
-writeBufferToFile : (filePath : String) -> Buffer -> (maxbytes : Int) -> IO (Either FileError ())
+writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int) -> io (Either FileError ())
 writeBufferToFile filePath buf maxbytes = do
   flatten buf maxbytes
   MkTuple2 binary _ <- getBufferPayload buf
@@ -226,7 +226,7 @@ writeBufferToFile filePath buf maxbytes = do
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export
-resizeBuffer : Buffer -> Int -> IO (Maybe Buffer)
+resizeBuffer : HasIO io => Buffer -> Int -> io (Maybe Buffer)
 resizeBuffer buf newSize = do
   updateBufferPayload buf (\payload => prim__erlBufferResize payload newSize)
   pure $ Just buf
