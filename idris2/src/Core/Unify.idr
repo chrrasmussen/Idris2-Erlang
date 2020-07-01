@@ -668,18 +668,22 @@ mutual
 
   headsConvert : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
-                 Env Term vars ->
+                 {auto u : Ref UST UState} ->
+                 UnifyInfo ->
+                 FC -> Env Term vars ->
                  Maybe (List (NF vars)) -> Maybe (List (NF vars)) ->
                  Core Bool
-  headsConvert env (Just vs) (Just ns)
+  headsConvert mode fc env (Just vs) (Just ns)
       = case (reverse vs, reverse ns) of
              (v :: _, n :: _) =>
-                do logNF 10 "Converting" env v
-                   logNF 10 "......with" env n
-                   defs <- get Ctxt
-                   convert defs env v n
+                do logNF 10 "Unifying head" env v
+                   logNF 10 ".........with" env n
+                   res <- unify mode fc env v n
+                   -- If there's constraints, we postpone the whole equation
+                   -- so no need to record them
+                   pure (isNil (constraints res ))
              _ => pure False
-  headsConvert env _ _
+  headsConvert mode fc env _ _
       = do log 10 "Nothing to convert"
            pure True
 
@@ -707,7 +711,7 @@ mutual
                             nty
            -- If the rightmost arguments have the same type, or we don't
            -- know the types of the arguments, we'll get on with it.
-           if !(headsConvert env vargTys nargTys)
+           if !(headsConvert mode fc env vargTys nargTys)
               then
                 -- Unify the rightmost arguments, with the goal of turning the
                 -- hole application into a pattern form
@@ -1277,9 +1281,14 @@ mutual
 
     unifyWithLazyD _ _ mode loc env (NDelayed _ _ tmx) (NDelayed _ _ tmy)
        = unify (lower mode) loc env tmx tmy
-    unifyWithLazyD _ _ mode loc env (NDelayed _ r tmx) tmy
-       = do vs <- unify (lower mode) loc env tmx tmy
-            pure (record { addLazy = AddForce r } vs)
+    unifyWithLazyD _ _ mode loc env x@(NDelayed _ r tmx) tmy
+       = if isHoleApp tmy && not (umode mode == InMatch)
+            -- given type delayed, expected unknown, so let's wait and see
+            -- what the expected type turns out to be
+            then postpone True
+                          loc mode "Postponing in lazy" env x tmy
+            else do vs <- unify (lower mode) loc env tmx tmy
+                    pure (record { addLazy = AddForce r } vs)
     unifyWithLazyD _ _ mode loc env tmx (NDelayed _ r tmy)
        = do vs <- unify (lower mode) loc env tmx tmy
             pure (record { addLazy = AddDelay r } vs)
@@ -1436,7 +1445,7 @@ retryGuess mode smode (hid, (loc, hname))
                                     do logTerm 5 ("Failed (det " ++ show hname ++ " " ++ show n ++ ")")
                                                  (type def)
                                        setInvertible loc (Resolved i)
-                                       pure False -- progress made!
+                                       pure False -- progress not made yet!
                                 _ => do logTermNF 5 ("Search failed at " ++ show rig ++ " for " ++ show hname)
                                                   [] (type def)
                                         case smode of
