@@ -14,9 +14,27 @@ data Name : Type where
      DN : String -> Name -> Name -- a name and how to display it
      RF : String -> Name  -- record field name
      Nested : (Int, Int) -> Name -> Name -- nested function name
-     CaseBlock : Int -> Int -> Name -- case block nested in (resolved) name
-     WithBlock : Int -> Int -> Name -- with block nested in (resolved) name
+     CaseBlock : String -> Int -> Name -- case block nested in (resolved) name
+     WithBlock : String -> Int -> Name -- with block nested in (resolved) name
      Resolved : Int -> Name -- resolved, index into context
+
+-- Update a name imported with 'import as', for creating an alias
+export
+asName : List String -> -- Initial module name
+         List String -> -- 'as' module name
+         Name -> -- identifier
+         Name
+asName mod ns (DN s n) = DN s (asName mod ns n)
+asName mod ns (NS oldns n)
+    = NS (updateNS mod oldns) n
+  where
+    updateNS : List String -> List String -> List String
+    updateNS mod (m :: ms)
+        = if mod == m :: ms
+             then ns
+             else m :: updateNS mod ms
+    updateNS mod [] = []
+asName _ _ n = n
 
 export
 userNameRoot : Name -> Maybe String
@@ -70,8 +88,8 @@ Show Name where
   show (RF n) = "." ++ n
   show (Nested (outer, idx) inner)
       = show outer ++ ":" ++ show idx ++ ":" ++ show inner
-  show (CaseBlock outer i) = "case block in " ++ show outer ++ "(" ++ show i ++ ")"
-  show (WithBlock outer i) = "with block in " ++ show outer
+  show (CaseBlock outer i) = "case block in " ++ outer
+  show (WithBlock outer i) = "with block in " ++ outer
   show (Resolved x) = "$resolved" ++ show x
 
 export
