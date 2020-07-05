@@ -46,8 +46,8 @@ genName (PV n d) = "pat--" ++ genName n
 genName (DN _ n) = "dn--" ++ genName n
 genName (RF field) = "rf--" ++ field
 genName (Nested (i, x) n) = "nested--" ++ show i ++ "-" ++ show x ++ "--in--" ++ genName n
-genName (CaseBlock x y) = "case--" ++ show x ++ "-" ++ show y
-genName (WithBlock x y) = "with--" ++ show x ++ "-" ++ show y
+genName (CaseBlock x y) = "case--" ++ x ++ "-" ++ show y
+genName (WithBlock x y) = "with--" ++ x ++ "-" ++ show y
 genName (Resolved i) = "fn--" ++ show i
 
 moduleNameForNS : NamespaceInfo -> Namespace -> String
