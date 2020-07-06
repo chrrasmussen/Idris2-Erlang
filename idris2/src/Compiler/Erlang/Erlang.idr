@@ -60,42 +60,38 @@ evalErlangCmd erl code =
   escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-eval", code]
 
 pmapErlFun : String
-pmapErlFun =
-  unwords
-    [ "Collect = fun"
-    ,   "Collect([]) -> [];"
-    ,   "Collect([{Pid, MRef} | Next]) ->"
-    ,     "receive"
-    ,       "{Pid, Res} ->"
-    ,         "erlang:demonitor(MRef, [flush]),"
-    ,         "[{ok, Res} | Collect(Next)];"
-    ,       "{'DOWN', MRef, process, Pid, Reason} ->"
-    ,         "[{error, Reason} | Collect(Next)]"
-    ,     "end"
-    , "end,"
-    , "Pmap = fun(F, Es) ->"
-    ,   "Parent = self(),"
-    ,   "Running = ["
-    ,     "spawn_monitor(fun() -> Parent ! {self(), F(E)} end)"
-    ,       "|| E <- Es],"
-    ,   "Collect(Running)"
-    , "end"
-    ]
+pmapErlFun = "Collect = fun
+  Collect([]) -> [];
+  Collect([{Pid, MRef} | Next]) ->
+    receive
+      {Pid, Res} ->
+        erlang:demonitor(MRef, [flush]),
+        [{ok, Res} | Collect(Next)];
+      {'DOWN', MRef, process, Pid, Reason} ->
+        [{error, Reason} | Collect(Next)]
+    end
+  end,
+  Pmap = fun(F, Es) ->
+  Parent = self(),
+  Running = [
+    spawn_monitor(fun() -> Parent ! {self(), F(E)} end)
+      || E <- Es],
+  Collect(Running)
+end"
 
 compileAbstrCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
 compileAbstrCmd erl srcfiles outputDir =
   let code =
-        unwords
-          [ pmapErlFun ++ ","
-          , "CompileAbstr = fun(File, OutputDir) ->"
-          ,   "{ok, Forms} = file:consult(File),"
-          ,   "{ok, ModuleName, BinaryOrCode} = compile:noenv_forms(Forms, []),"
-          ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".beam\"),"
-          ,   "file:write_file(OutputFile, BinaryOrCode)"
-          , "end,"
-          , "Pmap(fun(File) -> CompileAbstr(File, " ++ show outputDir ++ ") end, " ++ show srcfiles ++ "),"
-          , "halt(0)"
-          ]
+        concat {t=List}
+          [pmapErlFun, ",
+CompileAbstr = fun(File, OutputDir) ->
+  {ok, Forms} = file:consult(File),
+  {ok, ModuleName, BinaryOrCode} = compile:noenv_forms(Forms, []),
+  OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".beam\"),
+  file:write_file(OutputFile, BinaryOrCode)
+end,
+Pmap(fun(File) -> CompileAbstr(File, ", show outputDir, ") end, ", show srcfiles, "),
+halt(0)"]
   in evalErlangCmd erl code
 
 generateErlCmd : (isMinified : Bool) -> (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
@@ -107,25 +103,24 @@ generateErlCmd isMinified erl srcfiles outputDir =
       prettyOpts =
         "[{paper, " ++ show columnWidth ++ "}, {ribbon, " ++ show columnWidth ++ "}]"
       code =
-        unwords
-          [ pmapErlFun ++ ","
-          , "ModuleNameFromForms = fun(Forms) ->"
-          ,   "lists:foldl("
-          ,     "fun"
-          ,       "({attribute, _, module, ModuleName}, _Acc) -> {ok, ModuleName};"
-          ,       "(_, Acc) -> Acc"
-          ,     "end, not_found, Forms)"
-          , "end,"
-          , "GenerateErl = fun(File, OutputDir) ->"
-          ,   "{ok, Forms} = file:consult(File),"
-          ,   "{ok, ModuleName} = ModuleNameFromForms(Forms),"
-          ,   "OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".erl\"),"
-          ,   "ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms), " ++ prettyOpts ++ "),"
-          ,   "file:write_file(OutputFile, ErlangSource)"
-          , "end,"
-          , "Pmap(fun(File) -> GenerateErl(File, " ++ show outputDir ++ ") end, " ++ show srcfiles ++ "),"
-          , "halt(0)"
-          ]
+        concat {t=List}
+          [pmapErlFun, ",
+ModuleNameFromForms = fun(Forms) ->
+  lists:foldl(
+    fun
+      ({attribute, _, module, ModuleName}, _Acc) -> {ok, ModuleName};
+      (_, Acc) -> Acc
+    end, not_found, Forms)
+end,
+GenerateErl = fun(File, OutputDir) ->
+  {ok, Forms} = file:consult(File),
+  {ok, ModuleName} = ModuleNameFromForms(Forms),
+  OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ \".erl\"),
+  ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms), ", prettyOpts, "),
+  file:write_file(OutputFile, ErlangSource)
+end,
+Pmap(fun(File) -> GenerateErl(File, ", show outputDir, ") end, ", show srcfiles, "),
+halt(0)"]
   in evalErlangCmd erl code
 
 groupBy : (a -> a -> Bool) -> List a -> List (List a)
