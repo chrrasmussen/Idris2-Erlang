@@ -69,16 +69,16 @@ updateEnv
          -- for the tests means they test the local version not the installed
          -- version
          defs <- get Ctxt
-         addPkgDir "prelude"
-         addPkgDir "base"
-         addPkgDir "erlang"
+         addPkg "prelude"
+         addPkg "base"
+         addPkg "erlang"
+         addPkgDir (prefix_dir (dirs (options defs)) </>
+                        ("idris2-" ++ showVersion False version))
          addDataDir (prefix_dir (dirs (options defs)) </>
                         ("idris2-" ++ showVersion False version) </> "support")
+         addLibDir "lib"
          addLibDir (prefix_dir (dirs (options defs)) </>
                         ("idris2-" ++ showVersion False version) </> "lib")
-         Just cwd <- coreLift $ currentDir
-              | Nothing => throw (InternalError "Can't get current directory")
-         addLibDir cwd
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

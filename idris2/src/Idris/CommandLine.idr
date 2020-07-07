@@ -74,7 +74,7 @@ data CLOpt
    ||| Set the log level globally
   Logging Nat |
    ||| Add a package as a dependency
-  PkgPath String |
+  PkgName String |
    ||| Build or install a given package, depending on PkgCommand
   Package PkgCommand String |
    ||| Show locations of data/library directories
@@ -162,7 +162,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just $ "Set code generator " ++ showDefault (codegen defaultSession)),
            MkOpt ["--cg-opt"] [Required "args"] (\args => [SetCGOptions args])
               (Just "Arguments to pass to code generator"),
-           MkOpt ["--package", "-p"] [Required "package"] (\f => [PkgPath f])
+           MkOpt ["--package", "-p"] [Required "package"] (\f => [PkgName f])
               (Just "Add a package as a dependency"),
            MkOpt ["--source-dir"] [Required "dir"] (\d => [SourceDir d])
               (Just $ "Set source directory"),

@@ -22,6 +22,7 @@ record Dirs where
   build_dir : String -- build directory, relative to working directory
   output_dir : Maybe String -- output directory, relative to working directory
   prefix_dir : String -- installation prefix, for finding data files (e.g. run time support)
+  package_dirs : List String -- places to look for packages
   extra_dirs : List String -- places to look for import files
   lib_dirs : List String -- places to look for libraries (for code generation)
   data_dirs : List String -- places to look for data file
@@ -36,12 +37,13 @@ outputDirWithDefault d = fromMaybe (build_dir d </> "exec") (output_dir d)
 
 public export
 toString : Dirs -> String
-toString d@(MkDirs wdir sdir bdir odir dfix edirs ldirs ddirs) =
+toString d@(MkDirs wdir sdir bdir odir dfix pdirs edirs ldirs ddirs) =
   unlines [ "+ Working Directory      :: " ++ show wdir
           , "+ Source Directory       :: " ++ show sdir
           , "+ Build Directory        :: " ++ show bdir
           , "+ Output Directory       :: " ++ show (outputDirWithDefault d)
           , "+ Installation Prefix    :: " ++ show dfix
+          , "+ Package Directories    :: " ++ show pdirs
           , "+ Extra Directories      :: " ++ show edirs
           , "+ CG Library Directories :: " ++ show ldirs
           , "+ Data Directories       :: " ++ show ddirs]
@@ -118,6 +120,7 @@ record Session where
   findipkg : Bool
   codegen : CG
   codegenOptions : String
+  packages : List String
   logLevel : Nat
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
@@ -160,14 +163,14 @@ getCG o cg = lookup (toLower cg) (availableCGs o)
 
 defaultDirs : Dirs
 defaultDirs = MkDirs "." Nothing "build" Nothing
-                     "/usr/local" ["."] [] []
+                     "/usr/local" [] ["."] [] []
 
 defaultPPrint : PPrinter
 defaultPPrint = MkPPOpts False True False
 
 export
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez "" 0 False False
+defaultSession = MkSessionOpts False False False Chez "" [] 0 False False
                                Nothing Nothing Nothing Nothing
 
 export

@@ -19,15 +19,6 @@ import System
 
 %default covering
 
--- TODO: Version numbers on dependencies
-export
-addPkgDir : {auto c : Ref Ctxt Defs} ->
-            String -> Core ()
-addPkgDir p
-    = do defs <- get Ctxt
-         addExtraDir (prefix_dir (dirs (options defs)) </>
-                             "idris2-" ++ showVersion False version </> p)
-
 dirOption : Dirs -> DirCommand -> Core ()
 dirOption dirs LibDir
     = coreLift $ putStrLn
@@ -74,8 +65,8 @@ preOptions (SetCG e :: opts)
 preOptions (SetCGOptions args :: opts)
     = do setCGOptions args
          preOptions opts
-preOptions (PkgPath p :: opts)
-    = do addPkgDir p
+preOptions (PkgName p :: opts)
+    = do addPkg p
          preOptions opts
 preOptions (SourceDir d :: opts)
     = do setSourceDir (Just d)

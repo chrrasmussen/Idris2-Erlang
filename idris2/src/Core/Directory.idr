@@ -27,6 +27,27 @@ firstAvailable (f :: fs)
          coreLift $ closeFile ok
          pure (Just f)
 
+dirExists : String -> IO Bool
+dirExists dir = do Right d <- openDir dir
+                       | Left _ => pure False
+                   closeDir d
+                   pure True
+
+getPkgDirs : {auto c : Ref Ctxt Defs} -> Core (List String)
+getPkgDirs
+    = do d <- getDirs
+         session <- getSession
+         dirs <- traverse (getPkgDir (package_dirs d)) (packages session)
+         pure $ mapMaybe id dirs
+  where
+    getPkgDir : List String -> String -> Core (Maybe String)
+    getPkgDir [] _ = pure Nothing
+    getPkgDir (dir :: dirs) pkg
+        = do let d = dir </> pkg
+             True <- coreLift $ dirExists d
+               | False => getPkgDir dirs pkg
+             pure (Just d)
+
 export
 covering
 readDataFile : {auto c : Ref Ctxt Defs} ->
@@ -49,9 +70,9 @@ findLibraryFile : {auto c : Ref Ctxt Defs} ->
                   String -> Core String
 findLibraryFile fname
     = do d <- getDirs
-         let fs = map (\p => p </> fname)
-                      (lib_dirs d ++ map (\x => x </> "lib")
-                                         (extra_dirs d))
+         pkgDirs <- getPkgDirs
+         let fs = map (</> fname) (lib_dirs d) ++
+               map (</> "lib") pkgDirs
          Just f <- firstAvailable fs
             | Nothing => throw (InternalError ("Can't find library " ++ fname))
          pure f
@@ -63,9 +84,10 @@ nsToPath : {auto c : Ref Ctxt Defs} ->
            FC -> List String -> Core (Either Error String)
 nsToPath loc ns
     = do d <- getDirs
+         pkgDirs <- getPkgDirs
          let fnameBase = joinPath (reverse ns)
          let fs = map (\p => p </> fnameBase <.> "ttc")
-                      ((build_dir d </> "ttc") :: extra_dirs d)
+                      ((build_dir d </> "ttc") :: pkgDirs ++ extra_dirs d)
          Just f <- firstAvailable fs
             | Nothing => pure (Left (ModuleNotFound loc ns))
          pure (Right f)
@@ -98,12 +120,6 @@ pathToNS wdir sdir fname
                                             ++ " is not in the source directory " 
                                             ++ show (wdir </> sdir)))
                Just p => pure $ map show $ reverse $ (parse (p <.> "")).body
-
-dirExists : String -> IO Bool
-dirExists dir = do Right d <- openDir dir
-                       | Left _ => pure False
-                   closeDir d
-                   pure True 
 
 -- Create subdirectories, if they don't exist
 export

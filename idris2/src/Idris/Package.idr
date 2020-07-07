@@ -260,7 +260,7 @@ addDeps : {auto c : Ref Ctxt Defs} ->
           PkgDesc -> Core ()
 addDeps pkg
     = do defs <- get Ctxt
-         traverse_ addPkgDir (depends pkg)
+         traverse_ addPkg (depends pkg)
 
 processOptions : {auto c : Ref Ctxt Defs} ->
                  {auto o : Ref ROpts REPLOpts} ->
@@ -621,4 +621,4 @@ findIpkg fname
     dropHead str (x :: xs)
         = if x == str then xs else x :: xs
     loadDependencies : List String -> Core ()
-    loadDependencies = traverse_ addPkgDir
+    loadDependencies = traverse_ addPkg

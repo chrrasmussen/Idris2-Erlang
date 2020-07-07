@@ -1998,11 +1998,25 @@ setCGOptions args
     = do defs <- get Ctxt
          put Ctxt (record { options->session->codegenOptions = args } defs)
 
+-- TODO: Version numbers on dependencies
+export
+addPkg : {auto c : Ref Ctxt Defs} ->
+         String -> Core ()
+addPkg p
+    = do defs <- get Ctxt
+         put Ctxt (record { options->session->packages $= (++ [p]) } defs)
+
 export
 getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
 getDirs
     = do defs <- get Ctxt
          pure (dirs (options defs))
+
+export
+addPkgDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
+addPkgDir dir
+    = do defs <- get Ctxt
+         put Ctxt (record { options->dirs->package_dirs $= (++ [dir]) } defs)
 
 export
 addExtraDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
