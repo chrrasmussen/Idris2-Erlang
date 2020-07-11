@@ -13,6 +13,7 @@ import TTImp.TTImp
 
 import Data.ANameMap
 import Data.List
+import Data.NameMap
 import Data.StringMap
 
 %default covering
@@ -90,10 +91,10 @@ mutual
        PRange : FC -> PTerm -> Maybe PTerm -> PTerm -> PTerm
        -- A stream range [x,y..]
        PRangeStream : FC -> PTerm -> Maybe PTerm -> PTerm
-       -- record field access (r.x.y)
-       PRecordFieldAccess : FC -> PTerm -> List Name -> PTerm
-       -- record projection (.x.y)
-       PRecordProjection : FC -> List Name -> PTerm
+       -- r.x.y, equivalent to (y (x r))
+       PPostfixProjs : FC -> PTerm -> List PTerm -> PTerm
+       -- (.x.y p q), equivalent to (\r => r.x.y p q)
+       PPostfixProjsSection : FC -> List PTerm -> List PTerm -> PTerm
 
        -- Debugging
        PUnifyLog : FC -> Nat -> PTerm -> PTerm
@@ -147,8 +148,8 @@ mutual
   getPTermLoc (PRewrite fc _ _) = fc
   getPTermLoc (PRange fc _ _ _) = fc
   getPTermLoc (PRangeStream fc _ _) = fc
-  getPTermLoc (PRecordFieldAccess fc _ _) = fc
-  getPTermLoc (PRecordProjection fc _) = fc
+  getPTermLoc (PPostfixProjs fc _ _) = fc
+  getPTermLoc (PPostfixProjsSection fc _ _) = fc
   getPTermLoc (PUnifyLog fc _ _) = fc
   getPTermLoc (PWithUnambigNames fc _ _) = fc
 
@@ -234,12 +235,12 @@ mutual
        Overloadable : Name -> Directive
        Extension : LangExt -> Directive
        DefaultTotality : TotalReq -> Directive
-       UndottedRecordProjections : Bool -> Directive
        AutoImplicitDepth : Nat -> Directive
 
   public export
   data PField : Type where
-       MkField : FC -> RigCount -> PiInfo PTerm -> Name -> (ty : PTerm) -> PField
+       MkField : FC -> (doc : String) -> RigCount -> PiInfo PTerm ->
+                 Name -> (ty : PTerm) -> PField
 
   -- For noting the pass we're in when desugaring a mutual block
   -- TODO: Decide whether we want mutual blocks!
@@ -270,7 +271,7 @@ mutual
   data PDecl : Type where
        PClaim : FC -> RigCount -> Visibility -> List PFnOpt -> PTypeDecl -> PDecl
        PDef : FC -> List PClause -> PDecl
-       PData : FC -> Visibility -> PDataDecl -> PDecl
+       PData : FC -> (doc : String) -> Visibility -> PDataDecl -> PDecl
        PParameters : FC -> List (Name, PTerm) -> List PDecl -> PDecl
        PUsing : FC -> List (Maybe Name, PTerm) -> List PDecl -> PDecl
        PReflect : FC -> PTerm -> PDecl
@@ -295,6 +296,7 @@ mutual
                          Maybe (List PDecl) ->
                          PDecl
        PRecord : FC ->
+                 (doc : String) ->
                  Visibility ->
                  Name ->
                  (params : List (Name, RigCount, PiInfo PTerm, PTerm)) ->
@@ -315,13 +317,13 @@ mutual
   getPDeclLoc : PDecl -> FC
   getPDeclLoc (PClaim fc _ _ _ _) = fc
   getPDeclLoc (PDef fc _) = fc
-  getPDeclLoc (PData fc _ _) = fc
+  getPDeclLoc (PData fc _ _ _) = fc
   getPDeclLoc (PParameters fc _ _) = fc
   getPDeclLoc (PUsing fc _ _) = fc
   getPDeclLoc (PReflect fc _) = fc
   getPDeclLoc (PInterface fc _ _ _ _ _ _ _ _) = fc
   getPDeclLoc (PImplementation fc _ _ _ _ _ _ _ _ _ _) = fc
-  getPDeclLoc (PRecord fc _ _ _ _ _) = fc
+  getPDeclLoc (PRecord fc _ _ _ _ _ _) = fc
   getPDeclLoc (PMutual fc _) = fc
   getPDeclLoc (PFixity fc _ _ _) = fc
   getPDeclLoc (PNamespace fc _ _) = fc
@@ -340,7 +342,7 @@ export
 definedIn : List PDecl -> List Name
 definedIn [] = []
 definedIn (PClaim _ _ _ _ (MkPTy _ n _ _) :: ds) = n :: definedIn ds
-definedIn (PData _ _ d :: ds) = definedInData d ++ definedIn ds
+definedIn (PData _ _ _ d :: ds) = definedInData d ++ definedIn ds
 definedIn (PParameters _ _ pds :: ds) = definedIn pds ++ definedIn ds
 definedIn (PUsing _ _ pds :: ds) = definedIn pds ++ definedIn ds
 definedIn (PNamespace _ _ ns :: ds) = definedIn ns ++ definedIn ds
@@ -411,6 +413,8 @@ data REPLCmd : Type where
      CWD: REPLCmd
      Missing : Name -> REPLCmd
      Total : Name -> REPLCmd
+     Doc : Name -> REPLCmd
+     Browse : List String -> REPLCmd
      SetLog : Nat -> REPLCmd
      Metavars : REPLCmd
      Editing : EditCmd -> REPLCmd
@@ -585,10 +589,13 @@ mutual
     showPrec d (PRangeStream _ start (Just next))
         = "[" ++ showPrec d start ++ ", " ++ showPrec d next ++ " .. ]"
     showPrec d (PUnifyLog _ lvl tm) = showPrec d tm
-    showPrec d (PRecordFieldAccess fc rec fields)
-        = showPrec d rec ++ concatMap show fields
-    showPrec d (PRecordProjection fc fields)
-        = concatMap show fields
+    showPrec d (PPostfixProjs fc rec fields)
+        = showPrec d rec ++ concatMap (\n => "." ++ show n) fields
+    showPrec d (PPostfixProjsSection fc fields args)
+        = "("
+            ++ concatMap (\n => "." ++ show n) fields
+            ++ concatMap (\x => " " ++ showPrec App x) args
+            ++ ")"
     showPrec d (PWithUnambigNames fc ns rhs)
         = "with " ++ show ns ++ " " ++ showPrec d rhs
 
@@ -622,7 +629,7 @@ TTC IFaceInfo where
            ds <- fromBuf b
            pure (MkIFaceInfo ic impps ps cs ms ds)
 
--- If you update this, update 'extendAs' in Desugar to keep it up to date
+-- If you update this, update 'extendSyn' in Desugar to keep it up to date
 -- when reading imports
 public export
 record SyntaxInfo where
@@ -634,6 +641,8 @@ record SyntaxInfo where
   ifaces : ANameMap IFaceInfo
   saveIFaces : List Name -- interfaces defined in current session, to save
                          -- to ttc
+  docstrings : ANameMap String
+  saveDocstrings : NameMap () -- names defined in current session
   bracketholes : List Name -- hole names in argument position (so need
                            -- to be bracketed when solved)
   usingImpl : List (Maybe Name, RawImp)
@@ -661,6 +670,10 @@ TTC SyntaxInfo where
            toBuf b (StringMap.toList (prefixes syn))
            toBuf b (filter (\n => fst n `elem` saveIFaces syn)
                            (ANameMap.toList (ifaces syn)))
+           toBuf b (filter (\n => case lookup (fst n) (saveDocstrings syn) of
+                                       Nothing => False
+                                       _ => True)
+                           (ANameMap.toList (docstrings syn)))
            toBuf b (bracketholes syn)
            toBuf b (startExpr syn)
 
@@ -668,10 +681,11 @@ TTC SyntaxInfo where
       = do inf <- fromBuf b
            pre <- fromBuf b
            ifs <- fromBuf b
+           dstrs <- fromBuf b
            bhs <- fromBuf b
            start <- fromBuf b
            pure (MkSyntax (fromList inf) (fromList pre) (fromList ifs)
-                          [] bhs [] start)
+                          [] (fromList dstrs) empty bhs [] start)
 
 HasNames IFaceInfo where
   full gam iface
@@ -716,6 +730,8 @@ initSyntax
                (insert "-" 10 empty)
                empty
                []
+               empty
+               empty
                []
                []
                (IVar (MkFC "(default)" (0, 0) (0, 0)) (UN "main"))
@@ -877,11 +893,12 @@ mapPTermM f = goPTerm where
     goPTerm (PUnifyLog fc k x) =
       PUnifyLog fc k <$> goPTerm x
       >>= f
-    goPTerm (PRecordFieldAccess fc rec fields) =
-      PRecordFieldAccess fc <$> goPTerm rec <*> pure fields
+    goPTerm (PPostfixProjs fc rec fields) =
+      PPostfixProjs fc <$> goPTerm rec <*> pure fields
       >>= f
-    goPTerm (PRecordProjection fc fields) =
-      f (PRecordProjection fc fields)
+    goPTerm (PPostfixProjsSection fc fields args) =
+      PPostfixProjsSection fc fields <$> goPTerms args
+      >>= f
     goPTerm (PWithUnambigNames fc ns rhs) =
       PWithUnambigNames fc ns <$> goPTerm rhs
       >>= f
@@ -925,7 +942,7 @@ mapPTermM f = goPTerm where
       PClaim fc c v <$> goPFnOpts opts
                     <*> goPTypeDecl tdecl
     goPDecl (PDef fc cls) = PDef fc <$> goPClauses cls
-    goPDecl (PData fc v d) = PData fc v <$> goPDataDecl d
+    goPDecl (PData fc doc v d) = PData fc doc v <$> goPDataDecl d
     goPDecl (PParameters fc nts ps) =
       PParameters fc <$> goPairedPTerms nts
                      <*> goPDecls ps
@@ -949,10 +966,10 @@ mapPTermM f = goPTerm where
                                   <*> pure mn
                                   <*> pure ns
                                   <*> goMPDecls mps
-    goPDecl (PRecord fc v n nts mn fs) =
-      PRecord fc v n <$> go4TupledPTerms nts
-                     <*> pure mn
-                     <*> goPFields fs
+    goPDecl (PRecord fc doc v n nts mn fs) =
+      PRecord fc doc v n <$> go4TupledPTerms nts
+                         <*> pure mn
+                         <*> goPFields fs
     goPDecl (PMutual fc ps) = PMutual fc <$> goPDecls ps
     goPDecl p@(PFixity _ _ _ _) = pure p
     goPDecl (PNamespace fc strs ps) = PNamespace fc strs <$> goPDecls ps
@@ -972,10 +989,10 @@ mapPTermM f = goPTerm where
     goPDataDecl (MkPLater fc n t) = MkPLater fc n <$> goPTerm t
 
     goPField : PField -> Core PField
-    goPField (MkField fc c info n t) =
-      MkField fc c <$> goPiInfo info
-                   <*> pure n
-                   <*> goPTerm t
+    goPField (MkField fc doc c info n t) =
+      MkField fc doc c <$> goPiInfo info
+                       <*> pure n
+                       <*> goPTerm t
 
     goPiInfo : PiInfo PTerm -> Core (PiInfo PTerm)
     goPiInfo (DefImplicit t) = DefImplicit <$> goPTerm t

@@ -36,7 +36,6 @@ schName (UN n) = schString n
 schName (MN n i) = schString n ++ "-" ++ show i
 schName (PV n d) = "pat--" ++ schName n
 schName (DN _ n) = schName n
-schName (RF n) = "rf--" ++ schString n
 schName (Nested (i, x) n) = "n--" ++ show i ++ "-" ++ show x ++ "-" ++ schName n
 schName (CaseBlock x y) = "case--" ++ schString x ++ "-" ++ show y
 schName (WithBlock x y) = "with--" ++ schString x ++ "-" ++ show y
@@ -177,7 +176,7 @@ schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg +
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = CCall | SchemeCall
+data ExtPrim = SchemeCall
              | PutStr | GetStr | PutChar | GetChar
              | FastPack | Unpack | FastAppend
              | NewIORef | ReadIORef | WriteIORef
@@ -191,7 +190,6 @@ data ExtPrim = CCall | SchemeCall
 
 export
 Show ExtPrim where
-  show CCall = "CCall"
   show SchemeCall = "SchemeCall"
   show PutStr = "PutStr"
   show GetStr = "GetStr"
@@ -219,7 +217,6 @@ Show ExtPrim where
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
     = cond [(n == UN "prim__schemeCall", SchemeCall),
-            (n == UN "prim__cCall", CCall),
             (n == UN "prim__putStr", PutStr),
             (n == UN "prim__getStr", GetStr),
             (n == UN "prim__putChar", PutChar),

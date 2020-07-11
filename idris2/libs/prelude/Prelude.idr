@@ -70,6 +70,14 @@ infixl 9 `div`, `mod`
 public export
 data Bool = True | False
 
+public export
+Uninhabited (True = False) where
+  uninhabited Refl impossible
+
+public export
+Uninhabited (False = True) where
+  uninhabited Refl impossible
+
 ||| Boolean NOT.
 public export
 not : (1 b : Bool) -> Bool
@@ -812,6 +820,14 @@ data Maybe : (ty : Type) -> Type where
   Just : (1 x : ty) -> Maybe ty
 
 public export
+Uninhabited (Nothing = Just x) where
+  uninhabited Refl impossible
+
+public export
+Uninhabited (Just x = Nothing) where
+  uninhabited Refl impossible
+
+public export
 maybe : Lazy b -> Lazy (a -> b) -> Maybe a -> b
 maybe n j Nothing  = n
 maybe n j (Just x) = j x
@@ -915,6 +931,13 @@ public export
   Left x == Left x' = x == x'
   Right x == Right x' = x == x'
   _ == _ = False
+  
+public export
+(Ord a, Ord b) => Ord (Either a b) where
+  compare (Left x) (Left x') = compare x x'
+  compare (Left _) (Right _) = LT
+  compare (Right _) (Left _) = GT
+  compare (Right x) (Right x') = compare x x'
 
 %inline
 public export
@@ -1494,6 +1517,7 @@ onCollect : Ptr t -> (Ptr t -> IO ()) -> IO (GCPtr t)
 onCollect ptr c = fromPrim (prim__onCollect ptr (\x => toPrim (c x)))
 
 %foreign "C:idris2_getString, libidris2_support"
+         "javascript:lambda:x=>x"
 export
 prim__getString : Ptr String -> String
 

@@ -56,10 +56,13 @@ Compiler changes:
 * It is now possible to create new backends with minimal overhead. `Idris.Driver`
 exposes the function `mainWithCodegens` that takes a list of codegens. The
 feature in documented [here](https://idris2.readthedocs.io/en/latest/backends/custom.html).
+* New code generators `node` and `js`.
 
 REPL changes:
 
 * Implemented `:module` command, to load a module during a REPL session.
+* Implemented `:doc`, which displays documentation for a name.
+* Implemented `:browse`, which lists the names exported by a namespace.
 
 Changes since Idris 2 v0.1.0
 ----------------------------

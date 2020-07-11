@@ -262,6 +262,13 @@ mutual
            continueWith indents ")"
            end <- location
            pure (PSectionL (MkFC fname start end) op e)
+    <|> do  -- (.y.z)  -- section of projection (chain)
+          start <- location
+          projs <- some $ postfixApp fname indents
+          args <- many $ simpleExpr fname indents
+          end <- location
+          symbol ")"
+          pure $ PPostfixProjsSection (MkFC fname start end) projs args
       -- unit type/value
     <|> do continueWith indents ")"
            end <- location
@@ -335,21 +342,30 @@ mutual
       mergePairs end ((estart, exp) :: rest)
           = PPair (MkFC fname estart end) exp (mergePairs end rest)
 
+  postfixApp : FileName -> IndentInfo -> Rule PTerm
+  postfixApp fname indents
+    = do
+        start <- location
+        di <- dotIdent
+        end <- location
+        pure $ PRef (MkFC fname start end) di
+    <|> do
+        symbol ".("
+        commit
+        e <- expr pdef fname indents
+        symbol ")"
+        pure e
+
   simpleExpr : FileName -> IndentInfo -> Rule PTerm
   simpleExpr fname indents
-      = do
-          start <- location
-          recFields <- some recField
-          end <- location
-          pure $ PRecordProjection (MkFC fname start end) recFields
-    <|> do
+    = do  -- x.y.z
           start <- location
           root <- simplerExpr fname indents
-          recFields <- many recField
+          projs <- many $ postfixApp fname indents
           end <- location
-          pure $ case recFields of
+          pure $ case projs of
             [] => root
-            fs => PRecordFieldAccess (MkFC fname start end) root recFields
+            _  => PPostfixProjs (MkFC fname start end) root projs
 
   simplerExpr : FileName -> IndentInfo -> Rule PTerm
   simplerExpr fname indents
@@ -715,13 +731,12 @@ mutual
     where
       fieldName : Name -> String
       fieldName (UN s) = s
-      fieldName (RF s) = s
       fieldName _ = "_impossible"
 
       -- this allows the dotted syntax .field
       -- but also the arrowed syntax ->field for compatibility with Idris 1
       recFieldCompat : Rule Name
-      recFieldCompat = recField <|> (symbol "->" *> name)
+      recFieldCompat = dotIdent <|> (symbol "->" *> name)
 
   rewrite_ : FileName -> IndentInfo -> Rule PTerm
   rewrite_ fname indents
@@ -880,8 +895,8 @@ visibility
     = visOption
   <|> pure Private
 
-tyDecl : FileName -> IndentInfo -> Rule PTypeDecl
-tyDecl fname indents
+tyDecl : String -> FileName -> IndentInfo -> Rule PTypeDecl
+tyDecl predoc fname indents
     = do start <- location
          doc   <- option "" documentation
          n     <- name
@@ -890,7 +905,7 @@ tyDecl fname indents
             do ty  <- expr pdef fname indents
                end <- pure $ endPos $ getPTermLoc ty
                atEnd indents
-               pure (MkPTy (MkFC fname start end) n doc ty)
+               pure (MkPTy (MkFC fname start end) n (predoc ++ doc) ty)
 
 withFlags : SourceEmptyRule (List WithFlag)
 withFlags
@@ -1025,7 +1040,7 @@ dataBody fname mincol start n indents ty
                                dopts <- sepBy1 (symbol ",") dataOpt
                                symbol "]"
                                pure dopts)
-         cs <- blockAfter mincol (tyDecl fname)
+         cs <- blockAfter mincol (tyDecl "" fname)
          end <- location
          end <- pure $ fromMaybe end $ (endPos . getPTypeDeclLoc) <$> last' cs
          pure (MkPData (MkFC fname start end) n ty opts cs)
@@ -1054,7 +1069,7 @@ dataDecl fname indents
          dat   <- dataDeclBody fname indents
          end   <- location
          end   <- pure $ endPos $ getPDataDeclLoc dat
-         pure (PData (MkFC fname start end) vis dat)
+         pure (PData (MkFC fname start end) doc vis dat)
 
 stripBraces : String -> String
 stripBraces str = pack (drop '{' (reverse (drop '}' (reverse (unpack str)))))
@@ -1074,6 +1089,8 @@ extension : Rule LangExt
 extension
     = do exactIdent "ElabReflection"
          pure ElabReflection
+  <|> do exactIdent "PostfixProjections"
+         pure PostfixProjections
   <|> do exactIdent "Borrowing"
          pure Borrowing
 
@@ -1108,10 +1125,6 @@ directive fname indents
          b <- onoff
          atEnd indents
          pure (UnboundImplicits b)
-  <|> do pragma "undotted_record_projections"
-         b <- onoff
-         atEnd indents
-         pure (UndottedRecordProjections b)
   <|> do pragma "ambiguity_depth"
          lvl <- intLit
          atEnd indents
@@ -1406,17 +1419,17 @@ fieldDecl fname indents
       = do doc <- option "" documentation
            symbol "{"
            commit
-           fs <- fieldBody Implicit
+           fs <- fieldBody doc Implicit
            symbol "}"
            atEnd indents
            pure fs
     <|> do doc <- option "" documentation
-           fs <- fieldBody Explicit
+           fs <- fieldBody doc Explicit
            atEnd indents
            pure fs
   where
-    fieldBody : PiInfo PTerm -> Rule (List PField)
-    fieldBody p
+    fieldBody : String -> PiInfo PTerm -> Rule (List PField)
+    fieldBody doc p
         = do start <- location
              m <- multiplicity
              rigin <- getMult m
@@ -1426,7 +1439,8 @@ fieldDecl fname indents
              ty <- expr pdef fname indents
              end <- pure $ endPos $ getPTermLoc ty
              pure (map (\n => MkField (MkFC fname start end)
-                                      rig p n ty) ns)
+                                      doc rig p n ty) ns)
+
 recordParam : FileName -> IndentInfo -> Rule (List (Name, RigCount, PiInfo PTerm,  PTerm))
 recordParam fname indents
     = do symbol "("
@@ -1466,7 +1480,7 @@ recordDecl fname indents
          dcflds <- blockWithOptHeaderAfter col ctor (fieldDecl fname)
          end    <- location
          pure (PRecord (MkFC fname start end)
-                       vis n params (fst dcflds) (concat (snd dcflds)))
+                       doc vis n params (fst dcflds) (concat (snd dcflds)))
   where
   ctor : IndentInfo -> Rule Name
   ctor idt = do exactIdent "constructor"
@@ -1483,14 +1497,13 @@ claim fname indents
          let opts = mapMaybe getRight visOpts
          m   <- multiplicity
          rig <- getMult m
-         cl  <- tyDecl fname indents
+         cl  <- tyDecl doc fname indents
          end <- pure $ endPos $ getPTypeDeclLoc cl
          pure (PClaim (MkFC fname start end) rig vis opts cl)
 
 definition : FileName -> IndentInfo -> Rule PDecl
 definition fname indents
     = do start <- location
-         doc   <- option "" documentation
          nd    <- clause 0 fname indents
          end   <- pure $ endPos $ getPClauseLoc nd
          pure (PDef (MkFC fname start end) [nd])
@@ -1754,6 +1767,9 @@ data CmdArg : Type where
      ||| The command takes a module.
      ModuleArg : CmdArg
 
+     ||| The command takes multiple arguments.
+     Args : List CmdArg -> CmdArg
+
 export
 Show CmdArg where
   show NoArg = ""
@@ -1762,8 +1778,9 @@ Show CmdArg where
   show DeclsArg = "<decls>"
   show NumberArg = "<number>"
   show OptionArg = "<option>"
-  show FileArg = "<filename>"
+  show FileArg = "<file>"
   show ModuleArg = "<module>"
+  show (Args args) = showSep " " (map show args)
 
 export
 data ParseCmd : Type where
@@ -1877,7 +1894,8 @@ numberArgCmd parseCmd command doc = (names, NumberArg, doc, parse)
       pure (command (fromInteger i))
 
 compileArgsCmd : ParseCmd -> (PTerm -> String -> REPLCmd) -> String -> CommandDefinition
-compileArgsCmd parseCmd command doc = (names, FileArg, doc, parse)
+compileArgsCmd parseCmd command doc
+    = (names, Args [FileArg, ExprArg], doc, parse)
   where
     names : List String
     names = extractNames parseCmd
@@ -1907,6 +1925,8 @@ parserCommandsForHelp =
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
   , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
   , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
+  , nameArgCmd (ParseIdentCmd "doc") Doc "Show documentation for a name"
+  , moduleArgCmd (ParseIdentCmd "browse") Browse "Browse contents of a namespace"
   , numberArgCmd (ParseREPLCmd ["log", "logging"]) SetLog "Set logging level"
   , noArgCmd (ParseREPLCmd ["m", "metavars"]) Metavars "Show remaining proof obligations (metavariables or holes)"
   , noArgCmd (ParseREPLCmd ["version"]) ShowVersion "Display the Idris version"

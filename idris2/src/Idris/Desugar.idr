@@ -12,6 +12,7 @@ import Core.Unify
 import Data.StringMap
 import Data.ANameMap
 
+import Idris.DocString
 import Idris.Syntax
 
 import Idris.Elab.Implementation
@@ -61,6 +62,7 @@ extendSyn newsyn
          put Syn (record { infixes $= mergeLeft (infixes newsyn),
                            prefixes $= mergeLeft (prefixes newsyn),
                            ifaces $= merge (ifaces newsyn),
+                           docstrings $= merge (docstrings newsyn),
                            bracketholes $= ((bracketholes newsyn) ++) }
                   syn)
 
@@ -348,12 +350,43 @@ mutual
                 desugarB side ps (PApp fc (PApp fc (PRef fc (UN "rangeFromThen")) start) n)
   desugarB side ps (PUnifyLog fc lvl tm)
       = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
-  desugarB side ps (PRecordFieldAccess fc rec fields)
-      = desugarB side ps $ foldl (\r, f => PApp fc (PRef fc f) r) rec fields
-  desugarB side ps (PRecordProjection fc fields)
-      = desugarB side ps $
-          PLam fc top Explicit (PRef fc (MN "rec" 0)) (PImplicit fc) $
-            foldl (\r, f => PApp fc (PRef fc f) r) (PRef fc (MN "rec" 0)) fields
+
+  desugarB side ps (PPostfixProjs fc rec projs)
+      = do
+        let isPRef = \case
+              PRef _ _ => True
+              _ => False
+        defs <- get Ctxt
+        when (not (isExtension PostfixProjections defs) && not (all isPRef projs)) $
+          throw (GenericMsg fc "complex postfix projections require %language PostfixProjections")
+
+        desugarB side ps $ foldl (\x, proj => PApp fc proj x) rec projs
+
+  desugarB side ps (PPostfixProjsSection fc projs args)
+      = do
+        let isPRef = \case
+              PRef _ _ => True
+              _ => False
+        defs <- get Ctxt
+
+        when (not (isExtension PostfixProjections defs)) $ do
+          when (not (all isPRef projs)) $
+            throw (GenericMsg fc "complex postfix projections require %language PostfixProjections")
+
+          case args of
+            [] => pure ()
+            _  => throw $ GenericMsg fc "postfix projection sections require %language PostfixProjections"
+
+        desugarB side ps $
+          PLam fc top Explicit (PRef fc (MN "paRoot" 0)) (PImplicit fc) $
+            foldl
+              (\r, arg => PApp fc r arg)
+              (foldl
+                (\r, proj => PApp fc proj r)
+                (PRef fc (MN "paRoot" 0))
+                projs)
+              args
+
   desugarB side ps (PWithUnambigNames fc ns rhs)
       = IWithUnambigNames fc ns <$> desugarB side ps rhs
 
@@ -492,7 +525,8 @@ mutual
                 {auto m : Ref MD Metadata} ->
                 List Name -> PTypeDecl -> Core ImpTy
   desugarType ps (MkPTy fc n d ty)
-      = do syn <- get Syn
+      = do addDocString n d
+           syn <- get Syn
            pure $ MkImpTy fc n !(bindTypeNames (usingImpl syn)
                                                ps !(desugar AnyExpr ps ty))
 
@@ -522,16 +556,19 @@ mutual
                 {auto c : Ref Ctxt Defs} ->
                 {auto u : Ref UST UState} ->
                 {auto m : Ref MD Metadata} ->
-                List Name -> PDataDecl -> Core ImpData
-  desugarData ps (MkPData fc n tycon opts datacons)
-      = do syn <- get Syn
+                List Name -> (doc : String) ->
+                PDataDecl -> Core ImpData
+  desugarData ps doc (MkPData fc n tycon opts datacons)
+      = do addDocString n doc
+           syn <- get Syn
            pure $ MkImpData fc n
                               !(bindTypeNames (usingImpl syn)
                                               ps !(desugar AnyExpr ps tycon))
                               opts
                               !(traverse (desugarType ps) datacons)
-  desugarData ps (MkPLater fc n tycon)
-      = do syn <- get Syn
+  desugarData ps doc (MkPLater fc n tycon)
+      = do addDocString n doc
+           syn <- get Syn
            pure $ MkImpLater fc n !(bindTypeNames (usingImpl syn)
                                                   ps !(desugar AnyExpr ps tycon))
 
@@ -539,10 +576,11 @@ mutual
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  {auto m : Ref MD Metadata} ->
-                 List Name -> PField ->
+                 List Name -> List String -> PField ->
                  Core IField
-  desugarField ps (MkField fc rig p n ty)
-      = do syn <- get Syn
+  desugarField ps ns (MkField fc doc rig p n ty)
+      = do addDocStringNS ns n doc
+           syn <- get Syn
            pure (MkIField fc rig !(traverse (desugar AnyExpr ps) p )
                           n !(bindTypeNames (usingImpl syn)
                           ps !(desugar AnyExpr ps ty)))
@@ -563,11 +601,11 @@ mutual
       = Just (PNamespace fc ns (mapMaybe (getDecl p) ds))
 
   getDecl AsType d@(PClaim _ _ _ _ _) = Just d
-  getDecl AsType (PData fc vis (MkPData dfc tyn tyc _ _))
-      = Just (PData fc vis (MkPLater dfc tyn tyc))
+  getDecl AsType (PData fc doc vis (MkPData dfc tyn tyc _ _))
+      = Just (PData fc doc vis (MkPLater dfc tyn tyc))
   getDecl AsType d@(PInterface _ _ _ _ _ _ _ _ _) = Just d
-  getDecl AsType d@(PRecord fc vis n ps _ _)
-      = Just (PData fc vis (MkPLater fc n (mkRecType ps)))
+  getDecl AsType d@(PRecord fc doc vis n ps _ _)
+      = Just (PData fc doc vis (MkPLater fc n (mkRecType ps)))
     where
       mkRecType : List (Name, RigCount, PiInfo PTerm, PTerm) -> PTerm
       mkRecType [] = PType fc
@@ -577,9 +615,9 @@ mutual
   getDecl AsType d = Nothing
 
   getDecl AsDef (PClaim _ _ _ _ _) = Nothing
-  getDecl AsDef d@(PData _ _ (MkPLater _ _ _)) = Just d
+  getDecl AsDef d@(PData _ _ _ (MkPLater _ _ _)) = Just d
   getDecl AsDef (PInterface _ _ _ _ _ _ _ _ _) = Nothing
-  getDecl AsDef d@(PRecord _ _ _ _ _ _) = Just d
+  getDecl AsDef d@(PRecord _ _ _ _ _ _ _) = Just d
   getDecl AsDef (PFixity _ _ _ _) = Nothing
   getDecl AsDef (PDirective _ _) = Nothing
   getDecl AsDef d = Just d
@@ -639,8 +677,8 @@ mutual
       toIDef (ImpossibleClause fc lhs)
           = pure $ IDef fc !(getFn lhs) [ImpossibleClause fc lhs]
 
-  desugarDecl ps (PData fc vis ddecl)
-      = pure [IData fc vis !(desugarData ps ddecl)]
+  desugarDecl ps (PData fc doc vis ddecl)
+      = pure [IData fc vis !(desugarData ps doc ddecl)]
   desugarDecl ps (PParameters fc params pds)
       = do pds' <- traverse (desugarDecl (ps ++ map fst params)) pds
            params' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
@@ -669,7 +707,8 @@ mutual
       = throw (GenericMsg fc "Reflection not implemented yet")
 --       pure [IReflect fc !(desugar AnyExpr ps tm)]
   desugarDecl ps (PInterface fc vis cons_in tn doc params det conname body)
-      = do let cons = concatMap expandConstraint cons_in
+      = do addDocString tn doc
+           let cons = concatMap expandConstraint cons_in
            cons' <- traverse (\ ntm => do tm' <- desugar AnyExpr (ps ++ map fst params)
                                                          (snd ntm)
                                           pure (fst ntm, tm')) cons
@@ -739,8 +778,9 @@ mutual
                                                 tn paramsb impname nusing
                                                 body')]
 
-  desugarDecl ps (PRecord fc vis tn params conname_in fields)
-      = do params' <- traverse (\ (n,c,p,tm) =>
+  desugarDecl ps (PRecord fc doc vis tn params conname_in fields)
+      = do addDocString tn doc
+           params' <- traverse (\ (n,c,p,tm) =>
                           do tm' <- desugar AnyExpr ps tm
                              p'  <- mapDesugarPiInfo ps p
                              pure (n, c, p', tm'))
@@ -760,17 +800,16 @@ mutual
            let paramsb = map (\ (n, c, p, tm) => (n, c, p, doBind bnames tm)) params'
            let _ = the (List (Name, RigCount, PiInfo RawImp, RawImp)) paramsb
            fields' <- traverse (desugarField (ps ++ map fname fields ++
-                                              map fst params)) fields
+                                              map fst params) [nameRoot tn])
+                               fields
            let _ = the (List IField) fields'
            let conname = maybe (mkConName tn) id conname_in
            let _ = the Name conname
-           -- True flag set so that the parent namespace can look inside the
-           -- record definition
            pure [IRecord fc (Just (nameRoot tn))
                          vis (MkImpRecord fc tn paramsb conname fields')]
     where
       fname : PField -> Name
-      fname (MkField _ _ _ n _) = n
+      fname (MkField _ _ _ _ n _) = n
 
       mkConName : Name -> Name
       mkConName (NS ns (UN n)) = NS ns (DN n (MN ("__mk" ++ n) 0))
@@ -816,8 +855,6 @@ mutual
              UnboundImplicits a => do
                setUnboundImplicits a
                pure [IPragma (\nest, env => setUnboundImplicits a)]
-             UndottedRecordProjections b => do
-               pure [IPragma (\nest, env => setUndottedRecordProjections b)]
              AmbigDepth n => pure [IPragma (\nest, env => setAmbigLimit n)]
              AutoImplicitDepth n => pure [IPragma (\nest, env => setAutoImplicitLimit n)]
              PairNames ty f s => pure [IPragma (\nest, env => setPair fc ty f s)]

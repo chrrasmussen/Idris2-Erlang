@@ -52,6 +52,8 @@ public export
 data CG = Chez
         | Racket
         | Gambit
+        | Node
+        | Javascript
         | Other String
 
 export
@@ -59,6 +61,8 @@ Eq CG where
   Chez == Chez = True
   Racket == Racket = True
   Gambit == Gambit = True
+  Node == Node = True
+  Javascript == Javascript = True
   Other s == Other t = s == t
   _ == _ = False
 
@@ -67,8 +71,9 @@ Show CG where
   show Chez = "chez"
   show Racket = "racket"
   show Gambit = "gambit"
+  show Node = "node"
+  show Javascript = "javascript"
   show (Other s) = s
-
 
 public export
 record PairNames where
@@ -94,11 +99,13 @@ public export
 data LangExt
      = ElabReflection
      | Borrowing -- not yet implemented
+     | PostfixProjections
 
 export
 Eq LangExt where
   ElabReflection == ElabReflection = True
   Borrowing == Borrowing = True
+  PostfixProjections == PostfixProjections = True
   _ == _ = False
 
 -- Other options relevant to the current session (so not to be saved in a TTC)
@@ -109,7 +116,6 @@ record ElabDirectives where
   unboundImplicits : Bool
   totality : TotalReq
   ambigLimit : Nat
-  undottedRecordProjections : Bool
   autoImplicitLimit : Nat
 
 public export
@@ -155,6 +161,8 @@ availableCGs : Options -> List (String, CG)
 availableCGs o
     = [("chez", Chez),
        ("racket", Racket),
+       ("node", Node),
+       ("javascript", Javascript),
        ("gambit", Gambit)] ++ additionalCGs o
 
 export
@@ -175,7 +183,7 @@ defaultSession = MkSessionOpts False False False Chez "" [] 0 False False
 
 export
 defaultElab : ElabDirectives
-defaultElab = MkElabDirectives True True CoveringOnly 3 True 50
+defaultElab = MkElabDirectives True True CoveringOnly 3 50
 
 export
 defaults : Options

@@ -45,6 +45,8 @@ idrisTests
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
        "coverage009", "coverage010",
+       -- Documentation strings
+       "docs001", "docs002",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -85,12 +87,12 @@ idrisTests
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
        -- Packages and ipkg files
-       "pkg001", "pkg002", "pkg003", "pkg004",
+       "pkg001", "pkg002", "pkg003", "pkg004", "pkg005",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
        -- Records, access and dependent update
-       "record001", "record002", "record003", "record004",
+       "record001", "record002", "record003", "record004", "record005",
        -- Quotation and reflection
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
@@ -99,10 +101,10 @@ idrisTests
        "reg008", "reg009", "reg010", "reg011", "reg012", "reg013", "reg014",
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
-       "reg029",
+       "reg029", "reg030", "reg031", "reg032",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
-       "total006", "total007", "total008",
+       "total006", "total007", "total008", "total009",
        -- The 'with' rule
        "with001", "with002",
        -- with-disambiguation
@@ -120,8 +122,17 @@ chezTests
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
       "chez013", "chez014", "chez015", "chez016", "chez017", "chez018",
       "chez019", "chez020", "chez021", "chez022", "chez023", "chez024",
-      "chez025", "chez026",
+      "chez025", "chez026", "chez027",
       "reg001"]
+
+nodeTests : List String
+nodeTests
+  = [ "node001", "node002", "node003", "node004", "node005", "node006", "node007", "node008", "node009"
+    , "node011", "node012", "node015", "node017", "node018", "node019" -- node014
+    , "node021" --, "node020"
+    , "reg001"
+    , "tailrec001"
+    ]
 
 ideModeTests : List String
 ideModeTests
@@ -272,17 +283,22 @@ firstExists : List String -> IO (Maybe String)
 firstExists [] = pure Nothing
 firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 
-pathLookup : IO (Maybe String)
-pathLookup = do
+pathLookup : List String -> IO (Maybe String)
+pathLookup names = do
   path <- getEnv "PATH"
   let pathList = split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
   let candidates = [p ++ "/" ++ x | p <- pathList,
-                                    x <- ["chez", "chezscheme9.5", "scheme", "scheme.exe"]]
+                                    x <- names]
   firstExists candidates
 
 findChez : IO (Maybe String)
 findChez
-    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup
+    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup ["chez", "chezscheme9.5", "scheme", "scheme.exe"]
+         pure $ Just chez
+
+findNode : IO (Maybe String)
+findNode
+    = do Just chez <- getEnv "NODE" | Nothing => pathLookup ["node"]
          pure $ Just chez
 
 runChezTests : Options -> List String -> IO (List Bool)
@@ -293,6 +309,15 @@ runChezTests opts tests
                (\c => do putStrLn $ "Found Chez Scheme at " ++ c
                          traverse (runTest opts) tests)
                chexec
+
+runNodeTests : Options -> List String -> IO (List Bool)
+runNodeTests opts tests
+    = do nodeexec <- findNode
+         maybe (do putStrLn "node not found"
+                   pure [])
+               (\c => do putStrLn $ "Found node at " ++ c
+                         traverse (runTest opts) tests)
+               nodeexec
 
 runErlangTests : Options -> List String -> IO (List Bool)
 runErlangTests opts tests = traverse (runTest opts) tests
@@ -316,11 +341,16 @@ main
                  , testPaths "ideMode" ideModeTests
                  ]
          let filteredChezTests = filterTests opts (testPaths "chez" chezTests)
+         let filteredNodeTests = filterTests opts (testPaths "node" nodeTests)
          let filteredErlangTests = filterTests opts (testPaths "erlang" erlangTests)
          nonCGTestRes <- traverse (runTest opts) filteredNonCGTests
          chezTestRes <- if length filteredChezTests > 0
               then runChezTests opts filteredChezTests
               else pure []
+         nodeTestRes <- if length filteredNodeTests > 0
+              then runNodeTests opts filteredNodeTests
+              else pure []
+         let res = nonCGTestRes ++ chezTestRes ++ nodeTestRes
          erlangTestRes <- if length filteredErlangTests > 0
               then runErlangTests opts filteredErlangTests
               else pure []
