@@ -62,7 +62,12 @@ executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm =
   throw $ InternalError "Javascript backend is only able to compile, use Node instead"
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 ||| Codegen wrapper for Javascript implementation.
 export
 codegenJavascript : Codegen
-codegenJavascript = MkCG compileExpr executeExpr
+codegenJavascript = MkCG compileExpr executeExpr compileLibrary

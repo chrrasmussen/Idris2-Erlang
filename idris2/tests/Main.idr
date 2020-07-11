@@ -354,7 +354,7 @@ main
          erlangTestRes <- if length filteredErlangTests > 0
               then runErlangTests opts filteredErlangTests
               else pure []
-         let res = nonCGTestRes ++ chezTestRes ++ erlangTestRes
+         let res = nonCGTestRes ++ chezTestRes ++ nodeTestRes ++ erlangTestRes
          putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
                        ++ " tests successful")
          if (any not res)

@@ -46,7 +46,12 @@ executeExpr c tmpDir tm
      coreLift $ system (node ++ " " ++ outn)
      pure ()
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 ||| Codegen wrapper for Node implementation.
 export
 codegenNode : Codegen
-codegenNode = MkCG compileExpr executeExpr
+codegenNode = MkCG compileExpr executeExpr compileLibrary
