@@ -32,10 +32,11 @@ public export
 (:=) : (key : a) -> ErlDecoder value -> ErlMapEntryDecoder key value
 (:=) = MkDecoderMapEntry
 
-public export
-data ErlMapDecoders : List ErlMapEntry -> Type where
-  Nil : ErlMapDecoders []
-  (::) : ErlMapEntryDecoder key valueTy -> ErlMapDecoders xs -> ErlMapDecoders (MkMapEntry key valueTy :: xs)
+namespace ErlMapDecoders
+  public export
+  data ErlMapDecoders : List ErlMapEntry -> Type where
+    Nil : ErlMapDecoders []
+    (::) : ErlMapEntryDecoder key valueTy -> ErlMapDecoders xs -> ErlMapDecoders (MkMapEntry key valueTy :: xs)
 
 
 -- IMPLEMENTATIONS
