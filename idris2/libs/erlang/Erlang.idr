@@ -1,9 +1,9 @@
 module Erlang
 
-import public Erlang.Data
-import public Erlang.Data.Conversion
-import public Erlang.Data.Decode
-import public Erlang.Data.Map
-import public Erlang.Data.Show
-import public Erlang.IO
-import public Erlang.System.Concurrency
+import public Erlang.Data as Erlang
+import public Erlang.Data.Conversion as Erlang
+import public Erlang.Data.Decode as Erlang
+import public Erlang.Data.Map as Erlang
+import public Erlang.Data.Show as Erlang
+import public Erlang.IO as Erlang
+import public Erlang.System.Concurrency as Erlang
