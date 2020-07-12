@@ -28,6 +28,7 @@ import Data.List
 import Data.List1
 import Data.So
 import Data.String
+import Erlang
 import Erlang.System
 import Erlang.System.Directory
 import Erlang.System.File
@@ -43,6 +44,11 @@ findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
 findInput (InputFile f :: fs) = Just f
 findInput (_ :: fs) = findInput fs
+
+getPrivDir : IO (Maybe String)
+getPrivDir = do
+  result <- pure $ erlUnsafeCall ErlTerm "code" "priv_dir" [MkAtom "idris2"]
+  pure $ erlDecodeMay (map (\(MkCharlist str) => str) charlist) result
 
 -- Add extra data from the "IDRIS2_x" environment variables
 updateEnv : {auto c : Ref Ctxt Defs} ->
@@ -88,14 +94,15 @@ updateEnv
          -- version
          defs <- get Ctxt
          -- These might fail while bootstrapping
-         catch (addPkgDir "prelude" anyBounds) (const (pure ()))
-         catch (addPkgDir "base" anyBounds) (const (pure ()))
-         catch (addPkgDir "erlang" anyBounds) (const (pure ()))
-         addDataDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "support")
+         addPkg "prelude"
+         addPkg "base"
+         addPkg "erlang"
+         Just privDir <- coreLift $ getPrivDir
+           | Nothing => coreLift $ putStrLn "Directory idris2/priv not found"
+         addPackageDir (privDir </> "libs")
+         addDataDir (privDir </> "support")
          addLibDir "lib"
-         addLibDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "lib")
+         addLibDir (privDir </> "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()

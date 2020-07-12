@@ -339,7 +339,7 @@ preOptions (Directive d :: opts)
     = do setSession (record { directives $= (d::) } !getSession)
          preOptions opts
 preOptions (PkgPath p :: opts)
-    = do addPkgDir p anyBounds
+    = do addPkg p
          preOptions opts
 preOptions (SourceDir d :: opts)
     = do setSourceDir (Just d)
