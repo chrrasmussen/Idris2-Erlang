@@ -25,6 +25,7 @@ import Data.List
 import Data.List1
 import Data.So
 import Data.Strings
+import Erlang
 import Erlang.System
 import Erlang.System.Directory
 import Erlang.System.File
@@ -40,6 +41,11 @@ findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
 findInput (InputFile f :: fs) = Just f
 findInput (_ :: fs) = findInput fs
+
+getPrivDir : IO (Maybe String)
+getPrivDir = do
+  result <- pure $ erlUnsafeCall ErlTerm "code" "priv_dir" [MkAtom "idris2"]
+  pure $ erlDecodeMay (map (\(MkCharlist str) => str) charlist) result
 
 -- Add extra data from the "IDRIS2_x" environment variables
 updateEnv : {auto c : Ref Ctxt Defs} ->
@@ -74,16 +80,15 @@ updateEnv
          -- for the tests means they test the local version not the installed
          -- version
          defs <- get Ctxt
+         Just privDir <- coreLift $ getPrivDir
+           | Nothing => coreLift $ putStrLn "Directory idris2/priv not found"
          addPkg "prelude"
          addPkg "base"
          addPkg "erlang"
-         addPkgDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version))
-         addDataDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "support")
+         addPkgDir (privDir </> "libs")
+         addDataDir (privDir </> "support")
          addLibDir "lib"
-         addLibDir (prefix_dir (dirs (options defs)) </>
-                        ("idris2-" ++ showVersion False version) </> "lib")
+         addLibDir (privDir </> "lib")
 
 updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
                  Core ()
