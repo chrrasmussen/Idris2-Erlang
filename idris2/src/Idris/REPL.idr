@@ -6,7 +6,6 @@ import Compiler.Scheme.Gambit
 import Compiler.ES.Node
 import Compiler.ES.Javascript
 import Compiler.Erlang.Erlang
-import Compiler.Erlang.Opts
 import Compiler.Common
 
 import Core.AutoSearch
