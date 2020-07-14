@@ -6,7 +6,7 @@ intTest
 integerTest
 [0, -42, 42]
 stringTest
-["", "test", "ab"]
+["", "ok", "a42"]
 charTest
 ['a', '\n', '\402']
 doubleTest
@@ -15,8 +15,6 @@ listTest
 [[], ["a", "b", "c"]]
 erlAtomTest
 ['', 'ok', 'a42']
-erlBinaryTest
-[<<"">>, <<"ok">>, <<"a42">>]
 erlCharlistTest
 [[], [111, 107], [97, 52, 50]]
 erlNilTest

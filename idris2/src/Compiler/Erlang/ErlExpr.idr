@@ -90,6 +90,7 @@ mutual
     EMatcherCase : Line -> (sc : ErlExpr) -> List ErlMatcher -> (def : ErlExpr) -> ErlExpr
     EReceive : Line -> List ErlMatcher -> (timeout : ErlExpr) -> (def : ErlExpr) -> ErlExpr
     ETryCatch : Line -> (tryExpr : ErlExpr) -> (okVar : LocalVar) -> (okExpr : ErlExpr) -> (errorVar : LocalVar) -> (errorExpr : ErlExpr) -> ErlExpr
+    EBinaryConcat : Line -> (bin1 : ErlExpr) -> (bin2 : ErlExpr) -> ErlExpr
 
     EIdrisConstant : Line -> IdrisConstant -> ErlExpr
     EAtom : Line -> String -> ErlExpr
@@ -279,6 +280,7 @@ constExprToPattern (EConstCase l sc xs def) = Nothing
 constExprToPattern (EMatcherCase l sc xs def) = Nothing
 constExprToPattern (EReceive l xs timeout def) = Nothing
 constExprToPattern (ETryCatch l tryExpr okVar okExpr errorVar errorExpr) = Nothing
+constExprToPattern (EBinaryConcat l bin1 bin2) = Nothing
 constExprToPattern (EIdrisConstant l x) = pure $ genIdrisConstant l (genBinaryPattern l) APLiteral x
 constExprToPattern (EAtom l x) = pure $ APLiteral (ALAtom l x)
 constExprToPattern (EChar l x) = pure $ APLiteral (ALChar l x)
@@ -395,6 +397,8 @@ mutual
           , !(genErlExpr errorExpr)
           ]
     pure $ AETry l [!(genErlExpr tryExpr)] [tryCaseClause] [tryCatchClause] []
+  genErlExpr (EBinaryConcat l bin1 bin2) =
+    pure $ binaryConcat l !(genErlExpr bin1) !(genErlExpr bin2)
   genErlExpr (EIdrisConstant l x) =
     pure $ genIdrisConstant l (genBinaryExpr l) AELiteral x
   genErlExpr (EAtom l x) =

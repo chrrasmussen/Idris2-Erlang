@@ -161,7 +161,7 @@ genOp l (Cast from to) [x] = pure $ genThrow l ("Invalid cast " ++ show from ++ 
 
 genOp l BelieveMe [_, _, x] = pure $ x
 genOp l Crash [_, msg] = do
-  let crashMsg = genFunCall l "unicode" "characters_to_list" [ECons l (ECharlist l "Crash: ") msg]
+  let crashMsg = EBinaryConcat l (EBinary l "Crash: ") msg
   pure $ genFunCall l "erlang" "throw" [crashMsg]
 
 
@@ -176,9 +176,6 @@ genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] =
 -- ErlAtom
 genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkAtom")) [x] =
   pure $ genUnsafeStringToAtom l x
--- ErlBinary
-genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkBinary")) [x] =
-  pure $ genFunCall l "unicode" "characters_to_binary" [x]
 -- ErlCharlist
 genCon namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [x] =
   pure $ genFunCall l "unicode" "characters_to_list" [x]
@@ -241,12 +238,11 @@ readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkAtom")) [xVar] body = d
   tempVar <- newLocalVar
   let convertAtomMatcher = MTransform MAny tempVar (genAtomToString l (ELocal l tempVar))
   pure $ MTransform convertAtomMatcher xVar body
--- ErlBinary
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkBinary")) [xVar] body =
-  pure $ MTransform MAny xVar body
 -- ErlCharlist
-readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [xVar] body =
-  pure $ MTransform MAny xVar body
+readConAlt namespaceInfo l (NS ["Data", "Erlang"] (UN "MkCharlist")) [xVar] body = do
+  tempVar <- newLocalVar
+  let convertCharlistMatcher = MTransform MAny tempVar (genFunCall l "unicode" "characters_to_binary" [ELocal l tempVar])
+  pure $ MTransform convertCharlistMatcher xVar body
 -- ErlNil
 readConAlt namespaceInfo l (NS ["MaybeImproperList", "Data", "Erlang"] (UN "Nil")) [] body =
   pure $ MConst MNil body
@@ -337,7 +333,7 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__fastPack")) [xs] = do
 genExtPrim namespaceInfo l (NS _ (UN "prim__unpack")) [str] = do
   pure $ genFunCall l "string" "to_graphemes" [str]
 genExtPrim namespaceInfo l (NS _ (UN "prim__fastAppend")) [xs] = do
-  pure $ xs
+  pure $ genFunCall l "unicode" "characters_to_binary" [xs] -- TODO: Can this be improved?
 genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
@@ -512,17 +508,11 @@ mutual
   genNmExp namespaceInfo vs (NmConstCase fc sc alts def) = do
     let l = genFC fc
     sc' <- genNmExp namespaceInfo vs sc
-    let isMatchingOnString = case head' alts of
-          Just (MkNConstAlt (Str _) _) => True
-          _ => False
-    let sc'' = if isMatchingOnString
-          then genFunCall l "unicode" "characters_to_binary" [sc']
-          else sc'
     alts' <- traverse (genConstAlt namespaceInfo vs) alts
     def' <- case def of
           Just defExpr => genNmExp namespaceInfo vs defExpr
           Nothing => pure $ genThrow l "Error: Unreachable branch"
-    pure $ EConstCase l sc'' alts' def'
+    pure $ EConstCase l sc' alts' def'
   genNmExp namespaceInfo vs (NmPrimVal fc c) = do
     let l = genFC fc
     pure $ EIdrisConstant l (genConstant c)

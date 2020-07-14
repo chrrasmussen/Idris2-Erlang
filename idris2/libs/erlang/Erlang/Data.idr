@@ -22,12 +22,7 @@ data ErlAtom : Type where
   MkAtom : String -> ErlAtom
 
 
--- STRINGS
-
-public export
-data ErlBinary : Type where
-  [noNewtype]
-  MkBinary : String -> ErlBinary
+-- CHARLISTS
 
 public export
 data ErlCharlist : Type where
@@ -193,7 +188,6 @@ mutual
 
     -- Data types that bridge to native Erlang data types
     ETErlAtom       : ErlType ErlAtom
-    ETErlBinary     : ErlType ErlBinary
     ETErlCharlist   : ErlType ErlCharlist
     ETErlNil        : ErlType ErlNil
     ETErlCons       : (ErlType a, ErlType b) => ErlType (ErlCons a b)

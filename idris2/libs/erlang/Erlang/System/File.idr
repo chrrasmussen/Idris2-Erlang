@@ -74,7 +74,7 @@ fileModes mode =
 export
 openFile : HasIO io => (filePath : String) -> Mode -> io (Either FileError File)
 openFile filePath mode = do
-  result <- erlUnsafeCall ErlTerm "file" "open" [MkBinary filePath, fileModes mode]
+  result <- erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes mode]
   pure $ erlDecodeDef (Left unknownError)
     (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid)
       <|> map Left error)
@@ -181,7 +181,7 @@ fflush (FHandle f) = do
 
 fileInfo : HasIO io => (filePath : String) -> (fieldIndex : Nat) -> ErlDecoder a -> io (Either FileError a)
 fileInfo filePath fieldIndex decoder = do
-  result <- erlUnsafeCall ErlTerm "file" "read_file_info" [MkBinary filePath, the (ErlList _) [MkTuple2 (MkAtom "time") (MkAtom "posix")]]
+  result <- erlUnsafeCall ErlTerm "file" "read_file_info" [filePath, the (ErlList _) [MkTuple2 (MkAtom "time") (MkAtom "posix")]]
   let Right (MkTuple2 _ info) = erlDecodeDef
         (Left unknownError)
         (map Right (tuple2 (exact (MkAtom "ok")) any)
@@ -219,7 +219,7 @@ fileStatusTime filePath =
 export
 removeFile : HasIO io => String -> io (Either FileError ())
 removeFile filePath = do
-  result <- erlUnsafeCall ErlTerm "file" "delete" [MkBinary filePath]
+  result <- erlUnsafeCall ErlTerm "file" "delete" [filePath]
   pure $ erlDecodeDef
     (Left unknownError)
     ((exact (MkAtom "ok") *> pure (Right ()))
@@ -255,7 +255,7 @@ mkMode p =
 export
 chmodRaw : HasIO io => (filePath : String) -> Int -> io (Either FileError ())
 chmodRaw filePath p = do
-  result <- erlUnsafeCall ErlTerm "file" "change_mode" [MkBinary filePath, p]
+  result <- erlUnsafeCall ErlTerm "file" "change_mode" [filePath, p]
   pure $ erlDecodeDef
     (Left unknownError)
     ((exact (MkAtom "ok") *> pure (Right ()))

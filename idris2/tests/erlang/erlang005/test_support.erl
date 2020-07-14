@@ -2,13 +2,12 @@
 -compile(export_all).
 
 integers() -> [0, -42, 42].
-strings() -> ["", <<"test">>, [97 | <<"b">>]].
+strings() -> [<<"">>, <<"ok">>, <<"a42">>].
 chars() -> [97, 10, 402].
 doubles() -> [0.1, -42.2, 42.3].
 unit() -> {}.
 lists() -> [[], ["a", "b", "c"]].
 erl_atoms() -> ['', ok, a42].
-erl_binaries() -> [<<"">>, <<"ok">>, <<"a42">>].
 erl_charlists() -> [[], "ok", "a42"].
 erl_nil() -> [].
 erl_cons() -> {[1 | 2], [1 | <<"a">>], [1], [1, 2]}.

@@ -47,12 +47,6 @@ erlAtomTest = do
   tuple <- erlUnsafeCall (List ErlAtom) "test_support" "erl_atoms" []
   printLn tuple
 
-erlBinaryTest : IO ()
-erlBinaryTest = do
-  putStrLn "erlBinaryTest"
-  tuple <- erlUnsafeCall (List ErlBinary) "test_support" "erl_binaries" []
-  printLn tuple
-
 erlCharlistTest : IO ()
 erlCharlistTest = do
   putStrLn "erlCharlistTest"
@@ -92,7 +86,6 @@ main = do
   doubleTest
   listTest
   erlAtomTest
-  erlBinaryTest
   erlCharlistTest
   erlNilTest
   erlConsTest

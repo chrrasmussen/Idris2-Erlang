@@ -138,9 +138,8 @@ genThrow l msg =
 export
 genUnsafeStringToAtom : Line -> ErlExpr -> ErlExpr
 genUnsafeStringToAtom l (EIdrisConstant _ (IString x)) = EAtom l x
-genUnsafeStringToAtom l expr =
-  let binary = genFunCall l "unicode" "characters_to_binary" [expr]
-  in genFunCall l "erlang" "binary_to_atom" [binary, EAtom l "utf8"]
+genUnsafeStringToAtom l binary =
+  genFunCall l "erlang" "binary_to_atom" [binary, EAtom l "utf8"]
 
 export
 genAtomToString : Line -> ErlExpr -> ErlExpr
@@ -290,9 +289,7 @@ genMod l x y =
 
 genUnicodeStringOp : (op : String) -> Line -> ErlExpr -> ErlExpr -> ErlExpr
 genUnicodeStringOp op l x y =
-  let xBinary = genFunCall l "unicode" "characters_to_binary" [x]
-      yBinary = genFunCall l "unicode" "characters_to_binary" [y]
-  in genBoolToInt l (EOp l op xBinary yBinary)
+  genBoolToInt l (EOp l op x y)
 
 export
 genUnicodeStringLT : Line -> ErlExpr -> ErlExpr -> ErlExpr
@@ -347,19 +344,21 @@ genUnicodeStringIndex l str index =
 export
 genUnicodeStringCons : Line -> (char : ErlExpr) -> (str : ErlExpr) -> ErlExpr
 genUnicodeStringCons l char str =
-  ECons l char str
+  let charBinary = genFunCall l "unicode" "characters_to_binary" [genList l [char]]
+  in EBinaryConcat l charBinary str
 
 -- NOTE: Must be total
 export
 genUnicodeStringAppend : Line -> (str1 : ErlExpr) -> (str2 : ErlExpr) -> ErlExpr
 genUnicodeStringAppend l str1 str2 =
-  ECons l str1 str2
+  EBinaryConcat l str1 str2
 
 -- NOTE: Must be total
 export
 genUnicodeStringReverse : Line -> (str : ErlExpr) -> ErlExpr
 genUnicodeStringReverse l str =
-  genFunCall l "string" "reverse" [str]
+  let reversedString = genFunCall l "string" "reverse" [str]
+  in genFunCall l "unicode" "characters_to_binary" [reversedString]
 
 -- NOTE: Must be total
 export
@@ -459,7 +458,7 @@ genCharToInt l char =
 export
 genCharToString : Line -> ErlExpr -> ErlExpr
 genCharToString l char =
-  genList l [char]
+  genFunCall l "unicode" "characters_to_binary" [genList l [char]]
 
 
 -- CAST: String -> *

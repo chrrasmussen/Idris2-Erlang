@@ -1,5 +1,4 @@
 import Erlang
-import Erlang.Debug
 
 %default partial
 

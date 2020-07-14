@@ -36,8 +36,10 @@ getEnvironment = do
 export
 getEnv : HasIO io => String -> io (Maybe String)
 getEnv var = do
-  result <- erlUnsafeCall ErlTerm "os" "getenv" [MkCharlist var]
-  pure $ erlDecodeMay string result
+  result <- erlUnsafeCall ErlCharlist "os" "getenv" [MkCharlist var]
+  let Right (MkCharlist str) = erlDecode charlist result
+    | Left _ => pure Nothing
+  pure $ Just str
 
 export
 setEnv : HasIO io => String -> String -> Bool -> io Bool

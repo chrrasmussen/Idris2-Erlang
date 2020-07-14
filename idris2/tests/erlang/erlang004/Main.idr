@@ -57,13 +57,6 @@ erlAtomTest = do
   erlPrintLn (MkAtom "ok")
   erlPrintLn (MkAtom ("a" ++ show 42))
 
-erlBinaryTest : IO ()
-erlBinaryTest = do
-  putStrLn "erlBinaryTest"
-  erlPrintLn (MkBinary "")
-  erlPrintLn (MkBinary "ok")
-  erlPrintLn (MkBinary ("a" ++ show 42))
-
 erlCharlistTest : IO ()
 erlCharlistTest = do
   putStrLn "erlCharlistTest"
@@ -109,7 +102,6 @@ main = do
   doubleTest
   listTest
   erlAtomTest
-  erlBinaryTest
   erlCharlistTest
   erlNilTest
   erlConsTest

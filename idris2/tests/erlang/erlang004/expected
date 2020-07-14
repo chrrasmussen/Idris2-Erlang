@@ -9,7 +9,7 @@ integerTest
 stringTest
 <<>>
 <<"test">>
-[<<"a">>|<<"b">>]
+<<"ab">>
 charTest
 97
 10
@@ -24,10 +24,6 @@ erlAtomTest
 ''
 ok
 a42
-erlBinaryTest
-<<>>
-<<"ok">>
-<<"a42">>
 erlCharlistTest
 []
 "ok"

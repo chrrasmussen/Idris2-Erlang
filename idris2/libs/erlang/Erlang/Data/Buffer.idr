@@ -5,7 +5,7 @@ import public Erlang.System.File
 
 
 BufferPayload : Type
-BufferPayload = ErlTuple2 ErlBinary Int
+BufferPayload = ErlTuple2 String Int
 
 %extern prim__erlBufferNew       : (size : Int) -> BufferPayload
 %extern prim__erlBufferResize    : (buf : BufferPayload) -> (newSize : Int) -> BufferPayload
@@ -26,8 +26,8 @@ BufferPayload = ErlTuple2 ErlBinary Int
 %extern prim__erlBufferGetInt64  : (buf : BufferPayload) -> (loc : Int) -> Int
 %extern prim__erlBufferSetDouble : (buf : BufferPayload) -> (loc : Int) -> (value : Double) -> BufferPayload
 %extern prim__erlBufferGetDouble : (buf : BufferPayload) -> (loc : Int) -> Double
-%extern prim__erlBufferSetString : (buf : BufferPayload) -> (loc : Int) -> (value : ErlBinary) -> BufferPayload
-%extern prim__erlBufferGetString : (buf : BufferPayload) -> (loc : Int) -> (len : Int) -> ErlBinary
+%extern prim__erlBufferSetString : (buf : BufferPayload) -> (loc : Int) -> (value : String) -> BufferPayload
+%extern prim__erlBufferGetString : (buf : BufferPayload) -> (loc : Int) -> (len : Int) -> String
 
 
 export
@@ -169,21 +169,18 @@ getDouble buf loc = do
 export
 stringByteLength : String -> Int
 stringByteLength str = unsafePerformIO $ do
-  binary <- erlUnsafeCall ErlTerm "erlang" "iolist_to_binary" [str]
-  erlUnsafeCall Int "erlang" "byte_size" [binary]
+  erlUnsafeCall Int "erlang" "byte_size" [str]
 
 export
 setString : HasIO io => Buffer -> (loc : Int) -> (val : String) -> io ()
 setString buf loc val = do
-  binary <- erlUnsafeCall ErlBinary "erlang" "iolist_to_binary" [val]
-  updateBufferPayload buf (\payload => prim__erlBufferSetString payload loc binary)
+  updateBufferPayload buf (\payload => prim__erlBufferSetString payload loc val)
 
 export
 getString : HasIO io => Buffer -> (loc : Int) -> (len : Int) -> io String
 getString buf loc len = do
   payload <- getBufferPayload buf
-  let MkBinary str = prim__erlBufferGetString payload loc len
-  pure str
+  pure $ prim__erlBufferGetString payload loc len
 
 export
 bufferData : HasIO io => Buffer -> io (List Int)
@@ -208,8 +205,8 @@ copyData src start len dest loc = do
 export
 createBufferFromFile : HasIO io => (filePath : String) -> io (Either FileError Buffer)
 createBufferFromFile filePath = do
-  result <- erlUnsafeCall ErlTerm "file" "read_file" [MkBinary filePath]
-  let Right (MkTuple2 _ (MkBinary str)) = erlDecode (tuple2 (exact (MkAtom "ok")) binary) result
+  result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
+  let Right (MkTuple2 _ str) = erlDecode (tuple2 (exact (MkAtom "ok")) string) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
@@ -222,7 +219,7 @@ writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int
 writeBufferToFile filePath buf maxbytes = do
   flatten buf maxbytes
   MkTuple2 binary _ <- getBufferPayload buf
-  result <- erlUnsafeCall ErlTerm "file" "write_file" [MkBinary filePath, binary]
+  result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export

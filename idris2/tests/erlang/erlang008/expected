@@ -47,8 +47,8 @@ testAtom
 'ok'
 'error'
 not found
-testBinary
-<<"hello">>
+testString
+hello
 not found
 testPid
 #Pid<0.4.1>
@@ -71,21 +71,21 @@ testNil
 found nil
 not found
 testCons
-[<<"a">> | <<"b">>]
+["a" | "b"]
 not found
-[<<"a">> | 42]
-[<<"a">> | []]
-[<<"a">> | [42 | []]]
+["a" | 42]
+["a" | []]
+["a" | [42 | []]]
 testList
 []
 not found
-[<<"first item">>, <<"second item">>]
+["first item", "second item"]
 [1, 2, 3]
 not found
 testHList
-[<<"first item">> | []]
+["first item" | []]
 not found
-[<<"first item">> | [42 | []]]
+["first item" | [42 | []]]
 not found
 not found
 testTuple
@@ -93,9 +93,9 @@ testTuple
 not found
 {<Erlang Term>}
 {42}
-{<<"string inside 1-element tuple">>}
+{"string inside 1-element tuple"}
 not found
-{<<"first string">>, <<"second string">>}
+{"first string", "second string"}
 {'ok', 42}
 not found
 testMapEntry
@@ -106,10 +106,10 @@ ex2
 testMapSubset
 found map
 not found
-<<"ex1">>
-<<"ex2">>
+"ex1"
+"ex2"
 not found
-(<<"ex2">>, 42)
+("ex2", 42)
 testOptional
 Just 42
 Nothing

@@ -105,7 +105,7 @@ erlDecodeDef def decoder term =
 %extern prim__erlDecodeInteger    : ErlTerm -> Maybe Integer
 %extern prim__erlDecodeDouble     : ErlTerm -> Maybe Double
 %extern prim__erlDecodeAtom       : ErlTerm -> Maybe ErlAtom
-%extern prim__erlDecodeBinary     : ErlTerm -> Maybe ErlBinary
+%extern prim__erlDecodeBinary     : ErlTerm -> Maybe String
 %extern prim__erlDecodePid        : ErlTerm -> Maybe ErlPid
 %extern prim__erldecodeReference  : ErlTerm -> Maybe ErlReference
 %extern prim__erlDecodePort       : ErlTerm -> Maybe ErlPort
@@ -184,8 +184,8 @@ atom =
   MkDecoder (maybe (Left (Error "Expected an atom")) Right . prim__erlDecodeAtom)
 
 export
-binary : ErlDecoder ErlBinary
-binary =
+string : ErlDecoder String
+string =
   MkDecoder (maybe (Left (Error "Expected a binary")) Right . prim__erlDecodeBinary)
 
 export
@@ -313,18 +313,18 @@ mutual
   -- charlist() = maybe_improper_list(char() | unicode_binary() | charlist(), unicode_binary() | [])
   -- maybe_improper_list(X, Y) = [X | maybe_improper_list(X, Y)]
   export
-  string : ErlDecoder String
-  string =
-    map believe_me binary `lazyAlt`
+  ioData : ErlDecoder ErlTerm
+  ioData =
+    map believe_me string `lazyAlt`
       map believe_me nil `lazyAlt`
-      map believe_me (cons (assert_total listHead) (assert_total string))
+      map believe_me (cons (assert_total listHead) (assert_total ioData))
     where
       listHead : ErlDecoder String
       listHead =
         map believe_me codepoint `lazyAlt` -- NOTE: Codepoints are only valid in head position in an IO list
-          map believe_me binary `lazyAlt`
+          map believe_me string `lazyAlt`
           map believe_me nil `lazyAlt`
-          map believe_me (cons (assert_total listHead) string)
+          map believe_me (cons (assert_total listHead) ioData)
 
 export
 mapEntry : ErlType key => key -> ErlDecoder value -> ErlDecoder value

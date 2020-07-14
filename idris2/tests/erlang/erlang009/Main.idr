@@ -22,6 +22,14 @@ getInvalidIOLists =
   erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_io_lists" []
 
 
+-- Helper functions
+
+ioDataToString : ErlTerm -> String
+ioDataToString x = unsafePerformIO $ do
+  str <- erlUnsafeCall String "unicode" "characters_to_binary" [x]
+  pure str
+
+
 -- Tests
 
 testCharlists : IO ()
@@ -36,9 +44,9 @@ testIOLists : IO ()
 testIOLists = do
   putStrLn "testIOLists"
   validList <- getValidIOLists
-  printLn (map (erlDecodeMay string) validList)
+  printLn (map (map ioDataToString . erlDecodeMay ioData) validList)
   invalidList <- getInvalidIOLists
-  printLn (map (erlDecodeMay string) invalidList)
+  printLn (map (map ioDataToString . erlDecodeMay ioData) invalidList)
 
 main : IO ()
 main = do

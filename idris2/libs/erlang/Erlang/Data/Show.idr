@@ -40,12 +40,8 @@ Show ErlAtom where
   show (MkAtom x) = "'" ++ x ++ "'"
 
 export
-Show ErlBinary where
-  show (MkBinary x) = "<<" ++ show x ++ ">>"
-
-export
 Show ErlCharlist where
-  show (MkCharlist x) = show (erlUnsafeCast (List Int) x)
+  show xs = show (erlUnsafeCast (List Int) xs)
 
 export
 Show ErlNil where

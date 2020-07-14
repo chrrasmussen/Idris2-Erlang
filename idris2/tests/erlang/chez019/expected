@@ -1,6 +1,6 @@
-Crash: Unhandled input for Main.foo at partial.idr:7:1--9:1
+Crash: Unhandled input for Main.foo at partial.idr:6:1--8:1
 2
-Crash: Unhandled input for Main.lookup' at partial.idr:22:1--24:1
-Crash: Unhandled input for Main.lookup' at partial.idr:22:1--24:1
+Crash: Unhandled input for Main.lookup' at partial.idr:21:1--23:1
+Crash: Unhandled input for Main.lookup' at partial.idr:21:1--23:1
 1/1: Building partial (partial.idr)
 Main> Main> Bye for now!
