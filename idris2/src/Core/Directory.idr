@@ -13,6 +13,7 @@ import Parser.Unlit
 
 import Libraries.Data.Version
 import Libraries.Utils.Path
+import Libraries.Utils.Escript
 
 import Data.List
 import Data.Maybe
@@ -170,7 +171,7 @@ readDataFile : {auto c : Ref Ctxt Defs} ->
                String -> Core String
 readDataFile fname
     = do f <- findDataFile fname
-         Right d <- coreLift $ readFile f
+         Right d <- coreLift $ File.readFile f
             | Left err => throw (FileErr f err)
          pure d
 
@@ -198,7 +199,7 @@ findLibraryFile fname
 -- looking first in the build directory then in the extra_dirs
 export
 nsToPath : {auto c : Ref Ctxt Defs} ->
-           FC -> ModuleIdent -> Core (Either Error String)
+           FC -> ModuleIdent -> Core (Either Error ModuleLocation)
 nsToPath loc ns
     = do pkgDirs <- getPkgDirs
          bdir <- ttcBuildDirectory
@@ -206,9 +207,27 @@ nsToPath loc ns
          let fnameBase = ModuleIdent.toPath ns
          let fs = map (\p => cleanPath $ p </> fnameBase <.> "ttc")
                       (bdir :: pkgDirs ++ ttcs)
-         Just f <- firstAvailable fs
-            | Nothing => pure (Left (ModuleNotFound loc ns))
-         pure (Right f)
+         case !(firstAvailable fs) of
+           Just f => pure (Right (LocalFile f))
+           Nothing => do
+             let notFoundErr = Left (ModuleNotFound loc ns)
+             Just escriptPath <- coreLift $ getEscriptPath
+               | Nothing => pure notFoundErr
+             Just archiveHandle <- coreLift $ openArchive escriptPath
+               | Nothing => pure notFoundErr
+             Just files <- coreLift $ listFiles archiveHandle
+               | Nothing => pure notFoundErr
+             coreLift $ closeArchive archiveHandle
+             session <- getSession
+             let targetFiles = map (\p => "idris2/priv/libs" </> p </> show ttcVersion </> fnameBase <.> "ttc") (packages session)
+             case find (\target => target `elem` files) targetFiles of
+               Just f => pure (Right (EscriptFile f))
+               Nothing => pure notFoundErr
+
+export
+toLocalFile : ModuleLocation -> Maybe String
+toLocalFile (LocalFile x) = Just x
+toLocalFile (EscriptFile x) = Nothing
 
 -- Given a namespace, return the path to the source module relative
 -- to the working directory, if the module exists.

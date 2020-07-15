@@ -50,7 +50,7 @@ yaffleMain sourceFileName args
          addPrimitives
          case extension sourceFileName of
               Just "ttc" => do coreLift_ $ putStrLn "Processing as TTC"
-                               ignore $ readFromTTC {extra = ()} True emptyFC True sourceFileName (nsAsModuleIdent emptyNS) emptyNS
+                               ignore $ readFromTTC {extra = ()} True emptyFC True (LocalFile sourceFileName) (nsAsModuleIdent emptyNS) emptyNS
                                coreLift_ $ putStrLn "Read TTC"
               _ => do coreLift_ $ putStrLn "Processing as TTImp"
                       ok <- processTTImpFile sourceFileName

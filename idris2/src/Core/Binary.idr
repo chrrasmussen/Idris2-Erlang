@@ -21,6 +21,8 @@ import Erlang.System.File
 import Libraries.Data.NameMap
 
 import public Libraries.Utils.Binary
+import Libraries.Utils.Escript
+import Erlang.Data.Buffer
 
 %default covering
 
@@ -424,6 +426,46 @@ getNSas : (String, (ModuleIdent, Bool, Namespace)) ->
           (ModuleIdent, Namespace)
 getNSas (a, (b, c, d)) = (b, d)
 
+public export
+data ModuleLocation = LocalFile String | EscriptFile String
+
+export
+filenameFromModuleLocation : ModuleLocation -> String
+filenameFromModuleLocation (LocalFile x) = x
+filenameFromModuleLocation (EscriptFile x) = x
+
+export
+readEscriptFile : (fname : String) ->
+                  Core String
+readEscriptFile fname = do
+  Just escriptPath <- coreLift $ getEscriptPath
+    | Nothing => throw (InternalError (fname ++ ": Unable to find Escript path"))
+  Just archiveHandle <- coreLift $ openArchive escriptPath
+    | Nothing => throw (InternalError (fname ++ ": Unable to open archive"))
+  Just content <- coreLift $ readFile archiveHandle fname
+    | Nothing => throw (InternalError (fname ++ ": Unable to read file"))
+  coreLift $ closeArchive archiveHandle
+  pure content
+
+stringToBuffer : String -> Core Buffer
+stringToBuffer str = do
+  let size = stringByteLength str
+  Just buffer <- coreLift $ newBuffer size
+    | Nothing => throw (InternalError "Unable to create buffer")
+  coreLift $ setString buffer 0 str
+  pure buffer
+
+escriptReadFromFile : (modLoc : ModuleLocation) -> Core Binary
+escriptReadFromFile (LocalFile f) = do
+  Right buffer <- coreLift $ readFromFile f
+    | Left err => throw (InternalError (f ++ ": " ++ show err))
+  pure buffer
+escriptReadFromFile (EscriptFile f) = do
+  content <- readEscriptFile f
+  buffer <- stringToBuffer content
+  size <- coreLift $ rawSize buffer
+  pure (MkBin buffer 0 (cast size) (cast size))
+
 -- Add definitions from a binary file to the current context
 -- Returns the "extra" section of the file (user defined data), the interface
 -- hash and the list of additional TTCs that need importing
@@ -436,22 +478,22 @@ readFromTTC : TTC extra =>
               Bool -> -- set nested namespaces (for records, to use at the REPL)
               FC ->
               Bool -> -- importing as public
-              (fname : String) -> -- file containing the module
+              (modLoc : ModuleLocation) -> -- file containing the module
               (modNS : ModuleIdent) -> -- module namespace
               (importAs : Namespace) -> -- namespace to import as
               Core (Maybe (extra, Int,
                            List (ModuleIdent, Bool, Namespace)))
-readFromTTC nestedns loc reexp fname modNS importAs
+readFromTTC nestedns loc reexp modLoc modNS importAs
     = do defs <- get Ctxt
          -- If it's already in the context, with the same visibility flag,
          -- don't load it again (we do need to load it again if it's visible
          -- this time, because we need to reexport the dependencies.)
+         let fname = filenameFromModuleLocation modLoc
          let False = (modNS, reexp, importAs) `elem` map snd (allImported defs)
               | True => pure Nothing
          put Ctxt ({ allImported $= ((fname, (modNS, reexp, importAs)) :: ) } defs)
 
-         Right buffer <- coreLift $ readFromFile fname
-               | Left err => throw (InternalError (fname ++ ": " ++ show err))
+         buffer <- escriptReadFromFile modLoc
          bin <- newRef Bin buffer -- for reading the file into
          let as = if importAs == miAsNamespace modNS
                      then Nothing
@@ -556,12 +598,12 @@ readTotalReq fileName
                (\err => pure Nothing)
 
 export
-readHashes : (fileName : String) -> -- file containing the module
+readHashes : (modLoc : ModuleLocation) -> -- file containing the module
                 Core (Maybe String, Int)
-readHashes fileName
-    = do Right buffer <- coreLift $ readFromFile fileName
-            | Left err => pure (Nothing, 0)
+readHashes modLoc
+    = do buffer <- escriptReadFromFile modLoc
          b <- newRef Bin buffer
+         let fileName = filenameFromModuleLocation modLoc
          catch (getHashes fileName b)
                (\err => pure (Nothing, 0))
 
