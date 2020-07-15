@@ -468,7 +468,7 @@ modTime fname
          | Left err => pure 0
        pure t
 
-hashFile : String -> String -> Core String
+hashFile : String -> Core String
 hashFile fileName = do
   Right content <- coreLift $ readFile fileName
     | Left _ => coreFail $ InternalError ("Can't get sha256sum of " ++ fileName)

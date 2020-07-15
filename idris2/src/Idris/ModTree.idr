@@ -157,7 +157,7 @@ checkDepHashes depFileName
   = catch (do defs                   <- get Ctxt
               depCodeHash            <- hashFileWith (defs.options.hashFn) depFileName
               depTTCFileName         <- getTTCFileName depFileName "ttc"
-              (depStoredCodeHash, _) <- readHashes depTTCFileName
+              (depStoredCodeHash, _) <- readHashes (LocalFile depTTCFileName)
               pure $ depCodeHash /= depStoredCodeHash)
           (\error => pure False)
 
@@ -170,7 +170,7 @@ needsBuildingHash : {auto c : Ref Ctxt Defs} ->
 needsBuildingHash sourceFile ttcFile depFiles
   = do  defs                <- get Ctxt
         codeHash            <- hashFileWith (defs.options.hashFn) sourceFile
-        (storedCodeHash, _) <- readHashes ttcFile
+        (storedCodeHash, _) <- readHashes (LocalFile ttcFile)
         depFilesHashDiffers <- any id <$> traverse checkDepHashes depFiles
         pure $ codeHash /= storedCodeHash || depFilesHashDiffers
 
