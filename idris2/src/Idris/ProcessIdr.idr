@@ -72,10 +72,10 @@ readModule full loc vis imp as
     = do defs <- get Ctxt
          let False = (imp, vis, as) `elem` map snd (allImported defs)
              | True => when vis (setVisible (miAsNamespace imp))
-         Right fname <- nsToPath loc imp
+         Right modLoc <- nsToPath loc imp
                | Left err => throw err
          Just (syn, hash, more) <- readFromTTC False {extra = SyntaxInfo}
-                                                  loc vis fname imp as
+                                                  loc vis modLoc imp as
               | Nothing => when vis (setVisible (miAsNamespace imp)) -- already loaded, just set visibility
          extendSyn syn
 
@@ -112,9 +112,9 @@ readHash : {auto c : Ref Ctxt Defs} ->
            {auto u : Ref UST UState} ->
            Import -> Core (Bool, (Namespace, Int))
 readHash imp
-    = do Right fname <- nsToPath (loc imp) (path imp)
+    = do Right modLoc <- nsToPath (loc imp) (path imp)
                | Left err => throw err
-         h <- readIFaceHash fname
+         h <- readIFaceHash modLoc
          pure (reexport imp, (nameAs imp, h))
 
 prelude : Import
@@ -138,7 +138,7 @@ readAsMain : {auto c : Ref Ctxt Defs} ->
              (fname : String) -> Core ()
 readAsMain fname
     = do Just (syn, _, more) <- readFromTTC {extra = SyntaxInfo}
-                                             True toplevelFC True fname (nsAsModuleIdent emptyNS) emptyNS
+                                             True toplevelFC True (LocalFile fname) (nsAsModuleIdent emptyNS) emptyNS
               | Nothing => throw (InternalError "Already loaded")
          replNS <- getNS
          replNestedNS <- getNestedNS

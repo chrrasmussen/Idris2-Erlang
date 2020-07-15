@@ -165,7 +165,7 @@ buildMod loc num len mod
                          (\err => pure Nothing)
         srcTime <- fnameModified src
         depTimes <- traverse (\f => do t <- fnameModified f
-                                       pure (f, t)) depFiles
+                                       pure (f, t)) (mapMaybe toLocalFile depFiles)
         let needsBuilding =
                case ttcTime of
                     Nothing => True
