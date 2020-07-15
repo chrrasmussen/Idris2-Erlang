@@ -18,14 +18,15 @@ sleep sec = do
 
 export
 getArgs : HasIO io => io (List String)
-getArgs =
-  erlUnsafeCall (List String) "init" "get_plain_arguments" []
+getArgs = do
+  args <- erlUnsafeCall (List ErlCharlist) "init" "get_plain_arguments" []
+  pure $ map (\(MkCharlist x) => x) args
 
 export
 getEnvironment : HasIO io => io (List (String, String))
 getEnvironment = do
-  envPairs <- erlUnsafeCall (List String) "os" "getenv" []
-  pure $ map splitEq envPairs
+  envPairs <- erlUnsafeCall (List ErlCharlist) "os" "getenv" []
+  pure $ map (\(MkCharlist x) => splitEq x) envPairs
   where
     splitEq : String -> (String, String)
     splitEq str =
@@ -62,7 +63,7 @@ unsetEnv var = do
 export
 system : HasIO io => String -> io Int
 system cmd = do
-  output <- erlUnsafeCall String "os" "cmd" [MkCharlist cmd]
+  MkCharlist output <- erlUnsafeCall ErlCharlist "os" "cmd" [MkCharlist cmd]
   putStr output
   pure 0
 

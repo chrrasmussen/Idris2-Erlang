@@ -91,7 +91,7 @@ fGetLine : HasIO io => File -> io (Either FileError String)
 fGetLine (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read_line" [f]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\(MkTuple2 ok line) => Right (erlUnsafeCast String line)) (tuple2 (exact (MkAtom "ok")) any)
+    (map (\(MkTuple2 ok line) => Right line) (tuple2 (exact (MkAtom "ok")) string)
       <|> exact (MkAtom "eof") *> pure (Right "")
       <|> map Left error)
     result
