@@ -1,6 +1,6 @@
 module Erlang.IO
 
-import Erlang.Data
+import Erlang.Types
 
 
 %default total

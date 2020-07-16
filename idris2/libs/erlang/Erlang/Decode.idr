@@ -1,8 +1,8 @@
-module Erlang.Data.Decode
+module Erlang.Decode
 
-import Erlang.Data
-import Erlang.Data.Conversion
+import Erlang.Conversion
 import Erlang.IO
+import Erlang.Types
 
 
 %default total

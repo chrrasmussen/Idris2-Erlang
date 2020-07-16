@@ -1,6 +1,6 @@
-module Erlang.Data.Conversion
+module Erlang.Conversion
 
-import Erlang.Data
+import Erlang.Types
 
 
 %default total

@@ -1,8 +1,8 @@
 module Erlang.System.Concurrency
 
-import Erlang.Data
-import Erlang.Data.Decode
+import Erlang.Decode
 import Erlang.IO
+import Erlang.Types
 
 
 %default total

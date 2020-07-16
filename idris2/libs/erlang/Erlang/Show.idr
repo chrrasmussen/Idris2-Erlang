@@ -1,8 +1,8 @@
-module Erlang.Data.Show
+module Erlang.Show
 
-import Erlang.Data
-import Erlang.Data.Conversion
+import Erlang.Conversion
 import Erlang.IO
+import Erlang.Types
 
 
 %default total

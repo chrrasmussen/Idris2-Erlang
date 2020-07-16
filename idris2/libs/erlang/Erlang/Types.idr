@@ -1,4 +1,4 @@
-module Erlang.Data
+module Erlang.Types
 
 
 %default total

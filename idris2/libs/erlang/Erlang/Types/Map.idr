@@ -1,7 +1,7 @@
-module Erlang.Data.Map
+module Erlang.Types.Map
 
-import Erlang.Data
-import Erlang.Data.Decode
+import Erlang.Types
+import Erlang.Decode
 import Erlang.IO
 
 

@@ -1,17 +1,17 @@
 package erlang
 
 modules = Erlang,
-          Erlang.Data,
+          Erlang.Conversion,
           Erlang.Data.Buffer,
-          Erlang.Data.Conversion,
-          Erlang.Data.Decode,
-          Erlang.Data.Map,
           Erlang.Data.IOArray,
           Erlang.Data.IORef,
-          Erlang.Data.Show,
           Erlang.Debug,
+          Erlang.Decode,
           Erlang.IO,
+          Erlang.Show,
           Erlang.System,
           Erlang.System.Concurrency,
           Erlang.System.Directory,
-          Erlang.System.File
+          Erlang.System.File,
+          Erlang.Types,
+          Erlang.Types.Map
