@@ -41,7 +41,7 @@ reason =
 export
 error : ErlDecoder FileError
 error =
-  map (\(MkTuple2 _ reason) => reason) (tuple2 (exact (MkAtom "error")) reason)
+  errorTuple reason
 
 
 export
@@ -76,7 +76,7 @@ openFile : HasIO io => (filePath : String) -> Mode -> io (Either FileError File)
 openFile filePath mode = do
   result <- erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes mode]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\(MkTuple2 ok pid) => Right (FHandle (cast pid))) (tuple2 (exact (MkAtom "ok")) pid)
+    (map (\pid => Right (FHandle (cast pid))) (okTuple pid)
       <|> map Left error)
     result
 
@@ -91,7 +91,7 @@ fGetLine : HasIO io => File -> io (Either FileError String)
 fGetLine (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read_line" [f]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\(MkTuple2 ok line) => Right line) (tuple2 (exact (MkAtom "ok")) string)
+    (map Right (okTuple string)
       <|> exact (MkAtom "eof") *> pure (Right "")
       <|> map Left error)
     result
@@ -101,7 +101,7 @@ fGetChar : HasIO io => File -> io (Either FileError Char)
 fGetChar (FHandle f) = do
   result <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\(MkTuple2 ok (MkCharlist str)) => maybe (Left FileReadError) (Right . fst) (strUncons str)) (tuple2 (exact (MkAtom "ok")) charlist)
+    (map (\(MkCharlist str) => maybe (Left FileReadError) (Right . fst) (strUncons str)) (okTuple charlist)
       <|> exact (MkAtom "eof") *> pure (Left FileReadError)
       <|> map Left error)
     result
@@ -124,9 +124,9 @@ fEOF : HasIO io => File -> io Bool
 fEOF (FHandle f) = do
   readResult <- erlUnsafeCall ErlTerm "file" "read" [f, 1]
   erlDecodeDef (pure True)
-    (tuple2 (exact (MkAtom "ok")) any *> pure scanBack <|>
+    (okTuple any *> pure scanBack <|>
       exact (MkAtom "eof") *> pure (pure True) <|>
-      tuple2 (exact (MkAtom "error")) any *> pure (pure True))
+      errorTuple any *> pure (pure True))
     readResult
   where
     -- If `file:read/2` returns `{ok, _}` we need to scan back to the original position
@@ -134,8 +134,8 @@ fEOF (FHandle f) = do
     scanBack = do
       scanResult <- erlUnsafeCall ErlTerm "file" "position" [f, MkTuple2 (MkAtom "cur") (-1)]
       pure $ erlDecodeDef True
-        (tuple2 (exact (MkAtom "ok")) any *> pure False <|>
-          tuple2 (exact (MkAtom "error")) any *> pure True)
+        (okTuple any *> pure False <|>
+          errorTuple any *> pure True)
         scanResult
 
 export
@@ -182,9 +182,9 @@ fflush (FHandle f) = do
 fileInfo : HasIO io => (filePath : String) -> (fieldIndex : Nat) -> ErlDecoder a -> io (Either FileError a)
 fileInfo filePath fieldIndex decoder = do
   result <- erlUnsafeCall ErlTerm "file" "read_file_info" [filePath, the (ErlList _) [MkTuple2 (MkAtom "time") (MkAtom "posix")]]
-  let Right (MkTuple2 _ info) = erlDecodeDef
+  let Right info = erlDecodeDef
         (Left unknownError)
-        (map Right (tuple2 (exact (MkAtom "ok")) any)
+        (map Right (okTuple any)
           <|> map Left error)
         result
         | Left err => pure (Left err)

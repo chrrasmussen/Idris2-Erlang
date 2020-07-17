@@ -392,3 +392,19 @@ fun5 aType bType cType dType eType =
     let Just (MkIOFun5 fun) = prim__erlDecodeFun5 term
       | Nothing => Left (Error "Expected a function of arity 5")
     pure $ (\a, b, c, d, e => erlTryCatch (fun a b c d e)))
+
+export
+bool : ErlDecoder Bool
+bool =
+  (exact (MkAtom "true") *> pure True)
+    <|> (exact (MkAtom "false") *> pure False)
+
+export
+okTuple : ErlDecoder a -> ErlDecoder a
+okTuple decoder =
+  map (\(MkTuple2 _ result) => result) (tuple2 (exact (MkAtom "ok")) decoder)
+
+export
+errorTuple : ErlDecoder a -> ErlDecoder a
+errorTuple decoder =
+  map (\(MkTuple2 _ result) => result) (tuple2 (exact (MkAtom "error")) decoder)

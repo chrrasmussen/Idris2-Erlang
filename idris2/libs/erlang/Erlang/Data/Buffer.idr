@@ -206,7 +206,7 @@ export
 createBufferFromFile : HasIO io => (filePath : String) -> io (Either FileError Buffer)
 createBufferFromFile filePath = do
   result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
-  let Right (MkTuple2 _ str) = erlDecode (tuple2 (exact (MkAtom "ok")) string) result
+  let Right str = erlDecode (okTuple string) result
     | _ => pure (Left FileReadError)
   strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []

@@ -24,7 +24,7 @@ export
 currentDir : HasIO io => io (Maybe String)
 currentDir = do
   result <- erlUnsafeCall ErlTerm "file" "get_cwd" []
-  pure $ erlDecodeMay (map (\(MkTuple2 _ (MkCharlist dirPath)) => dirPath) (tuple2 (exact (MkAtom "ok")) charlist)) result
+  pure $ erlDecodeMay (map (\(MkCharlist dirPath) => dirPath) (okTuple charlist)) result
 
 export
 removeDir : HasIO io => String -> io ()
@@ -39,7 +39,7 @@ dirEntries dirPath = do
   result <- erlUnsafeCall ErlTerm "file" "list_dir" [dirPath]
   pure $ erlDecodeDef
     (Left unknownError)
-    (map (\(MkTuple2 _ files) => Right (map (\(MkCharlist file) => file) files)) (tuple2 (exact (MkAtom "ok")) (list charlist))
+    (map (\files => Right (map (\(MkCharlist file) => file) files)) (okTuple (list charlist))
       <|> map Left error)
     result
 
