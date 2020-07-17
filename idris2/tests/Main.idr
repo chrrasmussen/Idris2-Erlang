@@ -50,7 +50,7 @@ idrisTests
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
-       "error011",
+       "error011", "error012",
        -- Modules and imports
        "import001", "import002", "import003", "import004", "import005",
        -- Interactive editing support
@@ -131,6 +131,7 @@ nodeTests
     , "node011", "node012", "node015", "node017", "node018", "node019" -- node014
     , "node021" --, "node020"
     , "reg001"
+    , "syntax001"
     , "tailrec001"
     ]
 
