@@ -119,12 +119,18 @@ erlDecodeDef def decoder term =
 %extern prim__erlDecodeTuple3     : ErlTerm -> Maybe (ErlTuple3 ErlTerm ErlTerm ErlTerm)
 %extern prim__erlDecodeTuple4     : ErlTerm -> Maybe (ErlTuple4 ErlTerm ErlTerm ErlTerm ErlTerm)
 %extern prim__erlDecodeTuple5     : ErlTerm -> Maybe (ErlTuple5 ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm)
+%extern prim__erlDecodeTuple6     : ErlTerm -> Maybe (ErlTuple6 ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm)
+%extern prim__erlDecodeTuple7     : ErlTerm -> Maybe (ErlTuple7 ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm)
+%extern prim__erlDecodeTuple8     : ErlTerm -> Maybe (ErlTuple8 ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm ErlTerm)
 %extern prim__erlDecodeFun0       : ErlTerm -> Maybe (ErlIOFun0 ErlTerm)
 %extern prim__erlDecodeFun1       : ErlTerm -> Maybe (ErlIOFun1 a ErlTerm)
 %extern prim__erlDecodeFun2       : ErlTerm -> Maybe (ErlIOFun2 a b ErlTerm)
 %extern prim__erlDecodeFun3       : ErlTerm -> Maybe (ErlIOFun3 a b c ErlTerm)
 %extern prim__erlDecodeFun4       : ErlTerm -> Maybe (ErlIOFun4 a b c d ErlTerm)
 %extern prim__erlDecodeFun5       : ErlTerm -> Maybe (ErlIOFun5 a b c d e ErlTerm)
+%extern prim__erlDecodeFun6       : ErlTerm -> Maybe (ErlIOFun6 a b c d e f ErlTerm)
+%extern prim__erlDecodeFun7       : ErlTerm -> Maybe (ErlIOFun7 a b c d e f g ErlTerm)
+%extern prim__erlDecodeFun8       : ErlTerm -> Maybe (ErlIOFun8 a b c d e f g h ErlTerm)
 
 
 -- DECODERS
@@ -274,6 +280,30 @@ tuple5 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder
     pure (MkTuple5 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d) !(eDecoder e)))
 
 export
+tuple6 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder f -> ErlDecoder (ErlTuple6 a b c d e f)
+tuple6 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) (MkDecoder eDecoder) (MkDecoder fDecoder) =
+  MkDecoder (\term => do
+    let Just (MkTuple6 a b c d e f) = prim__erlDecodeTuple6 term
+      | Nothing => Left (Error "Expected a tuple with 6 elements")
+    pure (MkTuple6 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d) !(eDecoder e) !(fDecoder f)))
+
+export
+tuple7 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder f -> ErlDecoder g -> ErlDecoder (ErlTuple7 a b c d e f g)
+tuple7 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) (MkDecoder eDecoder) (MkDecoder fDecoder) (MkDecoder gDecoder) =
+  MkDecoder (\term => do
+    let Just (MkTuple7 a b c d e f g) = prim__erlDecodeTuple7 term
+      | Nothing => Left (Error "Expected a tuple with 7 elements")
+    pure (MkTuple7 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d) !(eDecoder e) !(fDecoder f) !(gDecoder g)))
+
+export
+tuple8 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder f -> ErlDecoder g -> ErlDecoder h -> ErlDecoder (ErlTuple8 a b c d e f g h)
+tuple8 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder dDecoder) (MkDecoder eDecoder) (MkDecoder fDecoder) (MkDecoder gDecoder) (MkDecoder hDecoder) =
+  MkDecoder (\term => do
+    let Just (MkTuple8 a b c d e f g h) = prim__erlDecodeTuple8 term
+      | Nothing => Left (Error "Expected a tuple with 8 elements")
+    pure (MkTuple8 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d) !(eDecoder e) !(fDecoder f) !(gDecoder g) !(hDecoder h)))
+
+export
 list : ErlDecoder a -> ErlDecoder (List a)
 list decoder =
   nil *> pure [] `lazyAlt`
@@ -377,6 +407,30 @@ fun5 aType bType cType dType eType =
     let Just (MkIOFun5 fun) = prim__erlDecodeFun5 term
       | Nothing => Left (Error "Expected a function of arity 5")
     pure $ (\a, b, c, d, e => erlTryCatch (fun a b c d e)))
+
+export
+fun6 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> (e : Type) -> (f : Type) -> ErlDecoder (a -> b -> c -> d -> e -> f -> IO (Either ErlException ErlTerm))
+fun6 aType bType cType dType eType fType =
+  MkDecoder (\term => do
+    let Just (MkIOFun6 fun) = prim__erlDecodeFun6 term
+      | Nothing => Left (Error "Expected a function of arity 6")
+    pure $ (\a, b, c, d, e, f => erlTryCatch (fun a b c d e f)))
+
+export
+fun7 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> (e : Type) -> (f : Type) -> (g : Type) -> ErlDecoder (a -> b -> c -> d -> e -> f -> g -> IO (Either ErlException ErlTerm))
+fun7 aType bType cType dType eType fType gType =
+  MkDecoder (\term => do
+    let Just (MkIOFun7 fun) = prim__erlDecodeFun7 term
+      | Nothing => Left (Error "Expected a function of arity 7")
+    pure $ (\a, b, c, d, e, f, g => erlTryCatch (fun a b c d e f g)))
+
+export
+fun8 : (a : Type) -> (b : Type) -> (c : Type) -> (d : Type) -> (e : Type) -> (f : Type) -> (g : Type) -> (h : Type) -> ErlDecoder (a -> b -> c -> d -> e -> f -> g -> h -> IO (Either ErlException ErlTerm))
+fun8 aType bType cType dType eType fType gType hType =
+  MkDecoder (\term => do
+    let Just (MkIOFun8 fun) = prim__erlDecodeFun8 term
+      | Nothing => Left (Error "Expected a function of arity 8")
+    pure $ (\a, b, c, d, e, f, g, h => erlTryCatch (fun a b c d e f g h)))
 
 export
 bool : ErlDecoder Bool

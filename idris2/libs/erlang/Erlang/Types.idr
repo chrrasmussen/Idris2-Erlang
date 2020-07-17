@@ -106,6 +106,18 @@ public export
 data ErlTuple5 : Type -> Type -> Type -> Type -> Type -> Type where
   MkTuple5 : a -> b -> c -> d -> e -> ErlTuple5 a b c d e
 
+public export
+data ErlTuple6 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  MkTuple6 : a -> b -> c -> d -> e -> f -> ErlTuple6 a b c d e f
+
+public export
+data ErlTuple7 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  MkTuple7 : a -> b -> c -> d -> e -> f -> g -> ErlTuple7 a b c d e f g
+
+public export
+data ErlTuple8 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  MkTuple8 : a -> b -> c -> d -> e -> f -> g -> h -> ErlTuple8 a b c d e f g h
+
 
 -- FUNCTIONS
 
@@ -140,6 +152,21 @@ data ErlFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
   MkFun5 : (a -> b -> c -> d -> e -> ret) -> ErlFun5 a b c d e ret
 
 public export
+data ErlFun6 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkFun6 : (a -> b -> c -> d -> e -> f -> ret) -> ErlFun6 a b c d e f ret
+
+public export
+data ErlFun7 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkFun7 : (a -> b -> c -> d -> e -> f -> g -> ret) -> ErlFun7 a b c d e f g ret
+
+public export
+data ErlFun8 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkFun8 : (a -> b -> c -> d -> e -> f -> g -> h -> ret) -> ErlFun8 a b c d e f g h ret
+
+public export
 data ErlIOFun0 : Type -> Type where
   [noNewtype]
   MkIOFun0  : IO ret -> ErlIOFun0 ret
@@ -169,6 +196,21 @@ data ErlIOFun5 : Type -> Type -> Type -> Type -> Type -> Type -> Type where
   [noNewtype]
   MkIOFun5  : (a -> b -> c -> d -> e -> IO ret) -> ErlIOFun5 a b c d e ret
 
+public export
+data ErlIOFun6 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkIOFun6  : (a -> b -> c -> d -> e -> f -> IO ret) -> ErlIOFun6 a b c d e f ret
+
+public export
+data ErlIOFun7 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkIOFun7  : (a -> b -> c -> d -> e -> f -> g -> IO ret) -> ErlIOFun7 a b c d e f g ret
+
+public export
+data ErlIOFun8 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type where
+  [noNewtype]
+  MkIOFun8  : (a -> b -> c -> d -> e -> f -> g -> h -> IO ret) -> ErlIOFun8 a b c d e f g h ret
+
 
 -- ERLANG TYPE PREDICATE
 
@@ -197,23 +239,32 @@ mutual
     ETErlReference  : ErlType ErlReference
     ETErlPort       : ErlType ErlPort
     ETErlTuple0     : ErlType ErlTuple0
-    ETErlTuple1     : ErlTypes [a]                  => ErlType (ErlTuple1 a)
-    ETErlTuple2     : ErlTypes [a, b]               => ErlType (ErlTuple2 a b)
-    ETErlTuple3     : ErlTypes [a, b, c]            => ErlType (ErlTuple3 a b c)
-    ETErlTuple4     : ErlTypes [a, b, c, d]         => ErlType (ErlTuple4 a b c d)
-    ETErlTuple5     : ErlTypes [a, b, c, d, e]      => ErlType (ErlTuple5 a b c d e)
-    ETErlFun0       : ErlTypes [ret]                => ErlType (ErlFun0 ret)
-    ETErlFun1       : ErlTypes [a, ret]             => ErlType (ErlFun1 a ret)
-    ETErlFun2       : ErlTypes [a, b, ret]          => ErlType (ErlFun2 a b ret)
-    ETErlFun3       : ErlTypes [a, b, c, ret]       => ErlType (ErlFun3 a b c ret)
-    ETErlFun4       : ErlTypes [a, b, c, d, ret]    => ErlType (ErlFun4 a b c d ret)
-    ETErlFun5       : ErlTypes [a, b, c, d, e, ret] => ErlType (ErlFun5 a b c d e ret)
-    ETErlIOFun0     : ErlTypes [ret]                => ErlType (ErlIOFun0 ret)
-    ETErlIOFun1     : ErlTypes [a, ret]             => ErlType (ErlIOFun1 a ret)
-    ETErlIOFun2     : ErlTypes [a, b, ret]          => ErlType (ErlIOFun2 a b ret)
-    ETErlIOFun3     : ErlTypes [a, b, c, ret]       => ErlType (ErlIOFun3 a b c ret)
-    ETErlIOFun4     : ErlTypes [a, b, c, d, ret]    => ErlType (ErlIOFun4 a b c d ret)
-    ETErlIOFun5     : ErlTypes [a, b, c, d, e, ret] => ErlType (ErlIOFun5 a b c d e ret)
+    ETErlTuple1     : ErlTypes [a]                           => ErlType (ErlTuple1 a)
+    ETErlTuple2     : ErlTypes [a, b]                        => ErlType (ErlTuple2 a b)
+    ETErlTuple3     : ErlTypes [a, b, c]                     => ErlType (ErlTuple3 a b c)
+    ETErlTuple4     : ErlTypes [a, b, c, d]                  => ErlType (ErlTuple4 a b c d)
+    ETErlTuple5     : ErlTypes [a, b, c, d, e]               => ErlType (ErlTuple5 a b c d e)
+    ETErlTuple6     : ErlTypes [a, b, c, d, e, f]            => ErlType (ErlTuple6 a b c d e f)
+    ETErlTuple7     : ErlTypes [a, b, c, d, e, f, g]         => ErlType (ErlTuple7 a b c d e f g)
+    ETErlTuple8     : ErlTypes [a, b, c, d, e, f, g, h]      => ErlType (ErlTuple8 a b c d e f g h)
+    ETErlFun0       : ErlTypes [ret]                         => ErlType (ErlFun0 ret)
+    ETErlFun1       : ErlTypes [a, ret]                      => ErlType (ErlFun1 a ret)
+    ETErlFun2       : ErlTypes [a, b, ret]                   => ErlType (ErlFun2 a b ret)
+    ETErlFun3       : ErlTypes [a, b, c, ret]                => ErlType (ErlFun3 a b c ret)
+    ETErlFun4       : ErlTypes [a, b, c, d, ret]             => ErlType (ErlFun4 a b c d ret)
+    ETErlFun5       : ErlTypes [a, b, c, d, e, ret]          => ErlType (ErlFun5 a b c d e ret)
+    ETErlFun6       : ErlTypes [a, b, c, d, e, f, ret]       => ErlType (ErlFun6 a b c d e f ret)
+    ETErlFun7       : ErlTypes [a, b, c, d, e, f, g, ret]    => ErlType (ErlFun7 a b c d e f g ret)
+    ETErlFun8       : ErlTypes [a, b, c, d, e, f, g, h, ret] => ErlType (ErlFun8 a b c d e f g h ret)
+    ETErlIOFun0     : ErlTypes [ret]                         => ErlType (ErlIOFun0 ret)
+    ETErlIOFun1     : ErlTypes [a, ret]                      => ErlType (ErlIOFun1 a ret)
+    ETErlIOFun2     : ErlTypes [a, b, ret]                   => ErlType (ErlIOFun2 a b ret)
+    ETErlIOFun3     : ErlTypes [a, b, c, ret]                => ErlType (ErlIOFun3 a b c ret)
+    ETErlIOFun4     : ErlTypes [a, b, c, d, ret]             => ErlType (ErlIOFun4 a b c d ret)
+    ETErlIOFun5     : ErlTypes [a, b, c, d, e, ret]          => ErlType (ErlIOFun5 a b c d e ret)
+    ETErlIOFun6     : ErlTypes [a, b, c, d, e, f, ret]       => ErlType (ErlIOFun6 a b c d e f ret)
+    ETErlIOFun7     : ErlTypes [a, b, c, d, e, f, g, ret]    => ErlType (ErlIOFun7 a b c d e f g ret)
+    ETErlIOFun8     : ErlTypes [a, b, c, d, e, f, g, h, ret] => ErlType (ErlIOFun8 a b c d e f g h ret)
 
   public export
   data ErlTypes : List Type -> Type where

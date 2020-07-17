@@ -197,6 +197,9 @@ genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple2")) args = pure $ ET
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple3")) args = pure $ ETuple l args
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple4")) args = pure $ ETuple l args
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple5")) args = pure $ ETuple l args
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple6")) args = pure $ ETuple l args
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple7")) args = pure $ ETuple l args
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple8")) args = pure $ ETuple l args
 -- ErlFun/A
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun0")) [fun] = genUncurry l 0 id fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun1")) [fun] = genUncurry l 1 id fun
@@ -204,6 +207,9 @@ genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun2")) [fun] = genUncurry
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun3")) [fun] = genUncurry l 3 id fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun4")) [fun] = genUncurry l 4 id fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun5")) [fun] = genUncurry l 5 id fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun6")) [fun] = genUncurry l 6 id fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun7")) [fun] = genUncurry l 7 id fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun8")) [fun] = genUncurry l 8 id fun
 -- ErlIOFun/A
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun0")) [fun] = genUncurry l 0 (genUnsafePerformIO namespaceInfo l) fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun1")) [fun] = genUncurry l 1 (genUnsafePerformIO namespaceInfo l) fun
@@ -211,6 +217,9 @@ genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun2")) [fun] = genUncur
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun3")) [fun] = genUncurry l 3 (genUnsafePerformIO namespaceInfo l) fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun4")) [fun] = genUncurry l 4 (genUnsafePerformIO namespaceInfo l) fun
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun5")) [fun] = genUncurry l 5 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun6")) [fun] = genUncurry l 6 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun7")) [fun] = genUncurry l 7 (genUnsafePerformIO namespaceInfo l) fun
+genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun8")) [fun] = genUncurry l 8 (genUnsafePerformIO namespaceInfo l) fun
 -- Default
 genCon namespaceInfo l name args =
   pure $ ECon l (constructorName name) args
@@ -267,6 +276,12 @@ readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple4")) args body =
   pure $ MTuple (argsToErlMatchers args) body
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple5")) args body =
   pure $ MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple6")) args body =
+  pure $ MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple7")) args body =
+  pure $ MTuple (argsToErlMatchers args) body
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkTuple8")) args body =
+  pure $ MTuple (argsToErlMatchers args) body
 -- ErlFun/A
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun0")) [funVar] body =
   readConAltFun l 0 funVar body id
@@ -280,6 +295,12 @@ readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun4")) [funVar] body 
   readConAltFun l 4 funVar body id
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun5")) [funVar] body =
   readConAltFun l 5 funVar body id
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun6")) [funVar] body =
+  readConAltFun l 6 funVar body id
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun7")) [funVar] body =
+  readConAltFun l 7 funVar body id
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkFun8")) [funVar] body =
+  readConAltFun l 8 funVar body id
 -- ErlIOFun/A
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun0")) [funVar] body = do
   worldVal <- newLocalVar
@@ -299,6 +320,15 @@ readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun4")) [funVar] bod
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun5")) [funVar] body = do
   worldVal <- newLocalVar
   readConAltFun l 5 funVar body (genMkIO l worldVal)
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun6")) [funVar] body = do
+  worldVal <- newLocalVar
+  readConAltFun l 6 funVar body (genMkIO l worldVal)
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun7")) [funVar] body = do
+  worldVal <- newLocalVar
+  readConAltFun l 7 funVar body (genMkIO l worldVal)
+readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkIOFun8")) [funVar] body = do
+  worldVal <- newLocalVar
+  readConAltFun l 8 funVar body (genMkIO l worldVal)
 -- Default
 readConAlt namespaceInfo l name args body =
   pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
@@ -395,6 +425,12 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple4")) [term] =
   genDecodeTuple l term 4
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple5")) [term] =
   genDecodeTuple l term 5
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple6")) [term] =
+  genDecodeTuple l term 6
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple7")) [term] =
+  genDecodeTuple l term 7
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple8")) [term] =
+  genDecodeTuple l term 8
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun0")) [term] =
   genDecode l term (MFun 0)
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun1")) [_, term] =
@@ -407,6 +443,12 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun4")) [_, _, _, _, term] 
   genDecode l term (MFun 4)
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun5")) [_, _, _, _, _, term] =
   genDecode l term (MFun 5)
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun6")) [_, _, _, _, _, _, term] =
+  genDecode l term (MFun 6)
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun7")) [_, _, _, _, _, _, _, term] =
+  genDecode l term (MFun 7)
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun8")) [_, _, _, _, _, _, _, _, term] =
+  genDecode l term (MFun 8)
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferNew")) [size] =
   pure $ EBufferNew l size
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferResize")) [bin, newSize] =
