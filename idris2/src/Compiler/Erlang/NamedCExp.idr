@@ -169,9 +169,9 @@ genOp l Crash [_, msg] = do
 
 genCon : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
 -- List
-genCon namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] =
+genCon namespaceInfo l (NS ["Types", "Prelude"] (UN "Nil")) [] =
   pure $ ENil l
-genCon namespaceInfo l (NS ["Prelude"] (UN "::")) [x, xs] =
+genCon namespaceInfo l (NS ["Types", "Prelude"] (UN "::")) [x, xs] =
   pure $ ECons l x xs
 -- ErlAtom
 genCon namespaceInfo l (NS ["Types", "Erlang"] (UN "MkAtom")) [x] =
@@ -229,9 +229,9 @@ readConAltFun l arity funVar body transform = do
 
 readConAlt : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> (args : List LocalVar) -> ErlExpr -> Core ErlMatcher
 -- List
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "Nil")) [] body =
+readConAlt namespaceInfo l (NS ["Types", "Prelude"] (UN "Nil")) [] body =
   pure $ MConst MNil body
-readConAlt namespaceInfo l (NS ["Prelude"] (UN "::")) [xVar, xsVar] body =
+readConAlt namespaceInfo l (NS ["Types", "Prelude"] (UN "::")) [xVar, xsVar] body =
   pure $ MCons MAny MAny xVar xsVar body
 -- ErlAtom
 readConAlt namespaceInfo l (NS ["Types", "Erlang"] (UN "MkAtom")) [xVar] body = do
