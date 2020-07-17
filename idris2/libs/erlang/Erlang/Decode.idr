@@ -239,8 +239,7 @@ tuple1 (MkDecoder aDecoder) =
   MkDecoder (\term => do
     let Just (MkTuple1 a) = prim__erlDecodeTuple1 term
       | Nothing => Left (Error "Expected a tuple with 1 element")
-    aRes <- aDecoder a
-    pure (MkTuple1 aRes))
+    pure (MkTuple1 !(aDecoder a)))
 
 export
 tuple2 : ErlDecoder a -> ErlDecoder b -> ErlDecoder (ErlTuple2 a b)
@@ -248,9 +247,7 @@ tuple2 (MkDecoder aDecoder) (MkDecoder bDecoder) =
   MkDecoder (\term => do
     let Just (MkTuple2 a b) = prim__erlDecodeTuple2 term
       | Nothing => Left (Error "Expected a tuple with 2 elements")
-    aRes <- aDecoder a
-    bRes <- bDecoder b
-    pure (MkTuple2 aRes bRes))
+    pure (MkTuple2 !(aDecoder a) !(bDecoder b)))
 
 export
 tuple3 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder (ErlTuple3 a b c)
@@ -258,10 +255,7 @@ tuple3 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) =
   MkDecoder (\term => do
     let Just (MkTuple3 a b c) = prim__erlDecodeTuple3 term
       | Nothing => Left (Error "Expected a tuple with 3 elements")
-    aRes <- aDecoder a
-    bRes <- bDecoder b
-    cRes <- cDecoder c
-    pure (MkTuple3 aRes bRes cRes))
+    pure (MkTuple3 !(aDecoder a) !(bDecoder b) !(cDecoder c)))
 
 export
 tuple4 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder (ErlTuple4 a b c d)
@@ -269,11 +263,7 @@ tuple4 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder
   MkDecoder (\term => do
     let Just (MkTuple4 a b c d) = prim__erlDecodeTuple4 term
       | Nothing => Left (Error "Expected a tuple with 4 elements")
-    aRes <- aDecoder a
-    bRes <- bDecoder b
-    cRes <- cDecoder c
-    dRes <- dDecoder d
-    pure (MkTuple4 aRes bRes cRes dRes))
+    pure (MkTuple4 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d)))
 
 export
 tuple5 : ErlDecoder a -> ErlDecoder b -> ErlDecoder c -> ErlDecoder d -> ErlDecoder e -> ErlDecoder (ErlTuple5 a b c d e)
@@ -281,12 +271,7 @@ tuple5 (MkDecoder aDecoder) (MkDecoder bDecoder) (MkDecoder cDecoder) (MkDecoder
   MkDecoder (\term => do
     let Just (MkTuple5 a b c d e) = prim__erlDecodeTuple5 term
       | Nothing => Left (Error "Expected a tuple with 5 elements")
-    aRes <- aDecoder a
-    bRes <- bDecoder b
-    cRes <- cDecoder c
-    dRes <- dDecoder d
-    eRes <- eDecoder e
-    pure (MkTuple5 aRes bRes cRes dRes eRes))
+    pure (MkTuple5 !(aDecoder a) !(bDecoder b) !(cDecoder c) !(dDecoder d) !(eDecoder e)))
 
 export
 list : ErlDecoder a -> ErlDecoder (List a)
