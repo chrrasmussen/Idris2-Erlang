@@ -2,7 +2,7 @@ module Compiler.Erlang.PrimTerm
 
 import Data.List
 import Compiler.Erlang.CompositeString
-import Compiler.Erlang.Utils
+import Utils.Hex
 
 
 %default total
