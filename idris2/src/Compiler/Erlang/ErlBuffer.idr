@@ -3,6 +3,9 @@ module Compiler.Erlang.ErlBuffer
 import Compiler.Erlang.AbstractFormat
 
 
+%default total
+
+
 genFunCall : Line -> String -> String -> List Expr -> Expr
 genFunCall l modName fnName args =
   AEFunCall l (AERemoteRef l (AELiteral (ALAtom l modName)) (AELiteral (ALAtom l fnName))) args

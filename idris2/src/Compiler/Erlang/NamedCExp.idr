@@ -16,7 +16,8 @@ import Data.NameMap
 import Data.Stream
 import Data.Vect
 
-%default covering
+
+%default total
 
 
 -- CONSTANTS
@@ -523,16 +524,20 @@ mutual
     pure $ ELet l xVar val' body'
   genNmExp namespaceInfo vs (NmApp fc x args) = do
     let l = genFC fc
-    pure $ EApp l !(genNmExp namespaceInfo vs x) !(traverse (genNmExp namespaceInfo vs) args)
+    args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
+    pure $ EApp l !(genNmExp namespaceInfo vs x) args'
   genNmExp namespaceInfo vs (NmCon fc name tag args) = do
     let l = genFC fc
-    genCon namespaceInfo l name !(traverse (genNmExp namespaceInfo vs) args)
+    args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
+    genCon namespaceInfo l name args'
   genNmExp namespaceInfo vs (NmOp fc op args) = do
     let l = genFC fc
-    genOp l op !(traverseVect namespaceInfo vs args)
+    args' <- assert_total $ traverseVect namespaceInfo vs args
+    genOp l op args'
   genNmExp namespaceInfo vs (NmExtPrim fc name args) = do
     let l = genFC fc
-    genExtPrim namespaceInfo l name !(traverse (genNmExp namespaceInfo vs) args)
+    args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
+    genExtPrim namespaceInfo l name args'
   genNmExp namespaceInfo vs (NmForce fc t) = do
     let l = genFC fc
     pure $ EApp l !(genNmExp namespaceInfo vs t) []
@@ -542,7 +547,7 @@ mutual
   genNmExp namespaceInfo vs (NmConCase fc sc alts def) = do
     let l = genFC fc
     sc' <- genNmExp namespaceInfo vs sc
-    alts' <- traverse (genConAlt namespaceInfo vs l) alts
+    alts' <- assert_total $ traverse (genConAlt namespaceInfo vs l) alts
     def' <- case def of
           Just defExpr => genNmExp namespaceInfo vs defExpr
           Nothing => pure $ genThrow l "Error: Unreachable branch"
@@ -550,7 +555,7 @@ mutual
   genNmExp namespaceInfo vs (NmConstCase fc sc alts def) = do
     let l = genFC fc
     sc' <- genNmExp namespaceInfo vs sc
-    alts' <- traverse (genConstAlt namespaceInfo vs) alts
+    alts' <- assert_total $ traverse (genConstAlt namespaceInfo vs) alts
     def' <- case def of
           Just defExpr => genNmExp namespaceInfo vs defExpr
           Nothing => pure $ genThrow l "Error: Unreachable branch"
