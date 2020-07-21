@@ -2,7 +2,7 @@ module Compiler.Erlang.PrimTerm
 
 import Data.List
 import Compiler.Erlang.CompositeString
-import Utils.Hex
+import Compiler.Erlang.Utils
 
 
 %default total
@@ -18,38 +18,6 @@ data PrimTerm
   | PList (List PrimTerm)
   | PCharlist String
 
-
--- TODO: Does not handle multi-codepoint characters
-escapeChar : Char -> String -> String
-escapeChar c acc =
-  let codepoint = cast c
-      space = 32
-      tilde = 126
-      backslash = 92
-      doubleQuote = 34
-      apostrophe = 39
-  in if codepoint < space || codepoint > tilde ||
-        codepoint == backslash || codepoint == doubleQuote || codepoint == apostrophe
-    then "\\x{" ++ asHex (cast c) ++ "}" ++ acc
-    else strCons c acc
-
-escapeString : List Char -> String -> String
-escapeString [] = id
-escapeString (c :: cs) = escapeChar c . escapeString cs
-
--- Convert a Double to a String. Includes a decimal separator for all Double numbers.
---
--- > showDouble 42
--- "42.0"
---
--- TODO: It may be possible to remove this if all codegens agree on making
--- `show {a=Double}` include a decimal separator.
-showDouble : Double -> String
-showDouble x =
-  let dblStr = show x
-  in if '.' `elem` unpack dblStr
-    then dblStr
-    else dblStr ++ ".0"
 
 export
 genPrimTerm : PrimTerm -> CompositeString
