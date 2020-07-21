@@ -280,17 +280,16 @@ genPattern (APTuple l patterns) = PTuple [PAtom "tuple", genLine l, PList (asser
 genPattern (APUniversal l) = PTuple [PAtom "var", genLine l, PAtom "_"]
 genPattern (APVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
 
-mutual
-  genGuard : Guard -> PrimTerm
-  genGuard (AGLiteral x) = genLiteral x
-  genGuard (AGCons l x y) = PTuple [PAtom "cons", genLine l, genGuard x, genGuard y]
-  genGuard (AGFunCall l fnName args) =
-    let remoteRef = PTuple [PAtom "remote", genLine l, genLiteral (ALAtom l "erlang"), genLiteral (ALAtom l fnName)]
-    in PTuple [PAtom "call", genLine l, remoteRef, PList (assert_total (map genGuard args))]
-  genGuard (AGNil l) = PTuple [PAtom "nil", genLine l]
-  genGuard (AGOp l opName x y) = PTuple [PAtom "op", genLine l, PAtom opName, genGuard x, genGuard y]
-  genGuard (AGTuple l guards) = PTuple [PAtom "tuple", genLine l, PList (assert_total (map genGuard guards))]
-  genGuard (AGVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
+genGuard : Guard -> PrimTerm
+genGuard (AGLiteral x) = genLiteral x
+genGuard (AGCons l x y) = PTuple [PAtom "cons", genLine l, genGuard x, genGuard y]
+genGuard (AGFunCall l fnName args) =
+  let remoteRef = PTuple [PAtom "remote", genLine l, genLiteral (ALAtom l "erlang"), genLiteral (ALAtom l fnName)]
+  in PTuple [PAtom "call", genLine l, remoteRef, PList (assert_total (map genGuard args))]
+genGuard (AGNil l) = PTuple [PAtom "nil", genLine l]
+genGuard (AGOp l opName x y) = PTuple [PAtom "op", genLine l, PAtom opName, genGuard x, genGuard y]
+genGuard (AGTuple l guards) = PTuple [PAtom "tuple", genLine l, PList (assert_total (map genGuard guards))]
+genGuard (AGVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
 
 genGuardAlt : GuardAlt -> PrimTerm
 genGuardAlt (MkGuardAlt guards) = PList (assert_total (map genGuard (toList guards)))
