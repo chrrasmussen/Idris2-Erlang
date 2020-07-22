@@ -129,7 +129,7 @@ mutual
     AECons : Line -> Expr -> Expr -> Expr
     -- Function reference
     AEFun : Line -> (arity : Nat) -> (clauses : Vect (S k) (FunClause arity)) -> Expr
-    AEFunCall : Line -> (fun : Expr) -> (args : List Expr) -> Expr
+    AEFunCall : Line -> (fn : Expr) -> (args : List Expr) -> Expr
     AERemoteRef : Line -> (modName : Expr) -> (fnName : Expr) -> Expr
     -- If expression
     -- List comprehension
@@ -308,8 +308,8 @@ mutual
     PTuple [PAtom "cons", genLine l, genExpr x, genExpr y]
   genExpr (AEFun l arity clauses) =
     PTuple [PAtom "fun", genLine l, PTuple [PAtom "clauses", PList (assert_total (map genFunClause (toList clauses)))]]
-  genExpr (AEFunCall l fnName args) =
-    PTuple [PAtom "call", genLine l, genExpr fnName, PList (assert_total (map genExpr args))]
+  genExpr (AEFunCall l fn args) =
+    PTuple [PAtom "call", genLine l, genExpr fn, PList (assert_total (map genExpr args))]
   genExpr (AERemoteRef l modName fnName) =
     PTuple [PAtom "remote", genLine l, genExpr modName, genExpr fnName]
   genExpr (AEMapNew l entries) =
