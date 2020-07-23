@@ -51,8 +51,8 @@ escapeCmd components = unwords (map escapeComponent components)
     escapeComponent : String -> String
     escapeComponent component = "'" ++ concat (map escapeChar (unpack component)) ++ "'"
 
-runProgramCmd : (erl : String) -> (outputDir : String) -> (modName : String) -> String
-runProgramCmd erl outputDir modName =
+executeBeamCmd : (erl : String) -> (outputDir : String) -> (modName : String) -> String
+executeBeamCmd erl outputDir modName =
   escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-pa", outputDir, "-run", modName]
 
 evalErlangCmd : (erl : String) -> (code : String) -> String
@@ -79,8 +79,8 @@ pmapErlFun = "Collect = fun
   Collect(Running)
 end"
 
-compileAbstrCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
-compileAbstrCmd erl srcfiles outputDir =
+compileAbstrToBeamCmd : (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
+compileAbstrToBeamCmd erl srcfiles outputDir =
   let code =
         concat {t=List}
           [pmapErlFun, ",
@@ -94,8 +94,8 @@ Pmap(fun(File) -> CompileAbstr(File, ", show outputDir, ") end, ", show srcfiles
 halt(0)"]
   in evalErlangCmd erl code
 
-generateErlCmd : (isMinified : Bool) -> (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
-generateErlCmd isMinified erl srcfiles outputDir =
+compileAbstrToErlCmd : (isMinified : Bool) -> (erl : String) -> (srcfiles : List String) -> (outputDir : String) -> String
+compileAbstrToErlCmd isMinified erl srcfiles outputDir =
   let columnWidth : Int =
         if isMinified
           then 10000
@@ -147,8 +147,8 @@ parseExport (ns, directive) = map (NS ns . UN) $ parseExport' (words directive)
     parseExport' ("export" :: exportsFuncStr :: _) = Just exportsFuncStr
     parseExport' _ = Nothing
 
-getExports : List (Namespace, String) -> List (Namespace, Name)
-getExports ds =
+exportsFromDirectives : List (Namespace, String) -> List (Namespace, Name)
+exportsFromDirectives ds =
   mapMaybe (\(ns, str) => map (\name => (ns, name)) (parseExport (ns, str))) ds
 
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core NamedDef
@@ -166,12 +166,12 @@ genExports namespaceInfo l name = do
     | _ => throw (InternalError ("Expected function definition for " ++ show name))
   readExports namespaceInfo l expr
 
-genModule : ErlModule -> CompositeString
-genModule module_ =
-  Nested $ map (\d => Nested [genPrimTerm (genDecl d), Str ".\n"]) (genErlModule defLine module_)
+genDeclAbstr : Decl -> CompositeString
+genDeclAbstr d =
+  Nested [genPrimTerm (AbstractFormat.genDecl d), Str ".\n"]
 
-writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> String -> (NamespaceInfo, List ErlFunDecl) -> Core ()
-writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
+writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> List (Namespace, Name) -> (NamespaceInfo, List ErlFunDecl) -> Core String
+writeErlangModule opts outputDir extension declToCS exportFunNames (namespaceInfo, funDecls) = do
   let inNS = case outputBundle namespaceInfo of
         Concat _ => Nothing
         Split _ inNS => Just inNS
@@ -182,11 +182,12 @@ writeErlangModule opts exportFunNames targetDir (namespaceInfo, funDecls) = do
         then [Inline defLine, InlineSize defLine (inlineSize opts)]
         else []
   let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
-  let outfile = targetDir </> modName ++ ".abstr"
-  let content = fastAppend (flatten (genModule module_))
+  let outfile = outputDir </> modName ++ "." ++ extension
+  let decls = genErlModule defLine module_
+  let content = fastAppend (flatten (Nested (map declToCS decls)))
   Right () <- coreLift $ writeFile outfile content
     | Left err => throw (FileErr outfile err)
-  pure ()
+  pure outfile
 
 genCompdef : Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
 genCompdef l (namespaceInfo, (name, fc, expr)) = do
@@ -203,130 +204,88 @@ splitNamespaceInfo prefixStr x@(name, _, _) =
   let ns = getNamespace name
   in (MkNamespaceInfo (Split prefixStr ns), x)
 
+namespaceInfoToModuleNamePath : (outputDir : String) -> (extension : String) -> NamespaceInfo -> (String, String)
+namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
+  let modName = currentModuleName namespaceInfo
+  in (modName, outputDir </> modName ++ "." ++ extension)
 
-namespace MainEntrypoint
-  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (outputDir : String) -> (modName : String) -> Core (List String)
-  writeAbstrFiles opts tm outputDir modName = do
-    let outfile = outputDir </> modName ++ ".abstr"
-    compileData <- getCompileData Cases tm
-    compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
-    let namespaceInfo = MkNamespaceInfo (Concat modName)
-    lv <- newRef LV (initLocalVars "V")
-    mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
-    argsVar <- newLocalVar
-    let erlMainFunDecl = MkFunDecl defLine Public "start" [] !(genErlMain defLine mainBody)
-    let escriptMainFunDecl = MkFunDecl defLine Public "main" [argsVar] (genEscriptMain defLine mainBody)
-    let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
-    let modules = defsPerModule validCompdefs
-    traverse_ (writeErlangModule opts [] outputDir) modules
-    pure (map (currentModuleName . fst) modules)
+compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileMainEntrypointToModules opts tm modName = do
+  compileData <- getCompileData Cases tm
+  compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
+  let namespaceInfo = MkNamespaceInfo (Concat modName)
+  lv <- newRef LV (initLocalVars "V")
+  mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
+  argsVar <- newLocalVar
+  let erlMainFunDecl = MkFunDecl defLine Public "start" [] !(genErlMain defLine mainBody)
+  let escriptMainFunDecl = MkFunDecl defLine Public "main" [argsVar] (genEscriptMain defLine mainBody)
+  let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
+  pure $ defsPerModule validCompdefs
 
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
-  writeErlFiles isMinified opts tm tmpDir outputDir modName = do
-    erl <- coreLift findErlangExecutable
-    generatedModules <- writeAbstrFiles opts tm tmpDir modName
-    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
-    pure ()
+compileLibraryToModules : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileLibraryToModules opts exportFunNames = do
+  let namespacesToCompile = changedNamespaces opts
+  let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
+  compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
+  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
+  let validCompdefs = mapMaybe id compdefs
+  pure $ defsPerModule validCompdefs
+    where
+      shouldCompileName : Maybe (List Namespace) -> Name -> Bool
+      shouldCompileName Nothing _ = True
+      shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
 
-  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
-  writeBeamFiles opts tm tmpDir outputDir modName = do
-    erl <- coreLift findErlangExecutable
-    generatedModules <- writeAbstrFiles opts tm tmpDir modName
-    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ compileAbstrCmd erl generatedFiles outputDir
-    pure ()
-
-  export
-  build : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (tmpDir : String) -> (outputDir : String) -> (modName : String) -> Core ()
-  build opts tm tmpDir outputDir modName = do
-    case outputFormat opts of
-      AbstractFormat => do
-        writeAbstrFiles opts tm outputDir modName
-        pure ()
-      Erlang => do
-        writeErlFiles False opts tm tmpDir outputDir modName
-        pure ()
-      ErlangMinified => do
-        writeErlFiles True opts tm tmpDir outputDir modName
-        pure ()
-      Beam => do
-        writeBeamFiles opts tm tmpDir outputDir modName
-        pure ()
+build : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> (exportFunNames : List (Namespace, Name)) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
+build opts tmpDir outputDir exportFunNames modules = do
+  erl <- coreLift findErlangExecutable
+  case outputFormat opts of
+    AbstractFormat => do
+      traverse_ (writeErlangModule opts outputDir "abstr" genDeclAbstr exportFunNames) modules
+    Erlang => do
+      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
+      coreLift $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
+      pure ()
+    ErlangMinified => do
+      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
+      coreLift $ system $ compileAbstrToErlCmd True erl generatedFiles outputDir
+      pure ()
+    Beam => do
+      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
+      coreLift $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
+      pure ()
+  pure $ map (currentModuleName . fst) modules
 
 
-namespace Library
-  shouldCompileName : Maybe (List Namespace) -> Name -> Bool
-  shouldCompileName Nothing _ = True
-  shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
-
-  writeAbstrFiles : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> Core (List String)
-  writeAbstrFiles opts outputDir = do
-    ds <- getDirectives (Other "erlang")
-    let exportFunNames = getExports ds
-    let namespacesToCompile = changedNamespaces opts
-    let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
-    compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
-    compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
-    let validCompdefs = mapMaybe id compdefs
-    let modules = defsPerModule validCompdefs
-    traverse_ (writeErlangModule opts exportFunNames outputDir) modules
-    pure (map (currentModuleName . fst) modules)
-
-  writeErlFiles : {auto c : Ref Ctxt Defs} -> (isMinified : Bool) -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
-  writeErlFiles isMinified opts tmpDir outputDir = do
-    erl <- coreLift findErlangExecutable
-    generatedModules <- writeAbstrFiles opts tmpDir
-    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ generateErlCmd isMinified erl generatedFiles outputDir
-    pure ()
-
-  writeBeamFiles : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
-  writeBeamFiles opts tmpDir outputDir = do
-    erl <- coreLift findErlangExecutable
-    generatedModules <- writeAbstrFiles opts tmpDir
-    let generatedFiles = map (\n => tmpDir </> n ++ ".abstr") generatedModules
-    coreLift $ system $ compileAbstrCmd erl generatedFiles outputDir
-    pure ()
-
-  export
-  build : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> Core ()
-  build opts tmpDir outputDir = do
-    case outputFormat opts of
-      AbstractFormat => do
-        writeAbstrFiles opts outputDir
-        pure ()
-      Erlang => do
-        writeErlFiles False opts tmpDir outputDir
-        pure ()
-      ErlangMinified => do
-        writeErlFiles True opts tmpDir outputDir
-        pure ()
-      Beam => do
-        writeBeamFiles opts tmpDir outputDir
-        pure ()
+-- CODEGEN
 
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
   session <- getSession
   let opts = parseOpts (codegenOptions session)
-  MainEntrypoint.build opts tm tmpDir outputDir outfile
+  let modName = outfile
+  modules <- compileMainEntrypointToModules opts tm modName
+  build opts tmpDir outputDir [] modules
   pure (Just outfile)
 
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
+  let opts = defaultOpts
   let modName = "main"
-  MainEntrypoint.build (record { outputFormat = Beam } defaultOpts) tm tmpDir tmpDir modName
+  modules <- compileMainEntrypointToModules opts tm modName
+  build opts tmpDir tmpDir [] modules
   erl <- coreLift $ findErlangExecutable
-  coreLift $ system (runProgramCmd erl tmpDir modName)
+  coreLift $ system (executeBeamCmd erl tmpDir modName)
   pure ()
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName = do
+  ds <- getDirectives (Other "erlang")
+  let exportFunNames = exportsFromDirectives ds
   session <- getSession
   let opts = parseOpts (codegenOptions session)
-  Library.build opts tmpDir outputDir
-  pure (Just (libName, [])) -- TODO: Improve
+  modules <- compileLibraryToModules opts exportFunNames
+  generatedModules <- build opts tmpDir outputDir exportFunNames modules
+  pure (Just (libName, generatedModules))
 
 export
 codegenErlang : Codegen
