@@ -121,7 +121,7 @@ genGuard (AGFunCall l fnName args) =
   let args' = sepBy ", " $ assert_total $ map genGuard args
   in Nested [Str $ "(erlang:" ++ genAtom fnName ++ "(", args', Str "))"]
 genGuard (AGNil l) = Str "[]"
-genGuard (AGOp l opName x y) = Nested [Str "(", genGuard x, Str opName, genGuard y, Str ")"]
+genGuard (AGOp l opName x y) = Nested [Str "(", genGuard x, Str $ " " ++ opName ++ " ", genGuard y, Str ")"]
 genGuard (AGTuple l guards) =
   let guards' = sepBy ", " $ assert_total $ map genGuard guards
   in Nested [Str "{", guards', Str "}"]
