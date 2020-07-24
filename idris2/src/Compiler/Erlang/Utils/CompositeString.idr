@@ -1,4 +1,4 @@
-module Compiler.Erlang.CompositeString
+module Compiler.Erlang.Utils.CompositeString
 
 import Data.List
 

@@ -1,4 +1,4 @@
-module Compiler.Erlang.RtsSupport
+module Compiler.Erlang.Codegen.NamedCExpToErlExpr.RtsSupport
 
 import Data.List
 import Data.NameMap
@@ -7,7 +7,7 @@ import Data.Vect
 import Core.Core
 import Core.TT
 import Compiler.Erlang.Name
-import Compiler.Erlang.ErlExpr
+import Compiler.Erlang.IR.ErlExpr
 
 
 %default total

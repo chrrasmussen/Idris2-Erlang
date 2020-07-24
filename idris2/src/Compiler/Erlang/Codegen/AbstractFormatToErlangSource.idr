@@ -1,8 +1,8 @@
-module Compiler.Erlang.AbstractFormatToErlangSource
+module Compiler.Erlang.Codegen.AbstractFormatToErlangSource
 
-import Compiler.Erlang.AbstractFormat
-import Compiler.Erlang.CompositeString
-import Compiler.Erlang.PrimTerm
+import public Compiler.Erlang.IR.AbstractFormat
+import Compiler.Erlang.Codegen.PrimTermToString
+import Compiler.Erlang.Utils.CompositeString
 import Compiler.Erlang.Utils.String
 import Data.Fin
 import Data.List

@@ -1,11 +1,11 @@
-module Compiler.Erlang.NamedCExp
+module Compiler.Erlang.Codegen.NamedCExpToErlExpr
 
 import Compiler.Common
 import Compiler.CompileExpr
 import Compiler.Inline
-import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.Name
-import Compiler.Erlang.RtsSupport
+import public Compiler.Erlang.IR.ErlExpr
+import Compiler.Erlang.Codegen.NamedCExpToErlExpr.RtsSupport
 
 import Core.Context
 import Core.Name

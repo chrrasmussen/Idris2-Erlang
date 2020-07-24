@@ -1,6 +1,6 @@
-module Compiler.Erlang.ErlBuffer
+module Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Buffer
 
-import Compiler.Erlang.AbstractFormat
+import Compiler.Erlang.IR.AbstractFormat
 
 
 %default total

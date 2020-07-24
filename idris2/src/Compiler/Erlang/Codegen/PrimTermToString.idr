@@ -1,22 +1,12 @@
-module Compiler.Erlang.PrimTerm
+module Compiler.Erlang.Codegen.PrimTermToString
 
 import Data.List
-import Compiler.Erlang.CompositeString
+import Compiler.Erlang.IR.PrimTerm
+import Compiler.Erlang.Utils.CompositeString
 import Compiler.Erlang.Utils.String
 
 
 %default total
-
-
-public export
-data PrimTerm
-  = PAtom String
-  | PChar Char
-  | PFloat Double
-  | PInteger Integer
-  | PTuple (List PrimTerm)
-  | PList (List PrimTerm)
-  | PCharlist String
 
 
 export
