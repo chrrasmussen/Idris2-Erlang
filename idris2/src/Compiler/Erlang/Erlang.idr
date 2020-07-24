@@ -9,6 +9,7 @@ import Compiler.Erlang.NamedCExp
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.RtsSupport
+import Compiler.Erlang.AbstractFormatToErlangSource
 import Compiler.Erlang.CompositeString
 import Compiler.Erlang.Utils.File
 
@@ -32,6 +33,9 @@ import System.File
 
 findErlangExecutable : IO String
 findErlangExecutable = pure "erl"
+
+findErlangCompiler : IO String
+findErlangCompiler = pure "erlc"
 
 -- TODO: Ideally, line numbers should be retrieved from the NamedCExp, and not
 -- use a default placeholder line number.
@@ -84,6 +88,10 @@ genExports namespaceInfo l name = do
 genDeclAbstr : Decl -> CompositeString
 genDeclAbstr d =
   Nested [genPrimTerm (AbstractFormat.genDecl d), Str ".\n"]
+
+genDeclErl : Decl -> CompositeString
+genDeclErl d =
+  Nested [AbstractFormatToErlangSource.genDecl d, Str "\n"]
 
 writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> List (Namespace, Name) -> (NamespaceInfo, List ErlFunDecl) -> Core String
 writeErlangModule opts outputDir extension declToCS exportFunNames (namespaceInfo, funDecls) = do
@@ -153,18 +161,21 @@ compileLibraryToModules opts exportFunNames = do
 build : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> (exportFunNames : List (Namespace, Name)) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
 build opts tmpDir outputDir exportFunNames modules = do
   erl <- coreLift findErlangExecutable
+  erlc <- coreLift findErlangCompiler
   case outputFormat opts of
-    AbstractFormat => do
-      traverse_ (writeErlangModule opts outputDir "abstr" genDeclAbstr exportFunNames) modules
-    Erlang => do
+    ErlangSource => do
+      traverse_ (writeErlangModule opts outputDir "erl" genDeclErl exportFunNames) modules
+    ErlangSourcePretty => do
       generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
       coreLift $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
       pure ()
-    ErlangMinified => do
-      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
-      coreLift $ system $ compileAbstrToErlCmd True erl generatedFiles outputDir
+    AbstractFormat => do
+      traverse_ (writeErlangModule opts outputDir "abstr" genDeclAbstr exportFunNames) modules
+    BeamFromErlangSource => do
+      generatedFiles <- traverse (writeErlangModule opts tmpDir "erl" genDeclErl exportFunNames) modules
+      coreLift $ system $ compileErlToBeamCmd erlc generatedFiles outputDir
       pure ()
-    Beam => do
+    BeamFromAbstractFormat => do
       generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
       coreLift $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
       pure ()

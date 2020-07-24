@@ -9,7 +9,7 @@ import Compiler.Erlang.Name
 
 
 public export
-data OutputFormat = AbstractFormat | Erlang | ErlangMinified | Beam
+data OutputFormat = ErlangSource | ErlangSourcePretty | AbstractFormat | BeamFromErlangSource | BeamFromAbstractFormat
 
 public export
 record Opts where
@@ -21,7 +21,7 @@ record Opts where
 
 export
 defaultOpts : Opts
-defaultOpts = MkOpts Beam "Idris" 0 Nothing
+defaultOpts = MkOpts BeamFromErlangSource "Idris" 0 Nothing
 
 
 data Flag
@@ -54,10 +54,11 @@ stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `asser
   where
     parseFlags : List String -> List Flag
     parseFlags [] = []
+    parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat ErlangSource :: parseFlags rest
+    parseFlags ("--format" :: "erl-pretty" :: rest) = SetOutputFormat ErlangSourcePretty :: parseFlags rest
     parseFlags ("--format" :: "abstr" :: rest) = SetOutputFormat AbstractFormat :: parseFlags rest
-    parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat Erlang :: parseFlags rest
-    parseFlags ("--format" :: "erl-minified" :: rest) = SetOutputFormat ErlangMinified :: parseFlags rest
-    parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat Beam :: parseFlags rest
+    parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat BeamFromErlangSource :: parseFlags rest
+    parseFlags ("--format" :: "beam-abstr" :: rest) = SetOutputFormat BeamFromAbstractFormat :: parseFlags rest
     parseFlags ("--prefix" :: prefixStr :: rest) = SetPrefix prefixStr :: parseFlags rest
     parseFlags ("--inline" :: inlineSize :: rest) = SetInlineSize (integerToNat (cast inlineSize)) :: parseFlags rest
     parseFlags ("--changed" :: namespaces :: rest) = SetChangedNamespaces (splitNamespaces namespaces) :: parseFlags rest
