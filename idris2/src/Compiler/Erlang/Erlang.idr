@@ -11,7 +11,6 @@ import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.RtsSupport
 import Compiler.Erlang.AbstractFormatToErlangSource
 import Compiler.Erlang.CompositeString
-import Compiler.Erlang.Utils.File
 
 import Core.Context
 import Core.Directory
