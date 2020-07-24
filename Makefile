@@ -28,7 +28,7 @@ build-libs:
 prepare-release: prepare-erl-source prepare-libs prepare-support
 
 prepare-erl-source:
-	cd idris2 && ${IDRIS2_BOOT} --build idris2api.ipkg --cg-opt "--format erl-minified" --output-dir ../src
+	cd idris2 && ${IDRIS2_BOOT} --build idris2api.ipkg --cg-opt "--format erl" --output-dir ../src
 
 prepare-libs:
 	mkdir -p ${PRIV_LIBS_DIR}/{prelude,base,contrib,network,erlang}
