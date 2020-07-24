@@ -1,11 +1,7 @@
 module Compiler.Erlang.Erlang
 
-import Compiler.ANF
 import Compiler.Common
 import Compiler.CompileExpr
-import Compiler.Inline
-import Compiler.LambdaLift
-import Compiler.VMCode
 
 import Compiler.Erlang.Opts
 import Compiler.Erlang.NamedCExp
@@ -21,18 +17,17 @@ import Core.Name
 import Core.Options
 import Core.TT
 
-import Data.IOArray
-import Data.Maybe
 import Data.NameMap
 import Data.List
 import Data.Strings
 import Utils.Binary
 import Utils.Path
 import System
-import System.Info
 import System.File
 
+
 %default covering
+
 
 findErlangExecutable : IO String
 findErlangExecutable = pure "erl"
