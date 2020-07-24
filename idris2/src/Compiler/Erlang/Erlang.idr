@@ -149,7 +149,7 @@ compileMainEntrypointToModules opts tm modName = do
 compileLibraryToModules : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileLibraryToModules opts exportFunNames = do
   let namespacesToCompile = changedNamespaces opts
-  let extraNames = NS ["PrimIO"] (UN "unsafePerformIO") :: filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
+  let extraNames = filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
   compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
   compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
   let validCompdefs = mapMaybe id compdefs
