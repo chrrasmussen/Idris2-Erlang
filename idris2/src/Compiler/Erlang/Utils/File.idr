@@ -1,4 +1,4 @@
-module Compiler.Erlang.FileUtils
+module Compiler.Erlang.Utils.File
 
 import Data.List
 import Data.Strings

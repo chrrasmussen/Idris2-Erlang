@@ -6,7 +6,7 @@ import Control.Monad.State
 
 import public Compiler.Erlang.AbstractFormat
 import Compiler.Erlang.ErlBuffer
-import Compiler.Erlang.Utils
+import Compiler.Erlang.Utils.String
 
 
 %default total

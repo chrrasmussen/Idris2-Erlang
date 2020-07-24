@@ -2,7 +2,7 @@ module Compiler.Erlang.PrimTerm
 
 import Data.List
 import Compiler.Erlang.CompositeString
-import Compiler.Erlang.Utils
+import Compiler.Erlang.Utils.String
 
 
 %default total

@@ -1,4 +1,4 @@
-module Compiler.Erlang.Utils
+module Compiler.Erlang.Utils.String
 
 import Utils.Hex
 

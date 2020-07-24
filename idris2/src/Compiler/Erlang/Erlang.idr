@@ -9,11 +9,11 @@ import Compiler.VMCode
 
 import Compiler.Erlang.Opts
 import Compiler.Erlang.NamedCExp
-import Compiler.Erlang.FileUtils
 import Compiler.Erlang.Name
 import Compiler.Erlang.ErlExpr
 import Compiler.Erlang.RtsSupport
 import Compiler.Erlang.CompositeString
+import Compiler.Erlang.Utils.File
 
 import Core.Context
 import Core.Directory
