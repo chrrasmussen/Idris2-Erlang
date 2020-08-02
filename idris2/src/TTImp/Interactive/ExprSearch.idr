@@ -42,6 +42,98 @@ record SearchOpts where
   holesOK : Bool
   recOK : Bool
   depth : Nat
+  inArg : Bool
+
+export
+data Search : Type -> Type where
+     NoMore : Search a -- no more results
+     Result : a -> Core (Search a) -> Search a
+       -- ^ a result, and what to do if the result is considered
+       -- unacceptable
+
+export
+Functor Search where
+  map fn NoMore = NoMore
+  map fn (Result res next)
+      = Result (fn res)
+               (do next' <- next
+                   pure (map fn next'))
+
+export
+one : a -> Core (Search a)
+one res = pure $ Result res (pure NoMore)
+
+export
+noResult : Core (Search a)
+noResult = pure NoMore
+
+export
+traverse : (a -> Core b) -> Search a -> Core (Search b)
+traverse f NoMore = pure NoMore
+traverse f (Result r next)
+    = do r' <- f r
+         pure (Result r' (do next' <- next
+                             traverse f next'))
+
+export
+filterS : (a -> Bool) -> Search a -> Core (Search a)
+filterS p NoMore = pure NoMore
+filterS p (Result r next)
+    = do next' <- next
+         let fnext = filterS p next'
+         if p r
+            then pure $ Result r fnext
+            else fnext
+
+export
+searchN : {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
+          Nat -> Core (Search a) -> Core (List a, Core (Search a))
+searchN max s
+    = tryUnify
+         (do res <- s
+             xs <- count max res
+             pure xs)
+         (pure ([], pure NoMore))
+  where
+    count : Nat -> Search a -> Core (List a, Core (Search a))
+    count k NoMore = pure ([], pure NoMore)
+    count Z _ = pure ([], pure NoMore)
+    count (S Z) (Result a next) = pure ([a], next)
+    count (S k) (Result a next)
+        = do (rest, cont) <- count k !next
+             pure $ (a :: rest, cont)
+
+-- Generate definitions in batches, and sort according to some user provided
+-- heuristic (highest proportion of bound variables used is a good one!)
+export
+searchSort : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             Nat -> Core (Search a) ->
+             (a -> a -> Ordering) ->
+             Core (Search a)
+searchSort max s ord
+    = do (batch, next) <- searchN max s
+         if isNil batch
+            then pure NoMore
+            else returnBatch (sortBy ord batch) next
+  where
+    returnBatch : List a -> Core (Search a) -> Core (Search a)
+    returnBatch [] res = searchSort max res ord
+    returnBatch (res :: xs) x
+        = pure (Result res (returnBatch xs x))
+
+export
+nextResult : {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
+             Core (Search a) -> Core (Maybe (a, Core (Search a)))
+nextResult s
+    = tryUnify
+         (do res <- s
+             case res of
+                  NoMore => pure Nothing
+                  Result r next => pure (Just (r, next)))
+         (pure Nothing)
 
 search : {auto c : Ref Ctxt Defs} ->
          {auto m : Ref MD Metadata} ->
@@ -49,7 +141,7 @@ search : {auto c : Ref Ctxt Defs} ->
          FC -> RigCount ->
          SearchOpts -> Maybe RecData ->
          ClosedTerm ->
-         Name -> Core (List ClosedTerm)
+         Name -> Core (Search ClosedTerm)
 
 getAllEnv : {vars : _} ->
             FC -> (done : List Name) ->
@@ -71,39 +163,95 @@ searchIfHole : {vars : _} ->
                {auto u : Ref UST UState} ->
                FC -> SearchOpts -> Maybe RecData -> ClosedTerm ->
                Env Term vars -> ArgInfo vars ->
-               Core (List (Term vars))
+               Core (Search (Term vars))
 searchIfHole fc opts defining topty env arg
     = case depth opts of
-           Z => pure []
+           Z => noResult
            S k =>
               do let hole = holeID arg
                  let rig = argRig arg
                  defs <- get Ctxt
                  Just gdef <- lookupCtxtExact (Resolved hole) (gamma defs)
-                      | Nothing => pure []
+                      | Nothing => noResult
                  let Hole _ _ = definition gdef
-                      | _ => pure [!(normaliseHoles defs env (metaApp arg))]
+                      | _ => one !(normaliseHoles defs env (metaApp arg))
                                 -- already solved
-                 tms <- search fc rig (record { depth = k} opts)
+                 res <- search fc rig (record { depth = k,
+                                                inArg = True } opts)
                                defining topty (Resolved hole)
                  -- When we solve an argument, we're also building a lambda
                  -- expression for its environment, so we need to apply it to
                  -- the current environment to use it as an argument.
                  traverse (\tm => pure !(normaliseHoles defs env
-                                         (applyTo fc (embed tm) env))) tms
-
-mkCandidates : FC -> Term vars -> List (List (Term vars)) ->
-               List (Term vars)
-mkCandidates fc f [] = pure f
-mkCandidates fc f (args :: argss)
-    = do arg <- args
-         mkCandidates fc (App fc f arg) argss
+                                         (applyTo fc (embed tm) env))) res
 
 explicit : ArgInfo vars -> Bool
 explicit ai
     = case plicit ai of
            Explicit => True
            _ => False
+
+firstSuccess : {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               List (Core (Search a)) ->
+               Core (Search a)
+firstSuccess [] = noResult
+firstSuccess (elab :: elabs)
+    = do ust <- get UST
+         defs <- get Ctxt
+         catch (do Result res more <- elab
+                      | NoMore => continue ust defs elabs
+                   pure (Result res (continue ust defs (more :: elabs))))
+               (\err => continue ust defs elabs)
+  where
+    continue : UState -> Defs -> List (Core (Search a)) ->
+               Core (Search a)
+    continue ust defs elabs
+        = do put UST ust
+             put Ctxt defs
+             firstSuccess elabs
+
+export
+trySearch : {auto c : Ref Ctxt Defs} ->
+            {auto u : Ref UST UState} ->
+            Core (Search a) ->
+            Core (Search a) ->
+            Core (Search a)
+trySearch s1 s2 = firstSuccess [s1, s2]
+
+export
+combine : {auto c : Ref Ctxt Defs} ->
+          {auto u : Ref UST UState} ->
+          (a -> b -> t) -> Search a -> Search b -> Core (Search t)
+combine f NoMore y = pure NoMore
+combine f (Result x next) NoMore = pure NoMore
+combine f (Result x nextx) (Result y nexty)
+    = pure $ Result (f x y) $
+                     (do nexty' <- nexty
+                         combine f !(one x) nexty')
+                         `trySearch`
+                     ((do nextx' <- nextx
+                          combine f nextx' !(one y))
+                          `trySearch`
+                      (do nextx' <- nextx
+                          nexty' <- nexty
+                          combine f nextx' nexty'))
+
+mkCandidates : {vars : _} ->
+               {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               FC -> Term vars -> List (Search (Term vars)) ->
+               Core (Search (Term vars))
+-- out of arguments, we have a candidate
+mkCandidates fc f [] = one f
+-- argument has run out of ideas, we're stuck
+mkCandidates fc f (NoMore :: argss) = noResult
+-- make a candidate from 'f arg' applied to the rest of the arguments
+mkCandidates fc f (Result arg next :: argss)
+    = firstSuccess
+           [mkCandidates fc (App fc f arg) argss,
+            do next' <- next
+               mkCandidates fc f (next' :: argss)]
 
 -- Apply the name to arguments and see if the result unifies with the target
 -- type, then try to automatically solve any holes which were generated.
@@ -114,13 +262,15 @@ searchName : {vars : _} ->
              {auto u : Ref UST UState} ->
              FC -> RigCount -> SearchOpts ->
              Env Term vars -> NF vars -> ClosedTerm ->
-             Maybe RecData -> (Name, GlobalDef) -> Core (List (Term vars))
+             Maybe RecData -> (Name, GlobalDef) -> Core (Search (Term vars))
 searchName fc rigc opts env target topty defining (n, ndef)
     = do defs <- get Ctxt
          let True = visibleInAny (!getNS :: !getNestedNS)
                                  (fullname ndef) (visibility ndef)
-             | _ => pure []
+             | _ => noResult
          let ty = type ndef
+         let True = usableName (fullname ndef)
+             | _ => noResult
          let namety : NameType
                  = case definition ndef of
                         DCon tag arity _ => DataCon tag arity
@@ -133,35 +283,21 @@ searchName fc rigc opts env target topty defining (n, ndef)
          logNF 10 "App type" env appTy
          ures <- unify inSearch fc env target appTy
          let [] = constraints ures
-             | _ => pure []
+             | _ => noResult
          -- Search the explicit arguments first, they may resolve other holes
          traverse (searchIfHole fc opts defining topty env)
                   (filter explicit args)
          args' <- traverse (searchIfHole fc opts defining topty env)
                            args
-
-         let cs = mkCandidates fc (Ref fc namety n) args'
-         logC 10 (do strs <- traverse (\t => pure (show !(toFullNames t) ++ "\n")) cs
-                     pure ("Candidates: " ++ concat strs))
-         pure cs
-
-successful : {auto c : Ref Ctxt Defs} ->
-             {auto m : Ref MD Metadata} ->
-             {auto u : Ref UST UState} ->
-             List (Core a) ->
-             Core (List (Either Error a))
-successful [] = pure []
-successful (elab :: elabs)
--- Don't save any state, we'll happily keep adding variables and unification
--- problems because we might be creating multiple candidate solutions, and
--- they won't interfere.
--- We will go back to the original state once we're done!
-    = catch (do res <- elab
-                rest <- successful elabs
-                pure (Right res :: rest))
-            (\err =>
-                do rest <- successful elabs
-                   pure (Left err :: rest))
+         mkCandidates fc (Ref fc namety n) args'
+  where
+    -- we can only use the name in a search result if it's a user writable
+    -- name (so, no recursive with blocks or case blocks, for example)
+    usableName : Name -> Bool
+    usableName (UN _) = True
+    usableName (NS _ n) = usableName n
+    usableName (Nested _ n) = usableName n
+    usableName _ = False
 
 getSuccessful : {vars : _} ->
                 {auto c : Ref Ctxt Defs} ->
@@ -170,12 +306,12 @@ getSuccessful : {vars : _} ->
                 FC -> RigCount -> SearchOpts -> Bool ->
                 Env Term vars -> Term vars -> ClosedTerm ->
                 Maybe RecData ->
-                List (Core (List (Term vars))) ->
-                Core (List (Term vars))
+                List (Core (Search (Term vars))) ->
+                Core (Search (Term vars))
 getSuccessful {vars} fc rig opts mkHole env ty topty defining all
-    = do elabs <- successful all
-         case concat (rights elabs) of
-              [] => -- If no successful search, make a hole
+    = do res <- firstSuccess all
+         case res of
+              NoMore => -- If no successful search, make a hole
                 if mkHole && holesOK opts
                    then do defs <- get Ctxt
                            let base = maybe "arg"
@@ -185,11 +321,9 @@ getSuccessful {vars} fc rig opts mkHole env ty topty defining all
                            (idx, tm) <- newMeta fc rig env (UN hn) ty
                                                 (Hole (length env) (holeInit False))
                                                 False
-                           pure [tm]
-                   else if holesOK opts
-                           then pure []
-                           else throw (CantSolveGoal fc [] topty)
-              rs => pure rs
+                           one tm
+                   else noResult
+              r => pure r
 
 searchNames : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -197,9 +331,9 @@ searchNames : {vars : _} ->
               {auto u : Ref UST UState} ->
               FC -> RigCount -> SearchOpts -> Env Term vars ->
               Term vars -> ClosedTerm ->
-              Maybe RecData -> List Name -> Core (List (Term vars))
+              Maybe RecData -> List Name -> Core (Search (Term vars))
 searchNames fc rig opts env ty topty defining []
-    = pure []
+    = noResult
 searchNames fc rig opts env ty topty defining (n :: ns)
     = do defs <- get Ctxt
          vis <- traverse (visible (gamma defs) (currentNS defs :: nestedNS defs)) (n :: ns)
@@ -224,18 +358,19 @@ tryRecursive : {vars : _} ->
                {auto u : Ref UST UState} ->
                FC -> RigCount -> SearchOpts ->
                Env Term vars -> Term vars -> ClosedTerm ->
-               Maybe RecData -> Core (List (Term vars))
-tryRecursive fc rig opts env ty topty Nothing = pure []
+               Maybe RecData -> Core (Search (Term vars))
+tryRecursive fc rig opts env ty topty Nothing
+    = noResult
 tryRecursive fc rig opts env ty topty (Just rdata)
     = do defs <- get Ctxt
          case !(lookupCtxtExact (recname rdata) (gamma defs)) of
-              Nothing => pure []
+              Nothing => noResult
               Just def =>
-                do tms <- searchName fc rig opts env !(nf defs env ty)
+                do res <- searchName fc rig opts env !(nf defs env ty)
                                      topty Nothing
                                      (recname rdata, def)
                    defs <- get Ctxt
-                   pure (filter (structDiff (lhsapp rdata)) tms)
+                   filterS (structDiff (lhsapp rdata)) res
   where
     mutual
       -- A fairly simple superficialy syntactic check to make sure that
@@ -292,9 +427,9 @@ searchLocalWith : {vars : _} ->
                   FC -> RigCount -> SearchOpts -> Env Term vars ->
                   List (Term vars, Term vars) ->
                   Term vars -> ClosedTerm -> Maybe RecData ->
-                  Core (List (Term vars))
+                  Core (Search (Term vars))
 searchLocalWith fc rig opts env [] ty topty defining
-    = pure []
+    = noResult
 searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
     = do defs <- get Ctxt
          nty <- nf defs env ty
@@ -307,7 +442,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                  (Term vars -> Term vars) ->
                  NF vars -> -- local variable's type
                  NF vars -> -- type we're looking for
-                 Core (List (Term vars))
+                 Core (Search (Term vars))
     findDirect defs prf f nty ty
         = do (args, appTy) <- mkArgs fc rig env nty
              -- We can only use a local variable if it's not an unsolved
@@ -318,18 +453,18 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                     (do ures <- unify inTerm fc env ty nty
                         let [] = constraints ures
                             | _ => throw (InternalError "Can't use directly")
-                        pure (mkCandidates fc (f prf) []))
+                        mkCandidates fc (f prf) [])
                     (do ures <- unify inTerm fc env ty appTy
                         let [] = constraints ures
-                            | _ => pure []
+                            | _ => noResult
                         args' <- traverse (searchIfHole fc opts defining topty env)
                                           args
-                        pure (mkCandidates fc (f prf) args'))
-                else pure []
+                        mkCandidates fc (f prf) args')
+                else noResult
 
     findPos : Defs -> Term vars ->
               (Term vars -> Term vars) ->
-              NF vars -> NF vars -> Core (List (Term vars))
+              NF vars -> NF vars -> Core (Search (Term vars))
     findPos defs prf f x@(NTCon pfc pn _ _ [xty, yty]) target
         = getSuccessful fc rig opts False env ty topty defining
               [findDirect defs prf f x target,
@@ -358,7 +493,7 @@ searchLocalWith {vars} fc rig opts env ((p, pty) :: rest) ty topty defining
                                                            ytytm,
                                                            f arg])
                                            ytynf target)]
-                         else pure [])]
+                         else noResult)]
     findPos defs prf f nty target = findDirect defs prf f nty target
 
 searchLocal : {vars : _} ->
@@ -367,7 +502,7 @@ searchLocal : {vars : _} ->
               {auto u : Ref UST UState} ->
               FC -> RigCount -> SearchOpts ->
               Env Term vars -> Term vars -> ClosedTerm ->
-              Maybe RecData -> Core (List (Term vars))
+              Maybe RecData -> Core (Search (Term vars))
 searchLocal fc rig opts env ty topty defining
     = do defs <- get Ctxt
          -- Reverse the environment so we try the patterns left to right.
@@ -382,7 +517,7 @@ searchType : {vars : _} ->
              {auto u : Ref UST UState} ->
              FC -> RigCount -> SearchOpts -> Env Term vars -> Maybe RecData ->
              ClosedTerm ->
-             Nat -> Term vars -> Core (List (Term vars))
+             Nat -> Term vars -> Core (Search (Term vars))
 searchType fc rig opts env defining topty (S k) (Bind bfc n (Pi c info ty) sc)
     = do let env' : Env Term (n :: _) = Pi c info ty :: env
          log 10 $ "Introduced lambda, search for " ++ show sc
@@ -412,14 +547,22 @@ searchType fc rig opts env defining topty _ ty
                              -- Then try a recursive call
                              log 10 $ "Hints found for " ++ show n ++ " "
                                          ++ show allHints
-                             getSuccessful fc rig opts True env ty topty defining
-                                  ([searchLocal fc rig opts env ty topty defining,
-                                    searchNames fc rig opts env ty topty defining
-                                                allHints]
-                                    ++ if recOK opts
-                                         then [tryRecursive fc rig opts env ty topty defining]
-                                         else [])
-                     else pure []
+                             let tries =
+                                   [searchLocal fc rig opts env ty topty defining,
+                                    searchNames fc rig opts env ty topty defining allHints]
+                             let tryRec =
+                                   if recOK opts
+                                      then [tryRecursive fc rig opts env ty topty defining]
+                                      else []
+                             -- if we're in an argument, try the recursive call
+                             -- first. We're more likely to want that than nested
+                             -- constructors.
+                             let allns : List _
+                                     = if inArg opts
+                                          then tryRec ++ tries
+                                          else tries ++ tryRec
+                             getSuccessful fc rig opts True env ty topty defining allns
+                     else noResult
            _ => do logTerm 10 "Searching locals only at" ty
                    getSuccessful fc rig opts True env ty topty defining
                        ([searchLocal fc rig opts env ty topty defining]
@@ -432,7 +575,7 @@ searchHole : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              FC -> RigCount -> SearchOpts -> Maybe RecData -> Name ->
              Nat -> ClosedTerm ->
-             Defs -> GlobalDef -> Core (List ClosedTerm)
+             Defs -> GlobalDef -> Core (Search ClosedTerm)
 searchHole fc rig opts defining n locs topty defs glob
     = do searchty <- normalise defs [] (type glob)
          logTerm 10 "Normalised type" searchty
@@ -476,32 +619,31 @@ getLHSData defs (Just tm) = pure $ getLHS !(normaliseHoles defs [] tm)
                Ref _ _ n => Just (MkRecData n sc)
                _ => Nothing
 
-dropLinearErrors : {auto c : Ref Ctxt Defs} ->
-                   {auto u : Ref UST UState} ->
-                   FC -> List ClosedTerm ->
-                   Core (List ClosedTerm)
-dropLinearErrors fc [] = pure []
-dropLinearErrors fc (t :: ts)
+firstLinearOK : {auto c : Ref Ctxt Defs} ->
+                {auto u : Ref UST UState} ->
+                FC -> Search ClosedTerm -> Core (Search ClosedTerm)
+firstLinearOK fc NoMore = noResult
+firstLinearOK fc (Result t next)
     = tryUnify
-          (do linearCheck fc linear False [] t
-              ts' <- dropLinearErrors fc ts
-              pure (t :: ts'))
-          (dropLinearErrors fc ts)
+            (do linearCheck fc linear False [] t
+                pure (Result t (firstLinearOK fc !next)))
+            (do next' <- next
+                firstLinearOK fc next')
 
 export
 exprSearch : {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
-             FC -> Name -> List Name -> Core (List ClosedTerm)
+             FC -> Name -> List Name -> Core (Search ClosedTerm)
 exprSearch fc n_in hints
     = do defs <- get Ctxt
          Just (n, idx, gdef) <- lookupHoleName n_in defs
              | Nothing => throw (UndefinedName fc n_in)
          lhs <- findHoleLHS !(getFullName (Resolved idx))
          log 10 $ "LHS hole data " ++ show (n, lhs)
-         rs <- search fc (multiplicity gdef) (MkSearchOpts False True 5)
-                      !(getLHSData defs lhs) (type gdef) n
-         dropLinearErrors fc rs
+         res <- search fc (multiplicity gdef) (MkSearchOpts False True 5 False)
+                       !(getLHSData defs lhs) (type gdef) n
+         firstLinearOK fc res
   where
     lookupHoleName : Name -> Defs -> Core (Maybe (Name, Int, GlobalDef))
     lookupHoleName n defs
@@ -510,3 +652,12 @@ exprSearch fc n_in hints
                Nothing => case !(lookupCtxtName n (gamma defs)) of
                                [res] => pure $ Just res
                                _ => pure Nothing
+
+export
+exprSearchN : {auto c : Ref Ctxt Defs} ->
+              {auto m : Ref MD Metadata} ->
+              {auto u : Ref UST UState} ->
+              FC -> Nat -> Name -> List Name -> Core (List ClosedTerm)
+exprSearchN fc max n hints
+    = do (res, _) <- searchN max (exprSearch fc n hints)
+         pure res

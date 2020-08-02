@@ -125,7 +125,7 @@ record Session where
   nobanner : Bool
   findipkg : Bool
   codegen : CG
-  codegenOptions : String
+  directives : List String
   packages : List String
   logLevel : Nat
   logTimings : Bool
@@ -178,8 +178,9 @@ defaultPPrint = MkPPOpts False True False
 
 export
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez "" [] 0 False False
-                               Nothing Nothing Nothing Nothing
+defaultSession = MkSessionOpts False False False Chez [] [] 0
+                               False False Nothing Nothing
+                               Nothing Nothing
 
 export
 defaultElab : ElabDirectives

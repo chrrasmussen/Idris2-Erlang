@@ -575,7 +575,7 @@ errorMsg = unlines
   , "    --dumpvmcode <file>"
   , "    --debug-elab-check"
   , "    --codegen <cg>"
-  , "    --cg-opt <opts>"
+  , "    --directive <directive>"
   , "    --build-dir <dir>"
   , "    --output-dir <dir>"
   ]
@@ -594,7 +594,7 @@ filterPackageOpts acc (DumpLifted f  ::xs) = filterPackageOpts (record {oopts $=
 filterPackageOpts acc (DumpVMCode f  ::xs) = filterPackageOpts (record {oopts $= (DumpVMCode f::)}   acc) xs
 filterPackageOpts acc (DebugElabCheck::xs) = filterPackageOpts (record {oopts $= (DebugElabCheck::)} acc) xs
 filterPackageOpts acc (SetCG f       ::xs) = filterPackageOpts (record {oopts $= (SetCG f::)}        acc) xs
-filterPackageOpts acc (SetCGOptions f::xs) = filterPackageOpts (record {oopts $= (SetCGOptions f::)} acc) xs
+filterPackageOpts acc (Directive f   ::xs) = filterPackageOpts (record {oopts $= (Directive f::)}    acc) xs
 filterPackageOpts acc (BuildDir f    ::xs) = filterPackageOpts (record {oopts $= (BuildDir f::)}     acc) xs
 filterPackageOpts acc (OutputDir f   ::xs) = filterPackageOpts (record {oopts $= (OutputDir f::)}    acc) xs
 

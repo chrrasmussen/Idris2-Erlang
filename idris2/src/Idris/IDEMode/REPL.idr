@@ -168,9 +168,13 @@ process (AddMissing l n)
          pure $ REPL $ Edited $ DisplayEdit []
 process (ExprSearch l n hs all)
     = replWrap $ Idris.REPL.process (Editing (ExprSearch False (fromInteger l) (UN n)
-                                                 (map UN hs) all))
+                                                 (map UN hs)))
+process ExprSearchNext
+    = replWrap $ Idris.REPL.process (Editing ExprSearchNext)
 process (GenerateDef l n)
-    = replWrap $ Idris.REPL.process (Editing (GenerateDef False (fromInteger l) (UN n)))
+    = replWrap $ Idris.REPL.process (Editing (GenerateDef False (fromInteger l) (UN n) 0))
+process GenerateDefNext
+    = replWrap $ Idris.REPL.process (Editing GenerateDefNext)
 process (MakeLemma l n)
     = replWrap $ Idris.REPL.process (Editing (MakeLemma False (fromInteger l) (UN n)))
 process (MakeCase l n)
@@ -181,6 +185,9 @@ process (DocsFor n modeOpt)
     = replWrap $ Idris.REPL.process (Doc (UN n))
 process (Apropos n)
     = do todoCmd "apropros"
+         pure $ REPL $ Printed []
+process (Directive n)
+    = do todoCmd "directive"
          pure $ REPL $ Printed []
 process (WhoCalls n)
     = do todoCmd "who-calls"
@@ -268,7 +275,6 @@ SExpable REPLOpt where
   toSExp (EvalMode mod) = SExpList [ SymbolAtom "eval", toSExp mod ]
   toSExp (Editor editor) = SExpList [ SymbolAtom "editor", toSExp editor ]
   toSExp (CG str) = SExpList [ SymbolAtom "cg", toSExp str ]
-  toSExp (CGOptions args) = SExpList [ SymbolAtom "cgopt", toSExp args ]
 
 
 displayIDEResult : {auto c : Ref Ctxt Defs} ->

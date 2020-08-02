@@ -1669,9 +1669,6 @@ setVarOption
   <|> do exactIdent "cg"
          c <- unqualifiedName
          pure (CG c)
-  <|> do exactIdent "cgopt"
-         args <- strLit
-         pure (CGOptions args)
 
 setOption : Bool -> Rule REPLOpt
 setOption set
@@ -1713,17 +1710,17 @@ editCmd
          upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (ExprSearch upd (fromInteger line) n [] False)
-  <|> do replCmd ["psall"]
-         upd <- option False (do symbol "!"; pure True)
-         line <- intLit
-         n <- name
-         pure (ExprSearch upd (fromInteger line) n [] True)
+         pure (ExprSearch upd (fromInteger line) n [])
+  <|> do replCmd ["psnext"]
+         pure ExprSearchNext
   <|> do replCmd ["gd"]
          upd <- option False (do symbol "!"; pure True)
          line <- intLit
          n <- name
-         pure (GenerateDef upd (fromInteger line) n)
+         nreject <- option 0 intLit
+         pure (GenerateDef upd (fromInteger line) n (fromInteger nreject))
+  <|> do replCmd ["gdnext"]
+         pure GenerateDefNext
   <|> do replCmd ["ml", "makelemma"]
          upd <- option False (do symbol "!"; pure True)
          line <- intLit
@@ -1767,6 +1764,9 @@ data CmdArg : Type where
      ||| The command takes a module.
      ModuleArg : CmdArg
 
+     ||| The command takes a string
+     StringArg : CmdArg
+
      ||| The command takes multiple arguments.
      Args : List CmdArg -> CmdArg
 
@@ -1780,6 +1780,7 @@ Show CmdArg where
   show OptionArg = "<option>"
   show FileArg = "<file>"
   show ModuleArg = "<module>"
+  show StringArg = "<module>"
   show (Args args) = showSep " " (map show args)
 
 export
@@ -1828,6 +1829,19 @@ nameArgCmd parseCmd command doc = (names, NameArg, doc, parse)
       runParseCmd parseCmd
       n <- name
       pure (command n)
+
+stringArgCmd : ParseCmd -> (String -> REPLCmd) -> String -> CommandDefinition
+stringArgCmd parseCmd command doc = (names, StringArg, doc, parse)
+  where
+    names : List String
+    names = extractNames parseCmd
+
+    parse : Rule REPLCmd
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      s <- strLit
+      pure (command s)
 
 moduleArgCmd : ParseCmd -> (List String -> REPLCmd) -> String -> CommandDefinition
 moduleArgCmd parseCmd command doc = (names, ModuleArg, doc, parse)
@@ -1921,6 +1935,7 @@ parserCommandsForHelp =
   , optArgCmd (ParseIdentCmd "unset") SetOpt False "Unset an option"
   , compileArgsCmd (ParseREPLCmd ["c", "compile"]) Compile "Compile to an executable"
   , exprArgCmd (ParseIdentCmd "exec") Exec "Compile to an executable and run"
+  , stringArgCmd (ParseIdentCmd "directive") CGDirective "Set a codegen-specific directive"
   , noArgCmd (ParseREPLCmd ["r", "reload"]) Reload "Reload current file"
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
   , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"

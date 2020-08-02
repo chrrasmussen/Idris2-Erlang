@@ -113,7 +113,7 @@ data Def : Type where
             (constraints : List Int) -> Def
     ImpBind : Def -- global name temporarily standing for an implicitly bound name
     -- A delayed elaboration. The elaborators themselves are stored in the
-    -- unifiation state
+    -- unification state
     Delayed : Def
 
 export
@@ -1202,6 +1202,13 @@ depth
   = do defs <- get Ctxt
        pure (branchDepth (gamma defs))
 
+export
+dumpStaging : {auto c : Ref Ctxt Defs} ->
+              Core ()
+dumpStaging
+    = do defs <- get Ctxt
+         coreLift $ putStrLn $ "Staging area: " ++ show (keys (staging (gamma defs)))
+
 -- Explicitly note that the name should be saved when writing out a .ttc
 export
 addToSave : {auto c : Ref Ctxt Defs} ->
@@ -1723,7 +1730,8 @@ getDirectives : {auto c : Ref Ctxt Defs} ->
                 CG -> Core (List (List String, String))
 getDirectives cg
     = do defs <- get Ctxt
-         pure (mapMaybe getDir (cgdirectives defs))
+         pure $ map (\d => ([], d)) defs.options.session.directives ++
+                 mapMaybe getDir (cgdirectives defs)
   where
     getDir : (List String, CG, String) -> Maybe (List String, String)
     getDir (ns, x', str) = if cg == x' then Just (ns, str) else Nothing
@@ -1990,13 +1998,6 @@ setCG : {auto c : Ref Ctxt Defs} ->
 setCG cg
     = do defs <- get Ctxt
          put Ctxt (record { options->session->codegen = cg } defs)
-
-export
-setCGOptions : {auto c : Ref Ctxt Defs} ->
-               String -> Core ()
-setCGOptions args
-    = do defs <- get Ctxt
-         put Ctxt (record { options->session->codegenOptions = args } defs)
 
 -- TODO: Version numbers on dependencies
 export

@@ -188,7 +188,7 @@ build opts tmpDir outputDir exportFunNames modules = do
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
   session <- getSession
-  let opts = parseOpts (codegenOptions session)
+  let opts = defaultOpts -- TODO: parseOpts (codegenOptions session)
   let modName = outfile
   modules <- compileMainEntrypointToModules opts tm modName
   build opts tmpDir outputDir [] modules
@@ -209,7 +209,7 @@ compileLibrary c tmpDir outputDir libName = do
   ds <- getDirectives (Other "erlang")
   let exportFunNames = exportsFromDirectives ds
   session <- getSession
-  let opts = parseOpts (codegenOptions session)
+  let opts = defaultOpts -- TODO: parseOpts (codegenOptions session)
   modules <- compileLibraryToModules opts exportFunNames
   generatedModules <- build opts tmpDir outputDir exportFunNames modules
   pure (Just (libName, generatedModules))

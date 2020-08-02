@@ -1,5 +1,7 @@
 module Data.List
 
+import Data.Nat
+
 public export
 isNil : List a -> Bool
 isNil [] = True
@@ -325,21 +327,21 @@ Uninhabited (NonEmpty []) where
 ||| Get the head of a non-empty list.
 ||| @ ok proof the list is non-empty
 public export
-head : (l : List a) -> {auto ok : NonEmpty l} -> a
+head : (l : List a) -> {auto 0 ok : NonEmpty l} -> a
 head [] impossible
 head (x :: _) = x
 
 ||| Get the tail of a non-empty list.
 ||| @ ok proof the list is non-empty
 public export
-tail : (l : List a) -> {auto ok : NonEmpty l} -> List a
+tail : (l : List a) -> {auto 0 ok : NonEmpty l} -> List a
 tail [] impossible
 tail (_ :: xs) = xs
 
 ||| Retrieve the last element of a non-empty list.
 ||| @ ok proof that the list is non-empty
 public export
-last : (l : List a) -> {auto ok : NonEmpty l} -> a
+last : (l : List a) -> {auto 0 ok : NonEmpty l} -> a
 last [] impossible
 last [x] = x
 last (x::y::ys) = last (y::ys)
@@ -347,7 +349,7 @@ last (x::y::ys) = last (y::ys)
 ||| Return all but the last element of a non-empty list.
 ||| @ ok proof the list is non-empty
 public export
-init : (l : List a) -> {auto ok : NonEmpty l} -> List a
+init : (l : List a) -> {auto 0 ok : NonEmpty l} -> List a
 init [] impossible
 init [_] = []
 init (x::y::ys) = x :: init (y::ys)
@@ -438,14 +440,14 @@ mapMaybe f (x::xs) =
 ||| Foldl a non-empty list without seeding the accumulator.
 ||| @ ok proof that the list is non-empty
 public export
-foldl1 : (a -> a -> a) -> (l : List a)  -> {auto ok : NonEmpty l} -> a
+foldl1 : (a -> a -> a) -> (l : List a)  -> {auto 0 ok : NonEmpty l} -> a
 foldl1 f [] impossible
 foldl1 f (x::xs) = foldl f x xs
 
 ||| Foldr a non-empty list without seeding the accumulator.
 ||| @ ok proof that the list is non-empty
 public export
-foldr1 : (a -> a -> a) -> (l : List a)  -> {auto ok : NonEmpty l} -> a
+foldr1 : (a -> a -> a) -> (l : List a)  -> {auto 0 ok : NonEmpty l} -> a
 foldr1 f [] impossible
 foldr1 f [x] = x
 foldr1 f (x::y::ys) = f x (foldr1 f (y::ys))
@@ -620,3 +622,12 @@ revAppend (v :: vs) ns
           rewrite sym (revAppend vs ns) in
             rewrite appendAssociative (reverse ns) (reverse vs) [v] in
               Refl
+
+export
+dropFusion : (n, m : Nat) -> (l : List t) -> drop n (drop m l) = drop (n+m) l
+dropFusion  Z     m    l      = Refl
+dropFusion (S n)  Z    l      = rewrite plusZeroRightNeutral n in Refl
+dropFusion (S n) (S m) []     = Refl
+dropFusion (S n) (S m) (x::l) = rewrite plusAssociative n 1 m in
+                                rewrite plusCommutative n 1 in
+                                dropFusion (S n) m l
