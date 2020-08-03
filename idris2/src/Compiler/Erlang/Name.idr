@@ -23,6 +23,16 @@ Eq OutputBundle where
   (Split prefix1 inNS1) == (Split prefix2 inNS2) = prefix1 == prefix2 && inNS1 == inNS2
   _ == _ = False
 
+Ord OutputBundle where
+  compare (Concat ns1) (Concat ns2) = compare ns1 ns2
+  compare (Split prefix1 inNS1) (Split prefix2 inNS2) =
+    case compare prefix1 prefix2 of
+      LT => LT
+      GT => GT
+      EQ => compare inNS1 inNS2
+  compare (Concat _) (Split _ _) = LT
+  compare (Split _ _) (Concat _) = GT
+
 public export
 record NamespaceInfo where
   constructor MkNamespaceInfo
@@ -32,6 +42,11 @@ export
 Eq NamespaceInfo where
   (MkNamespaceInfo outputBundle1) == (MkNamespaceInfo outputBundle2) =
     outputBundle1 == outputBundle2
+
+export
+Ord NamespaceInfo where
+  compare (MkNamespaceInfo outputBundle1) (MkNamespaceInfo outputBundle2) =
+    compare outputBundle1 outputBundle2
 
 export
 getNamespace : Name -> Namespace

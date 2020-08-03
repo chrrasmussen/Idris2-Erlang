@@ -4,6 +4,7 @@ import Compiler.Common
 import Compiler.CompileExpr
 
 import Compiler.Erlang.Opts
+import Compiler.Erlang.ModuleOpts
 import Compiler.Erlang.Cmd
 import Compiler.Erlang.Name
 import Compiler.Erlang.Codegen.NamedCExpToErlExpr
@@ -21,6 +22,7 @@ import Core.TT
 
 import Data.NameMap
 import Data.List
+import Data.SortedMap
 import Data.Strings
 import Utils.Binary
 import Utils.Path
@@ -43,36 +45,12 @@ findErlangCompiler = pure "erlc"
 defLine : Line
 defLine = 4242
 
-groupBy : (a -> a -> Bool) -> List a -> List (List a)
-groupBy _ [] = []
-groupBy p list@(x :: xs) =
-  let (matches, remaining) = partition (p x) list
-  in matches :: groupBy p (assert_smaller list remaining)
+groupBy : Ord key => (a -> key) -> (a -> value) -> List a -> SortedMap key (List value)
+groupBy _ _ [] = empty
+groupBy toKey toValue (x :: xs) = singleton (toKey x) [toValue x] <+> (groupBy toKey toValue xs)
 
 defsPerModule : List (NamespaceInfo, a) -> List (NamespaceInfo, List a)
-defsPerModule defs =
-  let modules = groupBy (\(namespaceInfo1, _), (namespaceInfo2, _) => namespaceInfo1 == namespaceInfo2) defs
-  in mapMaybe extractModuleName modules
-    where
-      extractModuleName : List (NamespaceInfo, a) -> Maybe (NamespaceInfo, List a)
-      extractModuleName defsInModule =
-        case map fst (head' defsInModule) of
-          Nothing => Nothing
-          Just namespaceInfo => Just (namespaceInfo, map snd defsInModule)
-
-parseExport : (Namespace, String) -> Maybe Name
-parseExport (ns, directive) = map (NS ns . UN) $ parseExport' (words directive)
-  where
-    parseExport' : List String -> Maybe String
-    parseExport' ("export" :: exportsFuncStr :: _) = Just exportsFuncStr
-    parseExport' _ = Nothing
-
-globalDirectives : List (Namespace, String) -> List String
-globalDirectives = mapMaybe (\(ns, d) => if ns == [] then Just d else Nothing)
-
-exportsFromDirectives : List (Namespace, String) -> List (Namespace, Name)
-exportsFromDirectives ds =
-  mapMaybe (\(ns, str) => map (\name => (ns, name)) (parseExport (ns, str))) ds
+defsPerModule defs = SortedMap.toList $ groupBy fst snd defs
 
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core NamedDef
 getCompileExpr name = do
@@ -191,7 +169,9 @@ build opts tmpDir outputDir exportFunNames modules = do
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
-  let opts = parseOpts (globalDirectives ds)
+  let groupedDirectives = groupBy fst snd ds
+  let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
+  let opts = parseOpts globalDirectives
   let modName = outfile
   modules <- compileMainEntrypointToModules opts tm modName
   build opts tmpDir outputDir [] modules
@@ -210,8 +190,12 @@ executeExpr c tmpDir tm = do
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName = do
   ds <- getDirectives (Other "erlang")
-  let exportFunNames = exportsFromDirectives ds
-  let opts = parseOpts (globalDirectives ds)
+  let groupedDirectives = groupBy fst snd ds
+  let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
+  let moduleDirectives = SortedMap.toList (delete [] groupedDirectives)
+  let moduleOpts = map (uncurry parseModuleOpts) moduleDirectives
+  let exportFunNames = mapMaybe (\mod => (\funName => (mod.ns, funName)) <$> mod.exportFunName) moduleOpts
+  let opts = parseOpts globalDirectives
   modules <- compileLibraryToModules opts exportFunNames
   generatedModules <- build opts tmpDir outputDir exportFunNames modules
   pure (Just (libName, generatedModules))
