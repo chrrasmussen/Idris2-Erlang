@@ -29,6 +29,7 @@ import System.File
 
 
 %default covering
+%hide ErlExpr.Line
 
 
 findErlangExecutable : IO String

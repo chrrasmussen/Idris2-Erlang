@@ -3,10 +3,13 @@ module Compiler.Erlang.IR.ErlExpr
 import public Data.Vect
 import Control.Monad.State
 
-import public Compiler.Erlang.IR.AbstractFormat -- TODO: Only necessary because of `Line`
-
 
 %default total
+
+
+public export
+Line : Type
+Line = Int
 
 
 -- LOCAL VARIABLES

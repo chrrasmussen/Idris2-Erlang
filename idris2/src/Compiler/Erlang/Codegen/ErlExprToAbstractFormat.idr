@@ -11,6 +11,7 @@ import Compiler.Erlang.Utils.String
 
 
 %default total
+%hide ErlExpr.Line
 
 
 
