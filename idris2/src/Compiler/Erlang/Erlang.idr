@@ -67,6 +67,9 @@ parseExport (ns, directive) = map (NS ns . UN) $ parseExport' (words directive)
     parseExport' ("export" :: exportsFuncStr :: _) = Just exportsFuncStr
     parseExport' _ = Nothing
 
+globalDirectives : List (Namespace, String) -> List String
+globalDirectives = mapMaybe (\(ns, d) => if ns == [] then Just d else Nothing)
+
 exportsFromDirectives : List (Namespace, String) -> List (Namespace, Name)
 exportsFromDirectives ds =
   mapMaybe (\(ns, str) => map (\name => (ns, name)) (parseExport (ns, str))) ds
@@ -187,8 +190,8 @@ build opts tmpDir outputDir exportFunNames modules = do
 
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
-  session <- getSession
-  let opts = defaultOpts -- TODO: parseOpts (codegenOptions session)
+  ds <- getDirectives (Other "erlang")
+  let opts = parseOpts (globalDirectives ds)
   let modName = outfile
   modules <- compileMainEntrypointToModules opts tm modName
   build opts tmpDir outputDir [] modules
@@ -208,8 +211,7 @@ compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (
 compileLibrary c tmpDir outputDir libName = do
   ds <- getDirectives (Other "erlang")
   let exportFunNames = exportsFromDirectives ds
-  session <- getSession
-  let opts = defaultOpts -- TODO: parseOpts (codegenOptions session)
+  let opts = parseOpts (globalDirectives ds)
   modules <- compileLibraryToModules opts exportFunNames
   generatedModules <- build opts tmpDir outputDir exportFunNames modules
   pure (Just (libName, generatedModules))

@@ -43,27 +43,23 @@ flagsToOpts flags = flagsToOpts' flags defaultOpts
     flagsToOpts' [] opts = opts
     flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
 
-splitNamespaces : String -> List Namespace
-splitNamespaces namespaces = map toNamespace (splitOn ',' (unpack namespaces))
-  where
-    toNamespace : List Char -> Namespace
-    toNamespace ns = reverse (map pack (splitOn '.' ns))
+stringToNamespace : String -> Namespace
+stringToNamespace ns = reverse (map pack (splitOn '.' (unpack ns)))
 
-stringToFlags : String -> List Flag
-stringToFlags str = parseFlags (assert_total (words str)) -- TODO: Remove `assert_total` when `words` is total
+stringToFlags : List String -> List Flag
+stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) -- TODO: Remove `assert_total` when `words` is total
   where
-    parseFlags : List String -> List Flag
-    parseFlags [] = []
-    parseFlags ("--format" :: "erl" :: rest) = SetOutputFormat ErlangSource :: parseFlags rest
-    parseFlags ("--format" :: "erl-pretty" :: rest) = SetOutputFormat ErlangSourcePretty :: parseFlags rest
-    parseFlags ("--format" :: "abstr" :: rest) = SetOutputFormat AbstractFormat :: parseFlags rest
-    parseFlags ("--format" :: "beam" :: rest) = SetOutputFormat BeamFromErlangSource :: parseFlags rest
-    parseFlags ("--format" :: "beam-abstr" :: rest) = SetOutputFormat BeamFromAbstractFormat :: parseFlags rest
-    parseFlags ("--prefix" :: prefixStr :: rest) = SetPrefix prefixStr :: parseFlags rest
-    parseFlags ("--inline" :: inlineSize :: rest) = SetInlineSize (integerToNat (cast inlineSize)) :: parseFlags rest
-    parseFlags ("--changed" :: namespaces :: rest) = SetChangedNamespaces (splitNamespaces namespaces) :: parseFlags rest
-    parseFlags (_ :: rest) = parseFlags rest
+    parseFlag : List String -> Maybe Flag
+    parseFlag ["format", "erl"] = Just $ SetOutputFormat ErlangSource
+    parseFlag ["format", "erl-pretty"] = Just $ SetOutputFormat ErlangSourcePretty
+    parseFlag ["format", "abstr"] = Just $ SetOutputFormat AbstractFormat
+    parseFlag ["format", "beam"] = Just $ SetOutputFormat BeamFromErlangSource
+    parseFlag ["format", "beam-abstr"] = Just $ SetOutputFormat BeamFromAbstractFormat
+    parseFlag ["prefix", prefixStr] = Just $ SetPrefix prefixStr
+    parseFlag ["inline", inlineSize] = Just $ SetInlineSize (integerToNat (cast inlineSize))
+    parseFlag ("changed" :: namespaces) = Just $ SetChangedNamespaces (map stringToNamespace namespaces)
+    parseFlag _ = Nothing
 
 export
-parseOpts : String -> Opts
+parseOpts : List String -> Opts
 parseOpts str = flagsToOpts (stringToFlags str)
