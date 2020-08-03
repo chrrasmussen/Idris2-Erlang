@@ -46,15 +46,19 @@ flagsToOpts flags = flagsToOpts' flags defaultOpts
 stringToNamespace : String -> Namespace
 stringToNamespace ns = reverse (map pack (splitOn '.' (unpack ns)))
 
+parseOutputFormat : String -> Maybe OutputFormat
+parseOutputFormat "erl" = Just ErlangSource
+parseOutputFormat "erl-pretty" = Just ErlangSourcePretty
+parseOutputFormat "abstr" = Just AbstractFormat
+parseOutputFormat "beam" = Just BeamFromErlangSource
+parseOutputFormat "beam-abstr" = Just BeamFromAbstractFormat
+parseOutputFormat _ = Nothing
+
 stringToFlags : List String -> List Flag
 stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) -- TODO: Remove `assert_total` when `words` is total
   where
     parseFlag : List String -> Maybe Flag
-    parseFlag ["format", "erl"] = Just $ SetOutputFormat ErlangSource
-    parseFlag ["format", "erl-pretty"] = Just $ SetOutputFormat ErlangSourcePretty
-    parseFlag ["format", "abstr"] = Just $ SetOutputFormat AbstractFormat
-    parseFlag ["format", "beam"] = Just $ SetOutputFormat BeamFromErlangSource
-    parseFlag ["format", "beam-abstr"] = Just $ SetOutputFormat BeamFromAbstractFormat
+    parseFlag ["format", format] = SetOutputFormat <$> parseOutputFormat format
     parseFlag ["prefix", prefixStr] = Just $ SetPrefix prefixStr
     parseFlag ["inline", inlineSize] = Just $ SetInlineSize (integerToNat (cast inlineSize))
     parseFlag ("changed" :: namespaces) = Just $ SetChangedNamespaces (map stringToNamespace namespaces)
