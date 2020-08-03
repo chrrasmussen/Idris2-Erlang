@@ -11,7 +11,6 @@ import Compiler.Erlang.Codegen.NamedCExpToErlExpr.RtsSupport
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat
 import Compiler.Erlang.Codegen.AbstractFormatToErlangSource
 import Compiler.Erlang.Codegen.AbstractFormatToPrimTerm
-import Compiler.Erlang.Codegen.PrimTermToString
 import Compiler.Erlang.Utils.CompositeString
 
 import Core.Context
@@ -91,7 +90,7 @@ genExports namespaceInfo l name = do
 
 genDeclAbstr : Decl -> CompositeString
 genDeclAbstr d =
-  Nested [genPrimTerm (AbstractFormatToPrimTerm.genDecl d), Str ".\n"]
+  Nested [primTermToCS (AbstractFormatToPrimTerm.genDecl d), Str ".\n"]
 
 genDeclErl : Decl -> CompositeString
 genDeclErl d =

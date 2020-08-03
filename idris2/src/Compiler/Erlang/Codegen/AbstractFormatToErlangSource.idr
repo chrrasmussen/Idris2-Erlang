@@ -1,7 +1,6 @@
 module Compiler.Erlang.Codegen.AbstractFormatToErlangSource
 
 import public Compiler.Erlang.IR.AbstractFormat
-import Compiler.Erlang.Codegen.PrimTermToString
 import Compiler.Erlang.Utils.CompositeString
 import Compiler.Erlang.Utils.String
 import Data.Fin
@@ -239,4 +238,4 @@ genDecl (ADFunDef l name arity clauses) =
     clauseToFunHead : FunClause arity -> CompositeString
     clauseToFunHead clause = Nested [Str (genAtom name), genFunClause clause]
 genDecl (ADAttribute l attr value) =
-  Nested [Str $ "-" ++ attr ++ "(", genPrimTerm value, Str ")."]
+  Nested [Str $ "-" ++ attr ++ "(", primTermToCS value, Str ")."]

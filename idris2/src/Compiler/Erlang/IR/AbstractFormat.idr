@@ -2,7 +2,7 @@ module Compiler.Erlang.IR.AbstractFormat
 
 import public Data.Vect
 
-import public Compiler.Erlang.IR.PrimTerm
+import public Compiler.Erlang.Utils.PrimTerm
 
 
 %default total

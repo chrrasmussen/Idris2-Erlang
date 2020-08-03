@@ -4,7 +4,7 @@ import Data.Fin
 import Data.List
 
 import public Compiler.Erlang.IR.AbstractFormat
-import public Compiler.Erlang.IR.PrimTerm
+import public Compiler.Erlang.Utils.PrimTerm
 
 
 %default total
