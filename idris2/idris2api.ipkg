@@ -82,6 +82,7 @@ modules =
     Idris.Doc.String,
     Idris.Driver,
     Idris.Error,
+    Idris.Main,
     Idris.ModTree,
 
     Idris.Package,
@@ -235,3 +236,8 @@ modules =
 depends = network
 
 sourcedir = "src"
+outputdir = "ebin"
+
+opts = "--cg erlang"
+
+library = idris2

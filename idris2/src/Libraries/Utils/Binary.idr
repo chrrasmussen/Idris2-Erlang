@@ -19,6 +19,8 @@ import Libraries.Utils.String
 
 import public Erlang.Data.IOArray
 
+import Erlang
+
 -- Serialising data as binary. Provides an interface TTC which allows
 -- reading and writing to chunks of memory, "Binary", which can be written
 -- to and read from files.
@@ -462,32 +464,19 @@ TTC Nat where
 export
 modTime : String -> Core Int
 modTime fname
-  = do Right f <- coreLift $ openFile fname Read
-         | Left err => pure 0 -- Beginning of Time :)
-       Right t <- coreLift $ fileModifiedTime f
-         | Left err => do coreLift $ closeFile f
-                          pure 0
-       coreLift $ closeFile f
+  = do Right t <- coreLift $ fileModifiedTime fname
+         | Left err => pure 0
        pure t
+
+hashFile : String -> String -> Core String
+hashFile fileName = do
+  Right content <- coreLift $ readFile fileName
+    | Left _ => coreFail $ InternalError ("Can't get sha256sum of " ++ fileName)
+  let hashBinary = erlUnsafeCall String "crypto" "hash" [MkAtom "sha256", content]
+  let hashValue = erlUnsafeCall Integer "binary" "decode_unsigned" [hashBinary]
+  let MkCharlist hexValue = erlUnsafeCall ErlCharlist "io_lib" "format" ["~64.16.0b", the (ErlList _) [hashValue]]
+  pure hexValue
 
 export
 hashFileWith : String -> String -> Core String
-hashFileWith sha256sum fileName
-  = do Right fileHandle <- coreLift $ popen
-            (sha256sum ++ " \"" ++ osEscape fileName ++ "\"") Read
-         | Left _ => err
-       Right hashLine <- coreLift $ fGetLine fileHandle
-         | Left _ =>
-           do coreLift $ pclose fileHandle
-              err
-       coreLift $ pclose fileHandle
-       let w@(_::_) = words hashLine
-         | Nil => err
-       pure $ last w
-  where
-    err : Core String
-    err = coreFail $ InternalError ("Can't get " ++ sha256sum ++ " of " ++ fileName)
-    osEscape : String -> String
-    osEscape = if isWindows
-      then id
-      else escapeStringUnix
+hashFileWith sha256sum fileName = hashFile fileName

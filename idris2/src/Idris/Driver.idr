@@ -37,6 +37,7 @@ import Libraries.Utils.Term
 import Yaffle.Main
 
 %default covering
+%cg erlang inline 0
 
 findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
@@ -52,7 +53,7 @@ updateEnv
          bprefix <- coreLift $ idrisGetEnv "IDRIS2_PREFIX"
          case bprefix of
               Just p => setPrefix p
-              Nothing => setPrefix yprefix
+              Nothing => pure ()
          bpath <- coreLift $ idrisGetEnv "IDRIS2_PATH"
          case bpath of
               Just path => do traverseList1_ addExtraDir (map trim (split (==pathSeparator) path))
