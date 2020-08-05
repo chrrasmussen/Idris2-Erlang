@@ -59,10 +59,7 @@ prim__fdopen : Int -> String -> PrimIO AnyPtr
 export
 socketToFile : Socket -> IO (Either String File)
 socketToFile (MkSocket f _ _ _) = do
-  file <- FHandle <$> primIO (prim__fdopen f "r+")
-  if !(fileError file)
-    then pure (Left "Failed to fdopen socket file descriptor")
-    else pure (Right file)
+  pure (Left "Failed to fdopen socket file descriptor")
 
 export
 initIDESocketFile : String -> Int -> IO (Either String File)
@@ -93,7 +90,7 @@ initIDESocketFile h p = do
 
 getChar : File -> IO Char
 getChar h = do
-  if !(fEOF h)
+  if False
      then do
        putStrLn "Alas the file is done, aborting"
        exitWith (ExitFailure 1)
@@ -403,8 +400,7 @@ loop
               REPL _ => printError $ reflow "Running idemode but output isn't"
               IDEMode idx inf outf => do
                 inp <- coreLift $ getInput inf
-                end <- coreLift $ fEOF inf
-                if end
+                if False
                    then pure ()
                    else case parseSExp inp of
                       Left err =>

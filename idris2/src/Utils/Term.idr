@@ -1,29 +1,25 @@
 module Utils.Term
 
-import System.FFI
+import Data.Strings
+import Erlang
 
-%default total
-
-libterm : String -> String
-libterm s = "C:" ++ s ++ ", libidris2_support"
-
-%foreign libterm "idris2_setupTerm"
-prim__setupTerm : PrimIO ()
-
-%foreign libterm "idris2_getTermCols"
-prim__getTermCols : PrimIO Int
-
-%foreign libterm "idris2_getTermLines"
-prim__getTermLines : PrimIO Int
+systemCmd : String -> IO String
+systemCmd cmd = do
+  MkCharlist result <- pure $ erlUnsafeCall ErlCharlist "os" "cmd" [MkCharlist cmd]
+  pure result
 
 export
 setupTerm : IO ()
-setupTerm = primIO prim__setupTerm
+setupTerm = pure ()
 
 export
 getTermCols : IO Int
-getTermCols = primIO prim__getTermCols
+getTermCols = do
+  size <- systemCmd "tput cols"
+  pure (cast (trim size))
 
 export
 getTermLines : IO Int
-getTermLines = primIO prim__getTermLines
+getTermLines = do
+  size <- systemCmd "tput lines"
+  pure (cast (trim size))

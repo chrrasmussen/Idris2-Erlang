@@ -179,12 +179,8 @@ addPrelude imps
 -- rebuilding purposes...)
 modTime : String -> Core Integer
 modTime fname
-    = do Right f <- coreLift $ openFile fname Read
+    = do Right t <- coreLift $ fileModifiedTime fname
              | Left err => pure 0 -- Beginning of Time :)
-         Right t <- coreLift $ fileModifiedTime f
-             | Left err => do coreLift $ closeFile f
-                              pure 0
-         coreLift $ closeFile f
          pure (cast t)
 
 export

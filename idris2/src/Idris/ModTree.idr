@@ -139,12 +139,8 @@ getBuildMods loc done fname
 
 fnameModified : String -> Core Integer
 fnameModified fname
-    = do Right f <- coreLift $ openFile fname Read
+    = do Right t <- coreLift $ fileModifiedTime fname
              | Left err => throw (FileErr fname err)
-         Right t <- coreLift $ fileModifiedTime f
-             | Left err => do coreLift $ closeFile f
-                              throw (FileErr fname err)
-         coreLift $ closeFile f
          pure (cast t)
 
 buildMod : {auto c : Ref Ctxt Defs} ->
