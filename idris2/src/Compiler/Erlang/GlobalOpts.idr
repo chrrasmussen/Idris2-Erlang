@@ -1,4 +1,4 @@
-module Compiler.Erlang.Opts
+module Compiler.Erlang.GlobalOpts
 
 import Data.List
 import Data.Strings
@@ -12,16 +12,16 @@ public export
 data OutputFormat = ErlangSource | ErlangSourcePretty | AbstractFormat | BeamFromErlangSource | BeamFromAbstractFormat
 
 public export
-record Opts where
-  constructor MkOpts
+record GlobalOpts where
+  constructor MkGlobalOpts
   outputFormat : OutputFormat
   prefixStr : String
   inlineSize : Nat
   changedNamespaces : Maybe (List Namespace)
 
 export
-defaultOpts : Opts
-defaultOpts = MkOpts BeamFromErlangSource "Idris" 0 Nothing
+defaultGlobalOpts : GlobalOpts
+defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0 Nothing
 
 
 data Flag
@@ -30,16 +30,16 @@ data Flag
   | SetInlineSize Nat
   | SetChangedNamespaces (List Namespace)
 
-flagToOpts : Flag -> Opts -> Opts
+flagToOpts : Flag -> GlobalOpts -> GlobalOpts
 flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
 flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
 flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = inlineSize } opts
 flagToOpts (SetChangedNamespaces namespaces) opts = record { changedNamespaces = Just namespaces } opts
 
-flagsToOpts : List Flag -> Opts
-flagsToOpts flags = flagsToOpts' flags defaultOpts
+flagsToOpts : List Flag -> GlobalOpts
+flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
   where
-    flagsToOpts' : List Flag -> Opts -> Opts
+    flagsToOpts' : List Flag -> GlobalOpts -> GlobalOpts
     flagsToOpts' [] opts = opts
     flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
 
@@ -65,5 +65,5 @@ stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) --
     parseFlag _ = Nothing
 
 export
-parseOpts : List String -> Opts
+parseOpts : List String -> GlobalOpts
 parseOpts str = flagsToOpts (stringToFlags str)

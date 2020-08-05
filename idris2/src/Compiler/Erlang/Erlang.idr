@@ -3,7 +3,7 @@ module Compiler.Erlang.Erlang
 import Compiler.Common
 import Compiler.CompileExpr
 
-import Compiler.Erlang.Opts
+import Compiler.Erlang.GlobalOpts
 import Compiler.Erlang.ModuleOpts
 import Compiler.Erlang.Cmd
 import Compiler.Erlang.Name
@@ -78,7 +78,7 @@ genDeclErl : Decl -> CompositeString
 genDeclErl d =
   Nested [AbstractFormatToErlangSource.genDecl d, Str "\n"]
 
-writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> (NamespaceInfo, List ErlFunDecl) -> Core String
+writeErlangModule : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> (NamespaceInfo, List ErlFunDecl) -> Core String
 writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespaceInfo, funDecls) = do
   let currentModuleOpts = case outputBundle namespaceInfo of
         Concat _ => Nothing
@@ -117,7 +117,7 @@ namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
   let modName = currentModuleName namespaceInfo
   in (modName, outputDir </> modName ++ "." ++ extension)
 
-compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileMainEntrypointToModules globalOpts tm modName = do
   compileData <- getCompileData Cases tm
   compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
@@ -130,7 +130,7 @@ compileMainEntrypointToModules globalOpts tm modName = do
   let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
 
-compileLibraryToModules : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileLibraryToModules globalOpts allModuleOpts = do
   let namespacesToCompile = changedNamespaces globalOpts
   let extraNames = filter (shouldCompileName namespacesToCompile) (map snd (getExportFunNames allModuleOpts))
@@ -143,7 +143,7 @@ compileLibraryToModules globalOpts allModuleOpts = do
       shouldCompileName Nothing _ = True
       shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
 
-build : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
+build : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
 build globalOpts allModuleOpts tmpDir outputDir modules = do
   erl <- coreLift findErlangExecutable
   erlc <- coreLift findErlangCompiler
@@ -182,7 +182,7 @@ compileExpr c tmpDir outputDir tm outfile = do
 
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
-  let globalOpts = defaultOpts
+  let globalOpts = defaultGlobalOpts
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
   build globalOpts [] tmpDir tmpDir modules
