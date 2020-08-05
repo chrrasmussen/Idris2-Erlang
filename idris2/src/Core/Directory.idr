@@ -137,12 +137,6 @@ firstAvailable (f :: fs)
          coreLift $ closeFile ok
          pure (Just f)
 
-dirExists : String -> IO Bool
-dirExists dir = do Right d <- openDir dir
-                       | Left _ => pure False
-                   closeDir d
-                   pure True
-
 getPkgDirs : {auto c : Ref Ctxt Defs} -> Core (List String)
 getPkgDirs
     = do d <- getDirs

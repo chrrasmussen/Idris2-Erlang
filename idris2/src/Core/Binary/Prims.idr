@@ -18,6 +18,8 @@ import public Libraries.Utils.String
 import System.Info
 import Erlang.System.File
 
+import Erlang
+
 -- A label for binary states
 export
 data Bin : Type where
@@ -443,33 +445,20 @@ TTC Nat where
 export
 modTime : String -> Core Int
 modTime fname
-  = do Right f <- coreLift $ openFile fname Read
-         | Left err => pure 0 -- Beginning of Time :)
-       Right t <- coreLift $ fileModifiedTime f
-         | Left err => do coreLift $ closeFile f
-                          pure 0
-       coreLift $ closeFile f
+  = do Right t <- coreLift $ fileModifiedTime fname
+         | Left err => pure 0
        pure t
+
+hashFile : String -> Core (Maybe String)
+hashFile fileName = do
+  Right content <- coreLift $ readFile fileName
+    | Left _ => pure Nothing
+  let hashBinary = erlUnsafeCallPure String "crypto" "hash" [MkAtom "sha256", content]
+  let hashValue = erlUnsafeCallPure Integer "binary" "decode_unsigned" [hashBinary]
+  let MkCharlist hexValue = erlUnsafeCallPure ErlCharlist "io_lib" "format" ["~64.16.0b", the (ErlList _) [hashValue]]
+  pure $ Just hexValue
 
 export
 hashFileWith : Maybe String -> String -> Core (Maybe String)
-hashFileWith Nothing _ = pure Nothing
-hashFileWith (Just sha256sum) fileName
-  = do Right fileHandle <- coreLift $ popen
-            (sha256sum ++ " \"" ++ osEscape fileName ++ "\"") Read
-         | Left _ => err
-       Right hashLine <- coreLift $ fGetLine fileHandle
-         | Left _ =>
-           do ignore $ coreLift $ pclose fileHandle
-              err
-       ignore $ coreLift $ pclose fileHandle
-       let w@(_::_) = words hashLine
-         | Nil => err
-       pure $ Just $ last w
-  where
-    err : Core a
-    err = coreFail $ InternalError ("Can't get " ++ sha256sum ++ " of " ++ fileName)
-    osEscape : String -> String
-    osEscape = if isWindows
-      then id
-      else escapeStringUnix
+hashFileWith sha256sum fileName = hashFile fileName
+

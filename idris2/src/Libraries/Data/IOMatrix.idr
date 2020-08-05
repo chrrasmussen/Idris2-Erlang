@@ -9,7 +9,7 @@ record IOMatrix a where
   constructor MkIOMatrix
   maxWidth  : Int
   maxHeight : Int
-  content   : ArrayData (Maybe a)
+  content   : IOArray a
 
 export
 width : IOMatrix a -> Int
@@ -23,7 +23,7 @@ export
 new : HasIO io => (width, height : Int) -> io (IOMatrix a)
 new width height
   = pure $ MkIOMatrix width height
-         !(primIO (prim__newArray (width * height) Nothing))
+         !(newArray (width * height))
 
 toPosition : IOMatrix a -> Int -> Int -> Maybe Int
 toPosition (MkIOMatrix w h arr) i j
@@ -34,10 +34,10 @@ export
 write : HasIO io => IOMatrix a -> Int -> Int -> a -> io Bool
 write mat i j el = case toPosition mat i j of
   Nothing => pure False
-  Just pos => True <$ primIO (prim__arraySet (content mat) pos (Just el))
+  Just pos => True <$ writeArray (content mat) pos el
 
 export
 read : HasIO io => IOMatrix a -> Int -> Int -> io (Maybe a)
 read mat i j = case toPosition mat i j of
   Nothing => pure Nothing
-  Just pos => primIO (prim__arrayGet (content mat) pos)
+  Just pos => readArray (content mat) pos

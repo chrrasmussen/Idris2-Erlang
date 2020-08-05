@@ -5,7 +5,6 @@ import Core.CompileExpr
 import Core.TT
 
 import Data.List1
-import Libraries.Data.String.Iterator
 import Data.Vect
 
 %default covering
@@ -98,7 +97,7 @@ Hashable a => Hashable b => Hashable (a, b) where
 
 export
 Hashable String where
-  hashWithSalt h = String.Iterator.foldl hashWithSalt h
+  hashWithSalt h = foldl hashWithSalt h . unpack
 
 export
 Hashable Double where

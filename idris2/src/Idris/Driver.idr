@@ -34,6 +34,7 @@ import Libraries.Utils.Term
 import Yaffle.Main
 
 %default covering
+%cg erlang inline 0
 
 findInput : List CLOpt -> Maybe String
 findInput [] = Nothing
@@ -50,7 +51,7 @@ updateEnv : {auto c : Ref Ctxt Defs} ->
 updateEnv
     = do defs <- get Ctxt
          bprefix <- coreLift $ idrisGetEnv "IDRIS2_PREFIX"
-         setPrefix (fromMaybe yprefix bprefix)
+         whenJust bprefix setPrefix
          bpath <- coreLift $ idrisGetEnv "IDRIS2_PATH"
          whenJust bpath $ traverseList1_ addExtraDir . splitPaths
          bdata <- coreLift $ idrisGetEnv "IDRIS2_DATA"

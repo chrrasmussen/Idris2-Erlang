@@ -11,6 +11,18 @@ import Libraries.Utils.Path
 
 %default total
 
+
+-- TODO: Implement functions in `Erlang.System.File` or replace them in this module
+export
+data Directory : Type where [external]
+
+openDir : HasIO io => String -> io (Either FileError Directory)
+openDir d = pure $ Left (GenericFileError 42)
+closeDir : HasIO io => Directory -> io ()
+closeDir d = pure ()
+nextDirEntry : HasIO io => Directory -> io (Either FileError (Maybe String))
+nextDirEntry d = pure $ Left (GenericFileError 42)
+
 ------------------------------------------------------------------------------
 -- Filenames
 
