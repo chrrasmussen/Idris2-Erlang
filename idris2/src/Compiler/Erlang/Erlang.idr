@@ -52,6 +52,9 @@ groupBy toKey toValue (x :: xs) = singleton (toKey x) [toValue x] <+> (groupBy t
 defsPerModule : List (NamespaceInfo, a) -> List (NamespaceInfo, List a)
 defsPerModule defs = SortedMap.toList $ groupBy fst snd defs
 
+getExportFunNames : List ModuleOpts -> List (Namespace, Name)
+getExportFunNames allModuleOpts = mapMaybe (\mod => (\funName => (mod.ns, funName)) <$> mod.exportFunName) allModuleOpts
+
 getCompileExpr : {auto c : Ref Ctxt Defs} -> Name -> Core NamedDef
 getCompileExpr name = do
   defs <- get Ctxt
@@ -75,16 +78,16 @@ genDeclErl : Decl -> CompositeString
 genDeclErl d =
   Nested [AbstractFormatToErlangSource.genDecl d, Str "\n"]
 
-writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> List (Namespace, Name) -> (NamespaceInfo, List ErlFunDecl) -> Core String
-writeErlangModule opts outputDir extension declToCS exportFunNames (namespaceInfo, funDecls) = do
-  let inNS = case outputBundle namespaceInfo of
+writeErlangModule : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> (outputDir : String) -> (extension : String) -> (declToCS : Decl -> CompositeString) -> (NamespaceInfo, List ErlFunDecl) -> Core String
+writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespaceInfo, funDecls) = do
+  let currentModuleOpts = case outputBundle namespaceInfo of
         Concat _ => Nothing
-        Split _ inNS => Just inNS
-  let exportFunName = inNS >>= (\ns => lookup ns exportFunNames)
-  exportFunDecls <- maybe (pure []) (genExports namespaceInfo defLine) exportFunName
+        Split _ inNS => find ((== inNS) . ns) allModuleOpts
+  exportFunDecls <- maybe (pure []) (genExports namespaceInfo defLine) (currentModuleOpts >>= exportFunName)
   let modName = currentModuleName namespaceInfo
-  let inlineAttrs = if inlineSize opts > 0
-        then [Inline defLine, InlineSize defLine (inlineSize opts)]
+  let moduleInlineSize = currentModuleOpts >>= inlineSize
+  let inlineAttrs = if fromMaybe (inlineSize globalOpts) moduleInlineSize > 0
+        then [Inline defLine, InlineSize defLine (inlineSize globalOpts)]
         else []
   let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
   let outfile = outputDir </> modName ++ "." ++ extension
@@ -115,7 +118,7 @@ namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
   in (modName, outputDir </> modName ++ "." ++ extension)
 
 compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> Opts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
-compileMainEntrypointToModules opts tm modName = do
+compileMainEntrypointToModules globalOpts tm modName = do
   compileData <- getCompileData Cases tm
   compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
   let namespaceInfo = MkNamespaceInfo (Concat modName)
@@ -127,12 +130,12 @@ compileMainEntrypointToModules opts tm modName = do
   let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
 
-compileLibraryToModules : {auto c : Ref Ctxt Defs} -> Opts -> List (Namespace, Name) -> Core (List (NamespaceInfo, List ErlFunDecl))
-compileLibraryToModules opts exportFunNames = do
-  let namespacesToCompile = changedNamespaces opts
-  let extraNames = filter (shouldCompileName namespacesToCompile) (map snd exportFunNames)
+compileLibraryToModules : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileLibraryToModules globalOpts allModuleOpts = do
+  let namespacesToCompile = changedNamespaces globalOpts
+  let extraNames = filter (shouldCompileName namespacesToCompile) (map snd (getExportFunNames allModuleOpts))
   compileData <- getExportedCompileData Cases (shouldCompileName namespacesToCompile) extraNames
-  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr opts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
+  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName namespacesToCompile . fst) (namedDefs compileData))
   let validCompdefs = mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
     where
@@ -140,25 +143,25 @@ compileLibraryToModules opts exportFunNames = do
       shouldCompileName Nothing _ = True
       shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
 
-build : {auto c : Ref Ctxt Defs} -> Opts -> (tmpDir : String) -> (outputDir : String) -> (exportFunNames : List (Namespace, Name)) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
-build opts tmpDir outputDir exportFunNames modules = do
+build : {auto c : Ref Ctxt Defs} -> Opts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
+build globalOpts allModuleOpts tmpDir outputDir modules = do
   erl <- coreLift findErlangExecutable
   erlc <- coreLift findErlangCompiler
-  case outputFormat opts of
+  case outputFormat globalOpts of
     ErlangSource => do
-      traverse_ (writeErlangModule opts outputDir "erl" genDeclErl exportFunNames) modules
+      traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "erl" genDeclErl) modules
     ErlangSourcePretty => do
-      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
+      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
       coreLift $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
       pure ()
     AbstractFormat => do
-      traverse_ (writeErlangModule opts outputDir "abstr" genDeclAbstr exportFunNames) modules
+      traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "abstr" genDeclAbstr) modules
     BeamFromErlangSource => do
-      generatedFiles <- traverse (writeErlangModule opts tmpDir "erl" genDeclErl exportFunNames) modules
+      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
       coreLift $ system $ compileErlToBeamCmd erlc generatedFiles outputDir
       pure ()
     BeamFromAbstractFormat => do
-      generatedFiles <- traverse (writeErlangModule opts tmpDir "abstr" genDeclAbstr exportFunNames) modules
+      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
       coreLift $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
       pure ()
   pure $ map (currentModuleName . fst) modules
@@ -171,18 +174,18 @@ compileExpr c tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
   let groupedDirectives = groupBy fst snd ds
   let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
-  let opts = parseOpts globalDirectives
+  let globalOpts = parseOpts globalDirectives
   let modName = outfile
-  modules <- compileMainEntrypointToModules opts tm modName
-  build opts tmpDir outputDir [] modules
+  modules <- compileMainEntrypointToModules globalOpts tm modName
+  build globalOpts [] tmpDir outputDir modules
   pure (Just outfile)
 
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
-  let opts = defaultOpts
+  let globalOpts = defaultOpts
   let modName = "main"
-  modules <- compileMainEntrypointToModules opts tm modName
-  build opts tmpDir tmpDir [] modules
+  modules <- compileMainEntrypointToModules globalOpts tm modName
+  build globalOpts [] tmpDir tmpDir modules
   erl <- coreLift $ findErlangExecutable
   coreLift $ system (executeBeamCmd erl tmpDir modName)
   pure ()
@@ -193,11 +196,10 @@ compileLibrary c tmpDir outputDir libName = do
   let groupedDirectives = groupBy fst snd ds
   let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
   let moduleDirectives = SortedMap.toList (delete [] groupedDirectives)
-  let moduleOpts = map (uncurry parseModuleOpts) moduleDirectives
-  let exportFunNames = mapMaybe (\mod => (\funName => (mod.ns, funName)) <$> mod.exportFunName) moduleOpts
-  let opts = parseOpts globalDirectives
-  modules <- compileLibraryToModules opts exportFunNames
-  generatedModules <- build opts tmpDir outputDir exportFunNames modules
+  let allModuleOpts = map (uncurry parseModuleOpts) moduleDirectives
+  let globalOpts = parseOpts globalDirectives
+  modules <- compileLibraryToModules globalOpts allModuleOpts
+  generatedModules <- build globalOpts allModuleOpts tmpDir outputDir modules
   pure (Just (libName, generatedModules))
 
 export
