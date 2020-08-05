@@ -5,5 +5,5 @@
     "editor.detectIndentation": false,
     "editor.tabSize": 2,
     "editor.formatOnSave": false,
-    "idris.executablePath": "idris2"
+    "idris.executablePath": "idris2erl"
 }
