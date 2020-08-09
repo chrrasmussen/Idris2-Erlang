@@ -2,6 +2,7 @@ module Main
 
 import Data.Maybe
 import Data.List
+import Data.List1
 import Data.Strings
 
 import System
@@ -40,7 +41,7 @@ idrisTests
        "basic026", "basic027", "basic028", "basic029", "basic030",
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
-       "basic041",
+       "basic041", "basic042",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
@@ -57,7 +58,8 @@ idrisTests
        "interactive001", "interactive002", "interactive003", "interactive004",
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
-       "interactive013", "interactive014", "interactive015",
+       "interactive013", "interactive014", "interactive015", "interactive016",
+       "interactive017", "interactive018",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
@@ -82,7 +84,7 @@ idrisTests
        "params001",
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
-       "perf001", "perf002", "perf003", "perf004",
+       "perf001", "perf002", "perf003", "perf004", "perf005",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
@@ -288,7 +290,7 @@ firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 pathLookup : List String -> IO (Maybe String)
 pathLookup names = do
   path <- getEnv "PATH"
-  let pathList = split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
+  let pathList = List1.toList $ split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
   let candidates = [p ++ "/" ++ x | p <- pathList,
                                     x <- names]
   firstExists candidates
@@ -336,7 +338,7 @@ main
               | _ => do print args
                         putStrLn usage
          let filteredNonCGTests =
-              filterTests opts $ concat
+              filterTests opts $ concat $ the (List (List String))
                  [ testPaths "ttimp" ttimpTests
                  , testPaths "idris2" idrisTests
                  , testPaths "typedd-book" typeddTests

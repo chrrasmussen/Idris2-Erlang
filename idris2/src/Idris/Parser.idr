@@ -9,6 +9,7 @@ import        TTImp.TTImp
 import public Text.Parser
 import        Data.List
 import        Data.List.Views
+import        Data.List1
 import        Data.Maybe
 import        Data.Strings
 
@@ -229,23 +230,28 @@ mutual
                  pure (POp (MkFC fname start end) op l r))
                <|> pure l
 
-  dpair : FileName -> FilePos -> IndentInfo -> Rule PTerm
-  dpair fname start indents
+  dpairType : FileName -> FilePos -> IndentInfo -> Rule PTerm
+  dpairType fname start indents
       = do x <- unqualifiedName
            symbol ":"
            ty <- expr pdef fname indents
-           loc <- pure $ endPos $ getPTermLoc ty
-           symbol "**"
-           rest <- dpair fname loc indents <|> expr pdef fname indents
-           end <- pure $ endPos $ getPTermLoc rest
-           pure (PDPair (MkFC fname start end)
-                        (PRef (MkFC fname start loc) (UN x))
-                        ty
-                        rest)
+           (do loc <- pure $ endPos $ getPTermLoc ty
+               symbol "**"
+               rest <- nestedDpair fname loc indents <|> expr pdef fname indents
+               end <- pure $ endPos $ getPTermLoc rest
+               pure (PDPair (MkFC fname start end)
+                            (PRef (MkFC fname start loc) (UN x))
+                            ty
+                            rest))
+              <|> pure ty
+
+  nestedDpair : FileName -> FilePos -> IndentInfo -> Rule PTerm
+  nestedDpair fname start indents
+      = dpairType fname start indents
     <|> do l <- expr pdef fname indents
            loc <- location
            symbol "**"
-           rest <- dpair fname loc indents <|> expr pdef fname indents
+           rest <- nestedDpair fname loc indents
            end <- pure $ endPos $ getPTermLoc rest
            pure (PDPair (MkFC fname start end)
                         l
@@ -273,18 +279,30 @@ mutual
     <|> do continueWith indents ")"
            end <- location
            pure (PUnit (MkFC fname start end))
-      -- right section (1-tuple is just an expression)
-    <|> do p <- dpair fname start indents
+      -- dependent pairs with type annotation (so, the type form)
+    <|> do p <- dpairType fname start indents
            symbol ")"
            pure p
-    <|> do e <- expr pdef fname indents
-           (do op <- iOperator
-               end <- endLocation
+    <|> do here <- location
+           e <- expr pdef fname indents
+           -- dependent pairs with no type annotation
+           (do loc <- location
+               symbol "**"
+               rest <- nestedDpair fname loc indents <|> expr pdef fname indents
+               end <- pure $ endPos $ getPTermLoc rest
                symbol ")"
-               pure (PSectionR (MkFC fname start end) e op)
-             <|>
-            -- all the other bracketed expressions
-            tuple fname start indents e)
+               pure (PDPair (MkFC fname start end)
+                            e
+                            (PImplicit (MkFC fname start end))
+                            rest)) <|>
+             -- right sections
+             ((do op <- iOperator
+                  end <- endLocation
+                  symbol ")"
+                  pure (PSectionR (MkFC fname start end) e op)
+               <|>
+              -- all the other bracketed expressions
+              tuple fname start indents e))
 
   getInitRange : List PTerm -> SourceEmptyRule (PTerm, Maybe PTerm)
   getInitRange [x] = pure (x, Nothing)
@@ -1185,7 +1203,7 @@ fix
   <|> do keyword "infix"; pure Infix
   <|> do keyword "prefix"; pure Prefix
 
-namespaceHead : Rule (List String)
+namespaceHead : Rule (List1 String)
 namespaceHead
     = do keyword "namespace"
          commit
@@ -1200,7 +1218,7 @@ namespaceDecl fname indents
          ns    <- namespaceHead
          end   <- location
          ds    <- blockAfter col (topDecl fname)
-         pure (PNamespace (MkFC fname start end) ns (concat ds))
+         pure (PNamespace (MkFC fname start end) (List1.toList ns) (concat ds))
 
 transformDecl : FileName -> IndentInfo -> Rule PDecl
 transformDecl fname indents
@@ -1614,7 +1632,7 @@ import_ fname indents
                                namespacedIdent)
          end <- location
          atEnd indents
-         pure (MkImport (MkFC fname start end) reexp ns nsAs)
+         pure (MkImport (MkFC fname start end) reexp (List1.toList ns) (List1.toList nsAs))
 
 export
 prog : FileName -> SourceEmptyRule Module
@@ -1628,7 +1646,7 @@ prog fname
          imports <- block (import_ fname)
          ds      <- block (topDecl fname)
          pure (MkModule (MkFC fname start end)
-                        nspace imports doc (collectDefs (concat ds)))
+                        (List1.toList nspace) imports doc (collectDefs (concat ds)))
 
 export
 progHdr : FileName -> SourceEmptyRule Module
@@ -1641,7 +1659,7 @@ progHdr fname
          end     <- location
          imports <- block (import_ fname)
          pure (MkModule (MkFC fname start end)
-                        nspace imports doc [])
+                        (List1.toList nspace) imports doc [])
 
 parseMode : Rule REPLEval
 parseMode
@@ -1854,7 +1872,7 @@ moduleArgCmd parseCmd command doc = (names, ModuleArg, doc, parse)
       symbol ":"
       runParseCmd parseCmd
       n <- moduleIdent
-      pure (command n)
+      pure (command (List1.toList n))
 
 exprArgCmd : ParseCmd -> (PTerm -> REPLCmd) -> String -> CommandDefinition
 exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
