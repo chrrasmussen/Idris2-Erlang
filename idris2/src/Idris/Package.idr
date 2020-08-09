@@ -336,7 +336,7 @@ build pkg opts
                       compileMain mainName mainFile exec
          case library pkg of
               Nothing => pure ()
-              Just libName => compileLibHelper libName (map fst (modules pkg))
+              Just libName => compileLibHelper libName (map (List1.toList . fst) (modules pkg))
          runScript (postbuild pkg)
          pure []
 

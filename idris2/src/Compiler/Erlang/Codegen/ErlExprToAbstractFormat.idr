@@ -74,7 +74,7 @@ genBinaryPattern l str =
 -- CODE GENERATION
 
 genIdrisConstant : Line -> (String -> a) -> (Literal -> a) -> IdrisConstant -> a
-genIdrisConstant l fromString fromLiteral constant =
+genIdrisConstant l fromStringValue fromLiteral constant =
   case constant of
     IInt x => fromLiteral (ALInteger l (cast x))
     IInteger x => fromLiteral (ALInteger l x)
@@ -82,7 +82,7 @@ genIdrisConstant l fromString fromLiteral constant =
     IB16 x => fromLiteral (ALInteger l (cast x))
     IB32 x => fromLiteral (ALInteger l (cast x))
     IB64 x => fromLiteral (ALInteger l x)
-    IString x => fromString x
+    IString x => fromStringValue x
     IChar x => fromLiteral (ALChar l x)
     IDouble x => fromLiteral (ALFloat l x)
     IWorldVal => fromLiteral (ALAtom l "world_val")

@@ -1,6 +1,7 @@
 module Compiler.Erlang.GlobalOpts
 
 import Data.List
+import Data.List1
 import Data.Strings
 import Compiler.Erlang.Name
 
@@ -44,7 +45,7 @@ flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
     flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
 
 stringToNamespace : String -> Namespace
-stringToNamespace ns = reverse (map pack (splitOn '.' (unpack ns)))
+stringToNamespace ns = List1.toList (reverse (map pack (splitOn '.' (unpack ns))))
 
 parseOutputFormat : String -> Maybe OutputFormat
 parseOutputFormat "erl" = Just ErlangSource
