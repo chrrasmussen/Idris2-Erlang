@@ -223,7 +223,6 @@ mutual
     ETString        : ErlType String
     ETChar          : ErlType Char
     ETList          : ErlType a => ErlType (List a)
-    ETFun           : (ErlType a, ErlType b) => ErlType (a -> b) -- NOTE: These functions are curried in Erlang as well
 
     ETRaw           : ErlType (Raw a)     -- Can contain any Idris value
     ETErlTerm       : ErlType ErlTerm     -- Can contain any Erlang term

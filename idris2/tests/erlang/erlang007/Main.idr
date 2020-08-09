@@ -6,10 +6,14 @@ import Erlang
 -- Wrappers around `create_curried_funX` that returns a curried, pure function
 
 erlCreateCurriedFun1 : IO (Int -> Int)
-erlCreateCurriedFun1 = erlUnsafeCall (Int -> Int) "test_support" "create_curried_fun1" []
+erlCreateCurriedFun1 = do
+  MkFun1 f <- erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_curried_fun1" []
+  pure f
 
 erlCreateCurriedFun2 : IO (Int -> Int -> Int)
-erlCreateCurriedFun2 = erlUnsafeCall (Int -> Int -> Int) "test_support" "create_curried_fun2" []
+erlCreateCurriedFun2 = do
+  MkFun1 f <- erlUnsafeCall (ErlFun1 Int (ErlFun1 Int Int)) "test_support" "create_curried_fun2" []
+  pure (\x => let MkFun1 f' = f x in f')
 
 
 -- Wrappers around `create_funX` that returns a pure function

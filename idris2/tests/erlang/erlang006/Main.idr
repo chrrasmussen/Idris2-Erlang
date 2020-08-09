@@ -6,10 +6,14 @@ import Erlang
 -- Wrappers around `run_curriedX` that takes a curried, pure function
 
 erlRunCurriedFun1 : (Int -> Int) -> IO Int
-erlRunCurriedFun1 x = erlUnsafeCall Int "test_support" "run_curried1" [x]
+erlRunCurriedFun1 f =
+  let f' = MkFun1 f
+  in erlUnsafeCall Int "test_support" "run_curried1" [f']
 
 erlRunCurriedFun2 : (Int -> Int -> Int) -> IO Int
-erlRunCurriedFun2 x = erlUnsafeCall Int "test_support" "run_curried2" [x]
+erlRunCurriedFun2 f =
+  let f' = MkFun1 (\x => MkFun1 (f x))
+  in erlUnsafeCall Int "test_support" "run_curried2" [f']
 
 
 -- Wrappers around `runX` that takes a pure function
