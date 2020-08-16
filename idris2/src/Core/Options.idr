@@ -7,6 +7,7 @@ import Utils.Binary
 import Utils.Path
 
 import Data.List
+import Data.List1
 import Data.Maybe
 import Data.Strings
 
@@ -127,6 +128,7 @@ record Session where
   codegen : CG
   directives : List String
   packages : List String
+  changedNamespaces : Maybe (List1 (List1 String))
   logLevel : Nat
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
@@ -178,7 +180,7 @@ defaultPPrint = MkPPOpts False True False
 
 export
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez [] [] 0
+defaultSession = MkSessionOpts False False False Chez [] [] Nothing 0
                                False False Nothing Nothing
                                Nothing Nothing
 

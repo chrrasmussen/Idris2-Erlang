@@ -288,20 +288,32 @@ compileMain mainn mmod exec
 compileLibHelper : {auto c : Ref Ctxt Defs} ->
                    {auto s : Ref Syn SyntaxInfo} ->
                    {auto o : Ref ROpts REPLOpts} ->
-                   (libName : String) -> (namespaces : List (List String)) -> Core ()
-compileLibHelper libName namespaces
+                   (libName : String) ->
+                   (packageNamespaces : List (List String)) ->
+                   (changedNamespaces : Maybe (List (List String))) ->
+                   Core ()
+compileLibHelper libName packageNamespaces changedNamespaces
     = do m <- newRef MD initMetadata
          u <- newRef UST initUState
-         loadModules namespaces
-         compileLib libName
+         let namespacesToLoad = fromMaybe packageNamespaces changedNamespaces
+         loadModules namespacesToLoad
+         compileLib libName changedNamespaces
          pure ()
+
+filterChangedNamespaces : (changedNamespaces : List (List String)) ->
+                          List BuildMod ->
+                          List BuildMod
+filterChangedNamespaces changedNamespaces allMods =
+  let (changedMods, possiblyChangedMods) = partition (\mod => mod.buildNS `elem` changedNamespaces) allMods
+      usedByMods = filterUsedByMods changedNamespaces possiblyChangedMods
+  in changedMods ++ usedByMods
 
 prepareCompilation : {auto c : Ref Ctxt Defs} ->
                      {auto s : Ref Syn SyntaxInfo} ->
                      {auto o : Ref ROpts REPLOpts} ->
                      PkgDesc ->
                      List CLOpt ->
-                     Core (List Error)
+                     Core (List Error, Maybe (List (List String)))
 prepareCompilation pkg opts =
   do
     defs <- get Ctxt
@@ -312,10 +324,19 @@ prepareCompilation pkg opts =
 
     runScript (prebuild pkg)
 
-    let toBuild = maybe (map snd (modules pkg))
+    let filesToBuild = maybe (map snd (modules pkg))
                         (\m => snd m :: map snd (modules pkg))
                         (mainmod pkg)
-    buildAll toBuild
+    allMods <- getAllBuildMods filesToBuild
+    session <- getSession
+    case session.changedNamespaces of
+      Just changedNamespaces => do
+        let modsToBuild = filterChangedNamespaces (List1.toList (map List1.toList changedNamespaces)) allMods
+        errs <- buildAll modsToBuild
+        pure (errs, Just $ map buildNS modsToBuild)
+      Nothing => do
+        errs <- buildAll allMods
+        pure (errs, Nothing)
 
 build : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
@@ -324,8 +345,8 @@ build : {auto c : Ref Ctxt Defs} ->
         List CLOpt ->
         Core (List Error)
 build pkg opts
-    = do [] <- prepareCompilation pkg opts
-            | errs => pure errs
+    = do ([], changedNamespaces) <- prepareCompilation pkg opts
+            | (errs, _) => pure errs
 
          case executable pkg of
               Nothing => pure ()
@@ -336,7 +357,9 @@ build pkg opts
                       compileMain mainName mainFile exec
          case library pkg of
               Nothing => pure ()
-              Just libName => compileLibHelper libName (map (List1.toList . fst) (modules pkg))
+              Just libName =>
+                let packageNamespaces = map (List1.toList . fst) (modules pkg)
+                in compileLibHelper libName packageNamespaces changedNamespaces
          runScript (postbuild pkg)
          pure []
 
@@ -404,8 +427,8 @@ check : {auto c : Ref Ctxt Defs} ->
         Core (List Error)
 check pkg opts =
   do
-    [] <- prepareCompilation pkg opts
-      | errs => pure errs
+    ([], changedNamespaces) <- prepareCompilation pkg opts
+      | (errs, _) => pure errs
 
     runScript (postbuild pkg)
     pure []
@@ -576,6 +599,7 @@ errorMsg = unlines
   , "    --directive <directive>"
   , "    --build-dir <dir>"
   , "    --output-dir <dir>"
+  , "    --changed-namespaces <namespaces>"
   ]
 
 
@@ -595,6 +619,7 @@ filterPackageOpts acc (SetCG f       ::xs) = filterPackageOpts (record {oopts $=
 filterPackageOpts acc (Directive f   ::xs) = filterPackageOpts (record {oopts $= (Directive f::)}    acc) xs
 filterPackageOpts acc (BuildDir f    ::xs) = filterPackageOpts (record {oopts $= (BuildDir f::)}     acc) xs
 filterPackageOpts acc (OutputDir f   ::xs) = filterPackageOpts (record {oopts $= (OutputDir f::)}    acc) xs
+filterPackageOpts acc (ChangedNamespaces ns::xs) = filterPackageOpts (record {oopts $= (ChangedNamespaces ns::)} acc) xs
 
 filterPackageOpts acc (x::xs) = pure (record {hasError = True} acc)
 

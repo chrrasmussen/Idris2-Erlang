@@ -18,24 +18,21 @@ record GlobalOpts where
   outputFormat : OutputFormat
   prefixStr : String
   inlineSize : Nat
-  changedNamespaces : Maybe (List Namespace)
 
 export
 defaultGlobalOpts : GlobalOpts
-defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0 Nothing
+defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0
 
 
 data Flag
   = SetOutputFormat OutputFormat
   | SetPrefix String
   | SetInlineSize Nat
-  | SetChangedNamespaces (List Namespace)
 
 flagToOpts : Flag -> GlobalOpts -> GlobalOpts
 flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
 flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
 flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = inlineSize } opts
-flagToOpts (SetChangedNamespaces namespaces) opts = record { changedNamespaces = Just namespaces } opts
 
 flagsToOpts : List Flag -> GlobalOpts
 flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
@@ -43,9 +40,6 @@ flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
     flagsToOpts' : List Flag -> GlobalOpts -> GlobalOpts
     flagsToOpts' [] opts = opts
     flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
-
-stringToNamespace : String -> Namespace
-stringToNamespace ns = List1.toList (reverse (map pack (splitOn '.' (unpack ns))))
 
 parseOutputFormat : String -> Maybe OutputFormat
 parseOutputFormat "erl" = Just ErlangSource
@@ -62,7 +56,6 @@ stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) --
     parseFlag ["format", format] = SetOutputFormat <$> parseOutputFormat format
     parseFlag ["prefix", prefixStr] = Just $ SetPrefix prefixStr
     parseFlag ["inline", inlineSize] = Just $ SetInlineSize (integerToNat (cast inlineSize))
-    parseFlag ("changed" :: namespaces) = Just $ SetChangedNamespaces (map stringToNamespace namespaces)
     parseFlag _ = Nothing
 
 export

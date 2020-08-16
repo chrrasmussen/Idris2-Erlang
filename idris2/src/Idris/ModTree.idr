@@ -267,30 +267,39 @@ loadModules namespaces = do
   traverse (\ns => readModule True emptyFC True ns ns) namespaces
   pure ()
 
+export
 getAllBuildMods : {auto c : Ref Ctxt Defs} ->
                   {auto s : Ref Syn SyntaxInfo} ->
                   {auto o : Ref ROpts REPLOpts} ->
-                  FC -> (done : List BuildMod) ->
                   (allFiles : List String) ->
                   Core (List BuildMod)
-getAllBuildMods fc done [] = pure done
-getAllBuildMods fc done (f :: fs)
-    = do ms <- getBuildMods fc done f
-         getAllBuildMods fc (ms ++ done) fs
+getAllBuildMods allFiles = do
+  mods <- getMods toplevelFC [] allFiles
+  pure $ dropLater mods
+  where
+    getMods : FC -> (done : List BuildMod) ->
+              (allFiles : List String) ->
+              Core (List BuildMod)
+    getMods fc done [] = pure done
+    getMods fc done (f :: fs)
+        = do ms <- getBuildMods fc done f
+             getMods fc (ms ++ done) fs
+    dropLater : List BuildMod -> List BuildMod
+    dropLater [] = []
+    dropLater (b :: bs)
+        = b :: dropLater (filter (\x => buildFile x /= buildFile b) bs)
+
+export
+filterUsedByMods : List (List String) -> List BuildMod -> List BuildMod
+filterUsedByMods [] mods = []
+filterUsedByMods (x :: xs) mods =
+   let (ancestors, restMods) = partition (\mod => x `elem` mod.imports) mods
+   in ancestors ++ assert_total (filterUsedByMods (xs ++ map buildNS ancestors) restMods)
 
 export
 buildAll : {auto c : Ref Ctxt Defs} ->
            {auto s : Ref Syn SyntaxInfo} ->
            {auto o : Ref ROpts REPLOpts} ->
-           (allFiles : List String) ->
+           List BuildMod ->
            Core (List Error)
-buildAll allFiles
-    = do mods <- getAllBuildMods toplevelFC [] allFiles
-         -- There'll be duplicates, so if something is already built, drop it
-         let mods' = dropLater mods
-         buildMods toplevelFC 1 (length mods') mods'
-  where
-    dropLater : List BuildMod -> List BuildMod
-    dropLater [] = []
-    dropLater (b :: bs)
-        = b :: dropLater (filter (\x => buildFile x /= buildFile b) bs)
+buildAll mods = buildMods toplevelFC 1 (length mods) mods

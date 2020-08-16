@@ -398,8 +398,8 @@ executeExpr c tmpDir tm
               Just outn => map (const ()) $ coreLift $ system outn
               Nothing => pure ()
 
-compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> Core (Maybe (String, List String))
-compileLibrary c tmpDir outputDir libName = do
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List (List String))) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedNamespaces = do
   coreLift $ putStrLn "Compiling to library is not supported."
   pure Nothing
 

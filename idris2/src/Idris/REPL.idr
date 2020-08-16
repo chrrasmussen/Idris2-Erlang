@@ -590,9 +590,11 @@ compileExp ctm outfile
 export
 compileLib : {auto c : Ref Ctxt Defs} ->
              {auto o : Ref ROpts REPLOpts} ->
-             String -> Core REPLResult
-compileLib libName = do
-  ok <- cgCompileLibrary !findCG libName
+             (libName : String) ->
+             (changedNamespaces : Maybe (List (List String))) ->
+             Core REPLResult
+compileLib libName changedNamespaces = do
+  ok <- cgCompileLibrary !findCG libName changedNamespaces
   maybe (pure CompilationFailed)
         (pure . CompiledLibrary)
         ok

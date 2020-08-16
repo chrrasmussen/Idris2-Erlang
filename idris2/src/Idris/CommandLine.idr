@@ -7,6 +7,7 @@ import Idris.Version
 import Core.Options
 
 import Data.List
+import Data.List1
 import Data.Maybe
 import Data.Strings
 import Data.Either
@@ -61,6 +62,8 @@ data CLOpt
   BuildDir String |
    ||| Set output directory
   OutputDir String |
+   ||| Changed namespaces
+  ChangedNamespaces (Maybe (List1 (List1 String))) |
    ||| Show the installation prefix
   ShowPrefix |
    ||| Display Idris version
@@ -151,6 +154,16 @@ optSeparator = MkOpt [] [] [] Nothing
 showDefault : Show a => a -> String
 showDefault x = "(default " ++ show x ++ ")"
 
+separateBy : Char -> String -> List1 String
+separateBy sep str =
+  map pack (splitOn sep (unpack str))
+
+parseNamespace : String -> List1 String
+parseNamespace str = reverse (separateBy '.' str)
+
+parseNamespaces : String -> List1 (List1 String)
+parseNamespaces str = map parseNamespace (separateBy ',' str)
+
 options : List OptDesc
 options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Exit after checking source file"),
@@ -194,6 +207,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Build the given package and launch a REPL instance."),
            MkOpt ["--find-ipkg"] [] [FindIPKG]
               (Just "Find and use an .ipkg file in a parent directory"),
+           MkOpt ["--changed-namespaces"] [Required "namespaces"] (\ns => [ChangedNamespaces (Just (parseNamespaces ns))])
+              (Just "Comma-separated list of namespaces that have changed since last code generation"),
 
            optSeparator,
            MkOpt ["--ide-mode"] [] [IdeMode]
