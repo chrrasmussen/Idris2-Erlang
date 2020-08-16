@@ -98,8 +98,8 @@ writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespa
   pure outfile
 
 genCompdef : Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
-genCompdef l (namespaceInfo, (name, fc, expr)) = do
-  Just funDecl <- genDef namespaceInfo l name expr
+genCompdef l (namespaceInfo, (name, fc, def)) = do
+  Just funDecl <- genDef namespaceInfo l name def
     | Nothing => pure Nothing
   pure $ Just (namespaceInfo, funDecl)
 
@@ -107,8 +107,8 @@ concatNamespaceInfo : (ns : String) -> a -> (NamespaceInfo, a)
 concatNamespaceInfo ns x =
   (MkNamespaceInfo (Concat ns), x)
 
-splitNamespaceInfo : (prefixStr : String) -> (Name, FC, NamedDef) -> (NamespaceInfo, (Name, FC, NamedDef))
-splitNamespaceInfo prefixStr x@(name, _, _) =
+splitNamespaceInfo : (prefixStr : String) -> (Name, a) -> (NamespaceInfo, (Name, a))
+splitNamespaceInfo prefixStr x@(name, _) =
   let ns = getNamespace name
   in (MkNamespaceInfo (Split prefixStr ns), x)
 

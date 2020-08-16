@@ -594,19 +594,19 @@ genDef namespaceInfo l name (MkNmFun args body) = do
   (vs, vars) <- addLocalVars args empty
   let funDecl = MkFunDecl l Public fnName vars !(genNmExp namespaceInfo vs body)
   pure $ Just funDecl
-genDef namespaceInfo l name (MkNmError body) = do
-  lv <- newRef LV (initLocalVars "V")
-  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
-  let funDecl = MkFunDecl l Private fnName [] !(genNmExp namespaceInfo empty body)
-  pure $ Just funDecl
+genDef namespaceInfo l name (MkNmCon tag arity nt) =
+  pure Nothing
 genDef namespaceInfo l name (MkNmForeign cs args ret) = do
   lv <- newRef LV (initLocalVars "V")
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   vars <- newLocalVars (length args)
   let funDecl = MkFunDecl l Private fnName vars (genThrow l "Error: %foreign is unsupported") -- TODO: Should fail at compile-time instead
   pure $ Just funDecl
-genDef namespaceInfo l name (MkNmCon tag arity nt) =
-  pure Nothing
+genDef namespaceInfo l name (MkNmError body) = do
+  lv <- newRef LV (initLocalVars "V")
+  let (modName, fnName) = moduleNameFunctionName namespaceInfo name
+  let funDecl = MkFunDecl l Private fnName [] !(genNmExp namespaceInfo empty body)
+  pure $ Just funDecl
 
 
 -- EXPORTS
