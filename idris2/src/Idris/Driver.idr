@@ -16,6 +16,7 @@ import Idris.REPL
 import Idris.SetOptions
 import Idris.Syntax
 import Idris.Version
+import Idris.Pretty
 
 import IdrisPaths
 
@@ -97,7 +98,7 @@ showInfo : {auto c : Ref Ctxt Defs}
 showInfo Nil = pure False
 showInfo (BlodwenPaths :: _)
     = do defs <- get Ctxt
-         iputStrLn (toString (dirs (options defs)))
+         iputStrLn $ pretty (toString (dirs (options defs)))
          pure True
 showInfo (_::rest) = showInfo rest
 
@@ -150,10 +151,7 @@ stMain cgs opts
          o <- newRef ROpts (REPLOpts.defaultOpts fname outmode cgs)
 
          finish <- showInfo opts
-         if finish
-            then pure ()
-            else do
-
+         when (not finish) $ do
            -- If there's a --build or --install, just do that then quit
            done <- processPackageOpts opts
 
@@ -168,19 +166,18 @@ stMain cgs opts
                  updateREPLOpts
                  session <- getSession
                  when (not $ nobanner session) $ do
-                   iputStrLn banner
-                   when (isCons cgs) $ iputStrLn ("With codegen for: " ++
-                                                       fastAppend (map (\(s, _) => s ++ " ") cgs))
+                   iputStrLn $ pretty banner
+                   when (isCons cgs) $ iputStrLn (reflow "With codegen for:" <++> hsep (pretty . fst <$> cgs))
                  fname <- if findipkg session
                              then findIpkg fname
                              else pure fname
                  setMainFile fname
                  result <- case fname of
-                      Nothing => logTime "Loading prelude" $ do
+                      Nothing => logTime "+ Loading prelude" $ do
                                    when (not $ noprelude session) $
                                      readPrelude True
                                    pure Done
-                      Just f => logTime "Loading main file" $ do
+                      Just f => logTime "+ Loading main file" $ do
                                   res <- loadMainFile f
                                   displayErrors res
                                   pure res
