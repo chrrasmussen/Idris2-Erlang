@@ -1,4 +1,4 @@
-$1 --no-banner --codegen erlang --output-dir . Main.idr < input
+$1 --no-color --consolewidth 0 --no-banner --codegen erlang --output-dir . Main.idr < input
 escript foo.beam
 escript foo.beam a b
 escript foo.beam a "b c"

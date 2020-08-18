@@ -967,7 +967,7 @@ mutual
   displayResult (CurrentDirectory dir) = printResult (reflow "Current working directory is" <++> squotes (pretty dir))
   displayResult CompilationFailed = printError (reflow "Compilation failed")
   displayResult (Compiled f) = printResult (pretty "File" <++> pretty f <++> pretty "written")
-  displayResult (CompiledLibrary (libName, files)) = printResult (pretty "Compiled " <++> pretty libName)
+  displayResult (CompiledLibrary (libName, files)) = printResult (pretty "Compiled" <++> pretty libName)
   displayResult (ProofFound x) = printResult (prettyTerm x)
   displayResult (Missed cases) = printResult $ vsep (handleMissing <$> cases)
   displayResult (CheckedTotal xs) = printResult (vsep (map (\(fn, tot) => pretty fn <++> pretty "is" <++> pretty tot) xs))

@@ -1,4 +1,4 @@
 ./gen_expected.sh
-$1 --no-banner --codegen erlang dir.idr < input
+$1 --no-color --consolewidth 0 --no-banner --codegen erlang dir.idr < input
 cat testdir/test.txt
 rm -rf build testdir
