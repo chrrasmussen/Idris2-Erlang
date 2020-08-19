@@ -97,7 +97,7 @@ genOp l (GTE ty) [x, y] = pure $ genBoolToInt l (EOp l ">=" x y)
 genOp l (GT ty) [x, y] = pure $ genBoolToInt l (EOp l ">" x y)
 genOp l StrLength [str] = pure $ genUnicodeStringLength l str
 genOp l StrHead [str] = pure $ genUnicodeStringHead l str
-genOp l StrTail [str] = pure $ genUnicodeStringTail l str
+genOp l StrTail [str] = genUnicodeStringTail l str
 genOp l StrIndex [str, index] = pure $ genUnicodeStringIndex l str index
 genOp l StrCons [char, str] = pure $ genUnicodeStringCons l char str
 genOp l StrAppend [str1, str2] = pure $ genUnicodeStringAppend l str1 str2

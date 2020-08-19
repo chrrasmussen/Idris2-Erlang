@@ -326,11 +326,24 @@ genUnicodeStringHead l str =
   in genFunCall l "erlang" "hd" [nextGraphemeCall]
 
 -- NOTE: Is allowed to be partial
+--
+-- Erlang docs for `string_grapheme/1`:
+-- (https://erlang.org/doc/man/string.html#next_grapheme-1)
+--
+-- Returns the first codepoint in String and the rest of String in the tail.
+-- Returns an empty list if String is empty or an {error, String} tuple if
+-- the next byte is invalid.
 export
-genUnicodeStringTail : Line -> (str : ErlExpr) -> ErlExpr
-genUnicodeStringTail l str =
+genUnicodeStringTail : {auto lv : Ref LV LocalVars} -> Line -> (str : ErlExpr) -> Core ErlExpr
+genUnicodeStringTail l str = do
+  headVar <- newLocalVar
+  tailVar <- newLocalVar
   let nextGraphemeCall = genFunCall l "string" "next_grapheme" [str]
-  in genFunCall l "erlang" "tl" [nextGraphemeCall]
+  pure $ EMatcherCase l
+      nextGraphemeCall
+      [ MCons MAny MBinary headVar tailVar (ELocal l tailVar)
+      ]
+      (EBinary l "")
 
 -- NOTE: Is allowed to be partial
 export
