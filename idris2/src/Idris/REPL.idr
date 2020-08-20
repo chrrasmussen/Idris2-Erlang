@@ -529,7 +529,7 @@ data REPLResult : Type where
   CheckedTotal : List (Name, Totality) -> REPLResult
   FoundHoles : List HoleData -> REPLResult
   OptionsSet : List REPLOpt -> REPLResult
-  LogLevelSet : Nat -> REPLResult
+  LogLevelSet : LogLevel -> REPLResult
   ConsoleWidthSet : Maybe Nat -> REPLResult
   ColorSet : Bool -> REPLResult
   VersionIs : Version -> REPLResult
@@ -652,7 +652,7 @@ process (Eval itm)
                  let norm = nfun (evalMode opts)
                  ntm <- norm defs [] tm
                  itm <- resugar [] ntm
-                 logTermNF 5 "Normalised" [] ntm
+                 logTermNF "" 5 "Normalised" [] ntm
                  if showTypes opts
                     then do ty <- getTerm gty
                             ity <- resugar [] !(norm defs [] ty)
@@ -774,7 +774,7 @@ process GetOpts
     = do opts <- getOptions
          pure $ OptionsSet opts
 process (SetLog lvl)
-    = do setLogLevel lvl
+    = do addLogLevel lvl
          pure $ LogLevelSet lvl
 process (SetConsoleWidth n)
     = do setConsoleWidth n
