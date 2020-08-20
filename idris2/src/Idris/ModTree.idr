@@ -234,25 +234,6 @@ buildDeps fname
               errs => pure errs -- Error happened, give up
 
 export
-loadDep : {auto c : Ref Ctxt Defs} ->
-          {auto s : Ref Syn SyntaxInfo} ->
-          {auto m : Ref MD Metadata} ->
-          {auto u : Ref UST UState} ->
-          {auto o : Ref ROpts REPLOpts} ->
-          (files : String) ->
-          Core (List Error)
-loadDep fname = do
-  mainttc <- getTTCFileName fname "ttc"
-  log 10 $ "Loading " ++ show mainttc ++ " from " ++ fname
-  readAsMain mainttc
-
-  -- Load the associated metadata for interactive editing
-  mainttm <- getTTCFileName fname "ttm"
-  log 10 $ "Reloading " ++ show mainttm
-  readFromTTM mainttm
-  pure []
-
-export
 loadModules : {auto c : Ref Ctxt Defs} ->
               {auto s : Ref Syn SyntaxInfo} ->
               {auto m : Ref MD Metadata} ->
