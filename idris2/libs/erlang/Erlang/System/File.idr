@@ -5,6 +5,9 @@ import Data.Strings
 import Erlang
 
 
+%default total
+
+
 public export
 data Mode = Read | WriteTruncate | Append | ReadWrite | ReadWriteTruncate | ReadAppend
 
@@ -141,24 +144,11 @@ fEOF (FHandle f) = do
 export
 readFile : HasIO io => String -> io (Either FileError String)
 readFile file = do
-  Right h <- openFile file Read
-    | Left err => pure (Left err)
-  Right content <- read [] h
-    | Left err => do
-      closeFile h
-      pure (Left err)
-  closeFile h
-  pure (Right (fastAppend content))
-  where
-    read : List String -> File -> io (Either FileError (List String))
-    read acc h = do
-      eof <- fEOF h
-      if eof
-        then pure (Right (reverse acc))
-        else do
-          Right str <- fGetLine h
-            | Left err => pure (Left err)
-          read (str :: acc) h
+  readResult <- pure $ erlUnsafeCall ErlTerm "file" "read_file" [file]
+  pure $ erlDecodeDef (Left FileReadError)
+    (Right <$> okTuple string <|>
+      Left <$> error)
+    readResult
 
 export
 writeFile : HasIO io => (filepath : String) -> (contents : String) -> io (Either FileError ())
