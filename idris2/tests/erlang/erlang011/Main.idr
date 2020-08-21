@@ -7,7 +7,7 @@ import Erlang
 
 sleep : Int -> IO ()
 sleep ms = do
-  erlUnsafeCall ErlTerm "timer" "sleep" [ms]
+  pure $ erlUnsafeCall ErlTerm "timer" "sleep" [ms]
   pure ()
 
 defaultTimeout : Int

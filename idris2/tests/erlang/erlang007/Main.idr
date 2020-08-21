@@ -5,51 +5,51 @@ import Erlang
 
 -- Wrappers around `create_curried_funX` that returns a curried, pure function
 
-erlCreateCurriedFun1 : IO (Int -> Int)
-erlCreateCurriedFun1 = do
-  MkFun1 f <- erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_curried_fun1" []
-  pure f
+curriedFun1 : Int -> Int
+curriedFun1 =
+  let MkFun1 f = erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_curried_fun1" []
+  in f
 
-erlCreateCurriedFun2 : IO (Int -> Int -> Int)
-erlCreateCurriedFun2 = do
-  MkFun1 f <- erlUnsafeCall (ErlFun1 Int (ErlFun1 Int Int)) "test_support" "create_curried_fun2" []
-  pure (\x => let MkFun1 f' = f x in f')
+curriedFun2 : Int -> Int -> Int
+curriedFun2 =
+  let MkFun1 f = erlUnsafeCall (ErlFun1 Int (ErlFun1 Int Int)) "test_support" "create_curried_fun2" []
+  in (\x => let MkFun1 f' = f x in f')
 
 
 -- Wrappers around `create_funX` that returns a pure function
 
-erlCreateFun0 : IO Int
-erlCreateFun0 = do
-  MkFun0 fun <- erlUnsafeCall (ErlFun0 Int) "test_support" "create_fun0" []
-  pure fun
+callFun0 : Int
+callFun0 =
+  let MkFun0 fun = erlUnsafeCall (ErlFun0 Int) "test_support" "create_fun0" []
+  in fun
 
-erlCreateFun1 : IO (Int -> Int)
-erlCreateFun1 = do
-  MkFun1 fun <- erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_fun1" []
-  pure fun
+callFun1 : Int -> Int
+callFun1 =
+  let MkFun1 fun = erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_fun1" []
+  in fun
 
-erlCreateFun2 : IO (Int -> Int -> Int)
-erlCreateFun2 = do
-  MkFun2 fun <- erlUnsafeCall (ErlFun2 Int Int Int) "test_support" "create_fun2" []
-  pure fun
+callFun2 : Int -> Int -> Int
+callFun2 =
+  let MkFun2 fun = erlUnsafeCall (ErlFun2 Int Int Int) "test_support" "create_fun2" []
+  in fun
 
 
 -- Wrappers around `create_ioX` that returns an IO action
 
-erlCreateIO0 : IO (IO Int)
-erlCreateIO0 = do
-  MkIOFun0 action <- erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
-  pure action
+callIOFun0 : IO Int
+callIOFun0 =
+  let MkIOFun0 action = erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
+  in action
 
-erlCreateIO1 : IO (Int -> IO Int)
-erlCreateIO1 = do
-  MkIOFun1 action <- erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
-  pure action
+callIOFun1 : Int -> IO Int
+callIOFun1 =
+  let MkIOFun1 action = erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
+  in action
 
-erlCreateIO2 : IO (Int -> Int -> IO Int)
-erlCreateIO2 = do
-  MkIOFun2 action <- erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
-  pure action
+callIOFun2 : Int -> Int -> IO Int
+callIOFun2 =
+  let MkIOFun2 action = erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
+  in action
 
 
 -- Tests
@@ -57,32 +57,24 @@ erlCreateIO2 = do
 curriedFunTest : IO ()
 curriedFunTest = do
   putStrLn "curriedFunTest"
-  fun1 <- erlCreateCurriedFun1
-  printLn (fun1 42)
-  fun2 <- erlCreateCurriedFun2
-  printLn (fun2 42 100)
+  printLn (curriedFun1 42)
+  printLn (curriedFun2 42 100)
 
 funTest : IO ()
 funTest = do
   putStrLn "funTest"
-  fun0 <- erlCreateFun0
-  printLn fun0
-  fun1 <- erlCreateFun1
-  printLn (fun1 42)
-  fun2 <- erlCreateFun2
-  printLn (fun2 1 2)
+  printLn callFun0
+  printLn (callFun1 42)
+  printLn (callFun2 1 2)
 
 ioTest : IO ()
 ioTest = do
   putStrLn "ioTest"
-  action0 <- erlCreateIO0
-  res0 <- action0
+  res0 <- callIOFun0
   printLn res0
-  action1 <- erlCreateIO1
-  res1 <- action1 42
+  res1 <- callIOFun1 42
   printLn res1
-  action2 <- erlCreateIO2
-  res2 <- action2 1 2
+  res2 <- callIOFun2 1 2
   printLn res2
 
 main : IO ()

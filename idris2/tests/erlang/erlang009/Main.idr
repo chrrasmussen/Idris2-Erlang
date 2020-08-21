@@ -5,29 +5,28 @@ import Erlang
 
 -- Wrapper functions around Erlang functions
 
-getValidCharlists : IO (List ErlTerm)
-getValidCharlists =
+validCharlists : List ErlTerm
+validCharlists =
   erlUnsafeCall (List ErlTerm) "test_support" "get_valid_charlists" []
 
-getInvalidCharlists : IO (List ErlTerm)
-getInvalidCharlists =
+invalidCharlists : List ErlTerm
+invalidCharlists =
   erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_charlists" []
 
-getValidIOLists : IO (List ErlTerm)
-getValidIOLists =
+validIOLists : List ErlTerm
+validIOLists =
   erlUnsafeCall (List ErlTerm) "test_support" "get_valid_io_lists" []
 
-getInvalidIOLists : IO (List ErlTerm)
-getInvalidIOLists =
+invalidIOLists : List ErlTerm
+invalidIOLists =
   erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_io_lists" []
 
 
 -- Helper functions
 
 ioDataToString : ErlTerm -> String
-ioDataToString x = unsafePerformIO $ do
-  str <- erlUnsafeCall String "unicode" "characters_to_binary" [x]
-  pure str
+ioDataToString x =
+  erlUnsafeCall String "unicode" "characters_to_binary" [x]
 
 
 -- Tests
@@ -35,18 +34,14 @@ ioDataToString x = unsafePerformIO $ do
 testCharlists : IO ()
 testCharlists = do
   putStrLn "testCharlists"
-  validList <- getValidCharlists
-  printLn (map (erlDecodeMay charlist) validList)
-  invalidList <- getInvalidCharlists
-  printLn (map (erlDecodeMay charlist) invalidList)
+  printLn (map (erlDecodeMay charlist) validCharlists)
+  printLn (map (erlDecodeMay charlist) invalidCharlists)
 
 testIOLists : IO ()
 testIOLists = do
   putStrLn "testIOLists"
-  validList <- getValidIOLists
-  printLn (map (map ioDataToString . erlDecodeMay ioData) validList)
-  invalidList <- getInvalidIOLists
-  printLn (map (map ioDataToString . erlDecodeMay ioData) invalidList)
+  printLn (map (map ioDataToString . erlDecodeMay ioData) validIOLists)
+  printLn (map (map ioDataToString . erlDecodeMay ioData) invalidIOLists)
 
 main : IO ()
 main = do
