@@ -277,15 +277,8 @@ export
 getCG : {auto o : Ref ROpts REPLOpts} ->
         {auto c : Ref Ctxt Defs} ->
         CG -> Core (Maybe Codegen)
-getCG Chez = pure $ Just codegenChez
-getCG ChezSep = pure $ Just codegenChezSep
-getCG Racket = pure $ Just codegenRacket
-getCG Gambit = pure $ Just codegenGambit
-getCG Node = pure $ Just codegenNode
-getCG Javascript = pure $ Just codegenJavascript
-getCG RefC = pure $ Just codegenRefC
-getCG VMCodeInterp = pure $ Just codegenVMCodeInterp
 getCG (Other s) = getCodegen s
+getCG _ = pure Nothing
 
 export
 findCG : {auto o : Ref ROpts REPLOpts} ->
