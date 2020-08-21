@@ -4,6 +4,9 @@ import Erlang
 import public Erlang.System.File
 
 
+%default total
+
+
 BufferPayload : Type
 BufferPayload = ErlTuple2 String Int
 
@@ -182,12 +185,13 @@ getString buf loc len = do
   payload <- getBufferPayload buf
   pure $ prim__erlBufferGetString payload loc len
 
-export
+export covering
 bufferData : HasIO io => Buffer -> io (List Int)
 bufferData buf = do
   len <- rawSize buf
   unpackTo [] len
   where
+    covering
     unpackTo : List Int -> Int -> io (List Int)
     unpackTo acc 0 = pure acc
     unpackTo acc loc = do

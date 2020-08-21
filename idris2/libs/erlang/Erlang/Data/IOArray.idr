@@ -5,6 +5,9 @@ import Erlang
 import Erlang.Data.IORef
 
 
+%default total
+
+
 data ArrayData : Type -> Type where
   MkArrayData : IORef ErlTerm -> ArrayData a
 

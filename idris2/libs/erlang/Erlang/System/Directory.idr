@@ -4,6 +4,9 @@ import Erlang
 import public Erlang.System.File
 
 
+%default total
+
+
 export
 createDir : HasIO io => String -> io (Either FileError ())
 createDir dirPath = do

@@ -3,6 +3,10 @@ module Erlang.Data.Ref
 import public Erlang.Data.IORef
 import public Erlang.Control.Monad.ST
 
+
+%default total
+
+
 public export
 interface Ref m (r : Type -> Type) | m where
   newRef : a -> m (r a)
