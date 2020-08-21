@@ -4,6 +4,9 @@ Not all command line options can be used to override package options.
 Overridable options are:
     --quiet
     --verbose
+    --console-width <console width>
+    --color, --colour
+    --no-color, --no-colour
     --timing
     --log <log level>
     --dumpcases <file>

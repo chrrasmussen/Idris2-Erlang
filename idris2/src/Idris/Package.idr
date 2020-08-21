@@ -590,6 +590,9 @@ errorMsg = unlines
   , "Overridable options are:"
   , "    --quiet"
   , "    --verbose"
+  , "    --console-width <console width>"
+  , "    --color, --colour"
+  , "    --no-color, --no-colour"
   , "    --timing"
   , "    --log <log level>"
   , "    --dumpcases <file>"
@@ -610,6 +613,8 @@ filterPackageOpts acc (Package cmd f ::xs) = filterPackageOpts (record {pkgDetai
 
 filterPackageOpts acc (Quiet         ::xs) = filterPackageOpts (record {oopts $= (Quiet::)}          acc) xs
 filterPackageOpts acc (Verbose       ::xs) = filterPackageOpts (record {oopts $= (Verbose::)}        acc) xs
+filterPackageOpts acc (ConsoleWidth n::xs) = filterPackageOpts (record {oopts $= (ConsoleWidth n::)} acc) xs
+filterPackageOpts acc (Color b       ::xs) = filterPackageOpts (record {oopts $= (Color b::)}        acc) xs
 filterPackageOpts acc (Timing        ::xs) = filterPackageOpts (record {oopts $= (Timing::)}         acc) xs
 filterPackageOpts acc (Logging l     ::xs) = filterPackageOpts (record {oopts $= (Logging l::)}      acc) xs
 filterPackageOpts acc (DumpCases f   ::xs) = filterPackageOpts (record {oopts $= (DumpCases f::)}    acc) xs
