@@ -372,7 +372,7 @@ compileToSCM c tm outfile
          main <- schExp gambitPrim gambitString 0 ctm
          support <- readDataFile "gambit/support.scm"
          ds <- getDirectives Gambit
-         extraRuntime <- getExtraRuntime ds
+         extraRuntime <- getExtraRuntime (map snd ds)
          foreign <- readDataFile "gambit/foreign.scm"
          let scm = showSep "\n" [schHeader, support, extraRuntime, foreign, code, main]
          Right () <- coreLift $ writeFile outfile scm

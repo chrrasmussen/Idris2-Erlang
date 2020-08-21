@@ -373,7 +373,7 @@ compileToRKT c appdir tm outfile
          main <- schExp racketPrim racketString 0 ctm
          support <- readDataFile "racket/support.rkt"
          ds <- getDirectives Racket
-         extraRuntime <- getExtraRuntime ds
+         extraRuntime <- getExtraRuntime (map snd ds)
          let scm = schHeader (concat (map fst fgndefs)) ++
                    support ++ extraRuntime ++ code ++
                    "(void " ++ main ++ ")\n" ++
