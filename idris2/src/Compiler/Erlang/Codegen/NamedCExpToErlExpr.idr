@@ -371,9 +371,8 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
   genOsType l
 genExtPrim namespaceInfo l (NS _ (UN "prim__codegen")) [] =
   pure $ EBinary l "erlang"
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args, world] = do
-  let erlCall = genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
-  pure $ genMkIORes l erlCall
+genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args] = do
+  pure $ genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlTryCatch")) [_, action, world] = do
   okVar <- newLocalVar
   errorVar <- newLocalVar

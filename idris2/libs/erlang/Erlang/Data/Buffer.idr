@@ -38,12 +38,12 @@ data Buffer : Type where
 %inline
 getBufferPayload : HasIO io => Buffer -> io BufferPayload
 getBufferPayload (MkBuffer ref) =
-  erlUnsafeCall BufferPayload "erlang" "get" [ref]
+  pure $ erlUnsafeCall BufferPayload "erlang" "get" [ref]
 
 %inline
 setBufferPayload : HasIO io => Buffer -> BufferPayload -> io ()
 setBufferPayload (MkBuffer ref) content = do
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
+  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
   pure ()
 
 %inline
@@ -56,7 +56,7 @@ updateBufferPayload buf updateFn = do
 export
 newBuffer : HasIO io => Int -> io (Maybe Buffer)
 newBuffer size = do
-  ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
+  ref <- pure $ erlUnsafeCall ErlReference "erlang" "make_ref" []
   let payload = prim__erlBufferNew size
   let buf = MkBuffer ref
   setBufferPayload buf payload
@@ -168,7 +168,7 @@ getDouble buf loc = do
 
 export
 stringByteLength : String -> Int
-stringByteLength str = unsafePerformIO $ do
+stringByteLength str =
   erlUnsafeCall Int "erlang" "byte_size" [str]
 
 export
@@ -205,12 +205,12 @@ copyData src start len dest loc = do
 export
 createBufferFromFile : HasIO io => (filePath : String) -> io (Either FileError Buffer)
 createBufferFromFile filePath = do
-  result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
+  result <- pure $ erlUnsafeCall ErlTerm "file" "read_file" [filePath]
   let Right str = erlDecode (okTuple string) result
     | _ => pure (Left FileReadError)
-  strSize <- erlUnsafeCall Int "erlang" "byte_size" [str]
-  ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
+  let strSize = erlUnsafeCall Int "erlang" "byte_size" [str]
+  ref <- pure $ erlUnsafeCall ErlReference "erlang" "make_ref" []
+  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
   pure (Right (MkBuffer ref))
 
 -- TODO: `maxbytes` is unused
@@ -219,7 +219,7 @@ writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int
 writeBufferToFile filePath buf maxbytes = do
   flatten buf maxbytes
   MkTuple2 binary _ <- getBufferPayload buf
-  result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
+  result <- pure $ erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export

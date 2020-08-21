@@ -347,7 +347,7 @@ mapEntry key (MkDecoder valueDecoder) =
   MkDecoder (\term => do
     let Just m = prim__erlDecodeAnyMap term
       | Nothing => Left (Error "Expected a map")
-    let lookupResult = unsafePerformIO $ erlUnsafeCall ErlTerm "maps" "find" [key, m]
+    let lookupResult = erlUnsafeCall ErlTerm "maps" "find" [key, m]
     let Just (MkTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
       | Nothing => Left (Error "Could not find key in map")
     valueDecoder value)

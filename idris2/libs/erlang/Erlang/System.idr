@@ -13,19 +13,19 @@ import Erlang
 export
 sleep : HasIO io => Int -> io ()
 sleep sec = do
-  erlUnsafeCall ErlTerm "timer" "sleep" [sec * 1000]
+  pure $ erlUnsafeCall ErlTerm "timer" "sleep" [sec * 1000]
   pure ()
 
 export
 getArgs : HasIO io => io (List String)
 getArgs = do
-  args <- erlUnsafeCall (List ErlCharlist) "init" "get_plain_arguments" []
+  args <- pure $ erlUnsafeCall (List ErlCharlist) "init" "get_plain_arguments" []
   pure $ map (\(MkCharlist x) => x) args
 
 export
 getEnvironment : HasIO io => io (List (String, String))
 getEnvironment = do
-  envPairs <- erlUnsafeCall (List ErlCharlist) "os" "getenv" []
+  envPairs <- pure $ erlUnsafeCall (List ErlCharlist) "os" "getenv" []
   pure $ map (\(MkCharlist x) => splitEq x) envPairs
   where
     splitEq : String -> (String, String)
@@ -37,7 +37,7 @@ getEnvironment = do
 export
 getEnv : HasIO io => String -> io (Maybe String)
 getEnv var = do
-  result <- erlUnsafeCall ErlCharlist "os" "getenv" [MkCharlist var]
+  result <- pure $ erlUnsafeCall ErlCharlist "os" "getenv" [MkCharlist var]
   let Right (MkCharlist str) = erlDecode charlist result
     | Left _ => pure Nothing
   pure $ Just str
@@ -49,28 +49,28 @@ setEnv var value overwrite = do
     True => pure True
     False => isNothing <$> getEnv var
   when shouldSetEnv $ do
-    erlUnsafeCall ErlTerm "os" "putenv" [MkCharlist var, MkCharlist value]
+    pure $ erlUnsafeCall ErlTerm "os" "putenv" [MkCharlist var, MkCharlist value]
     pure ()
   pure True
 
 export
 unsetEnv : HasIO io => String -> io Bool
 unsetEnv var = do
-  result <- erlUnsafeCall ErlTerm "os" "unsetenv" [MkCharlist var]
+  result <- pure $ erlUnsafeCall ErlTerm "os" "unsetenv" [MkCharlist var]
   pure True
 
 -- TODO: Implement with exit code
 export
 system : HasIO io => String -> io Int
 system cmd = do
-  MkCharlist output <- erlUnsafeCall ErlCharlist "os" "cmd" [MkCharlist cmd]
+  MkCharlist output <- pure $ erlUnsafeCall ErlCharlist "os" "cmd" [MkCharlist cmd]
   putStr output
   pure 0
 
 export
 time : HasIO io => io Integer
 time = do
-  result <- erlUnsafeCall Integer "erlang" "system_time" []
+  result <- pure $ erlUnsafeCall Integer "erlang" "system_time" []
   pure $ result `div` 1000000000
 
 ||| Programs can either terminate successfully, or end in a caught
@@ -89,7 +89,7 @@ data ExitCode : Type where
 partial
 halt : HasIO io => Int -> io a
 halt code = do
-  MkRaw x <- erlUnsafeCall (Raw a) "erlang" "halt" [code]
+  MkRaw x <- pure $ erlUnsafeCall (Raw a) "erlang" "halt" [code]
   pure x
 
 export partial

@@ -19,21 +19,21 @@ Show ErlTerm where
 
 export
 Show ErlPid where
-  show x = unsafePerformIO $ do
-    MkCharlist str <- erlUnsafeCall ErlCharlist "erlang" "pid_to_list" [x]
-    pure ("#Pid" ++ str)
+  show x =
+    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "pid_to_list" [x]
+    in "#Pid" ++ str
 
 export
 Show ErlReference where
-  show x = unsafePerformIO $ do
-    MkCharlist str <- erlUnsafeCall ErlCharlist "erlang" "ref_to_list" [x]
-    pure str
+  show x =
+    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "ref_to_list" [x]
+    in str
 
 export
 Show ErlPort where
-  show x = unsafePerformIO $ do
-    MkCharlist str <- erlUnsafeCall ErlCharlist "erlang" "port_to_list" [x]
-    pure str
+  show x =
+    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "port_to_list" [x]
+    in str
 
 export
 Show ErlAtom where

@@ -14,20 +14,20 @@ data IORef : Type -> Type where
 export
 newIORef : HasIO io => a -> io (IORef a)
 newIORef val = do
-  ref <- erlUnsafeCall ErlTerm "erlang" "make_ref" []
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
+  ref <- pure $ erlUnsafeCall ErlTerm "erlang" "make_ref" []
+  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure (MkIORef ref)
 
 export
 readIORef : HasIO io => IORef a -> io a
 readIORef (MkIORef ref) = do
-  MkRaw val <- erlUnsafeCall (Raw a) "erlang" "get" [ref]
+  MkRaw val <- pure $ erlUnsafeCall (Raw a) "erlang" "get" [ref]
   pure val
 
 export
 writeIORef : HasIO io => IORef a -> (val : a) -> io ()
 writeIORef (MkIORef ref) val = do
-  erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
+  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkRaw val]
   pure ()
 
 export
