@@ -16,6 +16,10 @@ erlSelf : HasIO io => io ErlPid
 erlSelf = erlUnsafeCall ErlPid "erlang" "self" []
 
 export
+erlSpawn : HasIO io => IO () -> io ErlPid
+erlSpawn action = erlUnsafeCall ErlPid "erlang" "spawn" [MkIOFun0 (map MkRaw action)]
+
+export
 erlSpawnLink : HasIO io => IO () -> io ErlPid
 erlSpawnLink action = erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun0 (map MkRaw action)]
 
