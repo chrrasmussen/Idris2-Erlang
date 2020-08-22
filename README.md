@@ -1,16 +1,16 @@
 # Idris2-Erlang
 
-Erlang code generator for [Idris 2](https://github.com/edwinb/Idris2). Idris 2 is created by [Edwin Brady](https://github.com/edwinb). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
+Erlang code generator for [Idris 2](https://github.com/idris-lang/Idris2). The development of Idris 2 is led by [Edwin Brady](https://github.com/edwinb). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
 
 Note that this project is still **work in progress**. Feedback and contributions are appreciated!
 
 
-## About the Project
+## About this project
 
 ### Goals
 
 - Make it easy to interoperate with Erlang.
-- Type-safe: It should be difficult to accidentally introduce run-time errors, even when doing interop with Erlang.[2]
+- Type-safe: It should be difficult to accidentally introduce run-time errors, even when doing interop with Erlang.
 
 
 ### Non-goals
@@ -18,33 +18,79 @@ Note that this project is still **work in progress**. Feedback and contributions
 - Make the generated Erlang code readable.
 
 
-### Currently Supported Functionality
+### Currently supported functionality
 
-- Compile and run any plain Idris 2 programs (i.e. not using any unsupported FFI)
-- Each Idris module/namespace is generated into its own Erlang module.
-- Reading/writing files using Idris 2's `base` library.
-- Convert most[1] native Erlang data types, back and forth.
-  - Supports a type-safe way to convert an untyped Erlang term into a typed Idris value (it leverages Erlang case expressions with guards).
-- Call named Erlang functions.
-  - Also supports a type-safe way to call Erlang functions.
-- Export named Erlang functions per Idris module/namespace.
-- Convert anonymous functions, back and forth (both pure and IO).
-
-
-## Using the Erlang Codegen
-
-### Prerequisites
-
-- [Idris 1.3.2](https://www.idris-lang.org/download/) or newer (to build Idris 2)
-- [Erlang OTP 21.2](https://www.erlang.org/downloads) or newer
+- Compile Idris 2 programs to Erlang source code or compile to BEAM (via `erlc`)
+  - Basic support for separate compilation. Use together with [`mix_idris2`](https://github.com/chrrasmussen/mix_idris2) to automatically recompile modules.
+- Erlang interop
+  - Almost all of Erlang's data types have a [corresponding type in Idris](idris2/libs/erlang/Erlang/Types.idr). [1]
+  - Call almost any Erlang function from Idris.
+  - Export Idris functions to be called from Erlang code.
+  - Includes [decoding functions](idris2/libs/erlang/Erlang/Decode.idr) to safely convert untyped Erlang values to typed Idris values.
+- Supports most of the functionality provided by the `base` package. (Currently a few modules are placed in the `Erlang` namespace)
 
 
-### Installation
+## Installation
 
-This project is built the same way as Idris 2, see Installation section in [idris2/README.md](idris2/README.md#Installation).
+To run the generated Erlang code, [Erlang OTP 21.2](https://www.erlang.org/downloads) or newer is recommended.
+
+There are three ways to install Idris 2 with the Erlang code generator:
+
+1. From Erlang source code — Easiest way to get started. **Note: Idris 2 running on Erlang is currently much slower than running on Chez Scheme**
+2. From Chez Scheme bootstrap — Recommended installation method.
+3. Using an existing version of `idris2` — Recommended if one wants to contribute to `Idris2-Erlang`.
+
+Option 2 and 3 will build an executable named `idris2erl`. This is done to avoid clashing with an existing installation of `idris2`.
 
 
-### Basic Usage
+### From Erlang source code
+
+This repository contains a [rebar3](https://www.rebar3.org) project that can build a standalone Escript executable. The Escript contains the libraries and can be freely moved around. The Erlang run-time needs to be available to run this Escript.
+
+The generated Erlang source files are only included in specific [releases](https://github.com/chrrasmussen/Idris2-Erlang/releases), and not in the `master` branch.
+
+Steps:
+1. Clone/download a specific release
+2. Run `rebar3 escriptize`
+
+The Escript executable is built to `_build/default/bin/idris2`.
+
+
+### From Chez Scheme bootstrap
+
+This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed.
+
+Steps:
+1. `cd idris2`
+2. `make bootstrap SCHEME=chez` (Replace `chez` with the name of your installed version of Chez Scheme)
+3. `make install`
+4. `make clean`
+5. `make all`
+6. `make install`
+
+This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` folder to your `$PATH`.
+
+
+#### Using an existing version of `idris2`
+
+This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2).
+
+Steps:
+1. `cd idris2`
+2. `make all`
+3. `make install`
+
+This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` folder to your `$PATH`.
+
+
+## Editor support
+
+Idris 2 supports interactive editing. See [Idris 2's download page](https://www.idris-lang.org/pages/download.html) for a list of supported editors.
+
+In my experience, the Idris 1 extension for [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=zjhmale.Idris) and [Atom](https://atom.io/packages/language-idris) mostly works for Idris 2. After installing the extension, you need to change location of the Idris executable to point to `idris2` (or `idris2erl` depending on how you installed it).
+
+
+## Basic usage
 
 Create a file called `Main.idr` with the following content:
 
@@ -55,88 +101,57 @@ main : IO ()
 main = putStrLn "Hello Joe"
 ```
 
-Run the Idris program via generated Erlang code: `idris2 --cg erlang --exec main Main.idr`
+Run the Idris 2 program via generated Erlang code: `idris2 --exec main Main.idr`
 
 
-## Erlang Interop
+## Erlang interop
 
 ### Data types
 
-[The data types in Erlang](http://erlang.org/doc/reference_manual/data_types.html) are mapped to the following types in Idris. The types that are prefixed with `Erl` are available in the `Erlang` module in the `base` library. The `/N` postfix means there are multiple variants available, e.g. `ErlTuple0`, `ErlTuple1`.
+[The data types in Erlang](http://erlang.org/doc/reference_manual/data_types.html) are mapped to the following types in Idris. The types that are prefixed with `Erl` are available in the `Erlang` module in the `erlang` package. The `/N` postfix means there are multiple variants available, e.g. `ErlTuple0`, `ErlTuple1`.
 
-| Erlang    | Idris                          | Comment                                                                                                                                                                                                        |
-| --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| integer   | `Integer`                      |
-| float     | `Double`                       |
-| atom      | `ErlAtom`                      |
-| bitstring | *Not available*                |
-| binary    | `ErlBinary`                    |
-| reference | `ErlRef`                       |
-| fun       | `ErlFun/N`, `ErlIO/N`          | `ErlFun/N` is intended for pure functions while `ErlIO/N` is intended for IO actions.                                                                                                                          |
-| port      | `ErlPort`                      |
-| pid       | `ErlPid`                       |
-| tuple     | `ErlTuple/N`                   |
-| map       | `ErlMap`                       |
-| list      | `ErlList`, `ErlNil`, `ErlCons` | The difference between `ErlList` and `ErlNil` / `ErlCons` is that `ErlList` can only represent proper lists. `ErlNil` / `ErlCons` can be used to represent improper lists but they are more cumbersome to use. |
-| string    | `ErlCharlist`                  |
-| record    | *Not available*                | Erlang records are compiled down to Erlang tuples, so it is possible to use the `ErlTuple/N` types in these cases.                                                                                             |
-| boolean   | `Bool`                         |
+| Erlang    | Idris                                  | Comment     |
+| --------- | -------------------------------------- | ----------- |
+| integer   | `Integer`                              | Arbitrary precision. |
+| integer   | `Int`, `Bits8`, `Bits16`, `Bits32`, `Bits64` | Integer variants that are restricted to a certain precision. |
+| float     | `Double`                               |
+| atom      | `ErlAtom`                              |
+| bitstring | *Not available*                        |
+| binary    | `String`                               |
+| reference | `ErlReference`                         |
+| function  | `ErlFun/N`, `ErlIOFun/N`               | `ErlFun/N` is intended for pure functions while `ErlIOFun/N` is intended for functions that perform side-effects. |
+| port      | `ErlPort`                              |
+| pid       | `ErlPid`                               |
+| tuple     | `ErlTuple/N`                           |
+| map       | `ErlAnyMap`, `ErlMapSubset`            | `ErlAnyMap` does not include any type information and can represent any Erlang maps. `ErlMapSubset` allows one to define which keys (and the type of its value) that are guaranteed to be in the Erlang map. The `ErlMapSubset` might still contain other keys/values that are not listed. |
+| list      | `List`, `ErlList`, `ErlNil`, `ErlCons` | The `List` type requires that all of its elements are of the same type. `ErlList` and `ErlNil` / `ErlCons` allow different types for each element. `ErlList` can only represent proper lists, while `ErlNil` / `ErlCons` can also represent improper lists. |
+| charlist  | `ErlCharlist`                          |
+| record    | *Not available*                        | Erlang records are compiled down to Erlang tuples, so it is possible to use the `ErlTuple/N` types in these cases. |
+| boolean   | `ErlAtom`                              |
 
-
-[Idris 2's primitive types](https://github.com/edwinb/Idris2/blob/9f9460603755e74eeb8dc3116438408a802f5234/src/Core/TT.idr#L22-L27)
-
-| Idris     | Erlang                   | Comment                                                                                                                                                                                                                        |
-| --------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Int`     | integer                  | `Int` is mapped to Erlang integers of arbitrary precision. Some operations on `Int` may still be capped at a certain precsion., e.g. `+`, `-`.                                                                                 |
-| `Integer` | integer                  |
-| `String`  | IO data                  | IO data is not a primitive data type in Erlang. Some Erlang functions may require an Erlang binary or and Erlang charlist; in these cases one should use the more specific string types (`ErlBinary` or `ErlCharlist`). |
-| `Char`    | integer / list(integers) | An integer represents a single codepoint. To support all Unicode characters (some may consist of multiple codepoints) the `Char` may either be an integer or a list of integers.                                               |
-| `Double`  | float                    |
+The Idris type `Char` represents a grapheme (one or more codepoints). One codepoint is represented by an integer. To support all Unicode characters, `Char` may either be an integer or a list of integers.
 
 
-### Foreign Function Calls
-
-Generally, in places where Idris values are exposed to the Erlang run-time, the values are expected to be supported in the `ErlType a` type. `ErlType a` is a predicate type that lists all Idris types that have a corresponding mapping to Erlang. Although there is an escape hatch, where one can use the `Raw a` type to pass any Idris value to Erlang (`Raw a` is compiled to `a`). This proof helps to make sure that one does not mistakenly pass values that does not have a known Erlang representation.
-
-Differences between `erlCall` and `erlUnsafeCall`:
-
-`erlCall`:
-- `erlCall` will always return a value of type `ErlTerm` (which is the safest option). These `ErlTerm`s can be converted to a typed Idris value using `erlCase` (See [Erlang Case Expressions](#erlang-case-expressions)).
-- `erlCall` takes two `String`s which are the module and function names respectively. Both of these strings are converted to atoms using `binary_to_atom/2`, which means that you don't need to include apostrophes (`'`), i.e. `erlCall "Elixir.Jason" "decode" ["42"]`.
-- `erlCall` wraps the Erlang function call in a catch block to make sure that any runtime exceptions will be converted to an Erlang term.
-
-`erlUnsafeCall`:
-- `erlUnsafeCall` takes a type as an argument which decide the return type.
-- `erlUnsafeCall` does not wrap the Erlang function call in a catch block.
-
-
-### Erlang Case Expressions
+### Foreign function calls
 
 ... More to come ...
-
-- `MError` is useful for retrieving errors when using `erlCall` or when calling a function retrieved using `MIO`.
-
-
-### General Tips
-
-`erlUnsafeCall` can be used to call functions defined in the same source file, i.e. if you use the `%cg` directive to include Erlang functions.
 
 
 ## Meta
 
-### Changes to the Idris 2 Compiler
+### Changes to the Idris 2 compiler
 
-Currently this repository includes a few changes to the Idris 2 compiler, e.g. it adds a `--cg-opt` flag to pass arguments to the code generator. I will try to upstream any changes that can benefit the Idris 2 project.
+Currently this repository includes a few changes to the Idris 2 compiler, e.g. basic support for separate compilation. I will try to upstream any changes that can benefit the Idris 2 project.
 
 
-### Missing Functionality
+## License
 
-- Need to replace more usages of the Scheme FFI in the `prelude` and `base` libraries (Buffer, concurrency primitives etc.)
+The Idris 2 compiler is licensed as BSD 3-clause. See [idris2/LICENSE](idris2/LICENSE).
+
+The Erlang code generator is derived from the Idris 2 compiler and is licensed as BSD 3-clause. See [LICENSE](LICENSE).
 
 ---
 
 Footnotes:
 
-[1] Does not currently support `bitstring` as a separate type. The ergonomics of some of the types can probably be improved, e.g. the `ErlMap` type (representing Erlang maps) is opaque/untyped.
-
-[2] Currently there are some functions that require special care when calling them, i.e. `erlCall` needs to be called with a statically defined list of arguments (this is required in order for the Erlang codegen to know the arity of the Erlang function that is called). Similar restrictions applies to `erlUnsafeCall` and `erlCase`.
+[1] `bitstring` is not supported as a separate data type. The data types that require an arity, such as tuples and functions, have a maximum arity of `8`.
