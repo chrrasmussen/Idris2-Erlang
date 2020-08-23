@@ -18,3 +18,5 @@ modules = Erlang,
           Erlang.Text.PrettyPrint.Prettyprinter.Render.Terminal,
           Erlang.Types,
           Erlang.Types.Map
+
+depends = contrib
