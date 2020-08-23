@@ -30,6 +30,22 @@ Note that this project is still **work in progress**. Feedback and contributions
 - Supports most of the functionality provided by the `base` package. (Currently a few modules are placed in the `Erlang` namespace)
 
 
+## Basic usage
+
+Create a file called `Main.idr` with the following content:
+
+```idris
+module Main
+
+main : IO ()
+main = putStrLn "Hello Joe"
+```
+
+Run the Idris 2 program via generated Erlang code: `idris2 --exec main Main.idr`
+
+See the [samples](samples) directory for more code examples.
+
+
 ## Installation
 
 To run the generated Erlang code, [Erlang OTP 21.2](https://www.erlang.org/downloads) or newer is recommended.
@@ -50,8 +66,10 @@ This repository contains a [rebar3](https://www.rebar3.org) project that can bui
 The generated Erlang source files are only included in specific [releases](https://github.com/chrrasmussen/Idris2-Erlang/releases), and not in the `master` branch.
 
 Steps:
-1. Clone/download a specific release
-2. Run `rebar3 escriptize`
+1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
+2. `cd Idris2-Erlang`
+3. `git checkout v0.2.1-alpha.1`
+4. `rebar3 escriptize`
 
 The Escript executable is built to `_build/default/bin/idris2`.
 
@@ -61,26 +79,25 @@ The Escript executable is built to `_build/default/bin/idris2`.
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed.
 
 Steps:
-1. `cd idris2`
-2. `make bootstrap SCHEME=chez` (Replace `chez` with the name of your installed version of Chez Scheme)
-3. `make install`
-4. `make clean`
-5. `make all`
-6. `make install`
+1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
+2. `cd Idris2-Erlang/idris2`
+3. `make bootstrap SCHEME=chez` (Replace `chez` with the name of your installed version of Chez Scheme)
+4. `make install`
 
-This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` folder to your `$PATH`.
+This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` directory to your `$PATH`.
 
 
 #### Using an existing version of `idris2`
 
-This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2).
+This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/master/INSTALL.md).
 
 Steps:
-1. `cd idris2`
-2. `make all`
-3. `make install`
+1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
+2. `cd Idris2-Erlang/idris2`
+3. `make all`
+4. `make install`
 
-This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` folder to your `$PATH`.
+This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` directory to your `$PATH`.
 
 
 ## Editor support
@@ -90,51 +107,29 @@ Idris 2 supports interactive editing. See [Idris 2's download page](https://www.
 In my experience, the Idris 1 extension for [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=zjhmale.Idris) and [Atom](https://atom.io/packages/language-idris) mostly works for Idris 2. After installing the extension, you need to change location of the Idris executable to point to `idris2` (or `idris2erl` depending on how you installed it).
 
 
-## Basic usage
+## Documentation
 
-Create a file called `Main.idr` with the following content:
-
-```idris
-module Main
-
-main : IO ()
-main = putStrLn "Hello Joe"
-```
-
-Run the Idris 2 program via generated Erlang code: `idris2 --exec main Main.idr`
-
-
-## Erlang interop
-
-### Data types
-
-[The data types in Erlang](http://erlang.org/doc/reference_manual/data_types.html) are mapped to the following types in Idris. The types that are prefixed with `Erl` are available in the `Erlang` module in the `erlang` package. The `/N` postfix means there are multiple variants available, e.g. `ErlTuple0`, `ErlTuple1`.
-
-| Erlang    | Idris                                  | Comment     |
-| --------- | -------------------------------------- | ----------- |
-| integer   | `Integer`                              | Arbitrary precision. |
-| integer   | `Int`, `Bits8`, `Bits16`, `Bits32`, `Bits64` | Integer variants that are restricted to a certain precision. |
-| float     | `Double`                               |
-| atom      | `ErlAtom`                              |
-| bitstring | *Not available*                        |
-| binary    | `String`                               |
-| reference | `ErlReference`                         |
-| function  | `ErlFun/N`, `ErlIOFun/N`               | `ErlFun/N` is intended for pure functions while `ErlIOFun/N` is intended for functions that perform side-effects. |
-| port      | `ErlPort`                              |
-| pid       | `ErlPid`                               |
-| tuple     | `ErlTuple/N`                           |
-| map       | `ErlAnyMap`, `ErlMapSubset`            | `ErlAnyMap` does not include any type information and can represent any Erlang maps. `ErlMapSubset` allows one to define which keys (and the type of its value) that are guaranteed to be in the Erlang map. The `ErlMapSubset` might still contain other keys/values that are not listed. |
-| list      | `List`, `ErlList`, `ErlNil`, `ErlCons` | The `List` type requires that all of its elements are of the same type. `ErlList` and `ErlNil` / `ErlCons` allow different types for each element. `ErlList` can only represent proper lists, while `ErlNil` / `ErlCons` can also represent improper lists. |
-| charlist  | `ErlCharlist`                          |
-| record    | *Not available*                        | Erlang records are compiled down to Erlang tuples, so it is possible to use the `ErlTuple/N` types in these cases. |
-| boolean   | `ErlAtom`                              |
-
-The Idris type `Char` represents a grapheme (one or more codepoints). One codepoint is represented by an integer. To support all Unicode characters, `Char` may either be an integer or a list of integers.
-
-
-### Foreign function calls
+### Erlang code generator
 
 ... More to come ...
+
+
+### Learning Idris 2
+
+- [A Crash Course in Idris 2](https://idris2.readthedocs.io/en/latest/tutorial/index.html)
+  - This tutorial assumes some existing experience with functional programming.
+- [Type-Driven Development with Idris by Edwin Brady](https://www.manning.com/books/type-driven-development-with-idris)
+  - The book was written with Idris 1 in mind, but the knowledge is transferable to Idris 2. [This document](https://idris2.readthedocs.io/en/latest/typedd/typedd.html) describes what changes are necessary to run the code samples from the book in Idris 2.
+  - This book is how I got started with Idris :-)
+- [The Idris 2 README.md lists some talks given by Edwin Brady](https://github.com/idris-lang/Idris2#talks)
+  - These videos are mainly presenting what's new in Idris 2, but they may provide motivation for why Idris 2 is an interesting language.
+
+
+### Links to the Idris 2 project
+
+- [Idris 2 website](https://www.idris-lang.org)
+- [Idris 2 documentation](https://idris2.readthedocs.io/en/latest/)
+- [Idris 2 repository](https://github.com/idris-lang/Idris2)
 
 
 ## Meta
@@ -146,12 +141,12 @@ Currently this repository includes a few changes to the Idris 2 compiler, e.g. b
 
 ## License
 
-The Idris 2 compiler is licensed as BSD 3-clause. See [idris2/LICENSE](idris2/LICENSE).
+The Idris 2 compiler is licensed as BSD 3-Clause. See [idris2/LICENSE](idris2/LICENSE).
 
-The Erlang code generator is derived from the Idris 2 compiler and is licensed as BSD 3-clause. See [LICENSE](LICENSE).
+The Erlang code generator is derived from the Idris 2 compiler and is licensed as BSD 3-Clause. See [LICENSE](LICENSE).
 
 ---
 
 Footnotes:
 
-[1] `bitstring` is not supported as a separate data type. The data types that require an arity, such as tuples and functions, have a maximum arity of `8`.
+[1] `bitstring` is not supported as a separate data type. Some data types, such as tuples and functions, include a size/arity in their names: These data types are currently limited to a maximum size/arity of `8`.
