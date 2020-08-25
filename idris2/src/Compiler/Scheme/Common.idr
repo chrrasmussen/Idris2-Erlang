@@ -198,8 +198,7 @@ schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg +
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = SchemeCall
-             | PutStr | GetStr | PutChar | GetChar
+data ExtPrim = PutStr | GetStr | PutChar | GetChar
              | FastPack | Unpack | FastAppend
              | NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
@@ -212,7 +211,6 @@ data ExtPrim = SchemeCall
 
 export
 Show ExtPrim where
-  show SchemeCall = "SchemeCall"
   show PutStr = "PutStr"
   show GetStr = "GetStr"
   show PutChar = "PutChar"
@@ -238,8 +236,7 @@ Show ExtPrim where
 ||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
-    = cond [(n == UN "prim__schemeCall", SchemeCall),
-            (n == UN "prim__putStr", PutStr),
+    = cond [(n == UN "prim__putStr", PutStr),
             (n == UN "prim__getStr", GetStr),
             (n == UN "prim__putChar", PutChar),
             (n == UN "prim__getChar", GetChar),
@@ -461,12 +458,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
   -- overridden)
   export
   schExtCommon : Int -> ExtPrim -> List NamedCExp -> Core String
-  schExtCommon i SchemeCall [ret, NmPrimVal fc (Str fn), args, world]
-     = pure $ mkWorld ("(apply " ++ fn ++" "
-                  ++ !(readArgs i args) ++ ")")
-  schExtCommon i SchemeCall [ret, fn, args, world]
-       = pure $ mkWorld ("(apply (eval (string->symbol " ++ !(schExp i fn) ++")) "
-                    ++ !(readArgs i args) ++ ")")
   schExtCommon i PutStr [arg, world]
       = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor schString (NS ["Builtin"] (UN "MkUnit")) (Just 0) []) ++ ")" -- code for MkUnit
   schExtCommon i GetStr [world]

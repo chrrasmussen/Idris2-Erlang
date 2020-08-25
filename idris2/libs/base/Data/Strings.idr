@@ -16,13 +16,19 @@ partial
 foldl1 : (a -> a -> a) -> List a -> a
 foldl1 f (x::xs) = foldl f x xs
 
--- This works quickly because when string-append builds the result, it allocates
+-- This works quickly because when string-concat builds the result, it allocates
 -- enough room in advance so there's only one allocation, rather than lots!
 %extern prim__fastAppend : List String -> String
 
 export
+fastConcat : List String -> String
+fastConcat = prim__fastAppend
+
+-- This is a deprecated alias for fastConcat for backwards compatibility
+-- (unfortunately, we don't have %deprecated yet).
+export
 fastAppend : List String -> String
-fastAppend = prim__fastAppend
+fastAppend = fastConcat
 
 ||| Splits a character list into a list of whitespace separated character lists.
 |||
