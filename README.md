@@ -111,7 +111,18 @@ In my experience, the Idris 1 extension for [Visual Studio Code](https://marketp
 
 ### Erlang code generator
 
-... More to come ...
+The Idris 2 libraries tries to include documentation for its functions and data types. The documentation can be accessed using the `:doc` command in the Idris 2 REPL.
+
+References:
+- [Overview of data types that have a mapping between Idris 2 and Erlang](docs/datatypes.md)
+- [Codegen-specific directives](docs/directives.md)
+
+Samples:
+- [Hello world](samples/1-HelloWorld)
+- [Foreign function interface (FFI)](samples/2-FFI)
+- [Decoding Erlang values](samples/3-Decoding)
+- [Concurrency](samples/4-Concurrency)
+- [Library](samples/5-Library)
 
 
 ### Learning Idris 2

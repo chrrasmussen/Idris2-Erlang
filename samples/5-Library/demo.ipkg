@@ -1,0 +1,9 @@
+package demo
+
+modules = Main
+
+outputdir = "ebin"
+
+opts = "--cg erlang"
+
+library = demo
