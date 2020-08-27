@@ -46,7 +46,7 @@ IDRIS2_BOOT_PATH="${BOOT_PATH_BASE}/prelude${SEP}${BOOT_PATH_BASE}/base${SEP}${B
 # PREFIX must be the "clean" build root, without cygpath -m
 # Otherwise, we get 'git: Bad address'
 echo ${PREFIX}
-${MAKE} libs SCHEME=${SCHEME} PREFIX=${PREFIX}
-${MAKE} install SCHEME=${SCHEME} PREFIX=${PREFIX}
+${MAKE} libs SCHEME=${SCHEME} PREFIX=${PREFIX} TARGET=build/exec/idris2
+${MAKE} install SCHEME=${SCHEME} PREFIX=${PREFIX} TARGET=build/exec/idris2 NAME=idris2 LIBTARGET=../../build/exec/libidris2_support.a DYLIBTARGET=../../build/exec/libidris2_support.dylib
 ${MAKE} clean IDRIS2_BOOT=${PREFIX}/bin/idris2
 ${MAKE} all IDRIS2_BOOT=${PREFIX}/bin/idris2 SCHEME=${SCHEME} IDRIS2_PATH=${IDRIS2_BOOT_PATH}

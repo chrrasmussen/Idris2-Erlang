@@ -6,3 +6,5 @@ sourcedir = "src"
 
 main = Idris.Main
 executable = idris2erl
+
+opts = "--cg chez"

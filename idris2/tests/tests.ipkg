@@ -3,3 +3,5 @@ package runtests
 depends = contrib
 main = Main
 executable = runtests
+
+opts = "--cg chez"
