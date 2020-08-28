@@ -5,7 +5,7 @@
 
 ## Running the example
 
-`idris2 --build demo.ipkg`
+`idris2erl --build demo.ipkg`
 `erl -pa ebin`
 
 Run the following commands in the Erlang REPL:

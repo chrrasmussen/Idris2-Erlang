@@ -2,9 +2,9 @@
 
 ## Global directives
 
-Specify global directives using the `--directive` option when running `idris2`.
+Specify global directives using the `--directive` option when running `idris2erl`.
 
-Example: Running `idris2 --directive "format erl" -o main Main.idr` will generate `foo.erl` in `build/exec`.
+Example: Running `idris2erl --directive "format erl" -o main Main.idr` will generate `foo.erl` in `build/exec`.
 
 | Option              | Default    | Description                            |
 | ------------------- | ---------- | -------------------------------------- |

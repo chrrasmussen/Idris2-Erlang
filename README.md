@@ -41,7 +41,7 @@ main : IO ()
 main = putStrLn "Hello Joe"
 ```
 
-Run the Idris 2 program via generated Erlang code: `idris2 --exec main Main.idr`
+Run the Idris 2 program via generated Erlang code: `idris2erl --exec main Main.idr`
 
 See the [samples](samples) directory for more code examples.
 
@@ -56,7 +56,8 @@ There are three ways to install Idris 2 with the Erlang code generator:
 2. From Chez Scheme bootstrap — Recommended installation method.
 3. Using an existing version of `idris2` — Recommended if one wants to contribute to `Idris2-Erlang`.
 
-Option 2 and 3 will build an executable named `idris2erl`. This is done to avoid clashing with an existing installation of `idris2`.
+The built executable is named `idris2erl`. This is done to avoid clashing with an existing installation of `idris2`. `idris2erl` is configured to use Erlang as the
+default code generator.
 
 
 ### From Erlang source code
@@ -71,7 +72,7 @@ Steps:
 3. `git checkout v0.2.1-alpha.1`
 4. `rebar3 escriptize`
 
-The Escript executable is built to `_build/default/bin/idris2`.
+The Escript executable is built to `_build/default/bin/idris2erl`.
 
 
 ### From Chez Scheme bootstrap
@@ -104,7 +105,7 @@ This will install the `idris2erl` executable, libraries and support files into `
 
 Idris 2 supports interactive editing. See [Idris 2's download page](https://www.idris-lang.org/pages/download.html) for a list of supported editors.
 
-In my experience, the Idris 1 extension for [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=zjhmale.Idris) and [Atom](https://atom.io/packages/language-idris) mostly works for Idris 2. After installing the extension, you need to change location of the Idris executable to point to `idris2` (or `idris2erl` depending on how you installed it).
+In my experience, the Idris 1 extensions for [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=zjhmale.Idris) and [Atom](https://atom.io/packages/language-idris) mostly works for Idris 2. After installing the extension, you need to change location of the Idris executable to point to `idris2erl`.
 
 
 ## Documentation

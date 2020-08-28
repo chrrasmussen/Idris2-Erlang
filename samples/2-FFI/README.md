@@ -100,4 +100,4 @@ References:
 ## Running the examples
 
 To run the Idris 2 programs in `Main.idr`, you can use the command
-`idris2 --exec <name> Main.idr`. For example: `idris2 --exec main Main.idr`
+`idris2erl --exec <name> Main.idr`. For example: `idris2erl --exec main Main.idr`

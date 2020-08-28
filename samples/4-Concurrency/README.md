@@ -31,4 +31,4 @@ loop() ->
 
 ## Running the example
 
-`idris2 --exec main Main.idr`
+`idris2erl --exec main Main.idr`
