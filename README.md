@@ -21,7 +21,7 @@ Note that this project is still **work in progress**. Feedback and contributions
 ### Currently supported functionality
 
 - Compile Idris 2 programs to Erlang source code or compile to BEAM (via `erlc`)
-  - Basic support for separate compilation. Use together with [`mix_idris2`](https://github.com/chrrasmussen/mix_idris2) to automatically recompile modules.
+  - Basic support for separate compilation. Use together with [`mix_idris2`](https://github.com/chrrasmussen/mix_idris2) to automatically recompile changed modules.
 - Erlang interop
   - Almost all of Erlang's data types have a [corresponding type in Idris](idris2/libs/erlang/Erlang/Types.idr). [1]
   - Call almost any Erlang function from Idris.
