@@ -50,17 +50,17 @@ See the [samples](samples) directory for more code examples.
 
 To run the generated Erlang code, [Erlang OTP 21.2](https://www.erlang.org/downloads) or newer is recommended.
 
-There are three ways to install Idris 2 with the Erlang code generator:
+There are three alternative methods to install Idris 2 with the Erlang code generator:
 
-1. From Erlang source code — Easiest way to get started. **Note: Idris 2 running on Erlang is currently much slower than running on Chez Scheme**
-2. From Chez Scheme bootstrap — Recommended installation method.
-3. Using an existing version of `idris2` — Recommended if one wants to contribute to `Idris2-Erlang`.
+1. [From Erlang source code](#alternative-1-from-erlang-source-code) — Easiest way to get started. **Note: Idris 2 running on Erlang is currently much slower than running on Chez Scheme**
+2. [From Chez Scheme bootstrap](#alternative-2-from-chez-scheme-bootstrap) — Recommended installation method.
+3. [Using an existing `idris2` executable](#alternative-3-using-an-existing-idris2-executable) — Recommended if you want to contribute to `Idris2-Erlang`.
 
 The built executable is named `idris2erl`. This is done to avoid clashing with an existing installation of `idris2`. `idris2erl` is configured to use Erlang as the
 default code generator.
 
 
-### 1. From Erlang source code
+### Alternative 1: From Erlang source code
 
 This repository contains a [rebar3](https://www.rebar3.org) project that can build a standalone Escript executable. The Escript contains the libraries and can be freely moved around. The Erlang run-time needs to be available to run this Escript.
 
@@ -75,7 +75,7 @@ Steps:
 The Escript executable is built to `_build/default/bin/idris2erl`.
 
 
-### 2. From Chez Scheme bootstrap
+### Alternative 2: From Chez Scheme bootstrap
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed.
 
@@ -88,7 +88,7 @@ Steps:
 This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` directory to your `$PATH`.
 
 
-### 3. Using an existing version of `idris2`
+### Alternative 3: Using an existing `idris2` executable
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/master/INSTALL.md).
 
