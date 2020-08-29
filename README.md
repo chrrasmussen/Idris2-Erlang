@@ -60,7 +60,7 @@ The built executable is named `idris2erl`. This is done to avoid clashing with a
 default code generator.
 
 
-### From Erlang source code
+### 1. From Erlang source code
 
 This repository contains a [rebar3](https://www.rebar3.org) project that can build a standalone Escript executable. The Escript contains the libraries and can be freely moved around. The Erlang run-time needs to be available to run this Escript.
 
@@ -75,7 +75,7 @@ Steps:
 The Escript executable is built to `_build/default/bin/idris2erl`.
 
 
-### From Chez Scheme bootstrap
+### 2. From Chez Scheme bootstrap
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed.
 
@@ -88,7 +88,7 @@ Steps:
 This will install the `idris2erl` executable, libraries and support files into `$HOME/.idris2erl`. For easy access, add `$HOME/.idris2erl/bin` directory to your `$PATH`.
 
 
-#### Using an existing version of `idris2`
+### 3. Using an existing version of `idris2`
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/master/INSTALL.md).
 
