@@ -1251,7 +1251,8 @@ fieldDecl fname indents
       = do doc <- option "" documentation
            symbol "{"
            commit
-           fs <- fieldBody doc Implicit
+           impl <- option Implicit (AutoImplicit <$ keyword "auto")
+           fs <- fieldBody doc impl
            symbol "}"
            atEnd indents
            pure fs
@@ -1783,7 +1784,7 @@ loggingArgCmd parseCmd command doc = (names, Args [StringArg, NumberArg], doc, p
   parse = do
     symbol ":"
     runParseCmd parseCmd
-    topic <- optional namespacedIdent
+    topic <- optional ((::) <$> unqualifiedName <*> many aDotIdent)
     lvl <- intLit
     pure (command (mkLogLevel' topic (fromInteger lvl)))
 

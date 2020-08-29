@@ -38,12 +38,15 @@ modules = Control.ANSI,
 
           Data.SortedMap,
           Data.SortedSet,
+          Data.Stream.Extra,
           Data.String.Extra,
           Data.String.Interpolation,
           Data.String.Parser,
           Data.String.Parser.Expression,
 
           Data.Vect.Sort,
+
+          Data.HVect,
 
           Debug.Buffer,
 
