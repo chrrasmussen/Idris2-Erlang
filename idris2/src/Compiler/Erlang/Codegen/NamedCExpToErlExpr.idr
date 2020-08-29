@@ -352,19 +352,8 @@ genDecodeTuple l term arity = do
   genDecode l term $ MTuple (argsToErlMatchers args) (ETuple l (map (ELocal l) args))
 
 genExtPrim : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
-genExtPrim namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
-  let putStrCall = genUnicodePutStr l arg
-  let retVal = genMkIORes l (genMkUnit l)
-  pure $ ESequence l [putStrCall, retVal]
-genExtPrim namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
-  let getStrCall = genUnicodeGetStr l (ECharlist l "")
-  pure $ genMkIORes l getStrCall
-genExtPrim namespaceInfo l (NS _ (UN "prim__fastPack")) [xs] = do
-  pure $ genFunCall l "unicode" "characters_to_binary" [xs]
 genExtPrim namespaceInfo l (NS _ (UN "prim__unpack")) [str] = do
   pure $ genFunCall l "string" "to_graphemes" [str]
-genExtPrim namespaceInfo l (NS _ (UN "prim__fastAppend")) [xs] = do
-  pure $ genFunCall l "unicode" "characters_to_binary" [xs] -- TODO: Can this be improved?
 genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
@@ -497,6 +486,26 @@ genExtPrim namespaceInfo l name args =
   pure $ genThrow l ("Error: Badly formed external primitive " ++ show name) -- TODO: Should fail at compile-time instead
 
 
+-- %FOREIGN PRIMITIVES
+
+genForeign : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
+genForeign namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
+  let putStrCall = genUnicodePutStr l arg
+  let retVal = genMkIORes l (genMkUnit l)
+  pure $ ESequence l [putStrCall, retVal]
+genForeign namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
+  let getStrCall = genUnicodeGetStr l (ECharlist l "")
+  pure $ genMkIORes l getStrCall
+genForeign namespaceInfo l (NS _ (UN "fastPack")) [xs] = do
+  pure $ genFunCall l "unicode" "characters_to_binary" [xs]
+genForeign namespaceInfo l (NS _ (UN "fastConcat")) [xs] = do
+  pure $ genFunCall l "unicode" "characters_to_binary" [xs] -- TODO: Can this be improved?
+-- genForeign namespaceInfo l name args =
+--   throw (InternalError ("Unsupported %foreign primitive " ++ show name))
+genForeign namespaceInfo l name args =
+  pure $ genThrow l ("Error: Unsupported %foreign primitive " ++ show name) -- TODO: Should fail at compile-time instead
+
+
 -- CODE GENERATION
 
 mutual
@@ -599,7 +608,7 @@ genDef namespaceInfo l name (MkNmForeign cs args ret) = do
   lv <- newRef LV (initLocalVars "V")
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name
   vars <- newLocalVars (length args)
-  let funDecl = MkFunDecl l Private fnName vars (genThrow l "Error: %foreign is unsupported") -- TODO: Should fail at compile-time instead
+  let funDecl = MkFunDecl l Public fnName vars !(genForeign namespaceInfo l name (map (ELocal l) vars))
   pure $ Just funDecl
 genDef namespaceInfo l name (MkNmError body) = do
   lv <- newRef LV (initLocalVars "V")

@@ -10,13 +10,6 @@
     ((0) '())
     ((1) (cons (vector-ref desc 2)
                (blodwen-read-args (vector-ref desc 3)))))))
-
-(define blodwen-read-list (lambda (desc)
-  (case (vector-ref desc 0)
-    ((0) '())
-    ((1) (cons (vector-ref desc 1)
-               (blodwen-read-list (vector-ref desc 2)))))))
-
 (define b+ (lambda (x y bits) (remainder (+ x y) (arithmetic-shift 1 bits))))
 (define b- (lambda (x y bits) (remainder (- x y) (arithmetic-shift 1 bits))))
 (define b* (lambda (x y bits) (remainder (* x y) (arithmetic-shift 1 bits))))

@@ -449,11 +449,11 @@ pack : List Char -> String
 pack [] = ""
 pack (x :: xs) = strCons x (pack xs)
 
-%extern prim__fastPack : List Char -> String
-
+%foreign
+    "scheme:string-pack"
+    "javascript:lambda:(xs)=>''.concat(...__prim_idris2js_array(xs))"
 export
 fastPack : List Char -> String
-fastPack = prim__fastPack
 
 %extern prim__unpack : String -> List Char
 

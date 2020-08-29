@@ -324,15 +324,6 @@ foreignDecl n ccs =
       Nothing => throw (InternalError $ "No node or javascript definition found for " ++ show n ++ " in " ++ show ccs)
 
 jsPrim : {auto d : Ref Ctxt Defs} -> {auto c : Ref ESs ESSt} -> Name -> List String -> Core String
-jsPrim (NS _ (UN "prim__putStr")) [arg,_] = pure $ "process.stdout.write(" ++ arg ++ ")"
-jsPrim (NS _ (UN "prim__getStr")) [_] = do
-  let lib = "support_system_file"
-  lib_code <- readDataFile ("js/" ++ lib ++ ".js")
-  addSupportToPreamble lib lib_code
-  pure $ lib ++ "_getStr()"
-jsPrim (NS _ (UN "prim__fastPack")) [xs] = pure $ "__prim_idris2js_List(" ++ xs ++ ")"
-jsPrim (NS _ (UN "prim__unpack")) [str] = pure $ str ++ ".split('').reduceRight((acc, x) => ({h: 1, a1: x, a2: acc}), {h: 0})"
-jsPrim (NS _ (UN "prim__fastAppend")) [xs] = pure $ "''.concat(...__prim_idris2js_List(" ++ xs ++ "))"
 jsPrim (NS _ (UN "prim__newIORef")) [_,v,_] = pure $ "({value: "++ v ++"})"
 jsPrim (NS _ (UN "prim__readIORef")) [_,r,_] = pure $ "(" ++ r ++ ".value)"
 jsPrim (NS _ (UN "prim__writeIORef")) [_,r,v,_] = pure $ "(" ++ r ++ ".value=" ++ v ++ ")"
@@ -345,6 +336,7 @@ jsPrim (NS _ (UN "prim__os")) [] =
     let oscalc = "(o => o === 'linux'?'unix':o==='win32'?'windows':o)"
     sysos <- addConstToPreamble "sysos" (oscalc ++ "(" ++ os ++ ".platform())")
     pure sysos
+jsPrim (NS _ (UN "prim__unpack")) [str] = pure $ str ++ ".split('').reduceRight((acc, x) => ({h: 1, a1: x, a2: acc}), {h: 0})"
 jsPrim x args = throw $ InternalError $ "prim not implemented: " ++ (show x)
 
 tag2es : Either Int String -> String
@@ -425,7 +417,6 @@ mutual
 static_preamble : List String
 static_preamble =
   [ "class IdrisError extends Error { }"
-  , "function __prim_idris2js_List(x){if(x.h === 0){return []}else{return x.a1.concat(__prim_idris2js_List(x.a2))}}"
   , "function __prim_idris2js_FArgList(x){if(x.h === 0){return []}else{return x.a2.concat(__prim_idris2js_FArgList(x.a3))}}"
   , "function __prim_js2idris_array(x){if(x.length ===0){return {h:0}}else{return {h:1,a1:x[0],a2: __prim_js2idris_array(x.slice(1))}}}"
   , "function __prim_idris2js_array(x){const result = Array();while (x.h != 0) {result.push(x.a1); x = x.a2;}return result;}"

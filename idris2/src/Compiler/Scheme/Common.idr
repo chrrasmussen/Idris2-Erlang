@@ -198,26 +198,18 @@ schOp Crash [_,msg] = "(blodwen-error-quit (string-append \"ERROR: \" " ++ msg +
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = PutStr | GetStr | PutChar | GetChar
-             | FastPack | Unpack | FastAppend
-             | NewIORef | ReadIORef | WriteIORef
+data ExtPrim = NewIORef | ReadIORef | WriteIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
              | VoidElim
              | SysOS | SysCodegen
              | OnCollect
              | OnCollectAny
+             | Unpack
              | Unknown Name
 
 export
 Show ExtPrim where
-  show PutStr = "PutStr"
-  show GetStr = "GetStr"
-  show PutChar = "PutChar"
-  show GetChar = "GetChar"
-  show FastPack = "FastPack"
-  show Unpack = "Unpack"
-  show FastAppend = "FastAppend"
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
@@ -231,19 +223,13 @@ Show ExtPrim where
   show SysCodegen = "SysCodegen"
   show OnCollect = "OnCollect"
   show OnCollectAny = "OnCollectAny"
+  show Unpack = "Unpack"
   show (Unknown n) = "Unknown " ++ show n
 
 ||| Match on a user given name to get the scheme primitive
 toPrim : Name -> ExtPrim
 toPrim pn@(NS _ n)
-    = cond [(n == UN "prim__putStr", PutStr),
-            (n == UN "prim__getStr", GetStr),
-            (n == UN "prim__putChar", PutChar),
-            (n == UN "prim__getChar", GetChar),
-            (n == UN "prim__fastPack", FastPack),
-            (n == UN "prim__unpack", Unpack),
-            (n == UN "prim__fastAppend", FastAppend),
-            (n == UN "prim__newIORef", NewIORef),
+    = cond [(n == UN "prim__newIORef", NewIORef),
             (n == UN "prim__readIORef", ReadIORef),
             (n == UN "prim__writeIORef", WriteIORef),
             (n == UN "prim__newArray", NewArray),
@@ -255,6 +241,7 @@ toPrim pn@(NS _ n)
             (n == UN "prim__os", SysOS),
             (n == UN "prim__codegen", SysCodegen),
             (n == UN "prim__onCollect", OnCollect),
+            (n == UN "prim__unpack", Unpack),
             (n == UN "prim__onCollectAny", OnCollectAny)
             ]
            (Unknown pn)
@@ -458,20 +445,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
   -- overridden)
   export
   schExtCommon : Int -> ExtPrim -> List NamedCExp -> Core String
-  schExtCommon i PutStr [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor schString (NS ["Builtin"] (UN "MkUnit")) (Just 0) []) ++ ")" -- code for MkUnit
-  schExtCommon i GetStr [world]
-      = pure $ mkWorld "(blodwen-get-line (current-input-port))"
-  schExtCommon i PutChar [arg, world]
-      = pure $ "(begin (display " ++ !(schExp i arg) ++ ") " ++ mkWorld (schConstructor schString (NS ["Builtin"] (UN "MkUnit")) (Just 0) []) ++ ")" -- code for MkUnit
-  schExtCommon i GetChar [world]
-      = pure $ mkWorld "(blodwen-get-char (current-input-port))"
-  schExtCommon i FastPack [xs]
-      = pure $ ("(apply string (blodwen-read-list " ++ !(schExp i xs) ++ "))")
-  schExtCommon i Unpack [str]
-      = pure $ ("(blodwen-string-unpack " ++ !(schExp i str) ++ ")")
-  schExtCommon i FastAppend [xs]
-      = pure $ ("(apply string-append (blodwen-read-list " ++ !(schExp i xs) ++ "))")
   schExtCommon i NewIORef [_, val, world]
       = pure $ mkWorld $ "(box " ++ !(schExp i val) ++ ")"
   schExtCommon i ReadIORef [_, ref, world]
@@ -494,6 +467,8 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure "(display \"Error: Executed 'void'\")"
   schExtCommon i SysOS []
       = pure $ "(blodwen-os)"
+  schExtCommon i Unpack [str]
+      = pure $ ("(blodwen-string-unpack " ++ !(schExp i str) ++ ")")
   schExtCommon i (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   schExtCommon i prim args

@@ -18,11 +18,11 @@ foldl1 f (x::xs) = foldl f x xs
 
 -- This works quickly because when string-concat builds the result, it allocates
 -- enough room in advance so there's only one allocation, rather than lots!
-%extern prim__fastAppend : List String -> String
-
+%foreign
+    "scheme:string-concat"
+    "javascript:lambda:(xs)=>''.concat(...__prim_idris2js_array(xs))"
 export
 fastConcat : List String -> String
-fastConcat = prim__fastAppend
 
 -- This is a deprecated alias for fastConcat for backwards compatibility
 -- (unfortunately, we don't have %deprecated yet).
