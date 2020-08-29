@@ -23,5 +23,5 @@ jobs:
           sudo apt-get install -y chezscheme
           sudo apt-get install -y erlang
       - name: Build and test Idris 2 from bootstrap
-        run: make bootstrap
+        run: cd idris2 && make bootstrap
         shell: bash
