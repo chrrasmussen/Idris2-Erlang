@@ -1,0 +1,26 @@
+name: Ubuntu
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - master
+
+env:
+  SCHEME: scheme
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install build dependencies
+        run: |
+          sudo apt-get install -y chezscheme
+          sudo apt-get install -y erlang
+      - name: Build and test Idris 2 from bootstrap
+        run: make bootstrap
+        shell: bash
