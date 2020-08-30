@@ -2,9 +2,8 @@ name: Nix
 on:
   push:
     branches:
-    - '*'
-    tags:
-    - '*'
+      - '*'
+      - '!*-alpha*'
   pull_request:
     branches:
       - master
