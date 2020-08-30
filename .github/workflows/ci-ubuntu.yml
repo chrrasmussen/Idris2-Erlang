@@ -19,9 +19,12 @@ jobs:
         uses: actions/checkout@v2
       - name: Install build dependencies
         run: |
-          sudo apt-get update
           sudo apt-get install -y chezscheme
-          sudo apt-get install -y erlang
+          wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | sudo apt-key add -
+          echo "deb https://packages.erlang-solutions.com/ubuntu bionic contrib" | sudo tee /etc/apt/sources.list.d/rabbitmq.list
+          sudo apt-get update
+          sudo apt-get install -y aptitude
+          sudo aptitude install -y erlang
       - name: Build and test Idris 2 from bootstrap
         run: cd idris2 && make bootstrap
         shell: bash

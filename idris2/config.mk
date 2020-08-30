@@ -37,6 +37,7 @@ else
 	CFLAGS += -fPIC
 endif
 export OS
+export SHLIB_SUFFIX
 
 ifeq ($(OS),bsd)
 	MAKE := gmake
