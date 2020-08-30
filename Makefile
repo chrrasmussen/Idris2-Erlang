@@ -1,5 +1,5 @@
 IDRIS2_BOOT=idris2erl
-IDRIS2_OUTPUT_EXEC=_build/default/bin/idris2
+IDRIS2_OUTPUT_EXEC=_build/default/bin/idris2erl
 
 PRIV_LIBS_DIR=priv/libs
 PRIV_SUPPORT_DIR=priv/support
