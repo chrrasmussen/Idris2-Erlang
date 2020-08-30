@@ -1,5 +1,5 @@
 { pkgs ? import ./nix
-, src ? ./idris2
+, src ? pkgs.gitignoreSource ./idris2
 }:
 
 pkgs.stdenv.mkDerivation rec {
