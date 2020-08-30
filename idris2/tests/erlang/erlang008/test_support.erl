@@ -5,7 +5,7 @@ get_map_empty() -> #{}.
 get_map_ex1() -> #{<<"first">> => <<"ex1">>}.
 get_map_ex2() -> #{<<"first">> => <<"ex2">>, <<"second">> => 42}.
 get_pid() -> list_to_pid("<0.4.1>").
-get_ref() -> list_to_ref("#Ref<0.4192537678.4073193475.71181>").
+get_ref() -> list_to_ref("#Ref<0.0.0.0>").
 get_port() -> list_to_port("#Port<0.4>").
 get_binary() -> <<"hello">>.
 get_charlist() -> "hello".
