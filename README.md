@@ -145,9 +145,14 @@ Samples:
 
 ### Links to the Idris 2 project
 
-- [Idris 2 website](https://www.idris-lang.org)
+- [Idris website](https://www.idris-lang.org)
 - [Idris 2 documentation](https://idris2.readthedocs.io/en/latest/)
 - [Idris 2 repository](https://github.com/idris-lang/Idris2)
+
+
+## Community
+
+The [Idris website](https://www.idris-lang.org) contains links to where you can find the Idris community.
 
 
 ## Meta
