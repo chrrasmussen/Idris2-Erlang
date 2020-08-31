@@ -155,13 +155,6 @@ Samples:
 The [Idris website](https://www.idris-lang.org) contains links to where you can find the Idris community.
 
 
-## Meta
-
-### Changes to the Idris 2 compiler
-
-Currently this repository includes a few changes to the Idris 2 compiler, e.g. basic support for separate compilation. I will try to upstream any changes that can benefit the Idris 2 project.
-
-
 ## License
 
 The Idris 2 compiler is licensed as BSD 3-Clause. See [idris2/LICENSE](idris2/LICENSE).
