@@ -122,6 +122,7 @@ The Idris 2 libraries tries to include documentation for its functions and data 
 References:
 - [Overview of data types that have a mapping between Idris 2 and Erlang](docs/datatypes.md)
 - [Codegen-specific directives](docs/directives.md)
+- [Intermediate representations](docs/intermediaterepresentations.md)
 
 Samples:
 - [Hello world](samples/1-HelloWorld)
