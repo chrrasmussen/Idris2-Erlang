@@ -157,9 +157,9 @@ The [Idris website](https://www.idris-lang.org) contains links to where you can 
 
 ## License
 
-The Idris 2 compiler is licensed as BSD 3-Clause. See [idris2/LICENSE](idris2/LICENSE).
+The Idris 2 compiler is released under the [3-clause BSD license](idris2/LICENSE).
 
-The Erlang code generator is derived from the Idris 2 compiler and is licensed as BSD 3-Clause. See [LICENSE](LICENSE).
+The Erlang code generator is derived from the Idris 2 compiler and is released under the [3-clause BSD license](LICENSE).
 
 ---
 
