@@ -28,6 +28,7 @@ import Text.PrettyPrint.Prettyprinter
 import Utils.Binary
 import Utils.String
 import Utils.Path
+import Utils.System
 
 import Idris.CommandLine
 import Idris.ModTree
@@ -552,7 +553,7 @@ processPackage : {auto c : Ref Ctxt Defs} ->
 processPackage cmd file opts
     =  if not (isSuffixOf ".ipkg" file)
          then do coreLift $ putStrLn ("Packages must have an '.ipkg' extension: " ++ show file ++ ".")
-                 coreLift (exitWith (ExitFailure 1))
+                 coreLift (softExitWith (ExitFailure 1))
          else do Right (pname, fs) <- coreLift $ parseFile file
                                           (do desc <- parsePkgDesc file
                                               eoi
@@ -564,19 +565,19 @@ processPackage cmd file opts
                  setOutputDir (outputdir pkg)
                  case cmd of
                       Build => do [] <- build pkg opts
-                                     | errs => coreLift (exitWith (ExitFailure 1))
+                                     | errs => coreLift (softExitWith (ExitFailure 1))
                                   pure ()
                       Install => do [] <- build pkg opts
-                                       | errs => coreLift (exitWith (ExitFailure 1))
+                                       | errs => coreLift (softExitWith (ExitFailure 1))
                                     install pkg opts
                       Typecheck => do
                         [] <- check pkg opts
-                          | errs => coreLift (exitWith (ExitFailure 1))
+                          | errs => coreLift (softExitWith (ExitFailure 1))
                         pure ()
                       Clean => clean pkg opts
                       REPL => do
                         [] <- build pkg opts
-                           | errs => coreLift (exitWith (ExitFailure 1))
+                           | errs => coreLift (softExitWith (ExitFailure 1))
                         runRepl (map snd $ mainmod pkg)
 
 record POptsFilterResult where

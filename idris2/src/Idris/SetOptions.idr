@@ -6,6 +6,7 @@ import Core.Metadata
 import Core.Options
 import Core.Unify
 import Utils.Path
+import Utils.System
 
 import Idris.CommandLine
 import Idris.Error
@@ -65,7 +66,7 @@ preOptions (SetCG e :: opts)
               do coreLift $ putStrLn "No such code generator"
                  coreLift $ putStrLn $ "Code generators available: " ++
                                  showSep ", " (map fst (availableCGs (options defs)))
-                 coreLift $ exitWith (ExitFailure 1)
+                 coreLift $ softExitWith (ExitFailure 1)
 preOptions (Directive d :: opts)
     = do setSession (record { directives $= (d::) } !getSession)
          preOptions opts

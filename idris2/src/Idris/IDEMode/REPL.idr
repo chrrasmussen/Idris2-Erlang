@@ -43,6 +43,7 @@ import TTImp.TTImp
 import TTImp.ProcessDecls
 
 import Utils.Hex
+import Utils.System
 
 import Erlang.System
 import Erlang.System.File
@@ -68,7 +69,7 @@ initIDESocketFile h p = do
     Left fail => do
       putStrLn (show fail)
       putStrLn "Failed to open socket"
-      exitWith (ExitFailure 1)
+      softExitWith (ExitFailure 1)
     Right sock => do
       res <- bind sock (Just (Hostname h)) p
       if res /= 0
@@ -92,11 +93,11 @@ getChar h = do
   if False
      then do
        putStrLn "Alas the file is done, aborting"
-       exitWith (ExitFailure 1)
+       softExitWith (ExitFailure 1)
      else do
        Right chr <- fGetChar h
            | Left err => do putStrLn "Failed to read a character"
-                            exitWith (ExitFailure 1)
+                            softExitWith (ExitFailure 1)
        pure chr
 
 getFLine : File -> IO String
@@ -104,7 +105,7 @@ getFLine h
     = do Right str <- fGetLine h
                | Left err =>
                    do putStrLn "Failed to read a line"
-                      exitWith (ExitFailure 1)
+                      softExitWith (ExitFailure 1)
          pure str
 
 getNChars : File -> Nat -> IO (List Char)
