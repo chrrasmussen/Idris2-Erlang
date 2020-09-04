@@ -205,7 +205,6 @@ data ExtPrim = NewIORef | ReadIORef | WriteIORef
              | SysOS | SysCodegen
              | OnCollect
              | OnCollectAny
-             | Unpack
              | Unknown Name
 
 export
@@ -223,7 +222,6 @@ Show ExtPrim where
   show SysCodegen = "SysCodegen"
   show OnCollect = "OnCollect"
   show OnCollectAny = "OnCollectAny"
-  show Unpack = "Unpack"
   show (Unknown n) = "Unknown " ++ show n
 
 ||| Match on a user given name to get the scheme primitive
@@ -241,7 +239,6 @@ toPrim pn@(NS _ n)
             (n == UN "prim__os", SysOS),
             (n == UN "prim__codegen", SysCodegen),
             (n == UN "prim__onCollect", OnCollect),
-            (n == UN "prim__unpack", Unpack),
             (n == UN "prim__onCollectAny", OnCollectAny)
             ]
            (Unknown pn)
@@ -467,8 +464,6 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure "(display \"Error: Executed 'void'\")"
   schExtCommon i SysOS []
       = pure $ "(blodwen-os)"
-  schExtCommon i Unpack [str]
-      = pure $ ("(blodwen-string-unpack " ++ !(schExp i str) ++ ")")
   schExtCommon i (Unknown n) args
       = throw (InternalError ("Can't compile unknown external primitive " ++ show n))
   schExtCommon i prim args

@@ -455,16 +455,20 @@ pack (x :: xs) = strCons x (pack xs)
 export
 fastPack : List Char -> String
 
-%extern prim__unpack : String -> List Char
-
 ||| Turns a string into a list of characters.
 |||
 ||| ```idris example
 ||| unpack "ABC"
 ||| ```
-export
+public export
 unpack : String -> List Char
-unpack = prim__unpack
+unpack str = unpack' (prim__cast_IntegerInt (natToInteger (length str)) - 1) str []
+  where
+    unpack' : Int -> String -> List Char -> List Char
+    unpack' pos str acc
+        = if pos < 0
+             then acc
+             else assert_total $ unpack' (pos - 1) str (assert_total (prim__strIndex str pos)::acc)
 
 public export
 Semigroup String where

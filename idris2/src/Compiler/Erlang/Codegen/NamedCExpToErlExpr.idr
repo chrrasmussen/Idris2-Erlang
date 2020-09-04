@@ -352,8 +352,6 @@ genDecodeTuple l term arity = do
   genDecode l term $ MTuple (argsToErlMatchers args) (ETuple l (map (ELocal l) args))
 
 genExtPrim : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
-genExtPrim namespaceInfo l (NS _ (UN "prim__unpack")) [str] = do
-  pure $ genFunCall l "string" "to_graphemes" [str]
 genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =

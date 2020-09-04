@@ -81,12 +81,6 @@
               ""
               (substring s b end))))
 
-(define list->idris-list (lambda (xs)
-  (cond
-    ((null? xs) (vector 0))
-    (else (vector 1 (car xs) (list->idris-list (cdr xs)))))))
-(define blodwen-string-unpack (lambda (str) (list->idris-list (string->list str))))
-
 (define either-left
   (lambda (x)
     (vector 0 x)))
