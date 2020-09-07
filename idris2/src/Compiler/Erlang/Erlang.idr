@@ -130,11 +130,11 @@ compileMainEntrypointToModules globalOpts tm modName = do
   let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
 
-compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (List (NamespaceInfo, List ErlFunDecl))
-compileLibraryToModules globalOpts allModuleOpts changedNamespaces = do
-  let extraNames = filter (shouldCompileName changedNamespaces) (map snd (getExportFunNames allModuleOpts))
-  compileData <- getExportedCompileData Cases (shouldCompileName changedNamespaces) extraNames
-  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName changedNamespaces . fst) (namedDefs compileData))
+compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (changedModules : Maybe (List ModuleIdent)) -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileLibraryToModules globalOpts allModuleOpts changedModules = do
+  let extraNames = filter (shouldCompileName changedModules) (map snd (getExportFunNames allModuleOpts))
+  compileData <- getExportedCompileData Cases (shouldCompileName changedModules) extraNames
+  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName changedModules . fst) (namedDefs compileData))
   let validCompdefs = mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
     where
@@ -189,15 +189,15 @@ executeExpr c tmpDir tm = do
   coreLift $ system (executeBeamCmd erl tmpDir modName)
   pure ()
 
-compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
-compileLibrary c tmpDir outputDir libName changedNamespaces = do
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedModules = do
   ds <- getDirectives (Other "erlang")
   let groupedDirectives = groupBy fst snd ds
   let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
   let moduleDirectives = SortedMap.toList (delete emptyNS groupedDirectives) -- TODO: Fix emptyNS
   let allModuleOpts = map (uncurry parseModuleOpts) moduleDirectives
   let globalOpts = parseOpts globalDirectives
-  modules <- compileLibraryToModules globalOpts allModuleOpts changedNamespaces
+  modules <- compileLibraryToModules globalOpts allModuleOpts changedModules
   generatedModules <- build globalOpts allModuleOpts tmpDir outputDir modules
   pure (Just (libName, generatedModules))
 

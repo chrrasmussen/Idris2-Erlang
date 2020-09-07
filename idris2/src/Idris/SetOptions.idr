@@ -97,8 +97,8 @@ preOptions (RunREPL _ :: opts)
 preOptions (FindIPKG :: opts)
     = do setSession (record { findipkg = True } !getSession)
          preOptions opts
-preOptions (ChangedNamespaces ns :: opts)
-    = do setSession (record { changedNamespaces = ns } !getSession)
+preOptions (ChangedModules ns :: opts)
+    = do setSession (record { changedModules = ns } !getSession)
          preOptions opts
 preOptions (DumpCases f :: opts)
     = do setSession (record { dumpcases = Just f } !getSession)

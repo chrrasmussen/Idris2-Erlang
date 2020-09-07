@@ -17,7 +17,7 @@ Overridable options are:
     --directive <directive>
     --build-dir <dir>
     --output-dir <dir>
-    --changed-namespaces <namespaces>
+    --changed-modules <namespaces>
 
 Packages must have an '.ipkg' extension: "malformed-package-name".
 Uncaught error: File error (non-existent-package.ipkg): File Not Found

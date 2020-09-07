@@ -35,7 +35,7 @@ record Codegen where
   executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
   ||| Compile modules into a library.
   compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
-                   (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+                   (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 
 -- Say which phase of compilation is the last one to use - it saves time if
 -- you only ask for what you need.
@@ -110,16 +110,16 @@ export
 cgCompileLibrary : {auto c : Ref Ctxt Defs} ->
                    Codegen ->
                    (libName : String) ->
-                   (changedNamespaces : Maybe (List ModuleIdent)) ->
+                   (changedModules : Maybe (List ModuleIdent)) ->
                    Core (Maybe (String, List String))
-cgCompileLibrary {c} cg libName changedNamespaces
+cgCompileLibrary {c} cg libName changedModules
     = do d <- getDirs
          let tmpDir = execBuildDir d
          let outputDir = outputDirWithDefault d
          ensureDirectoryExists tmpDir
          ensureDirectoryExists outputDir
          logTime "Code generation overall" $
-             compileLibrary cg c tmpDir outputDir libName changedNamespaces
+             compileLibrary cg c tmpDir outputDir libName changedModules
 
 -- If an entry isn't already decoded, get the minimal entry we need for
 -- compilation, and record the Binary so that we can put it back when we're

@@ -291,22 +291,22 @@ compileLibHelper : {auto c : Ref Ctxt Defs} ->
                    {auto o : Ref ROpts REPLOpts} ->
                    (libName : String) ->
                    (packageNamespaces : List ModuleIdent) ->
-                   (changedNamespaces : Maybe (List ModuleIdent)) ->
+                   (changedModules : Maybe (List ModuleIdent)) ->
                    Core ()
-compileLibHelper libName packageNamespaces changedNamespaces
+compileLibHelper libName packageNamespaces changedModules
     = do m <- newRef MD initMetadata
          u <- newRef UST initUState
-         let namespacesToLoad = fromMaybe packageNamespaces changedNamespaces
+         let namespacesToLoad = fromMaybe packageNamespaces changedModules
          loadModules namespacesToLoad
-         compileLib libName changedNamespaces
+         compileLib libName changedModules
          pure ()
 
-filterChangedNamespaces : (changedNamespaces : List ModuleIdent) ->
+filterChangedModules : (changedModules : List ModuleIdent) ->
                           List BuildMod ->
                           List BuildMod
-filterChangedNamespaces changedNamespaces allMods =
-  let (changedMods, possiblyChangedMods) = partition (\mod => mod.buildNS `elem` changedNamespaces) allMods
-      usedByMods = filterUsedByMods changedNamespaces possiblyChangedMods
+filterChangedModules changedModules allMods =
+  let (changedMods, possiblyChangedMods) = partition (\mod => mod.buildNS `elem` changedModules) allMods
+      usedByMods = filterUsedByMods changedModules possiblyChangedMods
   in changedMods ++ usedByMods
 
 prepareCompilation : {auto c : Ref Ctxt Defs} ->
@@ -330,9 +330,9 @@ prepareCompilation pkg opts =
                         (mainmod pkg)
     allMods <- getAllBuildMods filesToBuild
     session <- getSession
-    case session.changedNamespaces of
-      Just changedNamespaces => do
-        let modsToBuild = filterChangedNamespaces (List1.toList changedNamespaces) allMods
+    case session.changedModules of
+      Just changedModules => do
+        let modsToBuild = filterChangedModules (List1.toList changedModules) allMods
         errs <- buildAll modsToBuild
         pure (errs, Just $ map buildNS modsToBuild)
       Nothing => do
@@ -346,7 +346,7 @@ build : {auto c : Ref Ctxt Defs} ->
         List CLOpt ->
         Core (List Error)
 build pkg opts
-    = do ([], changedNamespaces) <- prepareCompilation pkg opts
+    = do ([], changedModules) <- prepareCompilation pkg opts
             | (errs, _) => pure errs
 
          case executable pkg of
@@ -360,7 +360,7 @@ build pkg opts
               Nothing => pure ()
               Just libName =>
                 let packageNamespaces = map fst (modules pkg)
-                in compileLibHelper libName packageNamespaces changedNamespaces
+                in compileLibHelper libName packageNamespaces changedModules
          runScript (postbuild pkg)
          pure []
 
@@ -432,7 +432,7 @@ check : {auto c : Ref Ctxt Defs} ->
         Core (List Error)
 check pkg opts =
   do
-    ([], changedNamespaces) <- prepareCompilation pkg opts
+    ([], changedModules) <- prepareCompilation pkg opts
       | (errs, _) => pure errs
 
     runScript (postbuild pkg)
@@ -604,7 +604,7 @@ errorMsg = unlines
   , "    --directive <directive>"
   , "    --build-dir <dir>"
   , "    --output-dir <dir>"
-  , "    --changed-namespaces <namespaces>"
+  , "    --changed-modules <namespaces>"
   ]
 
 
@@ -626,7 +626,7 @@ filterPackageOpts acc (SetCG f       ::xs) = filterPackageOpts (record {oopts $=
 filterPackageOpts acc (Directive f   ::xs) = filterPackageOpts (record {oopts $= (Directive f::)}    acc) xs
 filterPackageOpts acc (BuildDir f    ::xs) = filterPackageOpts (record {oopts $= (BuildDir f::)}     acc) xs
 filterPackageOpts acc (OutputDir f   ::xs) = filterPackageOpts (record {oopts $= (OutputDir f::)}    acc) xs
-filterPackageOpts acc (ChangedNamespaces ns::xs) = filterPackageOpts (record {oopts $= (ChangedNamespaces ns::)} acc) xs
+filterPackageOpts acc (ChangedModules ns::xs) = filterPackageOpts (record {oopts $= (ChangedModules ns::)} acc) xs
 
 filterPackageOpts acc (x::xs) = pure (record {hasError = True} acc)
 

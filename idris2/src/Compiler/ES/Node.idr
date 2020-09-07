@@ -46,8 +46,8 @@ executeExpr c tmpDir tm
      coreLift $ system (node ++ " " ++ outn)
      pure ()
 
-compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
-compileLibrary c tmpDir outputDir libName changedNamespaces = do
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedModules = do
   coreLift $ putStrLn "Compiling to library is not supported."
   pure Nothing
 

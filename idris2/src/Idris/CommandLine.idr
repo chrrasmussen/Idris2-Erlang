@@ -64,7 +64,7 @@ data CLOpt
    ||| Set output directory
   OutputDir String |
    ||| Changed namespaces
-  ChangedNamespaces (Maybe (List1 ModuleIdent)) |
+  ChangedModules (Maybe (List1 ModuleIdent)) |
    ||| Show the installation prefix
   ShowPrefix |
    ||| Display Idris version
@@ -218,7 +218,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Build the given package and launch a REPL instance."),
            MkOpt ["--find-ipkg"] [] [FindIPKG]
               (Just "Find and use an .ipkg file in a parent directory"),
-           MkOpt ["--changed-namespaces"] [Required "namespaces"] (\ns => [ChangedNamespaces (Just (parseModules ns))])
+           MkOpt ["--changed-modules"] [Required "namespaces"] (\ns => [ChangedModules (Just (parseModules ns))])
               (Just "Comma-separated list of namespaces that have changed since last code generation"),
 
            optSeparator,
