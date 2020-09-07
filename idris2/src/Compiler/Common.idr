@@ -35,7 +35,7 @@ record Codegen where
   executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
   ||| Compile modules into a library.
   compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
-                   (libName : String) -> (changedNamespaces : Maybe (List (List String))) -> Core (Maybe (String, List String))
+                   (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 
 -- Say which phase of compilation is the last one to use - it saves time if
 -- you only ask for what you need.
@@ -110,7 +110,7 @@ export
 cgCompileLibrary : {auto c : Ref Ctxt Defs} ->
                    Codegen ->
                    (libName : String) ->
-                   (changedNamespaces : Maybe (List (List String))) ->
+                   (changedNamespaces : Maybe (List ModuleIdent)) ->
                    Core (Maybe (String, List String))
 cgCompileLibrary {c} cg libName changedNamespaces
     = do d <- getDirs

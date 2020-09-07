@@ -234,13 +234,13 @@ loadModules : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto o : Ref ROpts REPLOpts} ->
-              (namespaces : List (List String)) ->
+              (namespaces : List ModuleIdent) ->
               Core ()
 loadModules namespaces = do
   -- Load the the TTC files in a clean context
   clearCtxt; addPrimitives
   put MD initMetadata
-  traverse (\ns => readModule True emptyFC True ns ns) namespaces
+  traverse (\ns => readModule True emptyFC True ns (miAsNamespace ns)) namespaces
   pure ()
 
 export
@@ -266,7 +266,7 @@ getAllBuildMods allFiles = do
         = b :: dropLater (filter (\x => buildFile x /= buildFile b) bs)
 
 export
-filterUsedByMods : List (List String) -> List BuildMod -> List BuildMod
+filterUsedByMods : List ModuleIdent -> List BuildMod -> List BuildMod
 filterUsedByMods [] mods = []
 filterUsedByMods (x :: xs) mods =
    let (ancestors, restMods) = partition (\mod => x `elem` mod.imports) mods

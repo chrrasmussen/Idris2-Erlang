@@ -910,7 +910,7 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
-  cgdirectives : List (List String, CG, String)
+  cgdirectives : List (Namespace, CG, String)
      -- ^ Code generator directives, which are free form text and thus to
      -- be interpreted however the specific code generator requires
   toCompileCase : List Name
@@ -1722,13 +1722,13 @@ addDirective c str
 
 export
 getDirectives : {auto c : Ref Ctxt Defs} ->
-                CG -> Core (List (List String, String))
+                CG -> Core (List (Namespace, String))
 getDirectives cg
     = do defs <- get Ctxt
-         pure $ map (\d => ([], d)) defs.options.session.directives ++
+         pure $ map (\d => (emptyNS, d)) defs.options.session.directives ++
                  mapMaybe getDir (cgdirectives defs)
   where
-    getDir : (List String, CG, String) -> Maybe (List String, String)
+    getDir : (Namespace, CG, String) -> Maybe (Namespace, String)
     getDir (ns, x', str) = if cg == x' then Just (ns, str) else Nothing
 
 getNextTypeTag : {auto c : Ref Ctxt Defs} ->

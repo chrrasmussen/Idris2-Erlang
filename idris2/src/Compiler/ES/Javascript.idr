@@ -62,7 +62,7 @@ executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm =
   throw $ InternalError "Javascript backend is only able to compile, use Node instead"
 
-compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List (List String))) -> Core (Maybe (String, List String))
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedNamespaces = do
   coreLift $ putStrLn "Compiling to library is not supported."
   pure Nothing

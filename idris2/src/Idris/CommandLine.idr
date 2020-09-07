@@ -4,6 +4,7 @@ import IdrisPaths
 
 import Idris.Version
 
+import Core.Name
 import Core.Options
 
 import Data.List
@@ -63,7 +64,7 @@ data CLOpt
    ||| Set output directory
   OutputDir String |
    ||| Changed namespaces
-  ChangedNamespaces (Maybe (List1 (List1 String))) |
+  ChangedNamespaces (Maybe (List1 ModuleIdent)) |
    ||| Show the installation prefix
   ShowPrefix |
    ||| Display Idris version
@@ -171,11 +172,8 @@ separateBy : Char -> String -> List1 String
 separateBy sep str =
   map pack (splitOn sep (unpack str))
 
-parseNamespace : String -> List1 String
-parseNamespace str = reverse (separateBy '.' str)
-
-parseNamespaces : String -> List1 (List1 String)
-parseNamespaces str = map parseNamespace (separateBy ',' str)
+parseModules : String -> List1 ModuleIdent
+parseModules str = map mkModuleIdentFromString (separateBy ',' str)
 
 options : List OptDesc
 options = [MkOpt ["--check", "-c"] [] [CheckOnly]
@@ -220,7 +218,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Build the given package and launch a REPL instance."),
            MkOpt ["--find-ipkg"] [] [FindIPKG]
               (Just "Find and use an .ipkg file in a parent directory"),
-           MkOpt ["--changed-namespaces"] [Required "namespaces"] (\ns => [ChangedNamespaces (Just (parseNamespaces ns))])
+           MkOpt ["--changed-namespaces"] [Required "namespaces"] (\ns => [ChangedNamespaces (Just (parseModules ns))])
               (Just "Comma-separated list of namespaces that have changed since last code generation"),
 
            optSeparator,

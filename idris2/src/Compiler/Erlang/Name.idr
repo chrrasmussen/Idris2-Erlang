@@ -9,10 +9,6 @@ import Core.TT
 
 
 public export
-Namespace : Type
-Namespace = List String
-
-public export
 data OutputBundle : Type where
   Concat : (ns : String) -> OutputBundle
   Split : (prefixStr : String) -> (inNS : Namespace) -> OutputBundle
@@ -51,10 +47,10 @@ Ord NamespaceInfo where
 export
 getNamespace : Name -> Namespace
 getNamespace (NS ns _) = ns
-getNamespace n = []
+getNamespace n = emptyNS -- TODO: Fix emptyNS
 
 genName : Name -> String
-genName (NS ns n) = "ns--" ++ showSep "-" ns ++ "--" ++ genName n
+genName (NS ns n) = "ns--" ++ show ns ++ "--" ++ genName n
 genName (UN n) = "un--" ++ n
 genName (MN n i) = n ++ "_" ++ show i
 genName (PV n d) = "pat--" ++ genName n
@@ -68,7 +64,7 @@ moduleNameForNS : NamespaceInfo -> Namespace -> String
 moduleNameForNS namespaceInfo ns =
   case outputBundle namespaceInfo of
     Concat ns => ns
-    Split prefixStr inNS => showSep "." (prefixStr :: reverse ns)
+    Split prefixStr inNS => show $ mkNamespace prefixStr <.> ns
 
 moduleNameForName : NamespaceInfo -> Name -> String
 moduleNameForName namespaceInfo name = moduleNameForNS namespaceInfo (getNamespace name)
@@ -97,8 +93,27 @@ moduleNameFunctionName namespaceInfo name =
 export
 constructorName : Name -> String
 constructorName name =
-  let nsName = showSep "." ("Idris" :: reverse (getNamespace name))
+  let ns = mkNamespace "Idris" <.> getNamespace name
       ctorName = case dropNS name of
         (UN dataCtor) => dataCtor
         n => genName n
-  in nsName ++ "." ++ ctorName
+  in show ns ++ "." ++ ctorName
+
+
+-- NAMESPACES
+
+export
+erlangTypesNS : Namespace
+erlangTypesNS = mkNamespace "Erlang.Types"
+
+export
+erlangIONS : Namespace
+erlangIONS = mkNamespace "Erlang.IO"
+
+export
+erlangMaybeImproperListNS : Namespace
+erlangMaybeImproperListNS = mkNamespace "Erlang.Types.MaybeImproperList"
+
+export
+erlangProperListNS : Namespace
+erlangProperListNS = mkNamespace "Erlang.Types.ProperList"

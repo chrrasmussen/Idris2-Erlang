@@ -66,27 +66,27 @@ genErased l =
 export
 genMkUnit : Line -> ErlExpr
 genMkUnit l =
-  ECon l (constructorName (NS ["Builtin"] (UN "MkUnit"))) []
+  ECon l (constructorName (NS builtinNS (UN "MkUnit"))) []
 
 export
 genJust : Line -> ErlExpr -> ErlExpr
 genJust l expr =
-  ECon l (constructorName (NS ["Types", "Prelude"] (UN "Just"))) [expr]
+  ECon l (constructorName (NS typesNS (UN "Just"))) [expr]
 
 export
 genNothing : Line -> ErlExpr
 genNothing l =
-  ECon l (constructorName (NS ["Types", "Prelude"] (UN "Nothing"))) []
+  ECon l (constructorName (NS typesNS (UN "Nothing"))) []
 
 export
 genRight : Line -> ErlExpr -> ErlExpr
 genRight l expr =
-  ECon l (constructorName (NS ["Types", "Prelude"] (UN "Right"))) [expr]
+  ECon l (constructorName (NS typesNS (UN "Right"))) [expr]
 
 export
 genLeft : Line -> ErlExpr -> ErlExpr
 genLeft l expr =
-  ECon l (constructorName (NS ["Types", "Prelude"] (UN "Left"))) [expr]
+  ECon l (constructorName (NS typesNS (UN "Left"))) [expr]
 
 -- PrimIO.MkIORes : {0 a : Type} -> (result : a) -> (1 x : %World) -> IORes a
 export
@@ -119,7 +119,7 @@ genRef namespaceInfo l name =
 export
 genUnsafePerformIO : NamespaceInfo -> Line -> ErlExpr -> ErlExpr
 genUnsafePerformIO namespaceInfo l action =
-  EApp l (genRef namespaceInfo l (NS ["PrimIO"] (UN "unsafePerformIO"))) [genErased l, action]
+  EApp l (genRef namespaceInfo l (NS primIONS (UN "unsafePerformIO"))) [genErased l, action]
 
 export
 genFunCall : Line -> String -> String -> List ErlExpr -> ErlExpr

@@ -129,7 +129,7 @@ record Session where
   codegen : CG
   directives : List String
   packages : List String
-  changedNamespaces : Maybe (List1 (List1 String))
+  changedNamespaces : Maybe (List1 ModuleIdent)
   logLevel : LogLevels
   logTimings : Bool
   debugElabCheck : Bool -- do conversion check to verify results of elaborator

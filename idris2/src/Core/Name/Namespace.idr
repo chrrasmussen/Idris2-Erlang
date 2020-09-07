@@ -68,6 +68,10 @@ mkModuleIdent : Maybe Namespace -> String -> ModuleIdent
 mkModuleIdent Nothing n = MkMI [n]
 mkModuleIdent (Just (MkNS ns)) n = MkMI (n :: ns)
 
+export
+mkModuleIdentFromString : String -> ModuleIdent
+mkModuleIdentFromString str = nsAsModuleIdent (mkNamespace str)
+
 -------------------------------------------------------------------------------------
 -- MANIPULATING NAMESPACES
 -------------------------------------------------------------------------------------

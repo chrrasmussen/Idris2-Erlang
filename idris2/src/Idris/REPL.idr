@@ -589,7 +589,7 @@ export
 compileLib : {auto c : Ref Ctxt Defs} ->
              {auto o : Ref ROpts REPLOpts} ->
              (libName : String) ->
-             (changedNamespaces : Maybe (List (List String))) ->
+             (changedNamespaces : Maybe (List ModuleIdent)) ->
              Core REPLResult
 compileLib libName changedNamespaces = do
   ok <- cgCompileLibrary !findCG libName changedNamespaces

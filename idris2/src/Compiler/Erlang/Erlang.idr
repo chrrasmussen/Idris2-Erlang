@@ -130,7 +130,7 @@ compileMainEntrypointToModules globalOpts tm modName = do
   let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
 
-compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (changedNamespaces : Maybe (List (List String))) -> Core (List (NamespaceInfo, List ErlFunDecl))
+compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileLibraryToModules globalOpts allModuleOpts changedNamespaces = do
   let extraNames = filter (shouldCompileName changedNamespaces) (map snd (getExportFunNames allModuleOpts))
   compileData <- getExportedCompileData Cases (shouldCompileName changedNamespaces) extraNames
@@ -138,9 +138,9 @@ compileLibraryToModules globalOpts allModuleOpts changedNamespaces = do
   let validCompdefs = mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
     where
-      shouldCompileName : Maybe (List Namespace) -> Name -> Bool
+      shouldCompileName : Maybe (List ModuleIdent) -> Name -> Bool
       shouldCompileName Nothing _ = True
-      shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` namespacesToCompile
+      shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` (map miAsNamespace namespacesToCompile) -- TODO: Should this check if namespace is child?
 
 build : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
 build globalOpts allModuleOpts tmpDir outputDir modules = do
@@ -172,7 +172,7 @@ compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> Clos
 compileExpr c tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
   let groupedDirectives = groupBy fst snd ds
-  let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
+  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
   let globalOpts = parseOpts globalDirectives
   let modName = outfile
   modules <- compileMainEntrypointToModules globalOpts tm modName
@@ -189,12 +189,12 @@ executeExpr c tmpDir tm = do
   coreLift $ system (executeBeamCmd erl tmpDir modName)
   pure ()
 
-compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List (List String))) -> Core (Maybe (String, List String))
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedNamespaces : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedNamespaces = do
   ds <- getDirectives (Other "erlang")
   let groupedDirectives = groupBy fst snd ds
-  let globalDirectives = fromMaybe [] (lookup [] groupedDirectives)
-  let moduleDirectives = SortedMap.toList (delete [] groupedDirectives)
+  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
+  let moduleDirectives = SortedMap.toList (delete emptyNS groupedDirectives) -- TODO: Fix emptyNS
   let allModuleOpts = map (uncurry parseModuleOpts) moduleDirectives
   let globalOpts = parseOpts globalDirectives
   modules <- compileLibraryToModules globalOpts allModuleOpts changedNamespaces

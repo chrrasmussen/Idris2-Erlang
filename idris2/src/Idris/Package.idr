@@ -10,6 +10,7 @@ import Core.Options
 import Core.Unify
 
 import Data.List
+import Data.List1
 import Data.Maybe
 import Data.So
 import Data.StringMap
@@ -289,8 +290,8 @@ compileLibHelper : {auto c : Ref Ctxt Defs} ->
                    {auto s : Ref Syn SyntaxInfo} ->
                    {auto o : Ref ROpts REPLOpts} ->
                    (libName : String) ->
-                   (packageNamespaces : List (List String)) ->
-                   (changedNamespaces : Maybe (List (List String))) ->
+                   (packageNamespaces : List ModuleIdent) ->
+                   (changedNamespaces : Maybe (List ModuleIdent)) ->
                    Core ()
 compileLibHelper libName packageNamespaces changedNamespaces
     = do m <- newRef MD initMetadata
@@ -300,7 +301,7 @@ compileLibHelper libName packageNamespaces changedNamespaces
          compileLib libName changedNamespaces
          pure ()
 
-filterChangedNamespaces : (changedNamespaces : List (List String)) ->
+filterChangedNamespaces : (changedNamespaces : List ModuleIdent) ->
                           List BuildMod ->
                           List BuildMod
 filterChangedNamespaces changedNamespaces allMods =
@@ -313,7 +314,7 @@ prepareCompilation : {auto c : Ref Ctxt Defs} ->
                      {auto o : Ref ROpts REPLOpts} ->
                      PkgDesc ->
                      List CLOpt ->
-                     Core (List Error, Maybe (List (List String)))
+                     Core (List Error, Maybe (List ModuleIdent))
 prepareCompilation pkg opts =
   do
     defs <- get Ctxt
@@ -331,7 +332,7 @@ prepareCompilation pkg opts =
     session <- getSession
     case session.changedNamespaces of
       Just changedNamespaces => do
-        let modsToBuild = filterChangedNamespaces (List1.toList (map List1.toList changedNamespaces)) allMods
+        let modsToBuild = filterChangedNamespaces (List1.toList changedNamespaces) allMods
         errs <- buildAll modsToBuild
         pure (errs, Just $ map buildNS modsToBuild)
       Nothing => do
@@ -358,7 +359,7 @@ build pkg opts
          case library pkg of
               Nothing => pure ()
               Just libName =>
-                let packageNamespaces = map (List1.toList . fst) (modules pkg)
+                let packageNamespaces = map fst (modules pkg)
                 in compileLibHelper libName packageNamespaces changedNamespaces
          runScript (postbuild pkg)
          pure []
