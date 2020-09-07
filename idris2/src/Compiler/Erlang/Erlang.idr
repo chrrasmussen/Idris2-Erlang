@@ -140,7 +140,9 @@ compileLibraryToModules globalOpts allModuleOpts changedModules = do
     where
       shouldCompileName : Maybe (List ModuleIdent) -> Name -> Bool
       shouldCompileName Nothing _ = True
-      shouldCompileName (Just namespacesToCompile) n = getNamespace n `elem` (map miAsNamespace namespacesToCompile) -- TODO: Should this check if namespace is child?
+      shouldCompileName (Just modulesToCompile) n =
+        let namespaces = map miAsNamespace modulesToCompile
+        in any (`isParentOf` getNamespace n) namespaces
 
 build : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
 build globalOpts allModuleOpts tmpDir outputDir modules = do
