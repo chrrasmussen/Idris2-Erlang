@@ -462,13 +462,10 @@ fastPack : List Char -> String
 ||| ```
 public export
 unpack : String -> List Char
-unpack str = unpack' (prim__cast_IntegerInt (natToInteger (length str)) - 1) str []
-  where
-    unpack' : Int -> String -> List Char -> List Char
-    unpack' pos str acc
-        = if pos < 0
-             then acc
-             else assert_total $ unpack' (pos - 1) str (assert_total (prim__strIndex str pos)::acc)
+unpack str =
+  case strUncons str of
+    Nothing => []
+    Just (x, xs) => x :: unpack (assert_smaller str xs)
 
 public export
 Semigroup String where
