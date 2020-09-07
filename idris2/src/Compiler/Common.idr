@@ -37,7 +37,7 @@ record Codegen where
   compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
                    (libName : String) -> (changedNamespaces : Maybe (List (List String))) -> Core (Maybe (String, List String))
 
--- Say which phase of compilation is the last one to use - it saves time if 
+-- Say which phase of compilation is the last one to use - it saves time if
 -- you only ask for what you need.
 public export
 data UsePhase = Cases | Lifted | ANF | VMCode
@@ -160,7 +160,7 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
             Nothing => getAllDesc rest arr defs
             Just (_, entry) =>
               do (def, bin) <- getMinimalDef entry
-                 addDef n def 
+                 addDef n def
                  let refs = refersToRuntime def
                  if multiplicity def /= erased
                     then do coreLift $ writeArray arr i (i, bin)
@@ -200,8 +200,8 @@ natHackNames
     = [UN "prim__add_Integer",
        UN "prim__sub_Integer",
        UN "prim__mul_Integer",
-       NS ["Prelude"] (UN "natToInteger"),
-       NS ["Prelude"] (UN "integerToNat")]
+       NS preludeNS (UN "natToInteger"),
+       NS preludeNS (UN "integerToNat")]
 
 -- Hmm, these dump functions are all very similar aren't they...
 dumpCases : Defs -> String -> List Name ->
