@@ -17,10 +17,10 @@
         "homepage": "https://idris-lang.org/",
         "owner": "idris-lang",
         "repo": "Idris2",
-        "rev": "d56b090c4c3bc5df91d769e5519b0f7b42a84245",
-        "sha256": "1kimxyiajimgqlgnz0zy5qq41d0y3mb74vzkg2grymcqhz7zisyc",
+        "rev": "9565f6cf8b6da9dc0d686c6f0cb804275ec4906a",
+        "sha256": "1zn5lrlyx447rrfksrkwqawcbdpx8z149wkv4z77bdppg8zh1mj3",
         "type": "tarball",
-        "url": "https://github.com/idris-lang/Idris2/archive/d56b090c4c3bc5df91d769e5519b0f7b42a84245.tar.gz",
+        "url": "https://github.com/idris-lang/Idris2/archive/9565f6cf8b6da9dc0d686c6f0cb804275ec4906a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
