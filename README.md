@@ -5,12 +5,20 @@
 [![Nix CI](https://github.com/chrrasmussen/Idris2-Erlang/workflows/Nix/badge.svg)](https://github.com/chrrasmussen/Idris2-Erlang/actions?query=workflow%3ANix)
 
 
-Erlang code generator for [Idris 2](https://github.com/idris-lang/Idris2). The development of Idris 2 is led by [Edwin Brady](https://github.com/edwinb). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
+Erlang code generator for [Idris 2](https://github.com/idris-lang/Idris2). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
 
 Note that this project is still **work in progress**. Feedback and contributions are appreciated!
 
+### About Idris 2
 
-## About this project
+Idris 2 is a purely functional programming language with first class types. The development of Idris 2 is led by [Edwin Brady](https://github.com/edwinb). More information about Idris 2 is available at:
+
+- [Idris website](https://www.idris-lang.org)
+- [Idris 2 documentation](https://idris2.readthedocs.io/en/latest/)
+- [Idris 2 repository](https://github.com/idris-lang/Idris2)
+
+
+## About the Erlang code generator
 
 ### Goals
 
@@ -48,7 +56,9 @@ main = putStrLn "Hello Joe"
 
 Run the Idris 2 program via generated Erlang code: `idris2erl --exec main Main.idr`
 
-See the [samples](samples) directory for more code examples.
+More code samples:
+- [samples](samples) directory — Examples of using the FFI, concurrency etc.
+- [typedtext.io](https://www.typedtext.io) ([Source](https://github.com/chrrasmussen/typedtext.io)) — Website written in Idris 2, running on the Erlang VM.
 
 
 ## Installation
@@ -141,13 +151,6 @@ Samples:
   - This book is how I got started with Idris :-)
 - [The Idris 2 README.md lists some talks given by Edwin Brady](https://github.com/idris-lang/Idris2#talks)
   - These videos are mainly presenting what's new in Idris 2, but they may provide motivation for why Idris 2 is an interesting language.
-
-
-### Links to the Idris 2 project
-
-- [Idris website](https://www.idris-lang.org)
-- [Idris 2 documentation](https://idris2.readthedocs.io/en/latest/)
-- [Idris 2 repository](https://github.com/idris-lang/Idris2)
 
 
 ## Community
