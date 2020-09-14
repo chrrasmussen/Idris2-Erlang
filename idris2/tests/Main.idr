@@ -42,13 +42,14 @@ idrisTests
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
-       "basic046",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
        "coverage009", "coverage010",
        -- Documentation strings
        "docs001", "docs002",
+       -- Evaluator
+       "evaluator001", "evaluator002",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -91,6 +92,8 @@ idrisTests
        "perror006",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005",
+       -- Positivity checking
+       "positivity001",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
@@ -109,7 +112,7 @@ idrisTests
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034",
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
-       "total006", "total007", "total008", "total009",
+       "total006", "total007", "total008", "total009", "total010",
        -- The 'with' rule
        "with001", "with002",
        -- with-disambiguation
@@ -128,6 +131,7 @@ chezTests
       "chez013", "chez014", "chez015", "chez016", "chez017", "chez018",
       "chez019", "chez020", "chez021", "chez022", "chez023", "chez024",
       "chez025", "chez026", "chez027", "chez028", "chez029", "chez030",
+      "chez031",
       "reg001"]
 
 nodeTests : List String
