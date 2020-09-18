@@ -463,5 +463,5 @@ genErlModule exportsLine mod =
     genFunDef : ErlFunDecl -> Decl
     genFunDef (MkFunDecl l visibility name args body) =
       let varNames = varsToVarNames args
-          expr = evalState (genErlExpr body) (initLocalVars "E")
+          expr = evalState (initLocalVars "E") (genErlExpr body)
       in ADFunDef l name (length args) [MkFunClause l (map (APVar l) varNames) [] [expr]]
