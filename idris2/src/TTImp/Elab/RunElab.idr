@@ -1,6 +1,7 @@
 module TTImp.Elab.RunElab
 
 import Core.Context
+import Core.Context.Log
 import Core.Core
 import Core.Env
 import Core.GetType
@@ -179,7 +180,7 @@ checkRunElab : {vars : _} ->
 checkRunElab rig elabinfo nest env fc script exp
     = do expected <- mkExpected exp
          defs <- get Ctxt
-         when (not (isExtension ElabReflection defs)) $
+         unless (isExtension ElabReflection defs) $
              throw (GenericMsg fc "%language ElabReflection not enabled")
          let n = NS reflectionNS (UN "Elab")
          let ttn = reflectiontt "TT"

@@ -93,7 +93,7 @@ idrisTests
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005",
        -- Positivity checking
-       "positivity001",
+       "positivity001", "positivity002", "positivity003",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
@@ -146,7 +146,7 @@ nodeTests
 
 ideModeTests : List String
 ideModeTests
-  =  [ "ideMode001", "ideMode002", "ideMode003" ]
+  =  [ "ideMode001", "ideMode002", "ideMode003", "ideMode004" ]
 
 preludeTests : List String
 preludeTests
