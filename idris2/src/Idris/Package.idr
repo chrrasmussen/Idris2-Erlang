@@ -332,7 +332,7 @@ prepareCompilation pkg opts =
     session <- getSession
     case session.changedModules of
       Just changedModules => do
-        let modsToBuild = filterChangedModules (List1.toList changedModules) allMods
+        let modsToBuild = filterChangedModules (forget changedModules) allMods
         errs <- buildAll modsToBuild
         pure (errs, Just $ map buildNS modsToBuild)
       Nothing => do
