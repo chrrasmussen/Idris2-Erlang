@@ -48,17 +48,15 @@ Idris 2 is a purely functional programming language with first class types. The 
 Create a file called `Main.idr` with the following content:
 
 ```idris
-module Main
-
 main : IO ()
 main = putStrLn "Hello Joe"
 ```
 
 Run the Idris 2 program via generated Erlang code: `idris2erl --exec main Main.idr`
 
-More code samples:
-- [samples](samples) directory — Examples of using the FFI, concurrency etc.
-- [typedtext.io](https://www.typedtext.io) ([Source](https://github.com/chrrasmussen/typedtext.io)) — Website written in Idris 2, running on the Erlang VM.
+**More code samples:**
+- [samples/](samples) — Examples of using the FFI, concurrency etc.
+- [www.typedtext.io](https://www.typedtext.io) ([Source](https://github.com/chrrasmussen/typedtext.io)) — Website written in Idris 2, running on the Erlang VM.
 
 
 ## Installation
@@ -81,7 +79,7 @@ This repository contains a [rebar3](https://www.rebar3.org) project that can bui
 
 The generated Erlang source files are only included in specific [releases](https://github.com/chrrasmussen/Idris2-Erlang/releases), and not in the `master` branch.
 
-Steps:
+**Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
 2. `cd Idris2-Erlang`
 3. `git checkout v0.2.1-alpha.1`
@@ -94,7 +92,7 @@ The Escript executable is built to `_build/default/bin/idris2erl`.
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed.
 
-Steps:
+**Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
 2. `cd Idris2-Erlang/idris2`
 3. `make bootstrap SCHEME=chez` (Replace `chez` with the name of your installed version of Chez Scheme)
@@ -107,7 +105,7 @@ This will install the `idris2erl` executable, libraries and support files into `
 
 This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/master/INSTALL.md).
 
-Steps:
+**Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
 2. `cd Idris2-Erlang/idris2`
 3. `make all`
@@ -129,12 +127,12 @@ In my experience, the Idris 1 extensions for [Visual Studio Code](https://market
 
 The Idris 2 libraries tries to include documentation for its functions and data types. The documentation can be accessed using the `:doc` command in the Idris 2 REPL.
 
-References:
+**References:**
 - [Overview of data types that have a mapping between Idris 2 and Erlang](docs/datatypes.md)
 - [Codegen-specific directives](docs/directives.md)
 - [Intermediate representations](docs/intermediaterepresentations.md)
 
-Samples:
+**Samples:**
 - [Hello world](samples/1-HelloWorld)
 - [Foreign function interface (FFI)](samples/2-FFI)
 - [Decoding Erlang values](samples/3-Decoding)
@@ -155,7 +153,7 @@ Samples:
 
 ## Community
 
-The [Idris website](https://www.idris-lang.org) contains links to where you can find the Idris community.
+The [Idris website](https://www.idris-lang.org) contains links to locations where you can find the Idris community.
 
 
 ## License
@@ -166,6 +164,6 @@ The Erlang code generator is derived from the Idris 2 compiler and is released u
 
 ---
 
-Footnotes:
+**Footnotes:**
 
 [1] `bitstring` is not supported as a separate data type. Some data types, such as tuples and functions, include a size/arity in their names: These data types are currently limited to a maximum size/arity of `8`.
