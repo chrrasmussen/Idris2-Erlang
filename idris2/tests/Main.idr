@@ -42,6 +42,7 @@ idrisTests
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
+       "basic046",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
@@ -67,6 +68,7 @@ idrisTests
        "interface005", "interface006", "interface007", "interface008",
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014", "interface015", "interface016",
+       "interface017",
        -- Miscellaneous REPL
        "interpreter001", "interpreter002", "interpreter003",
        -- Implicit laziness, lazy evaluation
@@ -298,7 +300,7 @@ firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
 pathLookup : List String -> IO (Maybe String)
 pathLookup names = do
   path <- getEnv "PATH"
-  let pathList = List1.toList $ split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
+  let pathList = forget $ split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
   let candidates = [p ++ "/" ++ x | p <- pathList,
                                     x <- names]
   firstExists candidates
@@ -346,7 +348,7 @@ main
               | _ => do print args
                         putStrLn usage
          let filteredNonCGTests =
-              filterTests opts $ concat $ the (List (List String))
+              filterTests opts $ concat $
                  [ testPaths "ttimp" ttimpTests
                  , testPaths "idris2" idrisTests
                  , testPaths "typedd-book" typeddTests
