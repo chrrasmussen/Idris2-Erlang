@@ -229,7 +229,7 @@ genExportFun (name, arity) = genAtom name ++ "/" ++ show (natToInteger arity)
 export
 genDecl : Decl -> CompositeString
 genDecl (ADExport l fs) =
-  Str $ "-export([" ++ showSep ", " (map genExportFun fs) ++ "])."
+  Str $ "-export([\n  " ++ showSep ",\n  " (map genExportFun fs) ++ "\n])."
 genDecl (ADModule l name) =
   Str $ "-module(" ++ genAtom name ++ ")."
 genDecl (ADFunDef l name arity clauses) =
