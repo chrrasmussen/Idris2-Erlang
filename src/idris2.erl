@@ -9,11 +9,11 @@
 
 %% escript Entry point
 main(Args) ->
-  'Idris.Idris.Main':main(Args).
+  'Idris.Idris2.Idris.Main':main(Args).
 
 %% Run Idris 2 compiler
 run(Args) ->
-  'Idris.Idris.Main':run(Args).
+  'Idris.Idris2.Idris.Main':run(Args).
 
 %%====================================================================
 %% Internal functions

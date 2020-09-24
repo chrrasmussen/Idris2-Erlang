@@ -28,7 +28,7 @@ build-libs:
 prepare-release: prepare-erl-source prepare-libs prepare-support
 
 prepare-erl-source:
-	cd idris2 && ${IDRIS2_BOOT} --build idris2api.ipkg --directive "format erl" --directive "inline 24" --output-dir ../src
+	cd idris2 && ${IDRIS2_BOOT} --build idris2api.ipkg --directive "format erl" --directive "prefix Idris.Idris2" --directive "inline 24" --output-dir ../src
 
 prepare-libs:
 	mkdir -p ${PRIV_LIBS_DIR}/{prelude,base,contrib,network,erlang}
