@@ -1,6 +1,6 @@
 {application, idris2,
  [{description, "Erlang code generator for Idris 2"},
-  {vsn, "0.1.0"},
+  {vsn, "0.2.1-alpha.1"},
   {registered, []},
   {applications,
    [kernel,
@@ -9,5 +9,5 @@
   {env,[]},
   {modules, []},
   {licenses, ["BSD-3-Clause"]},
-  {links, []}
+  {links, [{"GitHub", "https://github.com/chrrasmussen/Idris2-Erlang"}]}
  ]}.
