@@ -72,6 +72,8 @@ There are three alternative methods to install Idris 2 with the Erlang code gene
 The built executable is named `idris2erl`. This is done to avoid clashing with an existing installation of `idris2`. `idris2erl` is configured to use Erlang as the
 default code generator.
 
+On Windows, you may need to install via MSYS2 (https://www.msys2.org/). On Windows older than Windows 8, you may need to set an environment variable OLD_WIN=1 or modify it in `config.mk`.
+
 
 ### Alternative 1: From Erlang source code
 
