@@ -50,10 +50,6 @@ import Data.List
 public export
 data Side = LHS | AnyExpr
 
-ifThenElse : Bool -> Lazy a -> Lazy a -> a
-ifThenElse True t e = t
-ifThenElse False t e = e
-
 export
 extendSyn : {auto s : Ref Syn SyntaxInfo} ->
             SyntaxInfo -> Core ()
@@ -118,6 +114,8 @@ bindBangs ((n, fc, btm) :: bs) tm
                                 (Implicit fc False) tm)
 
 idiomise : FC -> RawImp -> RawImp
+idiomise fc (IAlternative afc u alts)
+  = IAlternative afc (mapAltType (idiomise afc) u) (idiomise afc <$> alts)
 idiomise fc (IApp afc f a)
     = IApp fc (IApp fc (IVar fc (UN "<*>"))
                     (idiomise afc f))
@@ -283,7 +281,10 @@ mutual
            pure (IVar fc bn)
   desugarB side ps (PIdiom fc term)
       = do itm <- desugarB side ps term
-           pure (idiomise fc itm)
+           logRaw "desugar.idiom" 10 "Desugaring idiom for" itm
+           let val = idiomise fc itm
+           logRaw "desugar.idiom" 10 "Desugared to" val
+           pure val
   desugarB side ps (PList fc args)
       = expandList side ps fc args
   desugarB side ps (PPair fc l r)

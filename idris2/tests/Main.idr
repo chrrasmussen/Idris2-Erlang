@@ -32,7 +32,7 @@ ttimpTests
 
 idrisTests : List String
 idrisTests
-    = -- Fundamental language feturea
+    = -- Fundamental language features
       ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006", "basic007", "basic008", "basic009", "basic010",
        "basic011", "basic012", "basic013", "basic014", "basic015",
@@ -42,7 +42,7 @@ idrisTests
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
-       "basic046",
+       "basic046", "basic047",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
@@ -70,7 +70,8 @@ idrisTests
        "interface013", "interface014", "interface015", "interface016",
        "interface017",
        -- Miscellaneous REPL
-       "interpreter001", "interpreter002", "interpreter003",
+       "interpreter001", "interpreter002", "interpreter003", "interpreter004",
+       "interpreter005",
        -- Implicit laziness, lazy evaluation
        "lazy001",
        -- QTT and linearity related
@@ -144,6 +145,7 @@ nodeTests
     , "reg001"
     , "syntax001"
     , "tailrec001"
+    , "idiom001"
     ]
 
 ideModeTests : List String
