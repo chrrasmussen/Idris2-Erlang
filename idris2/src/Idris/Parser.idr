@@ -542,7 +542,7 @@ mutual
                    (rigc, pat) <- pure s.val
                    ty <- option (PImplicit (boundToFC fname s))
                                 (symbol ":" *> typeExpr (pnoeq pdef) fname indents)
-                   (symbol "=" <|> symbol ":=")
+                   symbol "="
                    val <- expr pnowith fname indents
                    alts <- block (patAlt fname)
                    rig <- getMult rigc
