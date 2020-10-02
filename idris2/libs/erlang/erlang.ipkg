@@ -13,6 +13,7 @@ modules = Erlang,
           Erlang.System.Directory,
           Erlang.System.File,
           Erlang.Types,
+          Erlang.Types.Atom,
           Erlang.Types.Map
 
 depends = contrib
