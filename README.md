@@ -84,7 +84,7 @@ The generated Erlang source files are only included in specific [releases](https
 **Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
 2. `cd Idris2-Erlang`
-3. `git checkout v0.2.1-alpha.1`
+3. `git checkout tags/v0.2.1-alpha.1 -b v0.2.1-alpha.1`
 4. `rebar3 escriptize`
 
 The Escript executable is built to `_build/default/bin/idris2erl`.
