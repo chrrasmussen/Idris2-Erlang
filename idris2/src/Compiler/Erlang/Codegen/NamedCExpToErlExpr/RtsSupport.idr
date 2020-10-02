@@ -535,3 +535,24 @@ genUnicodeGetStr l prompt =
   let getLineCall = genFunCall l "io" "get_line" [prompt]
       trimmedLine = genFunCall l "string" "trim" [getLineCall, EAtom l "trailing", ECharlist l "\n"]
   in genFunCall l "unicode" "characters_to_binary" [trimmedLine]
+
+
+-- IORef
+-- Implementation based on process dictionary => Leaks memory
+
+export
+genProcessDictNewIORef : Line -> (refVar : LocalVar) -> (val : ErlExpr) -> ErlExpr
+genProcessDictNewIORef l refVar val =
+  let makeRefCall = genFunCall l "erlang" "make_ref" []
+      putCall = genFunCall l "erlang" "put" [ELocal l refVar, val]
+  in ELet l refVar makeRefCall (ESequence l [putCall, ELocal l refVar])
+
+export
+genProcessDictReadIORef : Line -> (mutableRef : ErlExpr) -> ErlExpr
+genProcessDictReadIORef l mutableRef =
+  genFunCall l "erlang" "get" [mutableRef]
+
+export
+genProcessDictWriteIORef : Line -> (mutableRef : ErlExpr) -> (newVal : ErlExpr) -> ErlExpr
+genProcessDictWriteIORef l mutableRef newVal =
+  genFunCall l "erlang" "put" [mutableRef, newVal]
