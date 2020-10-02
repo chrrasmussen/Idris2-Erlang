@@ -1,4 +1,4 @@
-import Erlang.Data.Ref
+import Data.Ref
 
 stsum : Num a => List a -> a
 stsum xs

@@ -1,8 +1,8 @@
 module Erlang.Data.IOArray
 
+import Data.IORef
 import Data.List
 import Erlang
-import Erlang.Data.IORef
 
 
 %default total

@@ -1,12 +1,9 @@
 package erlang
 
 modules = Erlang,
-          Erlang.Control.Monad.ST,
           Erlang.Conversion,
           Erlang.Data.Buffer,
           Erlang.Data.IOArray,
-          Erlang.Data.IORef,
-          Erlang.Data.Ref,
           Erlang.Debug,
           Erlang.Decode,
           Erlang.IO,
@@ -15,7 +12,6 @@ modules = Erlang,
           Erlang.System.Concurrency,
           Erlang.System.Directory,
           Erlang.System.File,
-          Erlang.Text.PrettyPrint.Prettyprinter.Render.Terminal,
           Erlang.Types,
           Erlang.Types.Map
 

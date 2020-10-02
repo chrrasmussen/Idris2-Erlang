@@ -366,6 +366,17 @@ genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
   genOsType l
 genExtPrim namespaceInfo l (NS _ (UN "prim__codegen")) [] =
   pure $ EBinary l "erlang"
+genExtPrim namespaceInfo l (NS _ (UN "prim__newIORef")) [_, val, world] = do
+  refVar <- newLocalVar
+  let makeRefCall = genFunCall l "erlang" "make_ref" []
+  let putCall = genFunCall l "erlang" "put" [ELocal l refVar, val]
+  pure $ genMkIORes l $ ELet l refVar makeRefCall (ESequence l [putCall, ELocal l refVar])
+genExtPrim namespaceInfo l (NS _ (UN "prim__readIORef")) [_, mutableRef, world] = do
+  let getCall = genFunCall l "erlang" "get" [mutableRef]
+  pure $ genMkIORes l getCall
+genExtPrim namespaceInfo l (NS _ (UN "prim__writeIORef")) [_, mutableRef, newVal, world] = do
+  let putCall = genFunCall l "erlang" "put" [mutableRef, newVal]
+  pure $ genMkIORes l putCall
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args] = do
   pure $ genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlTryCatch")) [_, action, world] = do

@@ -1,4 +1,4 @@
-import Erlang.Data.IORef
+import Data.IORef
 
 main : IO ()
 main
