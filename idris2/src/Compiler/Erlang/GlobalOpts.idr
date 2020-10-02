@@ -18,21 +18,24 @@ record GlobalOpts where
   outputFormat : OutputFormat
   prefixStr : String
   inlineSize : Nat
+  useMutableStorage : Bool
 
 export
 defaultGlobalOpts : GlobalOpts
-defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0
+defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0 False
 
 
 data Flag
   = SetOutputFormat OutputFormat
   | SetPrefix String
   | SetInlineSize Nat
+  | SetUseMutableStorage Bool
 
 flagToOpts : Flag -> GlobalOpts -> GlobalOpts
 flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
 flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
 flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = inlineSize } opts
+flagToOpts (SetUseMutableStorage useMutableStorage) opts = record { useMutableStorage = useMutableStorage } opts
 
 flagsToOpts : List Flag -> GlobalOpts
 flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
@@ -56,6 +59,7 @@ stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) --
     parseFlag ["format", format] = SetOutputFormat <$> parseOutputFormat format
     parseFlag ["prefix", prefixStr] = Just $ SetPrefix prefixStr
     parseFlag ["inline", inlineSize] = Just $ SetInlineSize (integerToNat (cast inlineSize))
+    parseFlag ["mutablestorage"] = Just $ SetUseMutableStorage True
     parseFlag _ = Nothing
 
 export

@@ -20,6 +20,14 @@ import Data.Vect
 %default total
 
 
+-- OPTIONS
+
+public export
+record CGOpts where
+  constructor MkCGOpts
+  useMutableStorage : Bool
+
+
 -- CONSTANTS
 
 genConstant : Constant -> IdrisConstant
@@ -241,7 +249,7 @@ readConAltFun l arity funVar body transform = do
   let curriedFunMatcher = MTransform MAny tempVar !(genCurry l arity transform (ELocal l tempVar))
   pure $ MTransform curriedFunMatcher funVar body
 
-readConAlt : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> (args : List LocalVar) -> ErlExpr -> Core ErlMatcher
+readConAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> (args : List LocalVar) -> ErlExpr -> Core ErlMatcher
 readConAlt namespaceInfo l name args body = do
   let NS ns (UN un) = name
     | _ => pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
@@ -359,20 +367,30 @@ genDecodeTuple l term arity = do
   args <- newLocalVars arity
   genDecode l term $ MTuple (argsToErlMatchers args) (ETuple l (map (ELocal l) args))
 
-genExtPrim : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
+genExtPrim : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
 genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
 genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
   genOsType l
 genExtPrim namespaceInfo l (NS _ (UN "prim__codegen")) [] =
   pure $ EBinary l "erlang"
-genExtPrim namespaceInfo l (NS _ (UN "prim__newIORef")) [_, val, world] = do
-  refVar <- newLocalVar
-  pure $ genMkIORes l $ genProcessDictNewIORef l refVar val
-genExtPrim namespaceInfo l (NS _ (UN "prim__readIORef")) [_, mutableRef, world] = do
-  pure $ genMkIORes l $ genProcessDictReadIORef l mutableRef
-genExtPrim namespaceInfo l (NS _ (UN "prim__writeIORef")) [_, mutableRef, newVal, world] = do
-  pure $ genMkIORes l $ genProcessDictWriteIORef l mutableRef newVal
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__newIORef")) [_, val, world] = do
+  expr <- if cgOpts.useMutableStorage
+    then pure $ genFunCall l "mutable_storage" "term_new" [val]
+    else do
+      refVar <- newLocalVar
+      pure $ genMkIORes l $ genProcessDictNewIORef l refVar val
+  pure $ genMkIORes l expr
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__readIORef")) [_, mutableRef, world] = do
+  let expr = if cgOpts.useMutableStorage
+        then genFunCall l "mutable_storage" "term_get" [mutableRef]
+        else genProcessDictReadIORef l mutableRef
+  pure $ genMkIORes l expr
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__writeIORef")) [_, mutableRef, newVal, world] = do
+  let expr = if cgOpts.useMutableStorage
+        then genFunCall l "mutable_storage" "term_set" [mutableRef, newVal]
+        else genProcessDictWriteIORef l mutableRef newVal
+  pure $ genMkIORes l expr
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args] = do
   pure $ genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
 genExtPrim namespaceInfo l (NS _ (UN "prim__erlTryCatch")) [_, action, world] = do
@@ -523,7 +541,7 @@ genForeign namespaceInfo l name args =
 
 mutual
   export
-  genNmExp : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> NameMap LocalVar -> NamedCExp -> Core ErlExpr
+  genNmExp : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> NamedCExp -> Core ErlExpr
   genNmExp namespaceInfo vs (NmLocal fc name) = do
     let l = genFC fc
     let Just var = lookup name vs
@@ -591,16 +609,16 @@ mutual
     let l = genFC fc
     pure $ genThrow l msg
 
-  traverseVect : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> NameMap LocalVar -> Vect n NamedCExp -> Core (Vect n ErlExpr)
+  traverseVect : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> Vect n NamedCExp -> Core (Vect n ErlExpr)
   traverseVect namespaceInfo vs [] = pure []
   traverseVect namespaceInfo vs (arg :: args) = pure $ !(genNmExp namespaceInfo vs arg) :: !(traverseVect namespaceInfo vs args)
 
-  genConAlt : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> NameMap LocalVar -> Line -> NamedConAlt -> Core ErlMatcher
+  genConAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> Line -> NamedConAlt -> Core ErlMatcher
   genConAlt namespaceInfo vs l (MkNConAlt name tag args body) = do
     (vs', vars) <- addLocalVars args vs
     readConAlt namespaceInfo l name vars !(genNmExp namespaceInfo vs' body)
 
-  genConstAlt : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> NameMap LocalVar -> NamedConstAlt -> Core ErlConstAlt
+  genConstAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> NamedConstAlt -> Core ErlConstAlt
   genConstAlt namespaceInfo vs (MkNConstAlt constant body) =
     pure $ MkConstAlt (genConstant constant) !(genNmExp namespaceInfo vs body)
 
@@ -608,7 +626,7 @@ mutual
 -- DEFINITIIONS
 
 export
-genDef : NamespaceInfo -> Line -> Name -> NamedDef -> Core (Maybe ErlFunDecl)
+genDef : {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> NamedDef -> Core (Maybe ErlFunDecl)
 genDef namespaceInfo l name (MkNmFun args body) = do
   lv <- newRef LV (initLocalVars "V")
   let (modName, fnName) = moduleNameFunctionName namespaceInfo name

@@ -97,7 +97,7 @@ writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespa
     | Left err => throw (FileErr outfile err)
   pure outfile
 
-genCompdef : Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
+genCompdef : {auto cgOpts : CGOpts} -> Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
 genCompdef l (namespaceInfo, (name, fc, def)) = do
   Just funDecl <- genDef namespaceInfo l name def
     | Nothing => pure Nothing
@@ -120,7 +120,8 @@ namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
 compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileMainEntrypointToModules globalOpts tm modName = do
   compileData <- getCompileData Cases tm
-  compdefs <- traverse (genCompdef defLine . concatNamespaceInfo modName) (namedDefs compileData)
+  let cgOpts = MkCGOpts globalOpts.useMutableStorage
+  compdefs <- traverse (genCompdef @{cgOpts} defLine . concatNamespaceInfo modName) (namedDefs compileData)
   let namespaceInfo = MkNamespaceInfo (Concat modName)
   lv <- newRef LV (initLocalVars "V")
   mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
@@ -134,7 +135,8 @@ compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleO
 compileLibraryToModules globalOpts allModuleOpts changedModules = do
   let extraNames = filter (shouldCompileName changedModules) (map snd (getExportFunNames allModuleOpts))
   compileData <- getExportedCompileData Cases (shouldCompileName changedModules) extraNames
-  compdefs <- traverse (genCompdef defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName changedModules . fst) (namedDefs compileData))
+  let cgOpts = MkCGOpts globalOpts.useMutableStorage
+  compdefs <- traverse (genCompdef @{cgOpts} defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName changedModules . fst) (namedDefs compileData))
   let validCompdefs = mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
     where
