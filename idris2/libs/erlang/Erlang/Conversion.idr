@@ -35,6 +35,11 @@ export %inline
 IsErlType a => ToErlTerm a where
   toErlTerm = prim__believe_me _ _
 
+export
+ToErlTerm Bool where
+  toErlTerm True = toErlTerm (MkAtom "true")
+  toErlTerm False = toErlTerm (MkAtom "false")
+
 
 -- CASTS
 
