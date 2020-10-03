@@ -533,7 +533,7 @@ export
 genUnicodeGetStr : Line -> ErlExpr -> ErlExpr
 genUnicodeGetStr l prompt =
   let getLineCall = genFunCall l "io" "get_line" [prompt]
-      trimmedLine = genFunCall l "string" "trim" [getLineCall, EAtom l "trailing", ECharlist l "\n"]
+      trimmedLine = genFunCall l "string" "chomp" [getLineCall]
   in genFunCall l "unicode" "characters_to_binary" [trimmedLine]
 
 
