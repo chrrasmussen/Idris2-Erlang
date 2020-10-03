@@ -38,16 +38,6 @@ IsErlType a => ToErlTerm a where
 
 -- CASTS
 
--- Unit <-> ErlTuple0
-
-export
-Cast () ErlTuple0 where
-  cast MkUnit = MkTuple0
-
-export
-Cast ErlTuple0 () where
-  cast MkTuple0 = MkUnit
-
 
 -- Bool -> ErlAtom
 
