@@ -15,5 +15,3 @@ modules = Erlang,
           Erlang.Types,
           Erlang.Types.Atom,
           Erlang.Types.Map
-
-depends = contrib
