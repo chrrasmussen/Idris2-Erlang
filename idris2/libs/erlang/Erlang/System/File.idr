@@ -53,15 +53,15 @@ data File : Type where
 
 export
 stdin : File
-stdin = FHandle (cast (MkAtom "standard_io"))
+stdin = FHandle (toErlTerm (MkAtom "standard_io"))
 
 export
 stdout : File
-stdout = FHandle (cast (MkAtom "standard_io"))
+stdout = FHandle (toErlTerm (MkAtom "standard_io"))
 
 export
 stderr : File
-stderr = FHandle (cast (MkAtom "standard_error"))
+stderr = FHandle (toErlTerm (MkAtom "standard_error"))
 
 -- TODO: Match on all cases of Mode?
 fileModes : Mode -> ErlTerm
@@ -72,14 +72,14 @@ fileModes mode =
         Append        => [MkAtom "append"]
         ReadWrite     => [MkAtom "read", MkAtom "write"]
         _ => []
-  in cast $ the (List ErlAtom) (MkAtom "binary" :: flags)
+  in toErlTerm $ the (List ErlAtom) (MkAtom "binary" :: flags)
 
 export
 openFile : HasIO io => (filePath : String) -> Mode -> io (Either FileError File)
 openFile filePath mode = do
   result <- pure $ erlUnsafeCall ErlTerm "file" "open" [filePath, fileModes mode]
   pure $ erlDecodeDef (Left unknownError)
-    (map (\pid => Right (FHandle (cast pid))) (okTuple pid)
+    (map (\pid => Right (FHandle (toErlTerm pid))) (okTuple pid)
       <|> map Left error)
     result
 

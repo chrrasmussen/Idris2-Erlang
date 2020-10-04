@@ -96,7 +96,7 @@ Alternative ErlDecoder where
 export
 erlDecode : ErlType from => ErlDecoder a -> from -> Either ErlDecoderError a
 erlDecode (MkDecoder decoder) term =
-  decoder (cast term)
+  decoder (toErlTerm term)
 
 ||| Try to decode the given value using the given decoder.
 ||| Returns `Nothing` in the case of failure.
@@ -189,7 +189,7 @@ export
 exact : ErlType a => a -> ErlDecoder a
 exact matchValue =
   MkDecoder (\term =>
-    if prim__erlMatchExact term (cast matchValue) == 1
+    if prim__erlMatchExact term (toErlTerm matchValue) == 1
       then Right matchValue
       else Left (Error "Expected the value to match exactly"))
 

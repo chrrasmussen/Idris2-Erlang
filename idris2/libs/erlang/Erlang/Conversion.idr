@@ -17,20 +17,26 @@ import Erlang.Types
 |||
 ||| `erlUnsafeCast` should only be used when you are sure the casting is safe.
 ||| In the common case, you should probably use the functions from `Erlang.Decode`.
-export
+export %inline
 erlUnsafeCast : ErlType from => (0 to : Type) -> ErlType to => from -> to
-erlUnsafeCast to term = believe_me term
+erlUnsafeCast _ = prim__believe_me _ _
 
 
--- SAFE CONVERSIONS
+-- CONVERSION TO `ErlTerm`
 
--- ErlType a -> ErlTerm
--- (Allow all supported Erlang types to be type erased)
+||| Convert a value to an untyped Erlang value (`ErlTerm`).
+public export
+interface ToErlTerm a where
+  toErlTerm : a -> ErlTerm
 
-export
-ErlType a => Cast a ErlTerm where
-  cast x = believe_me x
 
+-- Values that conform to `ErlType` are already proper Erlang values.
+export %inline
+ErlType a => ToErlTerm a where
+  toErlTerm = prim__believe_me _ _
+
+
+-- CASTS
 
 -- Unit <-> ErlTuple0
 
