@@ -38,12 +38,12 @@ empty = erlUnsafeCall ErlAnyMap "maps" "new" []
 
 ||| Insert a key/value into an Erlang map.
 export
-insert : (ErlType key, ErlType value) => key -> value -> ErlAnyMap -> ErlAnyMap
+insert : (IsErlType key, IsErlType value) => key -> value -> ErlAnyMap -> ErlAnyMap
 insert key value m = erlUnsafeCall ErlAnyMap "maps" "put" [key, value, m]
 
 ||| Delete a key from an Erlang map.
 export
-delete : ErlType key => key -> ErlAnyMap -> ErlAnyMap
+delete : IsErlType key => key -> ErlAnyMap -> ErlAnyMap
 delete key m = erlUnsafeCall ErlAnyMap "maps" "remove" [key, m]
 
 
@@ -78,7 +78,7 @@ entries m =
 |||
 ||| Returns `Nothing` if no valid entry is found.
 export
-lookup : ErlType key => key -> ErlDecoder a -> ErlMapSubset xs -> Maybe a
+lookup : IsErlType key => key -> ErlDecoder a -> ErlMapSubset xs -> Maybe a
 lookup key decoder m = erlDecodeMay (mapEntry key decoder) (toAnyMap m)
 
 ||| Get a specific key from an Erlang map.

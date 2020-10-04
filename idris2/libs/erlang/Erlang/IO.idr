@@ -31,7 +31,7 @@ erlModule = prim__erlModule
 ||| Call an Erlang function. (Caution: Wrong usage of this function may result
 ||| in run-time errors.)
 |||
-||| The arguments and the return type must be a member of `ErlType`.
+||| The arguments and the return type must be a member of `IsErlType`.
 ||| You can use the `Raw` type if you want to pass any Idris value.
 |||
 ||| This function is considered unsafe for the following reasons:
@@ -42,8 +42,8 @@ erlModule = prim__erlModule
 |||
 ||| See `erlCall` for a safe way to call Erlang functions.
 export %inline
-erlUnsafeCall : (0 ret : Type) -> {auto 0 retPrf : ErlType ret} ->
-                (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 argsPrf : ErlTypes xs} -> ret
+erlUnsafeCall : (0 ret : Type) -> {auto 0 retPrf : IsErlType ret} ->
+                (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 argsPrf : IsErlTypes xs} -> ret
 erlUnsafeCall ret modName funName args = prim__erlUnsafeCall ret modName funName args
 
 ||| Wrap an IO action in a try/catch.
@@ -73,7 +73,7 @@ erlTryCatch action = primIO (prim__erlTryCatch action)
 ||| The `ErlTerm` value can be decoded into a typed Idris value by using the
 ||| decoding functions from `Erlang.Decode`.
 export partial %inline
-erlCall : HasIO io => (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 prf : ErlTypes xs} -> io (Either ErlException ErlTerm)
+erlCall : HasIO io => (modName : String) -> (funName : String) -> (args : ErlList xs) -> {auto 0 prf : IsErlTypes xs} -> io (Either ErlException ErlTerm)
 erlCall modName fnName args = erlTryCatch (pure $ erlUnsafeCall ErlTerm modName fnName args)
 
 
@@ -104,7 +104,7 @@ erlCall modName fnName args = erlTryCatch (pure $ erlUnsafeCall ErlTerm modName 
 ||| as the original function.
 public export
 data ErlExport : Type where
-  Fun : ErlType t => (name : String) -> (expr : t) -> ErlExport
+  Fun : IsErlType t => (name : String) -> (expr : t) -> ErlExport
   Combine : ErlExport -> ErlExport -> ErlExport
 
 ||| Convenience operator for combining `ErlExport`.

@@ -94,14 +94,14 @@ Alternative ErlDecoder where
 ||| Try to decode the given value using the given decoder.
 ||| Returns an `ErlDecoderError` in the case of failure.
 export
-erlDecode : ErlType from => ErlDecoder a -> from -> Either ErlDecoderError a
+erlDecode : IsErlType from => ErlDecoder a -> from -> Either ErlDecoderError a
 erlDecode (MkDecoder decoder) term =
   decoder (toErlTerm term)
 
 ||| Try to decode the given value using the given decoder.
 ||| Returns `Nothing` in the case of failure.
 export
-erlDecodeMay : ErlType from => ErlDecoder a -> from -> Maybe a
+erlDecodeMay : IsErlType from => ErlDecoder a -> from -> Maybe a
 erlDecodeMay decoder term =
   case erlDecode decoder term of
     Right res => Just res
@@ -110,7 +110,7 @@ erlDecodeMay decoder term =
 ||| Try to decode the given value using the given decoder.
 ||| Returns a default value in the case of failure.
 export
-erlDecodeDef : ErlType from => Lazy a -> ErlDecoder a -> from -> a
+erlDecodeDef : IsErlType from => Lazy a -> ErlDecoder a -> from -> a
 erlDecodeDef def decoder term =
   case erlDecode decoder term of
     Right res => res
@@ -186,7 +186,7 @@ lazyAlt decoder1 decoder2 = do
 
 ||| Decoder that expects an exact value.
 export
-exact : ErlType a => a -> ErlDecoder a
+exact : IsErlType a => a -> ErlDecoder a
 exact matchValue =
   MkDecoder (\term =>
     if prim__erlMatchExact term (toErlTerm matchValue) == 1
@@ -402,7 +402,7 @@ ioData =
 
 ||| Decoder for an Erlang map entry.
 export
-mapEntry : ErlType key => key -> ErlDecoder value -> ErlDecoder value
+mapEntry : IsErlType key => key -> ErlDecoder value -> ErlDecoder value
 mapEntry key (MkDecoder valueDecoder) =
   MkDecoder (\term => do
     let Just m = prim__erlDecodeAnyMap term

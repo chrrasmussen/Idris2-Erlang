@@ -8,17 +8,17 @@ import Erlang.Types
 
 -- UNSAFE CONVERSIONS
 
--- ErlType a -> ErlType b
+-- IsErlType a -> IsErlType b
 
 ||| Cast a value from one type to another. (Caution: Wrong usage of this
 ||| function may result in run-time errors.)
 |||
-||| Both the target type and the type of the given value must be a member of `ErlType`.
+||| Both the target type and the type of the given value must be a member of `IsErlType`.
 |||
 ||| `erlUnsafeCast` should only be used when you are sure the casting is safe.
 ||| In the common case, you should probably use the functions from `Erlang.Decode`.
 export %inline
-erlUnsafeCast : ErlType from => (0 to : Type) -> ErlType to => from -> to
+erlUnsafeCast : IsErlType from => (0 to : Type) -> IsErlType to => from -> to
 erlUnsafeCast _ = prim__believe_me _ _
 
 
@@ -30,9 +30,9 @@ interface ToErlTerm a where
   toErlTerm : a -> ErlTerm
 
 
--- Values that conform to `ErlType` are already proper Erlang values.
+-- Values that conform to `IsErlType` are already proper Erlang values.
 export %inline
-ErlType a => ToErlTerm a where
+IsErlType a => ToErlTerm a where
   toErlTerm = prim__believe_me _ _
 
 

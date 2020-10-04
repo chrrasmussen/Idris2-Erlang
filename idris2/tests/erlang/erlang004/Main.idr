@@ -2,7 +2,7 @@ module Main
 
 import Erlang
 
-erlPrintLn : ErlType a => a -> IO ()
+erlPrintLn : IsErlType a => a -> IO ()
 erlPrintLn x = do
   pure $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (List _) [x]]
   pure ()

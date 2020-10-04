@@ -8,6 +8,8 @@
   `Data.IORef` to call functions from an Erlang module named `mutable_storage`.
 - Added `ToErlTerm` interface for adding conversions from a type to an untyped
   Erlang values (Replaces `Cast a ErlTerm`).
+- Renamed `ErlType` to `IsErlType`, to make it clearer that this data type is a
+  predicate.
 
 
 ## v0.2.1-alpha.1 (2020-09-28)

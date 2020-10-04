@@ -25,7 +25,7 @@ data ErlTerm : Type where [external]
 ||| Represents a value that have no meaning to Erlang.
 ||| 
 ||| Some of the Erlang interop functions require that the value is a member of
-||| `ErlType`. If you still want to pass the Idris value to Erlang, you can
+||| `IsErlType`. If you still want to pass the Idris value to Erlang, you can
 ||| wrap it in the `Raw` type.
 |||
 ||| `Raw a` is compiled to `a`.
@@ -386,8 +386,8 @@ data ErlIOFun8 : Type -> Type -> Type -> Type -> Type -> Type -> Type -> Type ->
 -- ERLANG TYPE PREDICATE
 
 mutual
-  ||| `ErlType` describes all data types that have a natural representation
-  ||| in Erlang. `ErlType` can help prevent mistakes such as trying to pass
+  ||| `IsErlType` describes all data types that have a natural representation
+  ||| in Erlang. `IsErlType` can help prevent mistakes such as trying to pass
   ||| invalid values to Erlang functions.
   |||
   ||| All Idris values must have a representation in Erlang, but it is not
@@ -398,63 +398,63 @@ mutual
   ||| If you need to pass an Idris value to Erlang that is not present in this
   ||| data type, you can always wrap the value in the `Raw` type.
   public export
-  data ErlType : Type -> Type where
-    ETInt           : ErlType Int
-    ETInteger       : ErlType Integer
-    ETDouble        : ErlType Double
-    ETString        : ErlType String
-    ETChar          : ErlType Char
-    ETList          : ErlType a => ErlType (List a)
+  data IsErlType : Type -> Type where
+    ETInt           : IsErlType Int
+    ETInteger       : IsErlType Integer
+    ETDouble        : IsErlType Double
+    ETString        : IsErlType String
+    ETChar          : IsErlType Char
+    ETList          : IsErlType a => IsErlType (List a)
 
-    ETRaw           : ErlType (Raw a)     -- Can contain any Idris value
-    ETErlTerm       : ErlType ErlTerm     -- Can contain any Erlang term
+    ETRaw           : IsErlType (Raw a)     -- Can contain any Idris value
+    ETErlTerm       : IsErlType ErlTerm     -- Can contain any Erlang term
 
     -- Data types that bridge to native Erlang data types
-    ETErlAtom       : ErlType ErlAtom
-    ETErlCharlist   : ErlType ErlCharlist
-    ETErlNil        : ErlType ErlNil
-    ETErlCons       : (ErlType a, ErlType b) => ErlType (ErlCons a b)
-    ETErlList       : ErlTypes xs => ErlType (ErlList xs)
-    ETErlMapSubset  : ErlMapTypes xs => ErlType (ErlMapSubset xs)
-    ETErlPid        : ErlType ErlPid
-    ETErlReference  : ErlType ErlReference
-    ETErlPort       : ErlType ErlPort
-    ETErlTuple0     : ErlType ErlTuple0
-    ETErlTuple1     : ErlTypes [a]                           => ErlType (ErlTuple1 a)
-    ETErlTuple2     : ErlTypes [a, b]                        => ErlType (ErlTuple2 a b)
-    ETErlTuple3     : ErlTypes [a, b, c]                     => ErlType (ErlTuple3 a b c)
-    ETErlTuple4     : ErlTypes [a, b, c, d]                  => ErlType (ErlTuple4 a b c d)
-    ETErlTuple5     : ErlTypes [a, b, c, d, e]               => ErlType (ErlTuple5 a b c d e)
-    ETErlTuple6     : ErlTypes [a, b, c, d, e, f]            => ErlType (ErlTuple6 a b c d e f)
-    ETErlTuple7     : ErlTypes [a, b, c, d, e, f, g]         => ErlType (ErlTuple7 a b c d e f g)
-    ETErlTuple8     : ErlTypes [a, b, c, d, e, f, g, h]      => ErlType (ErlTuple8 a b c d e f g h)
-    ETErlFun0       : ErlTypes [ret]                         => ErlType (ErlFun0 ret)
-    ETErlFun1       : ErlTypes [a, ret]                      => ErlType (ErlFun1 a ret)
-    ETErlFun2       : ErlTypes [a, b, ret]                   => ErlType (ErlFun2 a b ret)
-    ETErlFun3       : ErlTypes [a, b, c, ret]                => ErlType (ErlFun3 a b c ret)
-    ETErlFun4       : ErlTypes [a, b, c, d, ret]             => ErlType (ErlFun4 a b c d ret)
-    ETErlFun5       : ErlTypes [a, b, c, d, e, ret]          => ErlType (ErlFun5 a b c d e ret)
-    ETErlFun6       : ErlTypes [a, b, c, d, e, f, ret]       => ErlType (ErlFun6 a b c d e f ret)
-    ETErlFun7       : ErlTypes [a, b, c, d, e, f, g, ret]    => ErlType (ErlFun7 a b c d e f g ret)
-    ETErlFun8       : ErlTypes [a, b, c, d, e, f, g, h, ret] => ErlType (ErlFun8 a b c d e f g h ret)
-    ETErlIOFun0     : ErlTypes [ret]                         => ErlType (ErlIOFun0 ret)
-    ETErlIOFun1     : ErlTypes [a, ret]                      => ErlType (ErlIOFun1 a ret)
-    ETErlIOFun2     : ErlTypes [a, b, ret]                   => ErlType (ErlIOFun2 a b ret)
-    ETErlIOFun3     : ErlTypes [a, b, c, ret]                => ErlType (ErlIOFun3 a b c ret)
-    ETErlIOFun4     : ErlTypes [a, b, c, d, ret]             => ErlType (ErlIOFun4 a b c d ret)
-    ETErlIOFun5     : ErlTypes [a, b, c, d, e, ret]          => ErlType (ErlIOFun5 a b c d e ret)
-    ETErlIOFun6     : ErlTypes [a, b, c, d, e, f, ret]       => ErlType (ErlIOFun6 a b c d e f ret)
-    ETErlIOFun7     : ErlTypes [a, b, c, d, e, f, g, ret]    => ErlType (ErlIOFun7 a b c d e f g ret)
-    ETErlIOFun8     : ErlTypes [a, b, c, d, e, f, g, h, ret] => ErlType (ErlIOFun8 a b c d e f g h ret)
+    ETErlAtom       : IsErlType ErlAtom
+    ETErlCharlist   : IsErlType ErlCharlist
+    ETErlNil        : IsErlType ErlNil
+    ETErlCons       : (IsErlType a, IsErlType b) => IsErlType (ErlCons a b)
+    ETErlList       : IsErlTypes xs => IsErlType (ErlList xs)
+    ETErlMapSubset  : IsErlMapTypes xs => IsErlType (ErlMapSubset xs)
+    ETErlPid        : IsErlType ErlPid
+    ETErlReference  : IsErlType ErlReference
+    ETErlPort       : IsErlType ErlPort
+    ETErlTuple0     : IsErlType ErlTuple0
+    ETErlTuple1     : IsErlTypes [a]                           => IsErlType (ErlTuple1 a)
+    ETErlTuple2     : IsErlTypes [a, b]                        => IsErlType (ErlTuple2 a b)
+    ETErlTuple3     : IsErlTypes [a, b, c]                     => IsErlType (ErlTuple3 a b c)
+    ETErlTuple4     : IsErlTypes [a, b, c, d]                  => IsErlType (ErlTuple4 a b c d)
+    ETErlTuple5     : IsErlTypes [a, b, c, d, e]               => IsErlType (ErlTuple5 a b c d e)
+    ETErlTuple6     : IsErlTypes [a, b, c, d, e, f]            => IsErlType (ErlTuple6 a b c d e f)
+    ETErlTuple7     : IsErlTypes [a, b, c, d, e, f, g]         => IsErlType (ErlTuple7 a b c d e f g)
+    ETErlTuple8     : IsErlTypes [a, b, c, d, e, f, g, h]      => IsErlType (ErlTuple8 a b c d e f g h)
+    ETErlFun0       : IsErlTypes [ret]                         => IsErlType (ErlFun0 ret)
+    ETErlFun1       : IsErlTypes [a, ret]                      => IsErlType (ErlFun1 a ret)
+    ETErlFun2       : IsErlTypes [a, b, ret]                   => IsErlType (ErlFun2 a b ret)
+    ETErlFun3       : IsErlTypes [a, b, c, ret]                => IsErlType (ErlFun3 a b c ret)
+    ETErlFun4       : IsErlTypes [a, b, c, d, ret]             => IsErlType (ErlFun4 a b c d ret)
+    ETErlFun5       : IsErlTypes [a, b, c, d, e, ret]          => IsErlType (ErlFun5 a b c d e ret)
+    ETErlFun6       : IsErlTypes [a, b, c, d, e, f, ret]       => IsErlType (ErlFun6 a b c d e f ret)
+    ETErlFun7       : IsErlTypes [a, b, c, d, e, f, g, ret]    => IsErlType (ErlFun7 a b c d e f g ret)
+    ETErlFun8       : IsErlTypes [a, b, c, d, e, f, g, h, ret] => IsErlType (ErlFun8 a b c d e f g h ret)
+    ETErlIOFun0     : IsErlTypes [ret]                         => IsErlType (ErlIOFun0 ret)
+    ETErlIOFun1     : IsErlTypes [a, ret]                      => IsErlType (ErlIOFun1 a ret)
+    ETErlIOFun2     : IsErlTypes [a, b, ret]                   => IsErlType (ErlIOFun2 a b ret)
+    ETErlIOFun3     : IsErlTypes [a, b, c, ret]                => IsErlType (ErlIOFun3 a b c ret)
+    ETErlIOFun4     : IsErlTypes [a, b, c, d, ret]             => IsErlType (ErlIOFun4 a b c d ret)
+    ETErlIOFun5     : IsErlTypes [a, b, c, d, e, ret]          => IsErlType (ErlIOFun5 a b c d e ret)
+    ETErlIOFun6     : IsErlTypes [a, b, c, d, e, f, ret]       => IsErlType (ErlIOFun6 a b c d e f ret)
+    ETErlIOFun7     : IsErlTypes [a, b, c, d, e, f, g, ret]    => IsErlType (ErlIOFun7 a b c d e f g ret)
+    ETErlIOFun8     : IsErlTypes [a, b, c, d, e, f, g, h, ret] => IsErlType (ErlIOFun8 a b c d e f g h ret)
 
-  ||| A variant of `ErlType` that takes a list of types.
+  ||| A variant of `IsErlType` that takes a list of types.
   public export
-  data ErlTypes : List Type -> Type where
-    ETErlTypesNil   : ErlTypes []
-    ETErlTypesCons  : (ErlType x, ErlTypes xs) => ErlTypes (x :: xs)
+  data IsErlTypes : List Type -> Type where
+    ETErlTypesNil   : IsErlTypes []
+    ETErlTypesCons  : (IsErlType x, IsErlTypes xs) => IsErlTypes (x :: xs)
 
-  ||| A variant of `ErlType` that takes a list of map entries.
+  ||| A variant of `IsErlType` that takes a list of map entries.
   public export
-  data ErlMapTypes : List ErlMapEntry -> Type where
-    EMTNil : ErlMapTypes []
-    EMTCons : (ErlType keyTy, ErlType valueTy) => (key : keyTy) -> ErlMapTypes xs -> ErlMapTypes (MkMapEntry key valueTy :: xs)
+  data IsErlMapTypes : List ErlMapEntry -> Type where
+    EMTNil : IsErlMapTypes []
+    EMTCons : (IsErlType keyTy, IsErlType valueTy) => (key : keyTy) -> IsErlMapTypes xs -> IsErlMapTypes (MkMapEntry key valueTy :: xs)

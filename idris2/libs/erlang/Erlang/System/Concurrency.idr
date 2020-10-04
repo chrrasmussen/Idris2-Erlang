@@ -25,7 +25,7 @@ erlSpawnLink action = pure $ erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun
 
 -- TODO: Support more receivers than just `ErlPid`
 export
-erlSend : (HasIO io, ErlType a) => ErlPid -> a -> io ()
+erlSend : (HasIO io, IsErlType a) => ErlPid -> a -> io ()
 erlSend receiver value = do
   pure $ erlUnsafeCall ErlTerm "erlang" "send" [receiver, value]
   pure ()
