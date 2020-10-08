@@ -51,7 +51,7 @@ idrisTests
        -- Documentation strings
        "docs001", "docs002",
        -- Evaluator
-       "evaluator001", "evaluator002",
+       "evaluator001", "evaluator002", "evaluator003",
        -- Error messages
        "error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
@@ -136,6 +136,7 @@ chezTests
       "chez019", "chez020", "chez021", "chez022", "chez023", "chez024",
       "chez025", "chez026", "chez027", "chez028", "chez029", "chez030",
       "chez031",
+      "perf001",
       "reg001"]
 
 nodeTests : List String
