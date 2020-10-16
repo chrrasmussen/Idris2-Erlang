@@ -137,6 +137,10 @@ genOp l (Cast IntType IntegerType) [x] = pure $ genIntToInteger l x
 genOp l (Cast IntType DoubleType) [x] = pure $ genIntToDouble l x
 genOp l (Cast IntType CharType) [x] = pure $ genIntToChar l x
 genOp l (Cast IntType StringType) [x] = pure $ genIntToString l x
+genOp l (Cast IntType Bits8Type) [x] = pure $ genIntegerToBits l 8 x
+genOp l (Cast IntType Bits16Type) [x] = pure $ genIntegerToBits l 16 x
+genOp l (Cast IntType Bits32Type) [x] = pure $ genIntegerToBits l 32 x
+genOp l (Cast IntType Bits64Type) [x] = pure $ genIntegerToBits l 64 x
 
 genOp l (Cast DoubleType IntegerType) [x] = pure $ genDoubleToInteger l x
 genOp l (Cast DoubleType IntType) [x] = pure $ genDoubleToInt l x
@@ -152,18 +156,30 @@ genOp l (Cast StringType DoubleType) [x] = genStringToDouble l x
 
 genOp l (Cast Bits8Type IntType) [x] = pure $ x
 genOp l (Cast Bits8Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits8Type Bits16Type) [x] = pure $ x
+genOp l (Cast Bits8Type Bits32Type) [x] = pure $ x
+genOp l (Cast Bits8Type Bits64Type) [x] = pure $ x
 genOp l (Cast Bits8Type StringType) [x] = pure $ genIntegerToString l x
 
 genOp l (Cast Bits16Type IntType) [x] = pure $ x
 genOp l (Cast Bits16Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits16Type Bits8Type) [x] = pure $ genIntegerToBits l 8 x
+genOp l (Cast Bits16Type Bits32Type) [x] = pure $ x
+genOp l (Cast Bits16Type Bits64Type) [x] = pure $ x
 genOp l (Cast Bits16Type StringType) [x] = pure $ genIntegerToString l x
 
 genOp l (Cast Bits32Type IntType) [x] = pure $ x
 genOp l (Cast Bits32Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits32Type Bits8Type) [x] = pure $ genIntegerToBits l 8 x
+genOp l (Cast Bits32Type Bits16Type) [x] = pure $ genIntegerToBits l 16 x
+genOp l (Cast Bits32Type Bits64Type) [x] = pure $ x
 genOp l (Cast Bits32Type StringType) [x] = pure $ genIntegerToString l x
 
--- Bits64Type->IntType is omitted because Int may not be big enough to store a 64-bit unsigned integer
+genOp l (Cast Bits64Type IntType) [x] = pure $ x
 genOp l (Cast Bits64Type IntegerType) [x] = pure $ x
+genOp l (Cast Bits64Type Bits8Type) [x] = pure $ genIntegerToBits l 8 x
+genOp l (Cast Bits64Type Bits16Type) [x] = pure $ genIntegerToBits l 16 x
+genOp l (Cast Bits64Type Bits32Type) [x] = pure $ genIntegerToBits l 32 x
 genOp l (Cast Bits64Type StringType) [x] = pure $ genIntegerToString l x
 
 genOp l (Cast from to) [x] = pure $ genThrow l ("Invalid cast " ++ show from ++ "->" ++ show to)
