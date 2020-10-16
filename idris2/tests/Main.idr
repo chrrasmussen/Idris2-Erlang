@@ -176,6 +176,8 @@ erlangTests
       -- * chez020: Require System.File.popen (Might be possible to implement)
       -- * chez022: Calling C functions is not supported
       -- * chez023: Uses Control.App (which transitively depends on Data.IORef and System.File)
+      -- * chez030: Scheme-specific test
+      -- * chez031: Scheme-specific test
 
 ------------------------------------------------------------------------
 -- Options
