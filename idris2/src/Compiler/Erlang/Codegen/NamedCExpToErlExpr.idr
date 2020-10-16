@@ -529,6 +529,8 @@ genForeign namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
   pure $ genMkIORes l getStrCall
 genForeign namespaceInfo l (NS _ (UN "fastPack")) [xs] = do
   pure $ genFunCall l "unicode" "characters_to_binary" [xs]
+genForeign namespaceInfo l (NS _ (UN "fastUnpack")) [str] = do
+  pure $ genFunCall l "string" "to_graphemes" [str]
 genForeign namespaceInfo l (NS _ (UN "fastConcat")) [xs] = do
   pure $ genFunCall l "unicode" "characters_to_binary" [xs] -- TODO: Can this be improved?
 -- genForeign namespaceInfo l name args =
