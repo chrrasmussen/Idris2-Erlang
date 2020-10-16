@@ -365,7 +365,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [partialEvalNS] False False empty)
+         pure $ MkContext 0 0 empty empty aref 0 empty [partialEvalNS] False False empty
 
 export
 initCtxt : Core Context
@@ -1303,6 +1303,8 @@ visibleInAny nss n vis = any (\ns => visibleIn ns n vis) nss
 reducibleIn : Namespace -> Name -> Visibility -> Bool
 reducibleIn nspace (NS ns (UN n)) Export = isParentOf ns nspace
 reducibleIn nspace (NS ns (UN n)) Private = isParentOf ns nspace
+reducibleIn nspace (NS ns (RF n)) Export = isParentOf ns nspace
+reducibleIn nspace (NS ns (RF n)) Private = isParentOf ns nspace
 reducibleIn nspace n _ = True
 
 export
@@ -1810,6 +1812,9 @@ inCurrentNS n@(MN _ _)
 inCurrentNS n@(DN _ _)
     = do defs <- get Ctxt
          pure (NS (currentNS defs) n)
+inCurrentNS n@(RF _)
+    = do defs <- get Ctxt
+         pure (NS (currentNS defs) n)
 inCurrentNS n = pure n
 
 export
@@ -2031,6 +2036,12 @@ setUnboundImplicits a
          put Ctxt (record { options->elabDirectives->unboundImplicits = a } defs)
 
 export
+setPrefixRecordProjections : {auto c : Ref Ctxt Defs} -> Bool -> Core ()
+setPrefixRecordProjections b = do
+  defs <- get Ctxt
+  put Ctxt (record { options->elabDirectives->prefixRecordProjections = b } defs)
+
+export
 setDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
                            TotalReq -> Core ()
 setDefaultTotalityOption tot
@@ -2064,6 +2075,11 @@ isUnboundImplicits : {auto c : Ref Ctxt Defs} ->
 isUnboundImplicits
     = do defs <- get Ctxt
          pure (unboundImplicits (elabDirectives (options defs)))
+
+export
+isPrefixRecordProjections : {auto c : Ref Ctxt Defs} -> Core Bool
+isPrefixRecordProjections =
+  prefixRecordProjections . elabDirectives . options <$> get Ctxt
 
 export
 getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
