@@ -11,14 +11,16 @@ import System.File
 import System.Info
 import System.Path
 
+import Lib
+
 %default covering
 
 ------------------------------------------------------------------------
 -- Test cases
 
-ttimpTests : List String
-ttimpTests
-    = ["basic001", "basic002", "basic003", "basic004", "basic005",
+ttimpTests : TestPool
+ttimpTests = MkTestPool []
+      ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006",
        "coverage001", "coverage002",
        "dot001",
@@ -30,9 +32,9 @@ ttimpTests
        "qtt001", "qtt003",
        "total001", "total002", "total003"]
 
-idrisTests : List String
-idrisTests
-    = -- Fundamental language features
+idrisTests : TestPool
+idrisTests = MkTestPool []
+      -- Fundamental language features
       ["basic001", "basic002", "basic003", "basic004", "basic005",
        "basic006", "basic007", "basic008", "basic009", "basic010",
        "basic011", "basic012", "basic013", "basic014", "basic015",
@@ -122,15 +124,15 @@ idrisTests
        -- with-disambiguation
        "with003"]
 
-typeddTests : List String
-typeddTests
-   = ["chapter01", "chapter02", "chapter03", "chapter04", "chapter05",
+typeddTests : TestPool
+typeddTests = MkTestPool []
+     ["chapter01", "chapter02", "chapter03", "chapter04", "chapter05",
       "chapter06", "chapter07", "chapter08", "chapter09", "chapter10",
       "chapter11", "chapter12", "chapter13", "chapter14"]
 
-chezTests : List String
-chezTests
-   = ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
+chezTests : TestPool
+chezTests = MkTestPool [Chez]
+     ["chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
       "chez007", "chez008", "chez009", "chez010", "chez011", "chez012",
       "chez013", "chez014", "chez015", "chez016", "chez017", "chez018",
       "chez019", "chez020", "chez021", "chez022", "chez023", "chez024",
@@ -139,9 +141,9 @@ chezTests
       "perf001",
       "reg001"]
 
-nodeTests : List String
-nodeTests
-  = [ "node001", "node002", "node003", "node004", "node005", "node006", "node007", "node008", "node009"
+nodeTests : TestPool
+nodeTests = MkTestPool [Node]
+    [ "node001", "node002", "node003", "node004", "node005", "node006", "node007", "node008", "node009"
     , "node011", "node012", "node015", "node017", "node018", "node019" -- node014
     , "node021", "node022" --, "node020"
     , "reg001"
@@ -150,259 +152,47 @@ nodeTests
     , "idiom001"
     ]
 
-ideModeTests : List String
-ideModeTests
-  =  [ "ideMode001", "ideMode002", "ideMode003", "ideMode004" ]
+erlangTests : TestPool
+erlangTests = MkTestPool [Erlang]
+    [ "erlang001", "erlang002", "erlang003", "erlang004", "erlang005"
+    , "erlang006", "erlang007", "erlang008", "erlang009", "erlang010"
+    , "erlang011", "erlang012", "erlang013"
+    , "chez001", "chez002", "chez003", "chez004", "chez005", "chez006"
+    , "chez007", "chez008", "chez009",            "chez011", "chez012"
+    ,                       "chez015", "chez016", "chez017", "chez018"
+    , "chez019",            "chez021",                       "chez024"
+    , "chez025", "chez026", "chez027", "chez028", "chez029"
+    , "evaluator004", "reg001"
+    ]
+    -- Disabled tests:
+    -- * chez010: Calling C functions is not supported
+    -- * chez013: Calling C functions is not supported
+    -- * chez014: Calling C functions is not supported
+    -- * chez020: Require System.File.popen (Might be possible to implement)
+    -- * chez022: Calling C functions is not supported
+    -- * chez023: Uses Control.App (which transitively depends on Data.IORef and System.File)
+    -- * chez030: Scheme-specific test
+    -- * chez031: Scheme-specific test
 
-preludeTests : List String
-preludeTests
-  =  [ "reg001" ]
+ideModeTests : TestPool
+ideModeTests = MkTestPool []
+  [ "ideMode001", "ideMode002", "ideMode003", "ideMode004" ]
 
-erlangTests : List String
-erlangTests
-   = ["erlang001", "erlang002", "erlang003", "erlang004", "erlang005",
-      "erlang006", "erlang007", "erlang008", "erlang009", "erlang010",
-      "erlang011", "erlang012", "erlang013",
-      "chez001", "chez002", "chez003", "chez004", "chez005", "chez006",
-      "chez007", "chez008", "chez009",            "chez011", "chez012",
-                            "chez015", "chez016", "chez017", "chez018",
-      "chez019",            "chez021",                       "chez024",
-      "chez025", "chez026", "chez027", "chez028", "chez029",
-      "evaluator004", "reg001"]
-      -- Disabled tests:
-      -- * chez010: Calling C functions is not supported
-      -- * chez013: Calling C functions is not supported
-      -- * chez014: Calling C functions is not supported
-      -- * chez020: Require System.File.popen (Might be possible to implement)
-      -- * chez022: Calling C functions is not supported
-      -- * chez023: Uses Control.App (which transitively depends on Data.IORef and System.File)
-      -- * chez030: Scheme-specific test
-      -- * chez031: Scheme-specific test
-
-------------------------------------------------------------------------
--- Options
-
-||| Options for the test driver.
-record Options where
-  constructor MkOptions
-  ||| Name of the idris2 executable
-  idris2      : String
-  ||| Name of the codegenerator to use for `exec`
-  codegen     : Maybe String
-  ||| Should we only run some specific cases?
-  onlyNames   : List String
-  ||| Should we run the test suite interactively?
-  interactive : Bool
-
-usage : String
-usage = "Usage: runtests <idris2 path> [--interactive] [--only [NAMES]]"
-
-options : List String -> Maybe Options
-options args = case args of
-    (_ :: idris2 :: rest) => go rest (MkOptions idris2 Nothing [] False)
-    _ => Nothing
-
-  where
-
-    go : List String -> Options -> Maybe Options
-    go rest opts = case rest of
-      []                      => pure opts
-      ("--interactive" :: xs) => go xs (record { interactive = True } opts)
-      ("--cg" :: cg :: xs)    => go xs (record { codegen = Just cg } opts)
-      ("--only" :: xs)        => pure $ record { onlyNames = xs } opts
-      _ => Nothing
-
-------------------------------------------------------------------------
--- Actual test runner
-
-fail : String -> IO ()
-fail err
-    = do putStrLn err
-         exitWith (ExitFailure 1)
-
--- on Windows, we just ignore backslashes and slashes when comparing,
--- similarity up to that is good enough. Leave errors that depend
--- on the confusion of slashes and backslashes to unix machines.
-normalize : String -> String
-normalize str =
-    if isWindows
-      then pack $ filter (\ch => ch /= '/' && ch /= '\\') (unpack str)
-      else str
-
-runTest : Options -> String -> IO Bool
-runTest opts testPath
-    = do changeDir testPath
-         isSuccess <- runTest'
-         changeDir "../.."
-         pure isSuccess
-    where
-        getAnswer : IO Bool
-        getAnswer = do
-          str <- getLine
-          case str of
-            "y" => pure True
-            "n" => pure False
-            _   => do putStrLn "Invalid Answer."
-                      getAnswer
-
-        printExpectedVsOutput : String -> String -> IO ()
-        printExpectedVsOutput exp out = do
-          putStrLn "Expected:"
-          printLn exp
-          putStrLn "Given:"
-          printLn out
-
-        mayOverwrite : Maybe String -> String -> IO ()
-        mayOverwrite mexp out = do
-          the (IO ()) $ case mexp of
-            Nothing => putStr $ unlines
-              [ "Golden value missing. I computed the following result:"
-              , out
-              , "Accept new golden value? [yn]"
-              ]
-            Just exp => do
-              putStrLn "Golden value differs from actual value."
-              code <- system "git diff --no-index --exit-code --word-diff=color expected output"
-              when (code < 0) $ printExpectedVsOutput exp out
-              putStrLn "Accept actual value as new golden value? [yn]"
-          b <- getAnswer
-          when b $ do Right _ <- writeFile "expected" out
-                          | Left err => print err
-                      pure ()
-        runTest' : IO Bool
-        runTest'
-            = do putStr $ testPath ++ ": "
-                 let cg = case codegen opts of
-                            Nothing => ""
-                            Just cg => "env IDRIS2_TESTS_CG=" ++ cg ++ " "
-                 system $ cg ++ "sh ./run " ++ idris2 opts ++ " | tr -d '\\r' > output"
-                 Right out <- readFile "output"
-                     | Left err => do print err
-                                      pure False
-                 Right exp <- readFile "expected"
-                     | Left FileNotFound => do
-                         if interactive opts
-                           then mayOverwrite Nothing out
-                           else print FileNotFound
-                         pure False
-                     | Left err => do print err
-                                      pure False
-                 let result = normalize out == normalize exp
-                 if result
-                    then putStrLn "success"
-                    else do
-                      putStrLn "FAILURE"
-                      if interactive opts
-                         then mayOverwrite (Just exp) out
-                         else printExpectedVsOutput exp out
-
-                 pure result
-
-exists : String -> IO Bool
-exists f
-    = do Right ok <- openFile f Read
-             | Left err => pure False
-         closeFile ok
-         pure True
-
-firstExists : List String -> IO (Maybe String)
-firstExists [] = pure Nothing
-firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
-
-pathLookup : List String -> IO (Maybe String)
-pathLookup names = do
-  path <- getEnv "PATH"
-  let pathList = forget $ split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
-  let candidates = [p ++ "/" ++ x | p <- pathList,
-                                    x <- names]
-  firstExists candidates
-
-findChez : IO (Maybe String)
-findChez
-    = do Just chez <- getEnv "CHEZ" | Nothing => pathLookup ["chez", "chezscheme9.5", "scheme", "scheme.exe"]
-         pure $ Just chez
-
-findNode : IO (Maybe String)
-findNode
-    = do Just chez <- getEnv "NODE" | Nothing => pathLookup ["node"]
-         pure $ Just chez
-
-findRacket : IO (Maybe String)
-findRacket
-  = do Just racket <- getEnv "RACKET" | Nothing => pathLookup ["racket"]
-       pure $ Just racket
-
-findCG : IO (Maybe String)
-findCG
-  = do Nothing <- getEnv "IDRIS2_CG" | p => pure p
-       Nothing <- findChez   | p => pure (Just "chez")
-       Nothing <- findNode   | p => pure (Just "node")
-       Nothing <- findRacket | p => pure (Just "racket")
-       pure Nothing
-
-runChezTests : Options -> List String -> IO (List Bool)
-runChezTests opts tests
-    = do chexec <- findChez
-         maybe (do putStrLn "Chez Scheme not found"
-                   pure [])
-               (\c => do putStrLn $ "Found Chez Scheme at " ++ c
-                         traverse (runTest opts) tests)
-               chexec
-
-runNodeTests : Options -> List String -> IO (List Bool)
-runNodeTests opts tests
-    = do nodeexec <- findNode
-         maybe (do putStrLn "node not found"
-                   pure [])
-               (\c => do putStrLn $ "Found node at " ++ c
-                         traverse (runTest opts) tests)
-               nodeexec
-
-runErlangTests : Options -> List String -> IO (List Bool)
-runErlangTests opts tests = traverse (runTest opts) tests
-
-filterTests : Options -> List String -> List String
-filterTests opts = case onlyNames opts of
-  [] => id
-  xs => filter (\ name => any (`isInfixOf` name) xs)
+preludeTests : TestPool
+preludeTests = MkTestPool []
+  [ "reg001" ]
 
 main : IO ()
-main
-    = do args <- getArgs
-         let (Just opts) = options args
-              | _ => do print args
-                        putStrLn usage
-         opts <- case codegen opts of
-                   Nothing => pure $ record { codegen = !findCG } opts
-                   Just _ => pure opts
-         let filteredNonCGTests =
-              filterTests opts $ concat $
-                 [ testPaths "ttimp" ttimpTests
-                 , testPaths "idris2" idrisTests
-                 , testPaths "typedd-book" typeddTests
-                 , testPaths "ideMode" ideModeTests
-                 , testPaths "prelude" preludeTests
-                 ]
-         let filteredChezTests = filterTests opts (testPaths "chez" chezTests)
-         let filteredNodeTests = filterTests opts (testPaths "node" nodeTests)
-         let filteredErlangTests = filterTests opts (testPaths "erlang" erlangTests)
-         nonCGTestRes <- traverse (runTest opts) filteredNonCGTests
-         chezTestRes <- if length filteredChezTests > 0
-              then runChezTests opts filteredChezTests
-              else pure []
-         nodeTestRes <- if length filteredNodeTests > 0
-              then runNodeTests opts filteredNodeTests
-              else pure []
-         let res = nonCGTestRes ++ chezTestRes ++ nodeTestRes
-         erlangTestRes <- if length filteredErlangTests > 0
-              then runErlangTests opts filteredErlangTests
-              else pure []
-         let res = nonCGTestRes ++ chezTestRes ++ nodeTestRes ++ erlangTestRes
-         putStrLn (show (length (filter id res)) ++ "/" ++ show (length res)
-                       ++ " tests successful")
-         if (any not res)
-            then exitWith (ExitFailure 1)
-            else exitWith ExitSuccess
-    where
-         testPaths : String -> List String -> List String
-         testPaths dir tests = map (\test => dir ++ "/" ++ test) tests
+main = runner
+  [ testPaths "ttimp" ttimpTests
+  , testPaths "idris2" idrisTests
+  , testPaths "typedd-book" typeddTests
+  , testPaths "ideMode" ideModeTests
+  , testPaths "prelude" preludeTests
+  , testPaths "chez" chezTests
+  , testPaths "node" nodeTests
+  , testPaths "erlang" erlangTests
+  ] where
+
+    testPaths : String -> TestPool -> TestPool
+    testPaths dir = record { testCases $= map ((dir ++ "/") ++) }
