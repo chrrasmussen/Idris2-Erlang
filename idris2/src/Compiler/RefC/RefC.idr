@@ -1139,6 +1139,11 @@ compileExpr ANF c _ outputDir tm outfile =
     clibdirs ds = concat (map (\d => "-L" ++ d ++ " ") ds)
 compileExpr _ _ _ _ _ _ = pure Nothing
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedModules = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 export
 codegenRefC : Codegen
-codegenRefC = MkCG (compileExpr ANF) executeExpr
+codegenRefC = MkCG (compileExpr ANF) executeExpr compileLibrary
