@@ -16,6 +16,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Install Nix
-      uses: cachix/install-nix-action@v8
+      uses: cachix/install-nix-action@v12
     - name: Build using Nix
       run: nix-build
