@@ -87,7 +87,7 @@ cCleanString : String -> String
 cCleanString cs = showcCleanString (unpack cs) ""
 
 cName : Name -> String
-cName (NS ns n) = showNSWithSep "_" ns ++ "_" ++ cName n
+cName (NS ns n) = cCleanString (showNSWithSep "_" ns) ++ "_" ++ cName n
 cName (UN n) = cCleanString n
 cName (MN n i) = cCleanString n ++ "_" ++ cCleanString (show i)
 cName (PV n d) = "pat__" ++ cName n
@@ -284,7 +284,8 @@ toPrim pn@(NS _ n)
             (n == UN "prim__arraySet", ArraySet),
             (n == UN "prim__getField", GetField),
             (n == UN "prim__setField", SetField),
-            (n == UN "void", VoidElim),
+            (n == UN "void", VoidElim), -- DEPRECATED. TODO: remove when bootstrap has been updated
+            (n == UN "prim__void", VoidElim),
             (n == UN "prim__os", SysOS),
             (n == UN "prim__codegen", SysCodegen),
             (n == UN "prim__onCollect", OnCollect),

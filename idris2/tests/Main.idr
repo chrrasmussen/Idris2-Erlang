@@ -44,8 +44,12 @@ idrisTests = MkTestPool []
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
+<<<<<<< HEAD
        "basic046",
        -- "basic047" -- TODO: Disabled for now
+=======
+       "basic046", "basic047", "basic048",
+>>>>>>> a5a5d89d0c6d5fb565d6a8d002e64e61d3b7ba3a
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
@@ -85,14 +89,14 @@ idrisTests = MkTestPool []
        "literate001", "literate002", "literate003", "literate004",
        "literate005", "literate006", "literate007", "literate008",
        "literate009", "literate010", "literate011", "literate012",
-       "literate013", "literate014",
+       "literate013", "literate014", "literate015", "literate016",
        -- Namespace blocks
        "namespace001",
        -- Parameters blocks
        "params001",
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
-       "perf001", "perf002", "perf003", "perf004", "perf005",
+       "perf001", "perf002", "perf003", "perf004", "perf005", "perf006",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006",
@@ -182,6 +186,10 @@ preludeTests : TestPool
 preludeTests = MkTestPool []
   [ "reg001" ]
 
+templateTests : TestPool
+templateTests = MkTestPool []
+  [ "simple-test", "ttimp", "with-ipkg" ]
+
 main : IO ()
 main = runner
   [ testPaths "ttimp" ttimpTests
@@ -191,6 +199,7 @@ main = runner
   , testPaths "prelude" preludeTests
   , testPaths "chez" chezTests
   , testPaths "node" nodeTests
+  , testPaths "templates" templateTests
   , testPaths "erlang" erlangTests
   ] where
 
