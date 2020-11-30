@@ -44,12 +44,8 @@ idrisTests = MkTestPool []
        "basic031", "basic032", "basic033", "basic034", "basic035",
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
-<<<<<<< HEAD
-       "basic046",
        -- "basic047" -- TODO: Disabled for now
-=======
-       "basic046", "basic047", "basic048",
->>>>>>> a5a5d89d0c6d5fb565d6a8d002e64e61d3b7ba3a
+       "basic046", "basic048",
        -- Coverage checking
        "coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
