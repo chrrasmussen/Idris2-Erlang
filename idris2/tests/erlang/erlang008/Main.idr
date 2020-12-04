@@ -211,10 +211,10 @@ testMapSubset = do
   putStrLn "testMapSubset"
   putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) mapEx1)
   putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) "not a map")
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" := string])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" := string])) mapEx2)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" := string, "second" := integer])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" := string, "second" := integer])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" .= string])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" .= string])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" .= string, "second" .= integer])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" .= string, "second" .= integer])) mapEx2)
 
 testOptional : IO ()
 testOptional = do

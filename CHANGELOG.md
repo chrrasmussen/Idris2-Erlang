@@ -11,6 +11,8 @@
 - Renamed `Erlang.Types.ErlType` to `IsErlType`, to make it clearer that this data
   type is a predicate.
 - Added casts between `Bits8`, `Bits16`, `Bits32`, `Bits64`, `Int` and `Integer`.
+- Renamed the `:=` operator to `.=`, used for Erlang maps, in `Erlang.Types` and
+  `Erlang.Decode`.
 
 
 ## v0.2.1-alpha.1 (2020-09-28)

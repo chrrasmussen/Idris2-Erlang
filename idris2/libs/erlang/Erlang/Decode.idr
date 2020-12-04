@@ -39,10 +39,10 @@ data ErlMapEntryDecoder : key -> Type -> Type where
 
 ||| Convenience operator for creating an `MkDecoderMapEntry`.
 |||
-||| `"name" := string` is equivalent to `MkDecoderMapEntry "name" string`
+||| `"name" .= string` is equivalent to `MkDecoderMapEntry "name" string`
 public export
-(:=) : (key : a) -> ErlDecoder value -> ErlMapEntryDecoder key value
-(:=) = MkDecoderMapEntry
+(.=) : (key : a) -> ErlDecoder value -> ErlMapEntryDecoder key value
+(.=) = MkDecoderMapEntry
 
 namespace ErlMapDecoders
   ||| A list describing how to decode entries in an Erlang map.

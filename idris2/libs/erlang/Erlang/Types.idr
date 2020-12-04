@@ -114,20 +114,20 @@ public export
 data ErlMapEntry : Type where
   MkMapEntry : key -> (valueTy : Type) -> ErlMapEntry
 
-infix 0 :=
+infix 0 .=
 
 ||| A convenience operator to describe an entry in an Erlang map.
 |||
-||| `"name" := String` is equivalent to `MkMapEntry "name" String`.
+||| `"name" .= String` is equivalent to `MkMapEntry "name" String`.
 public export
-(:=) : key -> (valueTy : Type) -> ErlMapEntry
-(:=) = MkMapEntry
+(.=) : key -> (valueTy : Type) -> ErlMapEntry
+(.=) = MkMapEntry
 
 
 ||| Represents an Erlang map containing at least the entries specified in
 ||| its type. The Erlang map may still contain other entries.
 |||
-||| As an example: `ErlMapSubset [MkAtom "name" := String, MkAtom "age" := Int]`
+||| As an example: `ErlMapSubset [MkAtom "name" .= String, MkAtom "age" .= Int]`
 ||| represents any Erlang map that contains both of these entries (and possibly
 ||| more entries). Thus, the following Erlang values matches this specification:
 ||| - `#{name => <<"Christian">>, age => 33}`
