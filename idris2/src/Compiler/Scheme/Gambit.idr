@@ -397,7 +397,7 @@ compileExpr c tmpDir outputDir tm outfile
          gscBackend <- coreLift findGSCBackend
          ds <- getDirectives Gambit
          let gscCompileOpts =
-             case find (== "C") ds of
+             case find (== "C") (map snd ds) of
                  Nothing => gscBackend ++ " -exe -cc-options \"-Wno-implicit-function-declaration\" -ld-options \"" ++
                    (showSep " " libsfile) ++ "\""
                  Just _ => " -c"
