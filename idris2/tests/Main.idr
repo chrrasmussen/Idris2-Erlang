@@ -65,7 +65,7 @@ idrisTests = MkTestPool []
        "interactive005", "interactive006", "interactive007", "interactive008",
        "interactive009", "interactive010", "interactive011", "interactive012",
        "interactive013", "interactive014", "interactive015", "interactive016",
-       "interactive017", "interactive018",
+       "interactive017", "interactive018", "interactive019",
        -- Interfaces
        "interface001", "interface002", "interface003", "interface004",
        "interface005", "interface006", "interface007", "interface008",
@@ -145,6 +145,10 @@ chezTests = MkTestPool [Chez]
       "perf001",
       "reg001"]
 
+racketTests : TestPool
+racketTests = MkTestPool [Racket]
+    ["concurrency001"]
+
 nodeTests : TestPool
 nodeTests = MkTestPool [Node]
     [ "node001", "node002", "node003", "node004", "node005", "node006", "node007", "node008", "node009"
@@ -198,6 +202,7 @@ main = runner
   , testPaths "ideMode" ideModeTests
   , testPaths "prelude" preludeTests
   , testPaths "chez" chezTests
+  , testPaths "racket" racketTests
   , testPaths "node" nodeTests
   , testPaths "templates" templateTests
   , testPaths "erlang" erlangTests
