@@ -1,11 +1,11 @@
 module Compiler.ES.ES
 
 import Compiler.ES.Imperative
-import Utils.Hex
+import Libraries.Utils.Hex
 import Data.List1
 import Data.Strings
-import Data.SortedMap
-import Data.String.Extra
+import Libraries.Data.SortedMap
+import Libraries.Data.String.Extra
 
 import Core.Directory
 
@@ -248,6 +248,8 @@ jsOp (Cast CharType IntType) [x] = pure $ toBigInt $ x ++ ".codePointAt(0)"
 jsOp (Cast CharType IntegerType) [x] = pure $ toBigInt $ x ++ ".codePointAt(0)"
 jsOp (Cast DoubleType IntType) [x] = boundedInt 63 $ "BigInt(Math.floor(" ++ x ++ "))"
 jsOp (Cast DoubleType IntegerType) [x] = pure $ "BigInt(Math.floor(" ++ x ++ "))"
+jsOp (Cast IntType DoubleType) [x] = pure $ "Number(" ++ x ++ ")"
+jsOp (Cast IntegerType DoubleType) [x] = pure $ "Number(" ++ x ++ ")"
 jsOp (Cast StringType IntType) [x] = boundedInt 63 $ !(jsIntegerOfString x)
 jsOp (Cast StringType IntegerType) [x] = jsIntegerOfString x
 jsOp (Cast IntegerType IntType) [x] = boundedInt 63 x
