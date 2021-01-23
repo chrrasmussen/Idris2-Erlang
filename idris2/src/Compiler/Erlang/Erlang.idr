@@ -20,12 +20,12 @@ import Core.Name
 import Core.Options
 import Core.TT
 
-import Data.NameMap
+import Libraries.Data.NameMap
 import Data.List
-import Data.SortedMap
+import Libraries.Data.SortedMap
 import Data.Strings
-import Utils.Binary
-import Utils.Path
+import Libraries.Utils.Binary
+import Libraries.Utils.Path
 import System
 import System.File
 

@@ -1,7 +1,7 @@
 module Compiler.Erlang.Codegen.NamedCExpToErlExpr.RtsSupport
 
 import Data.List
-import Data.NameMap
+import Libraries.Data.NameMap
 import Data.Stream
 import Data.Vect
 import Core.Core

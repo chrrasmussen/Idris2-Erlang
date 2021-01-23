@@ -12,7 +12,7 @@ import Core.Name
 import Core.TT
 
 import Data.List
-import Data.NameMap
+import Libraries.Data.NameMap
 import Data.Stream
 import Data.Vect
 
