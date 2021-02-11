@@ -89,6 +89,21 @@ closeFile (FHandle f) = do
   pure $ erlUnsafeCall ErlTerm "file" "close" [f]
   pure ()
 
+||| Check if a file exists for reading.
+export
+exists : HasIO io => String -> io Bool
+exists f
+    = do Right ok <- openFile f Read
+             | Left err => pure False
+         closeFile ok
+         pure True
+
+||| Pick the first existing file
+export
+firstExists : HasIO io => List String -> io (Maybe String)
+firstExists [] = pure Nothing
+firstExists (x :: xs) = if !(exists x) then pure (Just x) else firstExists xs
+
 export
 fGetLine : HasIO io => File -> io (Either FileError String)
 fGetLine (FHandle f) = do
