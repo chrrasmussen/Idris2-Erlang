@@ -5,7 +5,7 @@ PRIV_LIBS_DIR=priv/libs
 PRIV_SUPPORT_DIR=priv/support
 
 
-.PHONY: all setup pull-idris2 build build-exec build-libs prepare-release prepare-erl-source prepare-libs prepare-support
+.PHONY: all setup pull-idris2 build build-exec build-libs build-test-exec prepare-release prepare-erl-source prepare-libs prepare-support test
 
 all: build
 
@@ -23,6 +23,9 @@ build-exec:
 
 build-libs:
 	${MAKE} -C idris2 libs TARGET=../${IDRIS2_OUTPUT_EXEC}
+
+build-test-exec:
+	@${MAKE} -C idris2/tests testbin IDRIS2_BOOT=../../${IDRIS2_OUTPUT_EXEC}
 
 
 prepare-release: prepare-erl-source prepare-libs prepare-support
@@ -42,3 +45,7 @@ prepare-libs:
 prepare-support:
 	mkdir -p ${PRIV_SUPPORT_DIR}
 	cp -R idris2/support/ ${PRIV_SUPPORT_DIR}
+
+
+test:
+	@${MAKE} -C idris2/tests only=${only} IDRIS2=../../../../${IDRIS2_OUTPUT_EXEC}
