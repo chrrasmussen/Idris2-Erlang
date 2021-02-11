@@ -80,13 +80,11 @@ import Data.List1
 import Data.String
 import Data.String.Extra
 
-import System
-import System.Clock
-import System.Directory
-import System.File
+import Erlang.System
+import Erlang.System.Directory
+import Erlang.System.File
 import System.Info
 import System.Path
-import System.Concurrency
 
 -- [ Options ]
 
@@ -227,12 +225,10 @@ Result = Either String String
 export
 runTest : Options -> (testPath : String) -> IO Result
 runTest opts testPath = do
-  start <- clockTime UTC
   let cg = maybe "" (" --cg " ++) (codegen opts)
   let exe = "\"" ++ exeUnderTest opts ++ cg ++ "\""
   ignore $ system $ "cd " ++ escapeArg testPath ++ " && " ++
     "sh ./run " ++ exe ++ " | tr -d '\\r' > output"
-  end <- clockTime UTC
 
   Right out <- readFile $ testPath ++ "/output"
     | Left err => do putStrLn $ (testPath ++ "/output") ++ ": " ++ show err
@@ -248,12 +244,11 @@ runTest opts testPath = do
                      pure (Left testPath)
 
   let result = normalize out == normalize exp
-  let time = timeDifference end start
 
   if result
-    then printTiming opts.timing time testPath $ maybeColored BrightGreen "success"
+    then printTiming opts.timing testPath $ maybeColored BrightGreen "success"
     else do
-      printTiming opts.timing time testPath $ maybeColored BrightRed "FAILURE"
+      printTiming opts.timing testPath $ maybeColored BrightRed "FAILURE"
       if interactive opts
         then mayOverwrite (Just exp) out
         else putStr . unlines $ expVsOut exp out
@@ -302,19 +297,8 @@ runTest opts testPath = do
                     | Left err => putStrLn $ (testPath ++ "/expected") ++ ": " ++ show err
                   pure ()
 
-    printTiming : Bool -> Clock type -> String -> String -> IO ()
-    printTiming False _     path msg = putStrLn $ concat [path, ": ", msg]
-    printTiming True  clock path msg =
-      let time  = showTime 2 3 clock
-          width = 72
-          -- We use 9 instead of `String.length msg` because:
-          -- 1. ": success" and ": FAILURE" have the same length
-          -- 2. ANSI escape codes make the msg look longer than it is
-          msgl  = 9
-          path  = leftEllipsis (width `minus` (1 + msgl + length time)) "(...)" path
-          spent = length time + length path + msgl
-          pad   = pack $ replicate (width `minus` spent) ' '
-      in putStrLn $ concat [path, ": ", msg, pad, time]
+    printTiming : Bool -> String -> String -> IO ()
+    printTiming _ path msg = putStrLn $ concat [path, ": ", msg]
 
 ||| Find the first occurrence of an executable on `PATH`.
 export
@@ -469,17 +453,9 @@ initSummary = MkSummary [] []
 
 ||| Update the summary to contain the given result
 export
-updateSummary : (newRes : Result) -> Summary -> Summary
-updateSummary newRes =
-  case newRes of
-       Left l  => { failure $= (l ::) }
-       Right w => { success $= (w ::) }
-
-||| Update the summary to contain the given results
-export
-bulkUpdateSummary : (newRess : List Result) -> Summary -> Summary
-bulkUpdateSummary newRess =
-  let (ls, ws) = partitionEithers newRess in
+updateSummary : List Result -> Summary -> Summary
+updateSummary res =
+  let (ls, ws) = partitionEithers res in
   { success $= (ws ++)
   , failure $= (ls ++)
   }
@@ -492,73 +468,6 @@ Semigroup Summary where
 export
 Monoid Summary where
   neutral = initSummary
-
-||| An instruction to a thread which runs tests
-public export
-data ThreadInstruction : Type where
-  ||| A test to run
-  Run : (test : String) -> ThreadInstruction
-  ||| An indication for the thread to stop
-  Stop : ThreadInstruction
-
-||| Sends the given tests on the given @Channel@, then sends `nThreads` many
-||| 'Stop' @ThreadInstruction@s to stop the threads running the tests.
-|||
-||| @testChan The channel to send the tests over.
-||| @nThreads The number of threads being used to run the tests.
-||| @tests The list of tests to send to the runners/threads.
-export
-testSender : (testChan : Channel ThreadInstruction) -> (nThreads : Nat)
-           -> (tests : List String) -> IO ()
-testSender testChan 0 [] = pure ()
-testSender testChan (S k) [] =
-  -- out of tests, so the next thing for all the threads is to stop
-  do channelPut testChan Stop
-     testSender testChan k []
-testSender testChan nThreads (test :: tests) =
-  do channelPut testChan (Run test)
-     testSender testChan nThreads tests
-
-||| A result from a test-runner/thread
-public export
-data ThreadResult : Type where
-  ||| The result of running a test
-  Res : (res : Result) -> ThreadResult
-  ||| An indication that the thread was told to stop
-  Done : ThreadResult
-
-||| Receives results on the given @Channel@, accumulating them as a @Summary@.
-||| When all results have been received (i.e. @nThreads@ many 'Done'
-||| @ThreadInstruction@s have been encountered), send the resulting Summary over
-||| the @accChan@ Channel (necessary to be able to @fork@ this function and
-||| still obtain the Summary at the end).
-|||
-||| @resChan The channel to receives the results on.
-||| @acc The Summary acting as an accumulator.
-||| @accChan The Channel to send the final Summary over.
-||| @nThreads The number of threads being used to run the tests.
-export
-testReceiver : (resChan : Channel ThreadResult) -> (acc : Summary)
-             -> (accChan : Channel Summary) -> (nThreads : Nat) -> IO ()
-testReceiver resChan acc accChan 0 = channelPut accChan acc
-testReceiver resChan acc accChan nThreads@(S k) =
-  do (Res res) <- channelGet resChan
-        | Done => testReceiver resChan acc accChan k
-     testReceiver resChan (updateSummary res acc) accChan nThreads
-
-||| Function responsible for receiving and running tests.
-|||
-||| @opts The options to run the threads under.
-||| @testChan The Channel to receive tests on.
-||| @resChan The Channel to send results over.
-testThread : (opts : Options) -> (testChan : Channel ThreadInstruction)
-              -> (resChan : Channel ThreadResult) -> IO ()
-testThread opts testChan resChan =
-  do (Run test) <- channelGet testChan
-        | Stop => channelPut resChan Done
-     res <- runTest opts test
-     channelPut resChan (Res res)
-     testThread opts testChan resChan
 
 ||| A runner for a test pool. If there are tests in the @TestPool@ that we want
 ||| to run, spawns `opts.threads` many runners and sends them the tests,
@@ -593,22 +502,8 @@ poolRunner opts pool
                     Just cg => { codegen := Just (show @{CG} cg) } opts
                     Default => opts
 
-       -- set up the channels
-       accChan <- makeChannel
-       resChan <- makeChannel
-       testChan <- makeChannel
-
-       -- and then run all the tests
-
-       for_ (replicate opts.threads 0) $ \_ =>
-         fork (testThread opts testChan resChan)
-       -- start sending tests
-       senderTID <- fork $ testSender testChan opts.threads tests
-       -- start receiving results
-       receiverTID <- fork $ testReceiver resChan initSummary accChan opts.threads
-       -- wait until things are done, i.e. until we receive the final acc
-       acc <- channelGet accChan
-       pure acc
+       -- if so run them all!
+       loop opts initSummary tests
 
   where
 
@@ -621,6 +516,14 @@ poolRunner opts pool
        ++ msgs
        ++ [ separator ]
 
+    loop : Options -> Summary -> List String -> IO Summary
+    loop opts acc [] = pure acc
+    loop opts acc tests
+      = do let (now, later) = splitAt opts.threads tests
+           bs <- traverse (runTest opts) now
+           loop opts (updateSummary bs acc) later
+
+||| A runner for a whole test suite
 export
 runnerWith : Options -> List TestPool -> IO ()
 runnerWith opts tests = do
