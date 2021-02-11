@@ -1,0 +1,31 @@
+name: macOS
+on:
+  push:
+    branches:
+      - 'selfhosted-*'
+  pull_request:
+    branches:
+      - master
+
+env:
+  SCHEME: chez
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install build dependencies
+        run: |
+          brew install erlang
+          brew install rebar3
+          brew install coreutils
+      - name: Build Idris 2 from Erlang source files
+        run: make build-exec
+        shell: bash
+      - name: Build test runner
+        run: make build-test-exec
+        shell: bash
+      - name: Run tests
+        run: make test only=erlang/selfhosted
+        shell: bash
