@@ -36,7 +36,7 @@ generateAtomHelpers atoms =
     atomToDecls atom =
       let fnName = "A_" ++ atom
       in
-        [ IClaim EmptyFC MW Private [Inline] (MkTy EmptyFC (UN fnName) `(ErlAtom))
+        [ IClaim EmptyFC MW Private [Inline] (MkTy EmptyFC EmptyFC (UN fnName) `(ErlAtom))
         , IDef EmptyFC (UN fnName)
             [ PatClause EmptyFC
                 (IVar EmptyFC (UN fnName))
