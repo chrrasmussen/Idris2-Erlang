@@ -225,13 +225,15 @@ pathLookup names = do
 ||| Some test may involve Idris' backends and have requirements.
 ||| We define here the ones supported by Idris
 public export
-data Requirement = Chez | Node | Racket | Erlang
+data Requirement = C | Chez | Node | Racket | Gambit | Erlang
 
 export
 Show Requirement where
+  show C = "C"
   show Chez = "Chez"
   show Node = "node"
   show Racket = "racket"
+  show Gambit = "gambit"
   show Erlang = "erlang"
 
 export
@@ -243,9 +245,11 @@ checkRequirement req
 
   where
     requirement : Requirement -> (String, List String)
+    requirement C = ("CC", ["cc"])
     requirement Chez = ("CHEZ", ["chez", "chezscheme9.5", "scheme", "scheme.exe"])
     requirement Node = ("NODE", ["node"])
     requirement Racket = ("RACKET", ["racket"])
+    requirement Gambit = ("GAMBIT", ["gsc"])
     requirement Erlang = ("ERLANG", ["erlc"])
 
 export
@@ -255,6 +259,8 @@ findCG
        Nothing <- checkRequirement Chez    | p => pure (Just "chez")
        Nothing <- checkRequirement Node    | p => pure (Just "node")
        Nothing <- checkRequirement Racket  | p => pure (Just "racket")
+       Nothing <- checkRequirement Gambit  | p => pure (Just "gsc")
+       Nothing <- checkRequirement C       | p => pure (Just "refc")
        Nothing <- checkRequirement Erlang  | p => pure (Just "erlang")
        pure Nothing
 
