@@ -213,6 +213,7 @@ erlangTests = MkTestPool [Erlang]
     ,                       "chez015", "chez016", "chez017", "chez018"
     , "chez019",            "chez021",                       "chez024"
     , "chez025", "chez026", "chez027", "chez028", "chez029"
+    ,            "chez032"
     , "basic048", "evaluator004", "perf006", "reg001"
     ]
     -- Disabled tests:
