@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Updated the Idris 2 compiler to include the latest changes.
 - Added `Erlang.Types.Atom` (Re-exported from `Erlang`) that includes elaborator
   reflection code to generate helper functions for atoms. See test `erlang/erlang013`.
 - Added `--directive mutablestorage` option to allow changing the implementation of
