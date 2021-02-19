@@ -4,7 +4,7 @@ on:
     branches:
       - '*'
       - '!*-alpha*'
-      - '!selfhosted-dev'
+      - '!selfhosted-*'
   pull_request:
     branches:
       - master
