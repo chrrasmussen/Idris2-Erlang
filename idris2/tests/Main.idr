@@ -258,7 +258,7 @@ main = runner
   , testPaths "ideMode" ideModeTests
   , testPaths "prelude" preludeTests
   , testPaths "chez" chezTests
-  , testPaths "refc" refcTests
+--   , testPaths "refc" refcTests -- TODO: Disabled because of missing header file (runtime.h)
   , testPaths "racket" racketTests
   , testPaths "node" nodeTests
   , testPaths "templates" templateTests

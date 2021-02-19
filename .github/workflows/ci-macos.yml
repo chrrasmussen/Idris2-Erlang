@@ -25,3 +25,6 @@ jobs:
       - name: Build and test Idris 2 from bootstrap
         run: cd idris2 && make bootstrap
         shell: bash
+      - name: Run tests
+        run: cd idris2 && make bootstrap-test
+        shell: bash
