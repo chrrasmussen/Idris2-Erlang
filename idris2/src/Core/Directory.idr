@@ -50,14 +50,22 @@ getPkgDirs
 
 export
 covering
-readDataFile : {auto c : Ref Ctxt Defs} ->
+findDataFile : {auto c : Ref Ctxt Defs} ->
                String -> Core String
-readDataFile fname
+findDataFile fname
     = do d <- getDirs
          let fs = map (\p => p </> fname) (data_dirs d)
          Just f <- firstAvailable fs
             | Nothing => throw (InternalError ("Can't find data file " ++ fname ++
                                                " in any of " ++ show fs))
+         pure f
+
+export
+covering
+readDataFile : {auto c : Ref Ctxt Defs} ->
+               String -> Core String
+readDataFile fname
+    = do f <- findDataFile fname
          Right d <- coreLift $ readFile f
             | Left err => throw (FileErr f err)
          pure d

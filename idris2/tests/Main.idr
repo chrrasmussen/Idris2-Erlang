@@ -63,7 +63,7 @@ idrisTestsError = MkTestPool []
        "error011", "error012", "error013", "error014",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
-       "perror006"]
+       "perror006", "perror007"]
 
 idrisTestsInteractive : TestPool
 idrisTestsInteractive = MkTestPool []
@@ -241,6 +241,16 @@ templateTests = MkTestPool []
   [ "simple-test", "ttimp", "with-ipkg"
   ]
 
+-- base library tests are run against
+-- each codegen supported and to keep
+-- things simple it's all one test group
+-- that only runs if all backends are
+-- available.
+baseLibraryTests : TestPool
+baseLibraryTests = MkTestPool [Chez, Node]
+  [ "system_file001"
+  ]
+
 main : IO ()
 main = runner
   [ testPaths "ttimp" ttimpTests
@@ -257,6 +267,7 @@ main = runner
   , testPaths "typedd-book" typeddTests
   , testPaths "ideMode" ideModeTests
   , testPaths "prelude" preludeTests
+  , testPaths "base" baseLibraryTests
   , testPaths "chez" chezTests
 --   , testPaths "refc" refcTests -- TODO: Disabled because of missing header file (runtime.h)
   , testPaths "racket" racketTests
