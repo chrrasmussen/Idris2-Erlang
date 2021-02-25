@@ -161,7 +161,7 @@ getAllDesc (n@(Resolved i) :: rest) arr defs
             Nothing => getAllDesc rest arr defs
             Just (_, entry) =>
               do (def, bin) <- getMinimalDef entry
-                 addDef n def
+                 ignore $ addDef n def
                  let refs = refersToRuntime def
                  if multiplicity def /= erased
                     then do coreLift $ writeArray arr i (i, bin)
@@ -193,8 +193,7 @@ replaceEntry : {auto c : Ref Ctxt Defs} ->
                (Int, Maybe Binary) -> Core ()
 replaceEntry (i, Nothing) = pure ()
 replaceEntry (i, Just b)
-    = do addContextEntry (Resolved i) b
-         pure ()
+    = ignore $ addContextEntry (Resolved i) b
 
 natHackNames : List Name
 natHackNames

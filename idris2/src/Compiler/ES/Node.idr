@@ -45,7 +45,7 @@ executeExpr c tmpDir tm
      Right () <- coreLift $ writeFile outn js
         | Left err => throw (FileErr outn err)
      node <- coreLift findNode
-     coreLift $ system (node ++ " " ++ outn)
+     coreLift_ $ system (node ++ " " ++ outn)
      pure ()
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
