@@ -24,10 +24,10 @@ data NameType : Type where
      TyCon   : (tag : Int) -> (arity : Nat) -> NameType
 
 export
-isCon : NameType -> Bool
-isCon (DataCon _ _) = True
-isCon (TyCon _ _) = True
-isCon _ = False
+isCon : NameType -> Maybe (Int, Nat)
+isCon (DataCon t a) = Just (t, a)
+isCon (TyCon t a) = Just (t, a)
+isCon _ = Nothing
 
 public export
 data Constant
@@ -595,6 +595,12 @@ Eq LazyReason where
   (==) LLazy LLazy = True
   (==) LUnknown LUnknown = True
   (==) _ _ = False
+
+export
+Show LazyReason where
+    show LInf = "Inf"
+    show LLazy = "Lazy"
+    show LUnknown = "Unkown"
 
 export
 compatible : LazyReason -> LazyReason -> Bool

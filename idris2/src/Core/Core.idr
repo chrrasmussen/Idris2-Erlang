@@ -6,6 +6,8 @@ import Core.TT
 import Data.List
 import Data.List1
 import Data.Vect
+
+import Libraries.Data.IMaybe
 import Libraries.Text.PrettyPrint.Prettyprinter
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
 
@@ -35,6 +37,7 @@ data DotReason = NonLinearVar
                | ErasedArg
                | UserDotted
                | UnknownDot
+               | UnderAppliedCon
 
 export
 Show DotReason where
@@ -44,6 +47,7 @@ Show DotReason where
   show ErasedArg = "Erased argument"
   show UserDotted = "User dotted"
   show UnknownDot = "Unknown reason"
+  show UnderAppliedCon = "Under-applied constructor"
 
 export
 Pretty DotReason where
@@ -53,6 +57,7 @@ Pretty DotReason where
   pretty ErasedArg = reflow "Erased argument"
   pretty UserDotted = reflow "User dotted"
   pretty UnknownDot = reflow "Unknown reason"
+  pretty UnderAppliedCon = reflow "Under-applied constructor"
 
 -- All possible errors, carrying a location
 public export
@@ -142,6 +147,7 @@ data Error : Type where
      InternalError : String -> Error
      UserError : String -> Error
      NoForeignCC : FC -> Error
+     BadMultiline : FC -> String -> Error
 
      InType : FC -> Name -> Error -> Error
      InCon : FC -> Name -> Error -> Error
@@ -308,6 +314,7 @@ Show Error where
   show (UserError str) = "Error: " ++ str
   show (NoForeignCC fc) = show fc ++
        ":The given specifier was not accepted by any available backend."
+  show (BadMultiline fc str) = "Invalid multiline string: " ++ str
 
   show (InType fc n err)
        = show fc ++ ":When elaborating type of " ++ show n ++ ":\n" ++
@@ -385,6 +392,7 @@ getErrorLoc ForceNeeded = Nothing
 getErrorLoc (InternalError _) = Nothing
 getErrorLoc (UserError _) = Nothing
 getErrorLoc (NoForeignCC loc) = Just loc
+getErrorLoc (BadMultiline loc _) = Just loc
 getErrorLoc (InType _ _ err) = getErrorLoc err
 getErrorLoc (InCon _ _ err) = getErrorLoc err
 getErrorLoc (InLHS _ _ err) = getErrorLoc err
@@ -494,14 +502,29 @@ when : Bool -> Lazy (Core ()) -> Core ()
 when True f = f
 when False f = pure ()
 
+
 export %inline
 unless : Bool -> Lazy (Core ()) -> Core ()
 unless = when . not
+
+export
+iwhen : (b : Bool) -> Lazy (Core a) -> Core (IMaybe b a)
+iwhen True f = Just <$> f
+iwhen False _ = pure Nothing
+
+export
+iunless : (b : Bool) -> Lazy (Core a) -> Core (IMaybe (not b) a)
+iunless b f = iwhen (not b) f
 
 export %inline
 whenJust : Maybe a -> (a -> Core ()) -> Core ()
 whenJust (Just a) k = k a
 whenJust Nothing k = pure ()
+
+export
+iwhenJust : IMaybe b a -> (a -> Core ()) -> Core ()
+iwhenJust (Just a) k = k a
+iwhenJust Nothing k = pure ()
 
 -- Control.Catchable in Idris 1, just copied here (but maybe no need for
 -- it since we'll only have the one instance for Core Error...)

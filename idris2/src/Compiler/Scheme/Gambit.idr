@@ -48,13 +48,14 @@ findGSCBackend =
               Just e => " -cc " ++ e
 
 schHeader : String
-schHeader = "; @generated\n
-         (declare (block)
-         (inlining-limit 450)
-         (standard-bindings)
-         (extended-bindings)
-         (not safe)
-         (optimize-dead-definitions))\n"
+schHeader =
+    "; @generated\n" ++
+    "(declare (block)\n" ++
+    "(inlining-limit 450)\n" ++
+    "(standard-bindings)\n" ++
+    "(extended-bindings)\n" ++
+    "(not safe)\n" ++
+    "(optimize-dead-definitions))\n"
 
 showGambitChar : Char -> String -> String
 showGambitChar '\\' = ("\\\\" ++)
@@ -367,7 +368,7 @@ getFgnCall (n, fc, d) = schFgnDef fc n d
 compileToSCM : Ref Ctxt Defs ->
                ClosedTerm -> (outfile : String) -> Core (List String)
 compileToSCM c tm outfile
-    = do cdata <- getCompileData Cases tm
+    = do cdata <- getCompileData False Cases tm
          let ndefs = namedDefs cdata
          -- let tags = nameTags cdata
          let ctm = forget (mainExpr cdata)
