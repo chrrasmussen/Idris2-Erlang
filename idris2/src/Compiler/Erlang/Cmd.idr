@@ -54,10 +54,10 @@ compileErlToBeamCmd erlc srcFiles outputDir =
   escapeCmd $ [erlc, "-W0", "-o", outputDir] ++ srcFiles
 
 erlShowPath : String -> String
-erlShowPath = show -- The Show implementation is close enought to Erlang syntax
+erlShowPath = show -- The Show implementation is close enough to Erlang syntax
 
 erlShowPaths : List String -> String
-erlShowPaths = show -- The Show implementation is close enought to Erlang syntax
+erlShowPaths = show -- The Show implementation is close enough to Erlang syntax
 
 export
 compileAbstrToBeamCmd : (erl : String) -> (srcFiles : List String) -> (outputDir : String) -> String
