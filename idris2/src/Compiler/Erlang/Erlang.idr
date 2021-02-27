@@ -119,7 +119,7 @@ namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
 
 compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileMainEntrypointToModules globalOpts tm modName = do
-  compileData <- getCompileData Cases tm
+  compileData <- getCompileData False Cases tm
   let cgOpts = MkCGOpts globalOpts.useMutableStorage
   compdefs <- traverse (genCompdef @{cgOpts} defLine . concatNamespaceInfo modName) (namedDefs compileData)
   let namespaceInfo = MkNamespaceInfo (Concat modName)
@@ -134,7 +134,7 @@ compileMainEntrypointToModules globalOpts tm modName = do
 compileLibraryToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (changedModules : Maybe (List ModuleIdent)) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileLibraryToModules globalOpts allModuleOpts changedModules = do
   let extraNames = filter (shouldCompileName changedModules) (map snd (getExportFunNames allModuleOpts))
-  compileData <- getExportedCompileData Cases (shouldCompileName changedModules) extraNames
+  compileData <- getExportedCompileData False Cases (shouldCompileName changedModules) extraNames
   let cgOpts = MkCGOpts globalOpts.useMutableStorage
   compdefs <- traverse (genCompdef @{cgOpts} defLine . splitNamespaceInfo (prefixStr globalOpts)) (filter (shouldCompileName changedModules . fst) (namedDefs compileData))
   let validCompdefs = mapMaybe id compdefs

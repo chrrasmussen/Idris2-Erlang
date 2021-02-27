@@ -595,10 +595,10 @@ mutual
     let l = genFC fc
     args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
     genExtPrim namespaceInfo l name args'
-  genNmExp namespaceInfo vs (NmForce fc t) = do
+  genNmExp namespaceInfo vs (NmForce fc lr t) = do
     let l = genFC fc
     pure $ EApp l !(genNmExp namespaceInfo vs t) []
-  genNmExp namespaceInfo vs (NmDelay fc t) = do
+  genNmExp namespaceInfo vs (NmDelay fc lr t) = do
     let l = genFC fc
     pure $ ELam l [] !(genNmExp namespaceInfo vs t)
   genNmExp namespaceInfo vs (NmConCase fc sc alts def) = do

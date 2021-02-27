@@ -366,8 +366,8 @@ skipUnusedNames (Resolved _) = False
 skipUnusedNames _ = True
 
 export
-getExportedCompileData : {auto c : Ref Ctxt Defs} -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
-getExportedCompileData phase shouldCompileName extraNames = do
+getExportedCompileData : {auto c : Ref Ctxt Defs} -> (doLazyAnnots : Bool) -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
+getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   defs <- get Ctxt
   sopts <- getSession
   -- make an array of Bools to hold which names we've found (quicker
@@ -396,11 +396,11 @@ getExportedCompileData phase shouldCompileName extraNames = do
 
   compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
   let mainname = MN "__mainExpression" 0
-  (liftedtm, ldefs) <- liftBody mainname compiledtm
+  (liftedtm, ldefs) <- liftBody {doLazyAnnots} mainname compiledtm
 
   namedefs <- traverse getNamedDef rcns
   lifted_in <- if phase >= Lifted
-                  then logTime "Lambda lift" $ traverse lambdaLift rcns
+                  then logTime "Lambda lift" $ traverse (lambdaLift doLazyAnnots) rcns
                   else pure []
 
   let lifted = (mainname, MkLFun [] [] liftedtm) ::
