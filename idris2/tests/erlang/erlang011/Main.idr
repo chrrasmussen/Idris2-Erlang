@@ -7,8 +7,7 @@ import Erlang
 
 sleep : Int -> IO ()
 sleep ms = do
-  pure $ erlUnsafeCall ErlTerm "timer" "sleep" [ms]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "timer" "sleep" [ms]
 
 defaultTimeout : Int
 defaultTimeout = 5000
@@ -19,7 +18,7 @@ defaultTimeout = 5000
 testReceiveInteger : ErlPid -> IO ()
 testReceiveInteger self = do
   putStrLn "testReceiveInteger"
-  erlSpawnLink (do
+  ignore $ erlSpawnLink (do
     sleep 100
     erlSend self 42)
   result <- erlReceive defaultTimeout "not found" (map show integer)
@@ -28,7 +27,7 @@ testReceiveInteger self = do
 testReceiveBinary : ErlPid -> IO ()
 testReceiveBinary self = do
   putStrLn "testReceiveBinary"
-  erlSpawnLink (do
+  ignore $ erlSpawnLink (do
     sleep 100
     erlSend self "hello")
   result <- erlReceive defaultTimeout "not found" string

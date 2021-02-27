@@ -15,8 +15,7 @@ import Erlang
 export
 sleep : HasIO io => (ms : Int) -> io ()
 sleep ms = do
-  pure $ erlUnsafeCall ErlTerm "timer" "sleep" [ms]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "timer" "sleep" [ms]
 
 ||| Get arguments provided when launching the program.
 export
@@ -58,8 +57,7 @@ setEnv key value overwrite = do
     True => pure True
     False => isNothing <$> getEnv key
   when shouldSetEnv $ do
-    pure $ erlUnsafeCall ErlTerm "os" "putenv" [MkCharlist key, MkCharlist value]
-    pure ()
+    ignore $ pure $ erlUnsafeCall ErlTerm "os" "putenv" [MkCharlist key, MkCharlist value]
   pure True
 
 ||| Unset a given environment variable.

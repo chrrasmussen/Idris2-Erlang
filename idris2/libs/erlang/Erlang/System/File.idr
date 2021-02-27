@@ -86,8 +86,7 @@ openFile filePath mode = do
 export
 closeFile : HasIO io => File -> io ()
 closeFile (FHandle f) = do
-  pure $ erlUnsafeCall ErlTerm "file" "close" [f]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "file" "close" [f]
 
 ||| Check if a file exists for reading.
 export

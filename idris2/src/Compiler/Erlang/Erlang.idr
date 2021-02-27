@@ -155,18 +155,15 @@ build globalOpts allModuleOpts tmpDir outputDir modules = do
       traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "erl" genDeclErl) modules
     ErlangSourcePretty => do
       generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
-      coreLift $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
-      pure ()
+      coreLift_ $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
     AbstractFormat => do
       traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "abstr" genDeclAbstr) modules
     BeamFromErlangSource => do
       generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
-      coreLift $ system $ compileErlToBeamCmd erlc generatedFiles outputDir
-      pure ()
+      coreLift_ $ system $ compileErlToBeamCmd erlc generatedFiles outputDir
     BeamFromAbstractFormat => do
       generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
-      coreLift $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
-      pure ()
+      coreLift_ $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
   pure $ map (currentModuleName . fst) modules
 
 
@@ -180,7 +177,7 @@ compileExpr c tmpDir outputDir tm outfile = do
   let globalOpts = parseOpts globalDirectives
   let modName = outfile
   modules <- compileMainEntrypointToModules globalOpts tm modName
-  build globalOpts [] tmpDir outputDir modules
+  ignore $ build globalOpts [] tmpDir outputDir modules
   pure (Just outfile)
 
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
@@ -188,10 +185,9 @@ executeExpr c tmpDir tm = do
   let globalOpts = defaultGlobalOpts
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
-  build globalOpts [] tmpDir tmpDir modules
+  ignore $ build globalOpts [] tmpDir tmpDir modules
   erl <- coreLift $ findErlangExecutable
-  coreLift $ system (executeBeamCmd erl tmpDir modName)
-  pure ()
+  coreLift_ $ system (executeBeamCmd erl tmpDir modName)
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do

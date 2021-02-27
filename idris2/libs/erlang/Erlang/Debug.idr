@@ -10,8 +10,7 @@ import Erlang
 export
 erlPrintLn : HasIO io => a -> io ()
 erlPrintLn x = do
-  pure $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (ErlList _) [MkRaw x]]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (ErlList _) [MkRaw x]]
 
 ||| Print the underlying value using `io:format/2`, and return the given value.
 |||

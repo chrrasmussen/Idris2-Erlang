@@ -27,8 +27,7 @@ erlSpawnLink action = pure $ erlUnsafeCall ErlPid "erlang" "spawn_link" [MkIOFun
 export
 erlSend : (HasIO io, IsErlType a) => ErlPid -> a -> io ()
 erlSend receiver value = do
-  pure $ erlUnsafeCall ErlTerm "erlang" "send" [receiver, value]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "send" [receiver, value]
 
 -- TODO: Add proof that `ms` is in proper range: 0 - 16#FFFFFFFF (http://erlang.org/doc/reference_manual/expressions.html#receive)
 export %inline

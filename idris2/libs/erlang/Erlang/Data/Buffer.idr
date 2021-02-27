@@ -46,8 +46,7 @@ getBufferPayload (MkBuffer ref) =
 %inline
 setBufferPayload : HasIO io => Buffer -> BufferPayload -> io ()
 setBufferPayload (MkBuffer ref) content = do
-  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
 
 %inline
 updateBufferPayload : HasIO io => Buffer -> (BufferPayload -> BufferPayload) -> io ()
@@ -214,7 +213,7 @@ createBufferFromFile filePath = do
     | _ => pure (Left FileReadError)
   let strSize = erlUnsafeCall Int "erlang" "byte_size" [str]
   ref <- pure $ erlUnsafeCall ErlReference "erlang" "make_ref" []
-  pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
+  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
   pure (Right (MkBuffer ref))
 
 -- TODO: `maxbytes` is unused

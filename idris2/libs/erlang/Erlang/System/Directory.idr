@@ -32,8 +32,7 @@ currentDir = do
 export
 removeDir : HasIO io => String -> io ()
 removeDir dirPath = do
-  pure $ erlUnsafeCall ErlTerm "file" "del_dir_r" [dirPath]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "file" "del_dir_r" [dirPath]
 
 -- TODO: Should this function return `.` and `..`? The Chez codegen does this
 export

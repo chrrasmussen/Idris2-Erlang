@@ -31,7 +31,7 @@ main
     = do Right ok <- idrisReadFile "test.txt"
                | Left err => printLn err
          putStr ok
-         writeFile "testout.txt" "abc\ndef\n"
+         ignore $ writeFile "testout.txt" "abc\ndef\n"
          Right ok <- idrisReadFile "testout.txt"
                | Left err => printLn err
          putStr ok

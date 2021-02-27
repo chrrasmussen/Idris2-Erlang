@@ -175,7 +175,7 @@ field fname
            equals
            e <- (stringLit <|> packageName)
            pure (PExec e)
-    <|> do exactProperty "library"
+    <|> do ignore $ exactProperty "library"
            equals
            libName <- (stringLit <|> packageName)
            pure (PLibrary libName)
@@ -297,8 +297,7 @@ compileLibHelper libName packageNamespaces changedModules
          u <- newRef UST initUState
          let namespacesToLoad = fromMaybe packageNamespaces changedModules
          loadModules namespacesToLoad
-         compileLib libName changedModules
-         pure ()
+         ignore $ compileLib libName changedModules
 
 filterChangedModules : (changedModules : List ModuleIdent) ->
                           List BuildMod ->

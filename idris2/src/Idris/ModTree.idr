@@ -242,8 +242,7 @@ loadModules namespaces = do
   -- Load the the TTC files in a clean context
   clearCtxt; addPrimitives
   put MD initMetadata
-  traverse (\ns => readModule True emptyFC True ns (miAsNamespace ns)) namespaces
-  pure ()
+  traverse_ (\ns => readModule True emptyFC True ns (miAsNamespace ns)) namespaces
 
 export
 getAllBuildMods : {auto c : Ref Ctxt Defs} ->
