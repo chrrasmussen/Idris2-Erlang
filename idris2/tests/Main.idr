@@ -75,7 +75,8 @@ idrisTestsInteractive = MkTestPool []
        "interactive013", "interactive014", "interactive015", "interactive016",
        "interactive017", "interactive018", "interactive019", "interactive020",
        "interactive021", "interactive022", "interactive023", "interactive024",
-       "interactive025", "interactive026", "interactive027", "interactive028"]
+       "interactive025", "interactive026", "interactive027"]
+       -- TODO: Disabled for now: interactive028
 
 idrisTestsInterface : TestPool
 idrisTestsInterface = MkTestPool []
@@ -213,12 +214,15 @@ erlangTests = MkTestPool [Erlang]
     , "chez001", "chez002", "chez003", "chez004", "chez005", "chez006"
     , "chez007", "chez008", "chez009",            "chez011", "chez012"
     ,                       "chez015", "chez016", "chez017", "chez018"
-    , "chez019",            "chez021",                       "chez024"
+    ,                       "chez021",                       "chez024"
     , "chez025", "chez026", "chez027", "chez028", "chez029"
     ,            "chez032"
     , "basic048", "evaluator004", "perf006", "reg001"
     ]
     -- Disabled tests:
+    -- * chez019
+    --
+    -- Missing tests:
     -- * chez010: Calling C functions is not supported
     -- * chez013: Calling C functions is not supported
     -- * chez014: Calling C functions is not supported
