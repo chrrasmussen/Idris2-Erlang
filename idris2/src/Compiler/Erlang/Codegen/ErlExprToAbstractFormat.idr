@@ -9,6 +9,7 @@ import public Compiler.Erlang.IR.AbstractFormat
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Internal
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Binary
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Buffer
+import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Serialise
 import Compiler.Erlang.Utils.String
 
 
@@ -134,6 +135,16 @@ constExprToPattern (EBufferSetDouble l bin loc value) = Nothing
 constExprToPattern (EBufferGetDouble l bin loc) = Nothing
 constExprToPattern (EBufferSetString l bin loc value) = Nothing
 constExprToPattern (EBufferGetString l bin loc len) = Nothing
+constExprToPattern (ESerialiseWriteInt bits l builder value) = Nothing
+constExprToPattern (ESerialiseReadInt bits l it) = Nothing
+constExprToPattern (ESerialiseWriteBits bits l builder value) = Nothing
+constExprToPattern (ESerialiseReadBits bits l it) = Nothing
+constExprToPattern (ESerialiseWriteBinary l builder value) = Nothing
+constExprToPattern (ESerialiseReadBinary l it) = Nothing
+constExprToPattern (ESerialiseWriteChar l builder value) = Nothing
+constExprToPattern (ESerialiseReadChar l it) = Nothing
+constExprToPattern (ESerialiseWriteDouble l builder value) = Nothing
+constExprToPattern (ESerialiseReadDouble l it) = Nothing
 
 mutual
   genErlExpr : ErlExpr -> State LocalVars Expr
@@ -279,6 +290,26 @@ mutual
     pure $ Buffer.setString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetString l bin loc len) =
     pure $ Buffer.getString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr len)
+  genErlExpr (ESerialiseWriteInt bits l builder value) =
+    pure $ Serialise.setSignedInt bits l !(genErlExpr builder) !(genErlExpr value)
+  genErlExpr (ESerialiseReadInt bits l it) =
+    pure $ Serialise.getSignedInt bits l !(genErlExpr it)
+  genErlExpr (ESerialiseWriteBits bits l builder value) =
+    pure $ Serialise.setUnsignedInt bits l !(genErlExpr builder) !(genErlExpr value)
+  genErlExpr (ESerialiseReadBits bits l it) =
+    pure $ Serialise.getUnsignedInt bits l !(genErlExpr it)
+  genErlExpr (ESerialiseWriteBinary l builder value) =
+    pure $ Serialise.setBinary l !(genErlExpr builder) !(genErlExpr value)
+  genErlExpr (ESerialiseReadBinary l it) =
+    pure $ Serialise.getBinary l !(genErlExpr it)
+  genErlExpr (ESerialiseWriteChar l builder value) =
+    pure $ Serialise.setUnsignedInt 32 l !(genErlExpr builder) !(genErlExpr value)
+  genErlExpr (ESerialiseReadChar l it) =
+    pure $ Serialise.getUnsignedInt 32 l !(genErlExpr it)
+  genErlExpr (ESerialiseWriteDouble l builder value) =
+    pure $ Serialise.setDouble l !(genErlExpr builder) !(genErlExpr value)
+  genErlExpr (ESerialiseReadDouble l it) =
+    pure $ Serialise.getDouble l !(genErlExpr it)
 
   genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do

@@ -517,6 +517,59 @@ genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetString"))) [bin, 
   pure $ EBufferSetString l bin loc value
 genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetString"))) [bin, loc, len] =
   pure $ EBufferGetString l bin loc len
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__newBuilder"))) [] =
+  pure $ EBinary l ""
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__builderToByteString"))) [builder] =
+  pure $ builder
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__byteStringToIterator"))) [str] =
+  pure $ str
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__freeIterator"))) [it] =
+  pure $ genMkUnit l
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeInt8"))) [value, builder] =
+  pure $ ESerialiseWriteInt 8 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readInt8"))) [it] =
+  pure $ ESerialiseReadInt 8 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeInt16"))) [value, builder] =
+  pure $ ESerialiseWriteInt 16 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readInt16"))) [it] =
+  pure $ ESerialiseReadInt 16 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeInt32"))) [value, builder] =
+  pure $ ESerialiseWriteInt 32 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readInt32"))) [it] =
+  pure $ ESerialiseReadInt 32 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeInt64"))) [value, builder] =
+  pure $ ESerialiseWriteInt 64 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readInt64"))) [it] =
+  pure $ ESerialiseReadInt 64 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeBits8"))) [value, builder] =
+  pure $ ESerialiseWriteBits 8 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readBits8"))) [it] =
+  pure $ ESerialiseReadBits 8 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeBits16"))) [value, builder] =
+  pure $ ESerialiseWriteBits 16 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readBits16"))) [it] =
+  pure $ ESerialiseReadBits 16 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeBits32"))) [value, builder] =
+  pure $ ESerialiseWriteBits 32 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readBits32"))) [it] =
+  pure $ ESerialiseReadBits 32 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeBits64"))) [value, builder] =
+  pure $ ESerialiseWriteBits 64 l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readBits64"))) [it] =
+  pure $ ESerialiseReadBits 64 l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeString"))) [value, builder] =
+  pure $ ESerialiseWriteBinary l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readString"))) [it] =
+  pure $ ESerialiseReadBinary l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeChar"))) [value, builder] =
+  pure $ ESerialiseWriteChar l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readChar"))) [it] =
+  pure $ ESerialiseReadChar l it
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__writeDouble"))) [value, builder] =
+  pure $ ESerialiseWriteDouble l builder value
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__readDouble"))) [it] =
+  pure $ ESerialiseReadDouble l it
+
 -- genExtPrim namespaceInfo l name args =
 --   throw (InternalError ("Badly formed external primitive " ++ show name))
 genExtPrim namespaceInfo l name args =

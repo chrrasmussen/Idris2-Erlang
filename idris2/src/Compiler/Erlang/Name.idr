@@ -1,7 +1,7 @@
 module Compiler.Erlang.Name
 
 import Data.List
-import Core.Name
+import public Core.Name
 import Core.TT
 
 
@@ -117,3 +117,7 @@ erlangMaybeImproperListNS = mkNamespace "Erlang.Types.MaybeImproperList"
 export
 erlangProperListNS : Namespace
 erlangProperListNS = mkNamespace "Erlang.Types.ProperList"
+
+export
+serialiseCoreNS : Namespace
+serialiseCoreNS = mkNamespace "Data.Serialise.Core"

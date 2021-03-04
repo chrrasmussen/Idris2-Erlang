@@ -133,6 +133,17 @@ mutual
     EBufferSetString : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (value : ErlExpr) -> ErlExpr
     EBufferGetString : Line -> (bin : ErlExpr) -> (loc : ErlExpr) -> (len : ErlExpr) -> ErlExpr
 
+    ESerialiseWriteInt    : (bits : Int) -> Line -> (builder : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    ESerialiseReadInt     : (bits : Int) -> Line -> (it : ErlExpr) -> ErlExpr
+    ESerialiseWriteBits   : (bits : Int) -> Line -> (builder : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    ESerialiseReadBits    : (bits : Int) -> Line -> (it : ErlExpr) -> ErlExpr
+    ESerialiseWriteBinary : Line -> (builder : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    ESerialiseReadBinary  : Line -> (it : ErlExpr) -> ErlExpr
+    ESerialiseWriteChar   : Line -> (builder : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    ESerialiseReadChar    : Line -> (it : ErlExpr) -> ErlExpr
+    ESerialiseWriteDouble : Line -> (builder : ErlExpr) -> (value : ErlExpr) -> ErlExpr
+    ESerialiseReadDouble  : Line -> (it : ErlExpr) -> ErlExpr
+
   public export
   data ErlConstAlt : Type where
     MkConstAlt : IdrisConstant -> ErlExpr -> ErlConstAlt
