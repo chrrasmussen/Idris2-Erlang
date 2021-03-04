@@ -254,43 +254,43 @@ mutual
     entries' <- assert_total $ traverse (\(key, value) => pure $ MkAssoc l !(genErlExpr key) !(genErlExpr value)) entries
     pure $ AEMapNew l entries'
   genErlExpr (EBufferNew l size) =
-    pure $ bufferNew l !(genErlExpr size)
+    pure $ Buffer.new l !(genErlExpr size)
   genErlExpr (EBufferResize l bin newSize) =
-    pure $ bufferResize l !(genErlExpr bin) !(genErlExpr newSize)
+    pure $ Buffer.resize l !(genErlExpr bin) !(genErlExpr newSize)
   genErlExpr (EBufferFlatten l bin maxbytes) =
-    pure $ bufferFlatten l !(genErlExpr bin) !(genErlExpr maxbytes)
+    pure $ Buffer.flatten l !(genErlExpr bin) !(genErlExpr maxbytes)
   genErlExpr (EBufferSetBits8 l bin loc value) =
-    pure $ bufferSetUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetBits8 l bin loc) =
-    pure $ bufferGetUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getUnsignedInt 8 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetBits16 l bin loc value) =
-    pure $ bufferSetUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetBits16 l bin loc) =
-    pure $ bufferGetUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getUnsignedInt 16 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetBits32 l bin loc value) =
-    pure $ bufferSetUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetBits32 l bin loc) =
-    pure $ bufferGetUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getUnsignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetBits64 l bin loc value) =
-    pure $ bufferSetUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetBits64 l bin loc) =
-    pure $ bufferGetUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getUnsignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetInt32 l bin loc value) =
-    pure $ bufferSetSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetInt32 l bin loc) =
-    pure $ bufferGetSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getSignedInt 32 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetInt64 l bin loc value) =
-    pure $ bufferSetSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetInt64 l bin loc) =
-    pure $ bufferGetSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getSignedInt 64 l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetDouble l bin loc value) =
-    pure $ bufferSetDouble l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setDouble l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetDouble l bin loc) =
-    pure $ bufferGetDouble l !(genErlExpr bin) !(genErlExpr loc)
+    pure $ Buffer.getDouble l !(genErlExpr bin) !(genErlExpr loc)
   genErlExpr (EBufferSetString l bin loc value) =
-    pure $ bufferSetString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
+    pure $ Buffer.setString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr value)
   genErlExpr (EBufferGetString l bin loc len) =
-    pure $ bufferGetString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr len)
+    pure $ Buffer.getString l !(genErlExpr bin) !(genErlExpr loc) !(genErlExpr len)
 
   genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do
