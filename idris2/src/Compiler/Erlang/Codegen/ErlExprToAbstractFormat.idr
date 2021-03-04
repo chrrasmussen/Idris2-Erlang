@@ -6,6 +6,7 @@ import Control.Monad.State
 
 import public Compiler.Erlang.IR.ErlExpr
 import public Compiler.Erlang.IR.AbstractFormat
+import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Internal
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Binary
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Buffer
 import Compiler.Erlang.Utils.String
@@ -168,7 +169,7 @@ mutual
     pure $ AEOp l opName !(genErlExpr x) !(genErlExpr y)
   genErlExpr (ECon l name exprs) = do
     exprs' <- assert_total $ traverse genErlExpr exprs
-    pure $ AETuple l (AELiteral (ALAtom l name) :: exprs')
+    pure $ genDataCtorExpr l name exprs'
   genErlExpr (EConstCase l sc clauses def) = do
     def' <- assert_total $ traverse genErlExpr def
     let defClause = map (\x => MkCaseClause l (APUniversal l) [] (singleton x)) def'
