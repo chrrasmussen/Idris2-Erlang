@@ -6,6 +6,7 @@ import Control.Monad.State
 
 import public Compiler.Erlang.IR.ErlExpr
 import public Compiler.Erlang.IR.AbstractFormat
+import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Binary
 import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Buffer
 import Compiler.Erlang.Utils.String
 
@@ -227,7 +228,7 @@ mutual
           ]
     pure $ AETry l [!(genErlExpr tryExpr)] [tryCaseClause] [tryCatchClause] []
   genErlExpr (EBinaryConcat l bin1 bin2) =
-    pure $ binaryConcat l !(genErlExpr bin1) !(genErlExpr bin2)
+    pure $ Binary.concat l !(genErlExpr bin1) !(genErlExpr bin2)
   genErlExpr (EIdrisConstant l x) =
     pure $ genIdrisConstant l (genBinaryExpr l) AELiteral x
   genErlExpr (EAtom l x) =

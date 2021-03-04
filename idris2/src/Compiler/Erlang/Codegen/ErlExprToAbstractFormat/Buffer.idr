@@ -1,48 +1,17 @@
 module Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Buffer
 
 import Compiler.Erlang.IR.AbstractFormat
+import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Internal
+import Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Binary
 
 
 %default total
 
 
-genFunCall : Line -> String -> String -> List Expr -> Expr
-genFunCall l modName fnName args =
-  AEFunCall l (AERemoteRef l (AELiteral (ALAtom l modName)) (AELiteral (ALAtom l fnName))) args
-
-emptyBinary : Line -> Expr
-emptyBinary l = AEBitstring l []
-
-zeroBinary : Line -> Expr
-zeroBinary l = AEBitstring l [MkBitSegment l (AELiteral (ALInteger l 0)) ABSDefault (MkTSL Nothing Nothing Nothing Nothing)]
-
-zeroPaddedBinary : Line -> (size : Expr) -> Expr
-zeroPaddedBinary l size =
-  genFunCall l "binary" "copy" [zeroBinary l, size]
-
-export
-binaryConcat : Line -> Expr -> Expr -> Expr
-binaryConcat l bin1 bin2 =
-  let binaryValue =
-        AEBitstring l
-          [ MkBitSegment l (AEVar l "Bin1") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          , MkBitSegment l (AEVar l "Bin2") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          ]
-      funExpr = AEFun l 2
-        [ MkFunClause l
-            [ APVar l "Bin1"
-            , APVar l "Bin2"
-            ]
-            []
-            [ binaryValue
-            ]
-        ]
-  in AEFunCall l funExpr [bin1, bin2]
-
 export
 bufferNew : Line -> (size : Expr) -> Expr
 bufferNew l size =
-  AETuple l [emptyBinary l, size]
+  AETuple l [Binary.empty l, size]
 
 export
 bufferResize : Line -> (buf : Expr) -> (newSize : Expr) -> Expr
@@ -75,7 +44,7 @@ bufferFlatten l buf maxbytes =
         , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (zeroPaddedBinary l paddingSize)
+        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
         , AETuple l [paddedBinaryValue, AEVar l "BufSize"]
         ]
       shrinkedBinary = genFunCall l "binary" "part" [AEVar l "Bin", AELiteral (ALInteger l 0), AEVar l "BufSize"]
@@ -122,7 +91,7 @@ bufferSetGeneric targetTSL targetSize l buf loc value =
         ]
       targetSizeInBytes = AEOp l "div" (AELiteral (ALInteger l (cast targetSize))) (AELiteral (ALInteger l 8))
       mutatedBody =
-        [ AEMatch l (APVar l "Padding") (zeroPaddedBinary l targetSizeInBytes)
+        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l targetSizeInBytes)
         , AEMatch l mutatedBinaryPattern binaryWithExtraPadding
         , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
         ]
@@ -134,7 +103,7 @@ bufferSetGeneric targetTSL targetSize l buf loc value =
           , MkBitSegment l (AEVar l "Value")   (ABSInteger l (cast targetSize)) targetTSL
           ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (zeroPaddedBinary l paddingSize)
+        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
         , AETuple l [extendedBinaryValue, AEVar l "BufSize"]
         ]
       funExpr = AEFun l 3
@@ -235,7 +204,7 @@ bufferSetString l buf loc value =
         ]
       mutatedBody =
         [ AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "Value"])
-        , AEMatch l (APVar l "Padding") (zeroPaddedBinary l (AEVar l "Size"))
+        , AEMatch l (APVar l "Padding") (Binary.zeroPadded l (AEVar l "Size"))
         , AEMatch l mutatedBinaryPattern binaryWithExtraPadding
         , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
         ]
@@ -247,7 +216,7 @@ bufferSetString l buf loc value =
           , MkBitSegment l (AEVar l "Value")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
           ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (zeroPaddedBinary l paddingSize)
+        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
         , AETuple l [extendedBinaryValue, AEVar l "BufSize"]
         ]
       funExpr = AEFun l 3
@@ -283,7 +252,7 @@ bufferGetString l buf loc len =
         , AEVar l "Value"
         ]
       defaultBody =
-        [ zeroPaddedBinary l (AEVar l "Len")
+        [ Binary.zeroPadded l (AEVar l "Len")
         ]
       funExpr = AEFun l 3
         [ MkFunClause l
