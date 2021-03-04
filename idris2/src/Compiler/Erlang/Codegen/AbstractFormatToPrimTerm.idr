@@ -57,8 +57,8 @@ genBitEndianness endianness =
     ABNative => "native"
 
 genBitUnit : BitUnit -> PrimTerm
-genBitUnit (MkBitUnit size) =
-  PTuple [PAtom "unit", PInteger (cast size + 1)]
+genBitUnit bitUnit =
+  PTuple [PAtom "unit", PInteger (cast (bitUnitToNat bitUnit))]
 
 genBitSize : BitSize -> PrimTerm
 genBitSize ABSDefault = PAtom "default"

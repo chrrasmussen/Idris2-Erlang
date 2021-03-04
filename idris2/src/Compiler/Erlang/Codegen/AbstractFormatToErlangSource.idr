@@ -67,8 +67,8 @@ genBitEndianness endianness =
     ABNative => "native"
 
 genBitUnit : BitUnit -> String
-genBitUnit (MkBitUnit size) =
-  "unit:" ++ show (cast size + 1)
+genBitUnit bitUnit =
+  "unit:" ++ show (bitUnitToNat bitUnit)
 
 genBitSize : BitSize -> Maybe String
 genBitSize ABSDefault = Nothing

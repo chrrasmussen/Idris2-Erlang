@@ -44,8 +44,21 @@ public export
 data BitEndianness = ABBig | ABLittle | ABNative
 
 -- Unit is a value from 1-256 where `FZ` is representing the value 1
-public export
+export
 data BitUnit = MkBitUnit (Fin 256)
+
+export
+bitUnitToNat : BitUnit -> Nat
+bitUnitToNat (MkBitUnit x) = finToNat x + 1
+
+export
+natToBitUnit : Nat -> Maybe BitUnit
+natToBitUnit x = MkBitUnit <$> natToFin (x `minus` 1) 256
+
+export
+fromInteger : (x : Integer) -> {auto prf : So (fromInteger x >= 1 && fromInteger x <= 256)} -> BitUnit
+fromInteger x =
+  fromMaybe (MkBitUnit 0) (natToBitUnit (integerToNat x))
 
 public export
 data BitSize : Type where
