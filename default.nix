@@ -4,7 +4,7 @@
 
 pkgs.stdenv.mkDerivation rec {
   pname = "idris2erl";
-  version = "0.2.1";
+  version = "0.3.0";
   inherit src;
 
   strictDeps = true;
