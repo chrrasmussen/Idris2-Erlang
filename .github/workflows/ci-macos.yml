@@ -10,6 +10,7 @@ on:
       - master
 
 env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
   SCHEME: chez
 jobs:
   build:
@@ -22,9 +23,13 @@ jobs:
           brew install chezscheme
           brew install erlang
           brew install coreutils
-      - name: Build and test Idris 2 from bootstrap
-        run: cd idris2 && make bootstrap
+          echo "::add-path::$HOME/.idris2erl/bin"
+      - name: Build Idris 2 from bootstrap
+        run: cd idris2 && make bootstrap && make install
+        shell: bash
+      - name: Build Idris 2
+        run: cd idris2 && IDRIS2_BOOT=idris2erl make clean && IDRIS2_BOOT=idris2erl make all && IDRIS2_BOOT=idris2erl make install
         shell: bash
       - name: Run tests
-        run: cd idris2 && make bootstrap-test
+        run: cd idris2 && IDRIS2_BOOT=idris2erl make test INTERACTIVE=''
         shell: bash
