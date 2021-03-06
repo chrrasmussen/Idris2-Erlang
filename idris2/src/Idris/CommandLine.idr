@@ -141,7 +141,7 @@ data CLOpt
    ||| Set the log level globally
   Logging LogLevel |
    ||| Add a package as a dependency
-  PkgName String |
+  PkgPath String |
    ||| Build or install a given package, depending on PkgCommand
   Package PkgCommand String |
    ||| Show locations of data/library directories
@@ -246,7 +246,7 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just $ "Set code generator " ++ showDefault (codegen defaultSession)),
            MkOpt ["--directive"] [Required "directive"] (\d => [Directive d])
               (Just $ "Pass a directive to the current code generator"),
-           MkOpt ["--package", "-p"] [Required "package"] (\f => [PkgName f])
+           MkOpt ["--package", "-p"] [Required "package"] (\f => [PkgPath f])
               (Just "Add a package as a dependency"),
            MkOpt ["--source-dir"] [Required "dir"] (\d => [SourceDir d])
               (Just $ "Set source directory"),

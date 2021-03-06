@@ -154,7 +154,7 @@ preOptions (SetCG e :: opts)
 preOptions (Directive d :: opts)
     = do setSession (record { directives $= (d::) } !getSession)
          preOptions opts
-preOptions (PkgName p :: opts)
+preOptions (PkgPath p :: opts)
     = do addPkgDir p anyBounds
          preOptions opts
 preOptions (SourceDir d :: opts)
