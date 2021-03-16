@@ -1,4 +1,5 @@
 idris2docs_venv
+result
 *~
 *.ibc
 *.ttc
@@ -41,3 +42,6 @@ idris2docs_venv
 /bootstrap/idris2-boot.rkt
 
 /custom.mk
+
+#Mac OS
+.DS_Store

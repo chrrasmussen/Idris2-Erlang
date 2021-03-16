@@ -54,6 +54,8 @@ modules = Control.ANSI,
           Data.List.HasLength,
           Data.List.AtIndex,
 
+          Data.List.Elem.Extra,
+
           Data.List.Lazy,
           Data.List.Lazy.Quantifiers,
 
@@ -95,6 +97,8 @@ modules = Control.ANSI,
 
           Data.Tree.Perfect,
 
+          Data.Validated,
+
           Data.Vect.Binary,
 
           Data.Vect.Sort,
@@ -131,8 +135,6 @@ modules = Control.ANSI,
           System.Future,
           System.Random,
           System.Path,
-
-          Test.Golden,
 
           Text.Token,
           Text.Quantity,

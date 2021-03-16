@@ -255,6 +255,12 @@ mutual
                 pure $ IPrimVal fc (Ch x)
              Just f => pure $ IApp fc (IVar fc f)
                                       (IPrimVal fc (Ch x))
+  desugarB side ps (PPrimVal fc (Db x))
+      = case !fromDoubleName of
+             Nothing =>
+                pure $ IPrimVal fc (Db x)
+             Just f => pure $ IApp fc (IVar fc f)
+                                      (IPrimVal fc (Db x))
   desugarB side ps (PPrimVal fc x) = pure $ IPrimVal fc x
   desugarB side ps (PQuote fc tm)
       = pure $ IQuote fc !(desugarB side ps tm)
@@ -424,10 +430,11 @@ mutual
 
       -- merge neighbouring StrLiteral
       mergeStrLit : List PStr -> List PStr
-      mergeStrLit [] = []
-      mergeStrLit ((StrLiteral fc str1)::(StrLiteral _ str2)::xs)
-          = (StrLiteral fc (str1 ++ str2)) :: xs
-      mergeStrLit (x::xs) = x :: mergeStrLit xs
+      mergeStrLit xs
+          = case List.spanBy (\case StrLiteral fc str => Just (fc, str); _ => Nothing) xs of
+                 ([], []) => []
+                 ([], x::xs) => x :: mergeStrLit xs
+                 (lits@(_::_), xs) => (StrLiteral (fst $ head lits) (fastConcat $ snd <$> lits)) :: mergeStrLit xs
 
       notEmpty : PStr -> Bool
       notEmpty (StrLiteral _ str) = str /= ""
@@ -970,6 +977,7 @@ mutual
              PrimInteger n => pure [IPragma [] (\nest, env => setFromInteger n)]
              PrimString n => pure [IPragma [] (\nest, env => setFromString n)]
              PrimChar n => pure [IPragma [] (\nest, env => setFromChar n)]
+             PrimDouble n => pure [IPragma [] (\nest, env => setFromDouble n)]
              CGAction cg dir => pure [IPragma [] (\nest, env => addDirective cg dir)]
              Names n ns => pure [IPragma [] (\nest, env => addNameDirective fc n ns)]
              StartExpr tm => pure [IPragma [] (\nest, env => throw (InternalError "%start not implemented"))] -- TODO!

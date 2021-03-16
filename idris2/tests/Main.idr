@@ -11,7 +11,7 @@ import System.File
 import System.Info
 import System.Path
 
-import Lib
+import Test.Golden
 
 %default covering
 
@@ -46,7 +46,8 @@ idrisTestsBasic = MkTestPool []
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
        "basic046", "basic047", "basic048", "basic049", "basic050",
-       "basic051", "basic052", "basic053", "basic054", "basic055"]
+       "basic051", "basic052", "basic053", "basic054", "basic055",
+       "basic056"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool []
@@ -91,7 +92,8 @@ idrisTestsInterface = MkTestPool []
        "interface009", "interface010", "interface011", "interface012",
        "interface013", "interface014", "interface015", "interface016",
        "interface017", "interface018", "interface019", "interface020",
-       "interface021", "interface022", "interface023", "interface024"]
+       "interface021", "interface022", "interface023", "interface024",
+       "interface025"]
 
 idrisTestsLinear : TestPool
 idrisTestsLinear = MkTestPool []
@@ -123,7 +125,7 @@ idrisTestsRegression = MkTestPool []
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
-       "reg036", "reg037"]
+       "reg036", "reg037", "reg038"]
 
 idrisTests : TestPool
 idrisTests = MkTestPool []
@@ -151,7 +153,7 @@ idrisTests = MkTestPool []
        "real001", "real002",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006",
+       "record006", "record007",
        -- Quotation and reflection
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
@@ -195,6 +197,14 @@ racketTests = MkTestPool [Racket]
     [ "forkjoin001"
     , "semaphores001", "semaphores002"
     , "futures001"
+    , "mutex001", "mutex002", "mutex003", "mutex004", "mutex005"
+    , "conditions001"
+    , "conditions002"
+    , "conditions003"
+    , "conditions004"
+    , "conditions005"
+--    , "conditions006"
+--    , "conditions007"
     ]
 
 nodeTests : TestPool

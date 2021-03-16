@@ -1,6 +1,6 @@
 package runtests
 
-depends = contrib
+depends = test
 main = Main
 executable = runtests
 

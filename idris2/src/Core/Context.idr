@@ -15,6 +15,7 @@ import Libraries.Utils.Binary
 import Libraries.Data.IntMap
 import Data.IOArray
 import Data.List
+import Data.Maybe
 import Libraries.Data.NameMap
 import Libraries.Data.StringMap
 
@@ -534,6 +535,11 @@ lookupContextEntry n ctxt
     = do let Just idx = lookup n (resolvedAs ctxt)
                   | Nothing => pure Nothing
          lookupContextEntry (Resolved idx) ctxt
+
+||| Check if the name has been hidden by the `%hide` directive.
+export
+isHidden : Name -> Context -> Bool
+isHidden fulln ctxt = isJust $ lookup fulln (hidden ctxt)
 
 export
 lookupCtxtName : Name -> Context -> Core (List (Name, Int, GlobalDef))
@@ -1587,15 +1593,18 @@ getSearchData fc defaults target
     = do defs <- get Ctxt
          Just (TCon _ _ _ dets u _ _ _) <- lookupDefExact target (gamma defs)
               | _ => throw (UndefinedName fc target)
-         let hs = case lookup !(toFullNames target) (typeHints defs) of
-                       Just hs => hs
-                       Nothing => []
+         hs <- case lookup !(toFullNames target) (typeHints defs) of
+                       Just hs => filterM (\x => notHidden x (gamma defs)) hs
+                       Nothing => pure []
          if defaults
-            then let defns = map fst (filter isDefault
+            then let defns = map fst !(filterM (\x => pure $ isDefault x
+                                                 && !(notHidden x (gamma defs)))
                                              (toList (autoHints defs))) in
                      pure (MkSearchData [] [(False, defns)])
-            else let opens = map fst (toList (openHints defs))
-                     autos = map fst (filter (not . isDefault)
+            else let opens = map fst !(filterM (\x => notHidden x (gamma defs))
+                                             (toList (openHints defs)))
+                     autos = map fst !(filterM (\x => pure $ not (isDefault x)
+                                                 && !(notHidden x (gamma defs)))
                                              (toList (autoHints defs)))
                      tyhs = map fst (filter direct hs)
                      chasers = map fst (filter (not . direct) hs) in
@@ -1605,6 +1614,13 @@ getSearchData fc defaults target
                                 (not (uniqueAuto u), tyhs),
                                 (True, chasers)]))
   where
+    ||| We don't want hidden (by `%hide`) names to appear in the search.
+    ||| Lookup has to be done by a full qualified name, not a resolved ID.
+    notHidden : forall a. (Name, a) -> Context -> Core Bool
+    notHidden (n, _) ctxt = do
+      fulln <- toFullNames n
+      pure $ not (isHidden fulln ctxt)
+
     isDefault : (Name, Bool) -> Bool
     isDefault = snd
 
@@ -2243,6 +2259,13 @@ setFromChar n
          put Ctxt (record { options $= setFromChar n } defs)
 
 export
+setFromDouble : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+setFromDouble n
+    = do defs <- get Ctxt
+         put Ctxt (record { options $= setFromDouble n } defs)
+
+export
 addNameDirective : {auto c : Ref Ctxt Defs} ->
                    FC -> Name -> List String -> Core ()
 addNameDirective fc n ns
@@ -2313,8 +2336,19 @@ fromCharName
          pure $ fromCharName (primnames (options defs))
 
 export
+fromDoubleName : {auto c : Ref Ctxt Defs} ->
+               Core (Maybe Name)
+fromDoubleName
+    = do defs <- get Ctxt
+         pure $ fromDoubleName (primnames (options defs))
+
+export
+getPrimNames : {auto c : Ref Ctxt Defs} -> Core PrimNames
+getPrimNames = [| MkPrimNs fromIntegerName fromStringName fromCharName fromDoubleName |]
+
+export
 getPrimitiveNames : {auto c : Ref Ctxt Defs} -> Core (List Name)
-getPrimitiveNames = pure $ catMaybes [!fromIntegerName, !fromStringName, !fromCharName]
+getPrimitiveNames = primNamesToList <$> getPrimNames
 
 export
 addLogLevel : {auto c : Ref Ctxt Defs} ->
