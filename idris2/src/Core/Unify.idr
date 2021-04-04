@@ -248,7 +248,7 @@ postpone blockedMetas loc mode logstr env x y
     checkDefined : Defs -> NF vars -> Core ()
     checkDefined defs (NApp _ (NRef _ n) _)
         = do Just _ <- lookupCtxtExact n (gamma defs)
-                  | _ => throw (UndefinedName loc n)
+                  | _ => undefinedName loc n
              pure ()
     checkDefined _ _ = pure ()
 
@@ -757,7 +757,7 @@ mutual
   unifyHoleApp swap mode loc env mname mref margs margs' tm@(NApp nfc (NMeta n i margs2) args2')
       = do defs <- get Ctxt
            Just mdef <- lookupCtxtExact (Resolved i) (gamma defs)
-                | Nothing => throw (UndefinedName nfc mname)
+                | Nothing => undefinedName nfc mname
            let inv = isPatName n || invertible mdef
            if inv
               then unifyInvertible swap (lower mode) loc env mname mref margs margs' Nothing
@@ -1142,23 +1142,23 @@ mutual
                        (NDCon xfc x tagx ax xs)
                        (NDCon yfc y tagy ay ys)
   unifyNoEta mode loc env (NTCon xfc x tagx ax xs) (NTCon yfc y tagy ay ys)
-      = if x == y
-           then do ust <- get UST
-                   -- see above
-                   {-
-                   when (logging ust) $
-                      do log "" 0 $ "Constructor " ++ show !(toFullNames x) ++ " " ++ show loc
-                         log "" 0 "ARGUMENTS:"
-                         defs <- get Ctxt
-                         traverse_ (dumpArg env) xs
-                         log "" 0 "WITH:"
-                         traverse_ (dumpArg env) ys
-                   -}
-                   unifyArgs mode loc env (map snd xs) (map snd ys)
+   = do x <- toFullNames x
+        y <- toFullNames y
+        log "unify" 20 $ "Comparing type constructors " ++ show x ++ " and " ++ show y
+        if x == y
+           then do let xs = map snd xs
+                   let ys = map snd ys
+
+                   logC "unify" 20 $
+                     pure $ "Constructor " ++ show x
+                   logC "unify" 20 $ map (const "") $ traverse_ (dumpArg env) xs
+                   logC "unify" 20 $ map (const "") $ traverse_ (dumpArg env) ys
+                   unifyArgs mode loc env xs ys
              -- TODO: Type constructors are not necessarily injective.
              -- If we don't know it's injective, need to postpone the
              -- constraint. But before then, we need some way to decide
              -- what's injective...
+             -- gallais: really? We don't mind being anticlassical do we?
 --                then postpone True loc mode env (quote empty env (NTCon x tagx ax xs))
 --                                           (quote empty env (NTCon y tagy ay ys))
            else convertError loc env
@@ -1323,7 +1323,7 @@ setInvertible : {auto c : Ref Ctxt Defs} ->
 setInvertible fc n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
-              | Nothing => throw (UndefinedName fc n)
+              | Nothing => undefinedName fc n
          ignore $ addDef n (record { invertible = True } gdef)
 
 public export
@@ -1605,7 +1605,7 @@ checkDots
                    dotSolved <-
                       maybe (pure False)
                             (\n => do Just ndef <- lookupDefExact n (gamma defs)
-                                           | Nothing => throw (UndefinedName fc n)
+                                           | Nothing => undefinedName fc n
                                       case ndef of
                                            Hole _ _ => pure False
                                            _ => pure True)
@@ -1622,7 +1622,7 @@ checkDots
                          InternalError _ =>
                            do defs <- get Ctxt
                               Just dty <- lookupTyExact n (gamma defs)
-                                   | Nothing => throw (UndefinedName fc n)
+                                   | Nothing => undefinedName fc n
                               logTermNF "unify.constraint" 5 "Dot type" [] dty
                               -- Clear constraints so we don't report again
                               -- later

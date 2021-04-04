@@ -61,6 +61,8 @@ modules = Control.ANSI,
 
           Data.Logic.Propositional,
 
+          Data.Monoid.Exponentiation,
+
           Data.Morphisms.Algebra,
 
           Data.Nat.Algebra,
@@ -75,6 +77,8 @@ modules = Control.ANSI,
           Data.Nat.Properties,
 
           Data.OpenUnion,
+
+          Data.Path,
 
           Data.Recursion.Free,
 
