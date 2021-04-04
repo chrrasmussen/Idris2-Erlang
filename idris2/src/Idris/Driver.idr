@@ -34,6 +34,7 @@ import Erlang.System.Directory
 import Erlang.System.File
 import Libraries.Utils.Path
 import Libraries.Utils.Term
+import Libraries.Utils.System
 
 import Yaffle.Main
 
@@ -227,7 +228,7 @@ stMain cgs opts
                        case f of
                          Left err => do
                            coreLift $ putStrLn err
-                           coreLift $ exitWith (ExitFailure 1)
+                           coreLift $ softExitWith (ExitFailure 1)
                          Right file => do
                            setOutput (IDEMode 0 file file)
                            replIDE {c} {u} {m}
@@ -241,7 +242,7 @@ stMain cgs opts
                        showTimeRecord
                        case errorLine ropts of
                          Nothing => pure ()
-                         Just _ => coreLift $ exitWith (ExitFailure 1)
+                         Just _ => coreLift $ softExitWith (ExitFailure 1)
 
   where
 
@@ -285,5 +286,5 @@ mainWithCodegens cgs args = do
     setupTerm
     coreRun (stMain cgs opts)
       (\err : Error => do putStrLn ("Uncaught error: " ++ show err)
-                          exitWith (ExitFailure 1))
+                          softExitWith (ExitFailure 1))
       (\res => pure ())

@@ -29,6 +29,7 @@ import Core.Unify
 import Core.Value
 
 import Parser.Unlit
+import Libraries.Utils.System
 
 import Idris.Desugar
 import Idris.Doc.String

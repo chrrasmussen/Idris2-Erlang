@@ -14,6 +14,7 @@ import Core.Options
 import Core.TT
 import Core.UnifyState
 import Libraries.Utils.Path
+import Libraries.Utils.System
 
 import TTImp.Parser
 import TTImp.ProcessDecls
@@ -36,7 +37,7 @@ processArgs [] = pure False
 processArgs ["--timing"] = pure True
 processArgs _
     = coreLift $ do ignore $ putStrLn usage
-                    exitWith (ExitFailure 1)
+                    softExitWith (ExitFailure 1)
 
 HasNames () where
   full _ _ = pure ()
@@ -72,7 +73,7 @@ ymain : IO ()
 ymain
     = do (_ :: fname :: rest) <- getArgs
              | _ => do putStrLn usage
-                       exitWith (ExitFailure 1)
+                       softExitWith (ExitFailure 1)
          coreRun (yaffleMain fname rest)
                (\err : Error => putStrLn ("Uncaught error: " ++ show err))
                (\res => pure ())

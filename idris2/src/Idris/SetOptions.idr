@@ -8,6 +8,7 @@ import Core.Metadata
 import Core.Options
 import Core.Unify
 import Libraries.Utils.Path
+import Libraries.Utils.System
 import Libraries.Data.List.Extra
 
 import Idris.CommandLine
@@ -280,7 +281,7 @@ setIncrementalCG failOnError cgn
                        | Nothing =>
                             if failOnError
                                then do coreLift $ putStrLn $ cgn ++ " does not support incremental builds"
-                                       coreLift $ exitWith (ExitFailure 1)
+                                       coreLift $ softExitWith (ExitFailure 1)
                                else pure ()
                   setSession (record { incrementalCGs $= (cg :: )} !getSession)
            Nothing =>
@@ -288,7 +289,7 @@ setIncrementalCG failOnError cgn
                  then do coreLift $ putStrLn "No such code generator"
                          coreLift $ putStrLn $ "Code generators available: " ++
                                          showSep ", " (map fst (availableCGs (options defs)))
-                         coreLift $ exitWith (ExitFailure 1)
+                         coreLift $ softExitWith (ExitFailure 1)
                  else pure ()
 
 -- Options to be processed before type checking. Return whether to continue.
@@ -334,7 +335,7 @@ preOptions (SetCG e :: opts)
               do coreLift $ putStrLn "No such code generator"
                  coreLift $ putStrLn $ "Code generators available: " ++
                                  showSep ", " (map fst (availableCGs (options defs)))
-                 coreLift $ exitWith (ExitFailure 1)
+                 coreLift $ softExitWith (ExitFailure 1)
 preOptions (Directive d :: opts)
     = do setSession (record { directives $= (d::) } !getSession)
          preOptions opts
