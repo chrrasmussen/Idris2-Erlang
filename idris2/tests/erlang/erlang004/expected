@@ -1,4 +1,5 @@
-intTest
+1/1: Building Main (Main.idr)
+Main> intTest
 0
 -42
 42
@@ -45,5 +46,4 @@ erlTuplesTest
 {<<"a">>,<<"b">>,<<"c">>}
 {<<"a">>,<<"b">>,<<"c">>,<<"d">>}
 {<<"a">>,<<"b">>,<<"c">>,<<"d">>,<<"e">>}
-1/1: Building Main (Main.idr)
-Main> Main> Bye for now!
+Main> Bye for now!
