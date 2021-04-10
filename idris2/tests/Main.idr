@@ -47,7 +47,7 @@ idrisTestsBasic = MkTestPool []
        "basic041", "basic042", "basic043", "basic044", "basic045",
        "basic046", "basic047", "basic048", "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", "basic055",
-       "basic056", "basic057", "basic058"]
+       "basic056", "basic057", "basic058", "basic059"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool []
@@ -126,7 +126,7 @@ idrisTestsRegression = MkTestPool []
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
-       "reg036", "reg037", "reg038"]
+       "reg036", "reg037", "reg038", "reg039"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool []
