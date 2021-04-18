@@ -2092,12 +2092,6 @@ getDirs
          pure (dirs (options defs))
 
 export
-addPkgDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
-addPkgDir dir
-    = do defs <- get Ctxt
-         put Ctxt (record { options->dirs->package_dirs $= (++ [dir]) } defs)
-
-export
 addExtraDir : {auto c : Ref Ctxt Defs} -> String -> Core ()
 addExtraDir dir
     = do defs <- get Ctxt
