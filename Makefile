@@ -25,7 +25,7 @@ build-libs:
 	${MAKE} -C idris2 libs TARGET=../${IDRIS2_OUTPUT_EXEC}
 
 build-test-exec:
-	@${MAKE} -C idris2/tests testbin IDRIS2_BOOT=../../${IDRIS2_OUTPUT_EXEC}
+	@${MAKE} -C idris2/tests testbin IDRIS2=../../${IDRIS2_OUTPUT_EXEC}
 
 
 prepare-release: prepare-erl-source prepare-libs prepare-support
@@ -39,6 +39,7 @@ prepare-libs:
 	cp -R idris2/libs/base/build/ttc/ ${PRIV_LIBS_DIR}/base
 	cp -R idris2/libs/contrib/build/ttc/ ${PRIV_LIBS_DIR}/contrib
 	cp -R idris2/libs/network/build/ttc/ ${PRIV_LIBS_DIR}/network
+	cp -R idris2/libs/test/build/ttc/ ${PRIV_LIBS_DIR}/test
 	cp -R idris2/libs/erlang/build/ttc/ ${PRIV_LIBS_DIR}/erlang
 	find ${PRIV_LIBS_DIR} -type f -name "*.ttm" -exec ${RM} "{}" \;
 
