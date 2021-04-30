@@ -4,14 +4,17 @@ import Data.List
 import Data.Maybe
 import Data.Strings
 import Libraries.Control.ANSI.SGR
+
+import Parser.Lexer.Source
+
+import public Idris.Pretty.Render
+
 import public Libraries.Text.PrettyPrint.Prettyprinter
-import public Libraries.Text.PrettyPrint.Prettyprinter.Render.Terminal
 import public Libraries.Text.PrettyPrint.Prettyprinter.Util
 
 import Algebra
-import Idris.REPLOpts
+import Idris.REPL.Opts
 import Idris.Syntax
-import Libraries.Utils.Term
 
 %default covering
 
@@ -154,6 +157,10 @@ mutual
       appPrec = User 10
       leftAppPrec : Prec
       leftAppPrec = User 9
+      prettyOp : OpStr -> Doc ann
+      prettyOp op = if isOpName op
+        then pretty op
+        else Chara '`' <+> pretty op <+> Chara '`'
 
       go : Prec -> PTerm -> Doc IdrisAnn
       go d (PRef _ n) = pretty n
@@ -275,10 +282,10 @@ mutual
       go d (PDotted _ p) = dot <+> go d p
       go d (PImplicit _) = "_"
       go d (PInfer _) = "?"
-      go d (POp _ op x y) = parenthesise (d > appPrec) $ group $ go startPrec x <++> pretty op <++> go startPrec y
+      go d (POp _ op x y) = parenthesise (d > appPrec) $ group $ go startPrec x <++> prettyOp op <++> go startPrec y
       go d (PPrefixOp _ op x) = parenthesise (d > appPrec) $ pretty op <+> go startPrec x
-      go d (PSectionL _ op x) = parens (pretty op <++> go startPrec x)
-      go d (PSectionR _ x op) = parens (go startPrec x <++> pretty op)
+      go d (PSectionL _ op x) = parens (prettyOp op <++> go startPrec x)
+      go d (PSectionR _ x op) = parens (go startPrec x <++> prettyOp op)
       go d (PEq fc l r) = parenthesise (d > appPrec) $ go startPrec l <++> equals <++> go startPrec r
       go d (PBracketed _ tm) = parens (go startPrec tm)
       go d (PString _ xs) = parenthesise (d > appPrec) $ hsep $ punctuate "++" (prettyString <$> xs)
@@ -320,29 +327,6 @@ mutual
         parens (dot <+> concatWith (surround dot) (map pretty fields))
       go d (PWithUnambigNames fc ns rhs) = parenthesise (d > appPrec) $ group $ with_ <++> pretty ns <+> line <+> go startPrec rhs
 
-getPageWidth : {auto o : Ref ROpts REPLOpts} -> Core PageWidth
-getPageWidth = do
-  consoleWidth <- getConsoleWidth
-  case consoleWidth of
-    Nothing => do
-      cols <- coreLift getTermCols
-      pure $ if cols == 0 then Unbounded else AvailablePerLine cols 1
-    Just 0 => pure $ Unbounded
-    Just cw => pure $ AvailablePerLine (cast cw) 1
-
 export
 render : {auto o : Ref ROpts REPLOpts} -> Doc IdrisAnn -> Core String
-render doc = do
-  color <- getColor
-  pageWidth <- getPageWidth
-  let opts = MkLayoutOptions pageWidth
-  let layout = layoutPretty opts doc
-  pure $ renderString $ if color then reAnnotateS colorAnn layout else unAnnotateS layout
-
-export
-renderWithoutColor : {auto o : Ref ROpts REPLOpts} -> Doc IdrisAnn -> Core String
-renderWithoutColor doc = do
-  pageWidth <- getPageWidth
-  let opts = MkLayoutOptions pageWidth
-  let layout = layoutPretty opts doc
-  pure $ renderString $ unAnnotateS layout
+render = render colorAnn

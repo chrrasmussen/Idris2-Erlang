@@ -265,10 +265,11 @@ Show Requirement where
 export
 checkRequirement : Requirement -> IO (Maybe String)
 checkRequirement req
-  = do let (envvar, paths) = requirement req
-       Just exec <- getEnv envvar | Nothing => pathLookup paths
-       pure (Just exec)
-
+  = if platformSupport req
+      then do let (envvar, paths) = requirement req
+              Just exec <- getEnv envvar | Nothing => pathLookup paths
+              pure (Just exec)
+      else pure Nothing
   where
     requirement : Requirement -> (String, List String)
     requirement C = ("CC", ["cc"])
@@ -277,6 +278,10 @@ checkRequirement req
     requirement Racket = ("RACKET", ["racket"])
     requirement Gambit = ("GAMBIT", ["gsc"])
     requirement Erlang = ("ERLANG", ["erlc"])
+    platformSupport : Requirement -> Bool
+    platformSupport C = not isWindows
+    platformSupport Racket = not isWindows
+    platformSupport _ = True
 
 export
 findCG : IO (Maybe String)

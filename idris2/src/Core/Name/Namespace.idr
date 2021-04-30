@@ -243,6 +243,10 @@ preludeNS : Namespace
 preludeNS = mkNamespace "Prelude"
 
 export
+numNS : Namespace
+numNS = mkNamespace "Prelude.Num"
+
+export
 typesNS : Namespace
 typesNS = mkNamespace "Prelude.Types"
 

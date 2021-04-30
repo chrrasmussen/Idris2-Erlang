@@ -412,6 +412,19 @@ Traversable List where
   traverse f [] = pure []
   traverse f (x::xs) = pure (::) <*> (f x) <*> (traverse f xs)
 
+-- This works quickly because when string-concat builds the result, it allocates
+-- enough room in advance so there's only one allocation, rather than lots!
+--
+-- Like fastUnpack, this function won't reduce at compile time.
+-- If you need to concatenate strings at compile time, use Prelude.concat.
+%foreign
+  "scheme:string-concat"
+  "javascript:lambda:(xs)=>''.concat(...__prim_idris2js_array(xs))"
+export
+fastConcat : List String -> String
+
+%transform "fastConcat" concat {t = List} {a = String} = fastConcat
+
 ||| Check if something is a member of a list using the default Boolean equality.
 public export
 elem : Eq a => a -> List a -> Bool
@@ -537,6 +550,9 @@ pack (x :: xs) = strCons x (pack xs)
 export
 fastPack : List Char -> String
 
+-- always use 'fastPack' at run time
+%transform "fastPack" pack = fastPack
+
 ||| Turns a string into a list of characters.
 |||
 ||| ```idris example
@@ -548,6 +564,17 @@ unpack str =
   case strUncons str of
     Nothing => []
     Just (x, xs) => x :: unpack (assert_smaller str xs)
+
+-- This function runs fast when compiled but won't compute at compile time.
+-- If you need to unpack strings at compile time, use Prelude.unpack.
+%foreign
+  "scheme:string-unpack"
+  "javascript:lambda:(str)=>__prim_js2idris_array(Array.from(str))"
+export
+fastUnpack : String -> List Char
+
+-- always use 'fastPack' at run time
+%transform "fastUnpack" unpack = fastUnpack
 
 public export
 Semigroup String where

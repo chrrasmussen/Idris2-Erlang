@@ -1,6 +1,7 @@
 package runtests
 
+opts = "--cg chez"
 main = Main
 executable = runtests
 
-opts = "--cg chez"
+depends = contrib, test
