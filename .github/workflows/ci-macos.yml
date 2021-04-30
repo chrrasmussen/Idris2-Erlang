@@ -31,5 +31,5 @@ jobs:
         run: cd idris2 && IDRIS2_BOOT=idris2erl make clean && IDRIS2_BOOT=idris2erl make all && IDRIS2_BOOT=idris2erl make install
         shell: bash
       - name: Run tests
-        run: cd idris2 && IDRIS2_BOOT=idris2erl make testbin && IDRIS2_BOOT=idris2erl make test INTERACTIVE=''
+        run: cd idris2 && IDRIS2_BOOT=idris2erl make test INTERACTIVE=''
         shell: bash
