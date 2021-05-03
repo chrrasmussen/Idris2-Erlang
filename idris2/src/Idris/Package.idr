@@ -461,8 +461,8 @@ makeDoc : {auto c : Ref Ctxt Defs} ->
           List CLOpt ->
           Core (List Error)
 makeDoc pkg opts =
-    do [] <- prepareCompilation pkg opts
-         | errs => pure errs
+    do ([], changedModules) <- prepareCompilation pkg opts
+         | (errs, _) => pure errs
 
        defs <- get Ctxt
        let build = build_dir (dirs (options defs))
