@@ -55,11 +55,6 @@ genFC : FC -> Line
 genFC (MkFC fileName (startLine, startCol) (endLine, endCol)) = startLine
 genFC EmptyFC = 1 -- TODO: What value should I put here?
 
-export
-genErased : Line -> ErlExpr
-genErased l =
-  EAtom l "erased"
-
 
 -- DATA CONSTRUCTORS
 
@@ -101,7 +96,7 @@ export
 genMkIO : Line -> (worldVar : LocalVar) -> ErlExpr -> ErlExpr
 genMkIO l worldVar expr =
   let fn = ELam l [worldVar] (genMkIORes l expr)
-  in -- Newtype optimization removes the data constructor:
+  in -- Newtype optimization removes the data constructor (See commit: 8fccd5f)
      -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
      fn
 
@@ -119,7 +114,8 @@ genRef namespaceInfo l name =
 export
 genUnsafePerformIO : NamespaceInfo -> Line -> ErlExpr -> ErlExpr
 genUnsafePerformIO namespaceInfo l action =
-  EApp l (genRef namespaceInfo l (NS primIONS (UN "unsafePerformIO"))) [genErased l, action]
+  -- Erased arguments are now removed (See commit: 73d374e)
+  EApp l (genRef namespaceInfo l (NS primIONS (UN "unsafePerformIO"))) [action]
 
 export
 genFunCall : Line -> String -> String -> List ErlExpr -> ErlExpr

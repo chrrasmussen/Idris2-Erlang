@@ -622,7 +622,7 @@ mutual
     pure $ EIdrisConstant l (genConstant c)
   genNmExp namespaceInfo vs (NmErased fc) = do
     let l = genFC fc
-    pure $ genErased l
+    pure $ EAtom l "erased"
   genNmExp namespaceInfo vs (NmCrash fc msg) = do
     let l = genFC fc
     pure $ genThrow l msg
