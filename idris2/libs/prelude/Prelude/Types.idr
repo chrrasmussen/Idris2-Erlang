@@ -778,6 +778,7 @@ takeBefore p (x :: xs)
 
 public export
 interface Range a where
+  constructor MkRange
   rangeFromTo : a -> a -> List a
   rangeFromThenTo : a -> a -> a -> List a
 
