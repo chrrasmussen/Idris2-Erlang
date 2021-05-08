@@ -700,7 +700,6 @@ partitionOpts opts = foldr pOptUpdate (MkPFR [] [] False) opts
     optType (Directive d)    = POpt
     optType (BuildDir f)     = POpt
     optType (OutputDir f)    = POpt
-    optType (Directive d)       = POpt
     optType (ChangedModules ns) = POpt
     optType (ConsoleWidth n) = PIgnore
     optType (Color b)        = PIgnore

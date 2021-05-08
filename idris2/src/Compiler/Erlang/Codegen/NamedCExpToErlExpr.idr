@@ -32,6 +32,10 @@ record CGOpts where
 
 genConstant : Constant -> IdrisConstant
 genConstant (I x) = IInt x
+genConstant (I8 x) = IInt8 x
+genConstant (I16 x) = IInt16 x
+genConstant (I32 x) = IInt32 x
+genConstant (I64 x) = IInt64 x
 genConstant (BI x) = IInteger x
 genConstant (B8 x) = IB8 x
 genConstant (B16 x) = IB16 x
@@ -42,6 +46,10 @@ genConstant (Ch x) = IChar x
 genConstant (Db x) = IDouble x
 genConstant WorldVal = IWorldVal
 genConstant IntType = IIntType
+genConstant Int8Type = IInt8Type
+genConstant Int16Type = IInt16Type
+genConstant Int32Type = IInt32Type
+genConstant Int64Type = IInt64Type
 genConstant IntegerType = IIntegerType
 genConstant Bits8Type = IBits8Type
 genConstant Bits16Type = IBits16Type

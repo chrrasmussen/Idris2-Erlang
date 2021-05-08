@@ -55,6 +55,10 @@ namespace LocalVars
 public export
 data IdrisConstant
   = IInt Int
+  | IInt8 Integer
+  | IInt16 Integer
+  | IInt32 Integer
+  | IInt64 Integer
   | IInteger Integer
   | IB8 Int
   | IB16 Int
@@ -65,6 +69,10 @@ data IdrisConstant
   | IDouble Double
   | IWorldVal
   | IIntType
+  | IInt8Type
+  | IInt16Type
+  | IInt32Type
+  | IInt64Type
   | IIntegerType
   | IBits8Type
   | IBits16Type
