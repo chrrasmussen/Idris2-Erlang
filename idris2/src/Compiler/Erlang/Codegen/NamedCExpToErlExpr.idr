@@ -591,7 +591,7 @@ mutual
     let l = genFC fc
     args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
     pure $ EApp l !(genNmExp namespaceInfo vs x) args'
-  genNmExp namespaceInfo vs (NmCon fc name tag args) = do
+  genNmExp namespaceInfo vs (NmCon fc name ci tag args) = do
     let l = genFC fc
     args' <- assert_total $ traverse (genNmExp namespaceInfo vs) args
     genCon namespaceInfo l name args'
@@ -640,7 +640,7 @@ mutual
   traverseVect namespaceInfo vs (arg :: args) = pure $ !(genNmExp namespaceInfo vs arg) :: !(traverseVect namespaceInfo vs args)
 
   genConAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> Line -> NamedConAlt -> Core ErlMatcher
-  genConAlt namespaceInfo vs l (MkNConAlt name tag args body) = do
+  genConAlt namespaceInfo vs l (MkNConAlt name ci tag args body) = do
     (vs', vars) <- addLocalVars args vs
     readConAlt namespaceInfo l name vars !(genNmExp namespaceInfo vs' body)
 
@@ -679,7 +679,7 @@ genDef namespaceInfo l name (MkNmError body) = do
 data InternalArity = Value | Arity Nat
 
 internalArity : NamedCExp -> InternalArity
-internalArity (NmCon fc (NS ns (UN un)) _ _) =
+internalArity (NmCon fc (NS ns (UN un)) _ _ _) =
   if ns == erlangTypesNS
     then case un of
       "ETFun" => Arity 1
@@ -714,7 +714,7 @@ export
 readExports : NamespaceInfo -> Line -> NamedCExp -> Core (List ErlFunDecl)
 readExports namespaceInfo l tm = do
   case tm of
-    NmCon fc (NS ns (UN "Fun")) tag [exprTy, NmPrimVal _ (Str fnName), expr] => do
+    NmCon fc (NS ns (UN "Fun")) ci tag [exprTy, NmPrimVal _ (Str fnName), expr] => do
       let True = ns == erlangIONS
         | False => throw (InternalError ("Invalid export: " ++ show tm))
       lv <- newRef LV (initLocalVars "V")
@@ -728,7 +728,7 @@ readExports namespaceInfo l tm = do
             Arity arity => EApp l body (genArgsToLocals l vars)
       let funDecl = MkFunDecl l Public fnName vars invokedBody
       pure $ [funDecl]
-    NmCon fc (NS ns (UN "Combine")) tag [exports1, exports2] => do
+    NmCon fc (NS ns (UN "Combine")) ci tag [exports1, exports2] => do
       let True = ns == erlangIONS
         | False => throw (InternalError ("Invalid export: " ++ show tm))
       pure $ !(readExports namespaceInfo l exports1) ++ !(readExports namespaceInfo l exports2)
