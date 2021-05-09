@@ -256,6 +256,7 @@ mutual
        UniqueSearch : DataOpt -- auto implicit search must check result is unique
        External : DataOpt -- implemented externally
        NoNewtype : DataOpt -- don't apply newtype optimisation
+       NoEnum : DataOpt -- don't apply enum optimisation
 
   export
   Eq DataOpt where
@@ -264,6 +265,7 @@ mutual
     (==) UniqueSearch UniqueSearch = True
     (==) External External = True
     (==) NoNewtype NoNewtype = True
+    (==) NoEnum NoEnum = True
     (==) _ _ = False
 
   public export
@@ -1019,6 +1021,7 @@ mutual
     toBuf b UniqueSearch = tag 2
     toBuf b External = tag 3
     toBuf b NoNewtype = tag 4
+    toBuf b NoEnum = tag 5
 
     fromBuf b
         = case !getTag of
@@ -1028,6 +1031,7 @@ mutual
                2 => pure UniqueSearch
                3 => pure External
                4 => pure NoNewtype
+               5 => pure NoEnum
                _ => corrupt "DataOpt"
 
   export

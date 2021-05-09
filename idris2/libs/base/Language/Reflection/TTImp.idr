@@ -117,6 +117,7 @@ mutual
        UniqueSearch : DataOpt
        External : DataOpt
        NoNewtype : DataOpt
+       NoEnum : DataOpt
 
   public export
   data Data : Type where

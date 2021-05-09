@@ -36,6 +36,8 @@ processDataOpt fc ndef External
     = setExternal fc ndef True
 processDataOpt fc ndef NoNewtype
     = pure ()
+processDataOpt fc ndef NoEnum
+    = pure ()
 
 checkRetType : {auto c : Ref Ctxt Defs} ->
                Env Term vars -> NF vars ->
@@ -441,5 +443,6 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          unless (NoHints `elem` opts) $
               traverse_ (\x => addHintFor fc (Resolved tidx) x True False) connames
 
-         calcConInfo fc cons
+         unless (NoEnum `elem` opts) $
+              calcConInfo fc cons
          traverse_ updateErasable (Resolved tidx :: connames)

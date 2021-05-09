@@ -23,7 +23,7 @@ export
 data ErlTerm : Type where [external]
 
 ||| Represents a value that have no meaning to Erlang.
-||| 
+|||
 ||| Some of the Erlang interop functions require that the value is a member of
 ||| `IsErlType`. If you still want to pass the Idris value to Erlang, you can
 ||| wrap it in the `Raw` type.
@@ -71,7 +71,9 @@ namespace MaybeImproperList
   ||| | ---------------- | ------ |
   ||| | `the ErlNil Nil` | `[]`   |
   public export
-  data ErlNil = Nil
+  data ErlNil : Type where
+    [noEnum]
+    Nil : ErlNil
 
   ||| Represents the head and tail of an Erlang list.
   |||
@@ -83,11 +85,12 @@ namespace MaybeImproperList
   ||| | `the (ErlCons Int Double) (3 :: 7.5)`  | `[3 | 7.5]`         |
   ||| | `the (ErlCons Int ErlNil) (42 :: Nil)` | `[42 | []]`, `[42]` |
   public export
-  data ErlCons a b = (::) a b
+  data ErlCons : Type -> Type -> Type where
+    (::) : a -> b -> ErlCons a b
 
 namespace ProperList
   ||| Represents an Erlang list where each element has a separate type.
-  ||| 
+  |||
   ||| `ErlList` can only represent proper lists.
   |||
   ||| Note that `Prelude.List` is also converted to an Erlang list. The
@@ -172,6 +175,7 @@ data ErlPort : Type where [external]
 ||| | `MkTuple0` | `{}`   |
 public export
 data ErlTuple0 : Type where
+  [noEnum]
   MkTuple0 : ErlTuple0
 
 ||| Represents an Erlang tuple of size 1.

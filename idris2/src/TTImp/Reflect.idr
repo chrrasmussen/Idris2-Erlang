@@ -319,6 +319,7 @@ mutual
                (NS _ (UN "UniqueSearch"), _) => pure UniqueSearch
                (NS _ (UN "External"), _) => pure External
                (NS _ (UN "NoNewtype"), _) => pure NoNewtype
+               (NS _ (UN "NoEnum"), _) => pure NoEnum
                _ => cantReify val "DataOpt"
     reify defs val = cantReify val "DataOpt"
 
@@ -663,6 +664,7 @@ mutual
     reflect fc defs lhs env UniqueSearch = getCon fc defs (reflectionttimp "UniqueSearch")
     reflect fc defs lhs env External = getCon fc defs (reflectionttimp "External")
     reflect fc defs lhs env NoNewtype = getCon fc defs (reflectionttimp "NoNewtype")
+    reflect fc defs lhs env NoEnum = getCon fc defs (reflectionttimp "NoEnum")
 
   export
   Reflect ImpData where

@@ -932,6 +932,7 @@ dataOpt
   <|> (exactIdent "search" *> SearchBy <$> forget <$> some name)
   <|> (exactIdent "external" $> External)
   <|> (exactIdent "noNewtype" $> NoNewtype)
+  <|> (exactIdent "noEnum" $> NoEnum)
 
 dataBody : FileName -> Int -> WithBounds t -> Name -> IndentInfo -> PTerm ->
           SourceEmptyRule PDataDecl
