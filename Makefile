@@ -1,5 +1,5 @@
 IDRIS2_BOOT=idris2erl
-IDRIS2_OUTPUT_EXEC=_build/default/bin/idris2erl
+IDRIS2_OUTPUT_EXEC=${CURDIR}/_build/default/bin/idris2erl
 
 PRIV_LIBS_DIR=priv/libs
 PRIV_SUPPORT_DIR=priv/support
@@ -22,10 +22,10 @@ build-exec:
 	rebar3 escriptize
 
 build-libs:
-	${MAKE} -C idris2 libs TARGET=../${IDRIS2_OUTPUT_EXEC}
+	${MAKE} -C idris2 libs TARGET=${IDRIS2_OUTPUT_EXEC}
 
 build-test-exec:
-	@${MAKE} -C idris2/tests testbin IDRIS2=../../${IDRIS2_OUTPUT_EXEC}
+	@${MAKE} -C idris2/tests testbin IDRIS2=${IDRIS2_OUTPUT_EXEC}
 
 
 prepare-release: prepare-erl-source prepare-libs prepare-support
@@ -49,4 +49,4 @@ prepare-support:
 
 
 test:
-	@${MAKE} -C idris2/tests only=${only} IDRIS2=../../../../${IDRIS2_OUTPUT_EXEC}
+	@${MAKE} -C idris2/tests only=${only} IDRIS2=${IDRIS2_OUTPUT_EXEC}
