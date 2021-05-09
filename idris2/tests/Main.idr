@@ -249,7 +249,6 @@ erlangTests = MkTestPool [Erlang]
     [ "erlang001", "erlang002", "erlang003", "erlang004", "erlang005"
     , "erlang006", "erlang007", "erlang008", "erlang009", "erlang010"
     , "erlang011", "erlang012", "erlang013"
-    , "selfhosted001"
     , "chez001", "chez002", "chez003", "chez004", "chez005", "chez006"
     , "chez007", "chez008", "chez009",            "chez011", "chez012"
     ,                       "chez015", "chez016", "chez017", "chez018"
