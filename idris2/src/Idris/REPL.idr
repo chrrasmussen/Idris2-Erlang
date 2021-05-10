@@ -18,6 +18,7 @@ import Core.Env
 import Core.InitPrimitives
 import Core.LinearCheck
 import Core.Metadata
+import Core.FC
 import Core.Normalise
 import Core.Options
 import Core.Termination
@@ -650,7 +651,7 @@ loadMainFile : {auto c : Ref Ctxt Defs} ->
 loadMainFile f
     = do opts <- get ROpts
          put ROpts (record { evalResultName = Nothing } opts)
-         resetContext
+         resetContext f
          Right res <- coreLift (readFile f)
             | Left err => do setSource ""
                              pure (ErrorLoadingFile f err)
@@ -982,17 +983,20 @@ processCatch cmd
                            pure $ REPLError msg
                            )
 
-parseEmptyCmd : SourceEmptyRule (Maybe REPLCmd)
+parseEmptyCmd : EmptyRule (Maybe REPLCmd)
 parseEmptyCmd = eoi *> (pure Nothing)
 
-parseCmd : SourceEmptyRule (Maybe REPLCmd)
+parseCmd : EmptyRule (Maybe REPLCmd)
 parseCmd = do c <- command; eoi; pure $ Just c
 
 export
 parseRepl : String -> Either Error (Maybe REPLCmd)
 parseRepl inp
     = case fnameCmd [(":load ", Load), (":l ", Load), (":cd ", CD), (":!", RunShellCommand)] inp of
-           Nothing => runParser "(interactive)" Nothing inp (parseEmptyCmd <|> parseCmd)
+           Nothing =>
+             case runParser "(interactive)" Nothing inp (parseEmptyCmd <|> parseCmd) of
+               Left err => Left err
+               Right (decor, result) => Right result
            Just cmd => Right $ Just cmd
   where
     -- a right load of hackery - we can't tokenise the filename using the

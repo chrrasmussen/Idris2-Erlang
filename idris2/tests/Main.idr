@@ -139,12 +139,16 @@ idrisTestsData = MkTestPool []
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool []
       -- %builtin related tests for the frontend (type-checking)
-      ["builtin001", "builtin002", "builtin003", "builtin004"]
+      ["builtin001", "builtin002", "builtin003", "builtin004", "builtin005",
+       "builtin006", "builtin007", "builtin008", "builtin009"]
 
 idrisTestsEvaluator : TestPool
 idrisTestsEvaluator = MkTestPool []
       [ -- Evaluator
        "evaluator001", "evaluator002", "evaluator003", "evaluator004",
+       -- Unfortunately the behaviour of Double is platform dependent so the
+       -- following test is turned off.
+       -- "evaluator005",
        -- Miscellaneous REPL
        "interpreter001", "interpreter002", "interpreter003", "interpreter004",
        "interpreter005", "interpreter006", "interpreter007"]
@@ -153,9 +157,8 @@ idrisTests : TestPool
 idrisTests = MkTestPool []
        -- Documentation strings
       ["docs001", "docs002",
-       -- Unfortunately the behaviour of Double is platform dependent so the
-       -- following test is turned off.
-       -- "evaluator005",
+       -- Eta equality
+       "eta001",
        -- Modules and imports
        "import001", "import002", "import003", "import004", "import005",
        -- Implicit laziness, lazy evaluation
@@ -202,6 +205,7 @@ chezTests = MkTestPool [Chez]
     , "chez025", "chez026", "chez027", "chez028", "chez029", "chez030"
     , "chez031", "chez032"
     , "futures001"
+    , "bitops"
     , "casts"
     , "newints"
     , "semaphores001"
@@ -236,6 +240,7 @@ nodeTests = MkTestPool [Node]
     , "node017", "node018", "node019", "node021", "node022", "node023"
     , "node024", "node025"
     -- , "node14", "node020"
+    , "bitops"
     , "casts"
     , "newints"
     , "reg001"
@@ -272,7 +277,7 @@ erlangTests = MkTestPool [Erlang]
 
 ideModeTests : TestPool
 ideModeTests = MkTestPool []
-  [ "ideMode001", "ideMode002", "ideMode003", "ideMode004"
+  [ "ideMode001", "ideMode002", "ideMode003", "ideMode004", "ideMode005"
   ]
 
 preludeTests : TestPool
