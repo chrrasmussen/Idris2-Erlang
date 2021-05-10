@@ -53,6 +53,7 @@ addLocalVars (n :: ns) vs = do
 export
 genFC : FC -> Line
 genFC (MkFC fileName (startLine, startCol) (endLine, endCol)) = startLine
+genFC (MkVirtualFC fileName (startLine, startCol) (endLine, endCol)) = startLine
 genFC EmptyFC = 1 -- TODO: What value should I put here?
 
 

@@ -238,12 +238,13 @@ loadModules : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto o : Ref ROpts REPLOpts} ->
+              (libName : String) ->
               (namespaces : List ModuleIdent) ->
               Core ()
-loadModules namespaces = do
+loadModules libName namespaces = do
   -- Load the the TTC files in a clean context
   clearCtxt; addPrimitives
-  put MD initMetadata
+  put MD (initMetadata libName)
   traverse_ (\ns => readModule True emptyFC True ns (miAsNamespace ns)) namespaces
 
 export
