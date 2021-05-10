@@ -620,7 +620,6 @@ traverse_ f (x :: xs)
     = Core.do ignore (f x)
               traverse_ f xs
 
-%inline
 export
 sequence : List (Core a) -> Core (List a)
 sequence (x :: xs)
