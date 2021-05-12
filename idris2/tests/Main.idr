@@ -250,7 +250,7 @@ nodeTests = MkTestPool "Node backend" [Node]
     ]
 
 erlangTests : TestPool
-erlangTests = MkTestPool [Erlang]
+erlangTests = MkTestPool "Erlang backend" [Erlang]
     [ "erlang001", "erlang002", "erlang003", "erlang004", "erlang005"
     , "erlang006", "erlang007", "erlang008", "erlang009", "erlang010"
     , "erlang011", "erlang012", "erlang013"

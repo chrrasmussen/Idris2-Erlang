@@ -206,9 +206,9 @@ genCon namespaceInfo l name args = do
     | _ => pure $ ECon l (constructorName name) args
   case (unsafeUnfoldNamespace ns, un, args) of
     -- List
-    (["Types", "Prelude"], "Nil", []) =>
+    (["Basics", "Prelude"], "Nil", []) =>
       pure $ ENil l
-    (["Types", "Prelude"], "::", [x, xs]) =>
+    (["Basics", "Prelude"], "::", [x, xs]) =>
       pure $ ECons l x xs
     -- ErlAtom
     (["Types", "Erlang"], "MkAtom", [x]) =>
@@ -279,9 +279,9 @@ readConAlt namespaceInfo l name args body = do
     | _ => pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
   case (unsafeUnfoldNamespace ns, un, args) of
     -- List
-    (["Types", "Prelude"], "Nil", []) =>
+    (["Basics", "Prelude"], "Nil", []) =>
       pure $ MConst MNil body
-    (["Types", "Prelude"], "::", [xVar, xsVar]) =>
+    (["Basics", "Prelude"], "::", [xVar, xsVar]) =>
       pure $ MCons MAny MAny xVar xsVar body
     -- ErlAtom
     (["Types", "Erlang"], "MkAtom", [xVar]) => do

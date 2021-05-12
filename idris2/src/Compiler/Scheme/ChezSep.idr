@@ -148,7 +148,7 @@ compileToSS : Ref Ctxt Defs -> String -> String -> ClosedTerm -> Core (Bool, Lis
 compileToSS c chez appdir tm = do
   -- process native libraries
   ds <- getDirectives Chez
-  libs <- findLibs ds
+  libs <- findLibs (map snd ds)
   traverse_ copyLib libs
 
   -- get the material for compilation
@@ -304,7 +304,12 @@ executeExpr c tmpDir tm
             | Nothing => throw (InternalError "compileExpr returned Nothing")
          coreLift_ $ system sh
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedModules = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 ||| Codegen wrapper for Chez scheme implementation.
 export
 codegenChezSep : Codegen
-codegenChezSep = MkCG (compileExpr True) executeExpr
+codegenChezSep = MkCG (compileExpr True) executeExpr compileLibrary
