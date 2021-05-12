@@ -54,6 +54,7 @@ toString d@(MkDirs wdir sdir bdir ldir odir dfix edirs pdirs ldirs ddirs) =
 
 public export
 data CG = Chez
+        | ChezSep
         | Racket
         | Gambit
         | Node
@@ -64,6 +65,7 @@ data CG = Chez
 export
 Eq CG where
   Chez == Chez = True
+  ChezSep == ChezSep = True
   Racket == Racket = True
   Gambit == Gambit = True
   Node == Node = True
@@ -75,6 +77,7 @@ Eq CG where
 export
 Show CG where
   show Chez = "chez"
+  show ChezSep = "chez-sep"
   show Racket = "racket"
   show Gambit = "gambit"
   show Node = "node"
@@ -183,6 +186,7 @@ export
 availableCGs : Options -> List (String, CG)
 availableCGs o
     = [("chez", Chez),
+       ("chez-sep", ChezSep),
        ("racket", Racket),
        ("node", Node),
        ("javascript", Javascript),
