@@ -3,6 +3,7 @@
 # potential TODO: make tests recursive to allow nicer organisation of tests
 
 TESTS_ROOT=benchmarks
+TIME_EXEC=/usr/bin/time
 
 # timeout threshold in seconds (this may be nice to have as a named param)
 TIMEOUT=15
@@ -42,7 +43,7 @@ while getopts ${optstring} arg; do
               BACKEND="$2"
               export IDRIS2_CG=$BACKEND ;;
             *)
-              echo "$BACKEND is not a recognised backend! You can check the available backends using $0 -h"
+              echo "$2 is not a recognised backend! You can check the available backends using $0 -h"
               exit 1 ;;
         esac
         ;;
@@ -107,7 +108,7 @@ do
   [[ $FAST = true ]] && infile="${test}_fast" || infile="$test"
   [[ -f $infile.in ]] && exec 3<"${infile}.in" || exec 3<&0
   # time it, eat stdout
-  timeout -s SIGINT $TIMEOUT /usr/bin/time -f "${test},%e,%U,%S" -o ${output_path} -a build/exec/${test} <&3 > /dev/null 2>&1
+  timeout -s SIGINT $TIMEOUT $TIME_EXEC -f "${test},%e,%U,%S" -o ${output_path} -a build/exec/${test} <&3 > /dev/null 2>&1
   if [ $? -eq 124 ]; then
      echo "benchmark failed! (timeout after ${TIMEOUT}s)"
   fi
