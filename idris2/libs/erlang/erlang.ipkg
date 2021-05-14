@@ -4,6 +4,7 @@ version = 0.3.0
 modules = Erlang,
           Erlang.Conversion,
           Erlang.Data.Buffer,
+          Erlang.Data.MutableStorageBuffer,
           Erlang.Data.IOArray,
           Erlang.Debug,
           Erlang.Decode,
