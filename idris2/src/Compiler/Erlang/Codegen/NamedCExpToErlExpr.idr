@@ -63,7 +63,7 @@ genConstant WorldType = IWorldType
 
 -- OPERATORS
 
-genOp : {auto lv : Ref LV LocalVars} -> Line -> PrimFn arity -> Vect arity ErlExpr -> Core ErlExpr
+genOp : forall arity . {auto lv : Ref LV LocalVars} -> Line -> PrimFn arity -> Vect arity ErlExpr -> Core ErlExpr
 genOp l (Add IntType) [x, y] = pure $ genIntAdd l 63 x y
 genOp l (Sub IntType) [x, y] = pure $ genIntSub l 63 x y
 genOp l (Mul IntType) [x, y] = pure $ genIntMult l 63 x y
