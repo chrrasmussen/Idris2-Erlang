@@ -1,4 +1,4 @@
-$1 --no-color --console-width 0 --no-banner Test.idr -o test
+$1 --cg chez --no-color --console-width 0 --no-banner Test.idr -o test
 
 ./build/exec/test
 
