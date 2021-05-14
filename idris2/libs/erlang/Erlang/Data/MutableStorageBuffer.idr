@@ -31,8 +31,7 @@ rawSize buf = do
 export
 setByte : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setByte buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits8" [MkRaw buf, loc, val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits8" [MkRaw buf, loc, val]
 
 export
 getByte : HasIO io => Buffer -> (loc : Int) -> io Int
@@ -42,8 +41,7 @@ getByte buf loc = do
 export
 setBits8 : HasIO io => Buffer -> (loc : Int) -> (val : Bits8) -> io ()
 setBits8 buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits8" [MkRaw buf, loc, MkRaw val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits8" [MkRaw buf, loc, MkRaw val]
 
 export
 getBits8 : HasIO io => Buffer -> (loc : Int) -> io Bits8
@@ -54,8 +52,7 @@ getBits8 buf loc = do
 export
 setBits16 : HasIO io => Buffer -> (loc : Int) -> (val : Bits16) -> io ()
 setBits16 buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits16" [MkRaw buf, loc, MkRaw val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits16" [MkRaw buf, loc, MkRaw val]
 
 export
 getBits16 : HasIO io => Buffer -> (loc : Int) -> io Bits16
@@ -66,8 +63,7 @@ getBits16 buf loc = do
 export
 setBits32 : HasIO io => Buffer -> (loc : Int) -> (val : Bits32) -> io ()
 setBits32 buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits32" [MkRaw buf, loc, MkRaw val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits32" [MkRaw buf, loc, MkRaw val]
 
 export
 getBits32 : HasIO io => Buffer -> (loc : Int) -> io Bits32
@@ -78,8 +74,7 @@ getBits32 buf loc = do
 export
 setBits64 : HasIO io => Buffer -> (loc : Int) -> (val : Bits64) -> io ()
 setBits64 buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits64" [MkRaw buf, loc, MkRaw val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_bits64" [MkRaw buf, loc, MkRaw val]
 
 export
 getBits64 : HasIO io => Buffer -> (loc : Int) -> io Bits64
@@ -90,8 +85,7 @@ getBits64 buf loc = do
 export
 setInt32 : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setInt32 buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_int32" [MkRaw buf, loc, val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_int32" [MkRaw buf, loc, val]
 
 export
 getInt32 : HasIO io => Buffer -> (loc : Int) -> io Int
@@ -101,8 +95,7 @@ getInt32 buf loc = do
 export
 setInt : HasIO io => Buffer -> (loc : Int) -> (val : Int) -> io ()
 setInt buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_int64" [MkRaw buf, loc, val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_int64" [MkRaw buf, loc, val]
 
 export
 getInt : HasIO io => Buffer -> (loc : Int) -> io Int
@@ -112,8 +105,7 @@ getInt buf loc = do
 export
 setDouble : HasIO io => Buffer -> (loc : Int) -> (val : Double) -> io ()
 setDouble buf loc val = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_double" [MkRaw buf, loc, val]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_double" [MkRaw buf, loc, val]
 
 export
 getDouble : HasIO io => Buffer -> (loc : Int) -> io Double
@@ -129,8 +121,7 @@ export
 setString : HasIO io => Buffer -> (loc : Int) -> (val : String) -> io ()
 setString buf loc val = do
   binary <- pure $ erlUnsafeCall String "erlang" "iolist_to_binary" [val]
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_binary" [MkRaw buf, loc, binary]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_set_binary" [MkRaw buf, loc, binary]
 
 export
 getString : HasIO io => Buffer -> (loc : Int) -> (len : Int) -> io String
@@ -153,8 +144,7 @@ bufferData buf = do
 export
 copyData : HasIO io => (src : Buffer) -> (start, len : Int) -> (dest : Buffer) -> (loc : Int) -> io ()
 copyData src start len dest loc = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_copy" [MkRaw src, start, len, MkRaw dest, loc]
-  pure ()
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_copy" [MkRaw src, start, len, MkRaw dest, loc]
 
 -- Create a new buffer by reading all the contents from the given file
 -- Fails if no bytes can be read or buffer can't be created
@@ -182,5 +172,5 @@ writeBufferToFile filePath buf maxBytes = do
 export
 resizeBuffer : HasIO io => Buffer -> Int -> io (Maybe Buffer)
 resizeBuffer buf newSize = do
-  pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_resize" [MkRaw buf, newSize]
+  ignore $ pure $ erlUnsafeCall ErlTerm "mutable_storage" "buffer_resize" [MkRaw buf, newSize]
   pure (Just buf)
