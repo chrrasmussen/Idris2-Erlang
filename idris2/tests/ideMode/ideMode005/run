@@ -39,4 +39,10 @@ diff expectedC outputC >> output
 $1 --no-color --console-width 0 --ide-mode < inputD > outputD
 diff expectedD outputD >> output
 
+$1 --no-color --console-width 0 --ide-mode < inputE > outputE
+diff expectedE outputE >> output
+
+$1 --no-color --console-width 0 --ide-mode < inputF > outputF
+diff expectedF outputF >> output
+
 rm -rf build

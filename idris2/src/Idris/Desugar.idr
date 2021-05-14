@@ -348,20 +348,22 @@ mutual
            let pval = apply (IVar fc mkpairname) [l', r']
            pure $ IAlternative fc (UniqueDefault pval)
                   [apply (IVar fc pairname) [l', r'], pval]
-  desugarB side ps (PDPair fc opFC (PRef nfc (UN n)) (PImplicit _) r)
+  desugarB side ps (PDPair fc opFC (PRef nameFC n@(UN _)) (PImplicit _) r)
       = do r' <- desugarB side ps r
-           let pval = apply (IVar opFC mkdpairname) [IVar nfc (UN n), r']
+           let pval = apply (IVar opFC mkdpairname) [IVar nameFC n, r']
+           let vfc = virtualiseFC nameFC
+           whenJust (isConcreteFC nameFC) \nfc =>
+             addSemanticDefault (nfc, Bound, Just n)
            pure $ IAlternative fc (UniqueDefault pval)
-                  [apply (IVar fc dpairname)
-                      [Implicit nfc False,
-                       ILam nfc top Explicit (Just (UN n)) (Implicit nfc False) r'],
+                  [apply (IVar opFC dpairname)
+                      [Implicit vfc False,
+                       ILam nameFC top Explicit (Just n) (Implicit vfc False) r'],
                    pval]
-  desugarB side ps (PDPair fc opFC (PRef nfc (UN n)) ty r)
+  desugarB side ps (PDPair fc opFC (PRef namefc n@(UN _)) ty r)
       = do ty' <- desugarB side ps ty
            r' <- desugarB side ps r
            pure $ apply (IVar opFC dpairname)
-                        [ty',
-                         ILam nfc top Explicit (Just (UN n)) ty' r']
+                        [ty', ILam namefc top Explicit (Just n) ty' r']
   desugarB side ps (PDPair fc opFC l (PImplicit _) r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
@@ -401,11 +403,14 @@ mutual
   desugarB side ps (PUnifyLog fc lvl tm)
       = pure $ IUnifyLog fc lvl !(desugarB side ps tm)
   desugarB side ps (PPostfixApp fc rec projs)
-      = desugarB side ps $ foldl (\x, proj => PApp fc (PRef fc proj) x) rec projs
+      = desugarB side ps
+      $ foldl (\x, (fc, proj) => PApp fc (PRef fc proj) x) rec projs
   desugarB side ps (PPostfixAppPartial fc projs)
-      = desugarB side ps $
-          PLam fc top Explicit (PRef fc (MN "paRoot" 0)) (PImplicit fc) $
-            foldl (\r, proj => PApp fc (PRef fc proj) r) (PRef fc (MN "paRoot" 0)) projs
+      = do let vfc = virtualiseFC fc
+           let var = PRef vfc (MN "paRoot" 0)
+           desugarB side ps $
+             PLam fc top Explicit var (PImplicit vfc) $
+               foldl (\r, (fc, proj) => PApp fc (PRef fc proj) r) var projs
   desugarB side ps (PWithUnambigNames fc ns rhs)
       = IWithUnambigNames fc ns <$> desugarB side ps rhs
 
