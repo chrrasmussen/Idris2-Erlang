@@ -310,7 +310,7 @@ bitOp (Just $ Unsigned 32)  op x y =
 bitOp (Just $ Unsigned n)   op x y = boundedUIntOp n op x y
 bitOp _                     op x y = pure $ binOp op x y
 
-constPrimitives : {auto c : Ref ESs ESSt} -> ConstantPrimitives
+constPrimitives : {auto c : Ref ESs ESSt} -> ConstantPrimitives String
 constPrimitives = MkConstantPrimitives {
     charToInt    = \k => truncInt (useBigInt k) k . jsIntOfChar k
   , intToChar    = jsCharOfInt

@@ -587,24 +587,24 @@ getExtraRuntime directives
 ||| the cast implementation based on the given pair of
 ||| constants.
 public export
-record ConstantPrimitives where
+record ConstantPrimitives a where
   constructor MkConstantPrimitives
-  charToInt    : IntKind -> String -> Core String
-  intToChar    : IntKind -> String -> Core String
-  stringToInt  : IntKind -> String -> Core String
-  intToString  : IntKind -> String -> Core String
-  doubleToInt  : IntKind -> String -> Core String
-  intToDouble  : IntKind -> String -> Core String
-  intToInt     : IntKind -> IntKind -> String -> Core String
+  charToInt    : IntKind -> a -> Core a
+  intToChar    : IntKind -> a -> Core a
+  stringToInt  : IntKind -> a -> Core a
+  intToString  : IntKind -> a -> Core a
+  doubleToInt  : IntKind -> a -> Core a
+  intToDouble  : IntKind -> a -> Core a
+  intToInt     : IntKind -> IntKind -> a -> Core a
 
 ||| Implements casts from and to integral types by using
 ||| the implementations from the provided `ConstantPrimitives`.
 export
-castInt :  ConstantPrimitives
+castInt :  ConstantPrimitives a
         -> Constant
         -> Constant
-        -> String
-        -> Core String
+        -> a
+        -> Core a
 castInt p from to x =
   case ((from, intKind from), (to, intKind to)) of
        ((CharType, _)  , (_, Just k)) => p.charToInt k x

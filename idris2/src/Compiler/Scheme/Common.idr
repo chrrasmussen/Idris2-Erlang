@@ -94,7 +94,7 @@ shl (Just $ Unsigned n)   x y = op "blodwen-bits-shl" [x, y, show n]
 shl _                     x y = op "blodwen-shl" [x, y]
 
 
-constPrimitives : ConstantPrimitives
+constPrimitives : ConstantPrimitives String
 constPrimitives = MkConstantPrimitives {
     charToInt    = \k     => pure . charTo k
   , intToChar    = \_,x   => pure $ op "cast-int-char" [x]
