@@ -10,8 +10,8 @@ on:
       - master
 
 env:
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
   SCHEME: scheme
+
 jobs:
   build:
     runs-on: ubuntu-20.04
@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get install -y chezscheme
           DEBIAN_FRONTEND=noninteractive sudo apt-get install -y erlang
-          echo "::add-path::$HOME/.idris2erl/bin"
+          echo "$HOME/.idris2erl/bin" >> $GITHUB_PATH
       - name: Build Idris 2 from bootstrap
         run: cd idris2 && make bootstrap && make install
         shell: bash

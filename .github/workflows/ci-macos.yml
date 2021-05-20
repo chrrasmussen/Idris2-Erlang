@@ -10,8 +10,8 @@ on:
       - master
 
 env:
-  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
   SCHEME: chez
+
 jobs:
   build:
     runs-on: macos-latest
@@ -23,7 +23,7 @@ jobs:
           brew install chezscheme
           brew install erlang
           brew install coreutils
-          echo "::add-path::$HOME/.idris2erl/bin"
+          echo "$HOME/.idris2erl/bin" >> $GITHUB_PATH
       - name: Build Idris 2 from bootstrap
         run: cd idris2 && make bootstrap && make install
         shell: bash
