@@ -445,7 +445,8 @@ checkClause {vars} mult vis totreq hashit n opts nest env (PatClause fc lhs_in r
          log "declare.def.clause" 5 $ "Checking RHS " ++ show rhs
          logEnv "declare.def.clause" 5 "In env" env'
 
-         rhstm <- wrapErrorC opts (InRHS fc !(getFullName (Resolved n))) $
+         rhstm <- logTime ("+++ Check RHS " ++ show fc) $
+                    wrapErrorC opts (InRHS fc !(getFullName (Resolved n))) $
                        checkTermSub n rhsMode opts nest' env' env sub' rhs (gnf env' lhsty')
          clearHoleLHS
 
@@ -595,7 +596,7 @@ checkClause {vars} mult vis totreq hashit n opts nest env
       let eqName = NS builtinNS (UN "Equal")
       Just (TCon t ar _ _ _ _ _ _) <- lookupDefExact eqName (gamma defs)
         | _ => throw (InternalError "Cannot find builtin Equal")
-      let eqTyCon = Ref vfc (TyCon t ar) eqName
+      let eqTyCon = Ref vfc (TyCon t ar) !(toResolvedNames eqName)
 
       let wargn : Name
           wargn = MN "warg" 0
@@ -983,7 +984,9 @@ processDef opts nest env fc n_in cs_in
                     Core Covering
     checkCoverage n ty mult cs
         = do covcs' <- traverse getClause cs -- Make stand in LHS for impossible clauses
-             log "declare.def" 5 $ "Using clauses :" ++ show !(traverse toFullNames covcs')
+             log "declare.def" 5 $ unlines
+               $ "Using clauses :"
+               :: map (("  " ++) . show) !(traverse toFullNames covcs')
              let covcs = mapMaybe id covcs'
              (_ ** (ctree, _)) <-
                  getPMDef fc (CompileTime mult) (Resolved n) ty covcs

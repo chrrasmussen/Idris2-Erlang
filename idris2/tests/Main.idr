@@ -47,7 +47,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" []
        "basic041", "basic042", "basic043", "basic044", "basic045",
        "basic046", "basic047", "basic048", "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", "basic055",
-       "basic056", "basic057", "basic058", "basic059"]
+       "basic056", "basic057", "basic058", "basic059", "basic060"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool "Coverage checking" []
@@ -55,7 +55,8 @@ idrisTestsCoverage = MkTestPool "Coverage checking" []
       ["coverage001", "coverage002", "coverage003", "coverage004",
        "coverage005", "coverage006", "coverage007", "coverage008",
        "coverage009", "coverage010", "coverage011", "coverage012",
-       "coverage013", "coverage014", "coverage015", "coverage016"]
+       "coverage013", "coverage014", "coverage015", "coverage016",
+       "coverage017"]
 
 idrisTestsCasetree : TestPool
 idrisTestsCasetree = MkTestPool "Case tree building" []
@@ -72,7 +73,7 @@ idrisTestsError = MkTestPool "Error messages" []
       ["error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
        "error011", "error012", "error013", "error014", "error015",
-       "error016", "error017",
+       "error016", "error017", "error018",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006", "perror007", "perror008"]
@@ -221,7 +222,10 @@ chezTests = MkTestPool "Chez backend" [Chez]
 
 refcTests : TestPool
 refcTests = MkTestPool "Reference counting C backend" [C]
-  [ "refc001" , "refc002" ]
+    [ "refc001" , "refc002"
+    , "strings", "doubles"
+    , "buffer", "clock", "args"
+    ]
 
 racketTests : TestPool
 racketTests = MkTestPool "Racket backend" [Racket]
