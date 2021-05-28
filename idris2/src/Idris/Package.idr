@@ -31,7 +31,7 @@ import Libraries.Utils.Path
 
 import Idris.CommandLine
 import Idris.Doc.HTML
-import Idris.DocString
+import Idris.Doc.String
 import Idris.ModTree
 import Idris.ProcessIdr
 import Idris.REPL
@@ -700,6 +700,7 @@ partitionOpts opts = foldr pOptUpdate (MkPFR [] [] False) opts
     optType (Directive d)    = POpt
     optType (BuildDir f)     = POpt
     optType (OutputDir f)    = POpt
+    optType WarningsAsErrors = POpt
     optType (ChangedModules ns) = POpt
     optType (ConsoleWidth n) = PIgnore
     optType (Color b)        = PIgnore
