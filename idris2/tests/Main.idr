@@ -1,16 +1,5 @@
 module Main
 
-import Data.Maybe
-import Data.List
-import Data.List1
-import Data.Strings
-
-import System
-import System.Directory
-import System.File
-import System.Info
-import System.Path
-
 import Test.Golden
 
 %default covering
@@ -215,6 +204,7 @@ chezTests = MkTestPool "Chez backend" [Chez]
     , "bitops"
     , "casts"
     , "newints"
+    , "integers"
     , "semaphores001"
     , "semaphores002"
     , "perf001"
@@ -224,7 +214,7 @@ chezTests = MkTestPool "Chez backend" [Chez]
 refcTests : TestPool
 refcTests = MkTestPool "Reference counting C backend" [C]
     [ "refc001" , "refc002"
-    , "strings", "doubles"
+    , "strings", "integers", "doubles"
     , "buffer", "clock", "args"
     ]
 
@@ -249,6 +239,7 @@ nodeTests = MkTestPool "Node backend" [Node]
     , "node007", "node008", "node009", "node011", "node012", "node015"
     , "node017", "node018", "node019", "node021", "node022", "node023"
     , "node024", "node025"
+    , "perf001"
     -- , "node14", "node020"
     , "args"
     , "bitops"
@@ -258,6 +249,7 @@ nodeTests = MkTestPool "Node backend" [Node]
     , "syntax001"
     , "tailrec001"
     , "idiom001"
+    , "integers"
     ]
 
 erlangTests : TestPool
