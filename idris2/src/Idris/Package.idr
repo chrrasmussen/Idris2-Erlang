@@ -307,7 +307,7 @@ compileLibHelper : {auto c : Ref Ctxt Defs} ->
                    (changedModules : Maybe (List ModuleIdent)) ->
                    Core ()
 compileLibHelper libName packageNamespaces changedModules
-    = do m <- newRef MD (initMetadata libName)
+    = do m <- newRef MD (initMetadata (PhysicalPkgSrc libName))
          u <- newRef UST initUState
          let namespacesToLoad = fromMaybe packageNamespaces changedModules
          loadModules libName namespacesToLoad

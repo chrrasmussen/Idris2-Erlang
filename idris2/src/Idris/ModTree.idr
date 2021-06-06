@@ -251,7 +251,7 @@ loadModules : {auto c : Ref Ctxt Defs} ->
 loadModules libName namespaces = do
   -- Load the the TTC files in a clean context
   clearCtxt; addPrimitives
-  put MD (initMetadata libName)
+  put MD (initMetadata (PhysicalPkgSrc libName))
   traverse_ (\ns => readModule True emptyFC True ns (miAsNamespace ns)) namespaces
 
 export
@@ -261,7 +261,7 @@ getAllBuildMods : {auto c : Ref Ctxt Defs} ->
                   (allFiles : List String) ->
                   Core (List BuildMod)
 getAllBuildMods allFiles = do
-  mods <- getMods toplevelFC [] allFiles
+  mods <- getMods EmptyFC [] allFiles
   pure $ dropLater mods
   where
     getMods : FC -> (done : List BuildMod) ->
@@ -289,4 +289,4 @@ buildAll : {auto c : Ref Ctxt Defs} ->
            {auto o : Ref ROpts REPLOpts} ->
            List BuildMod ->
            Core (List Error)
-buildAll mods = buildMods toplevelFC 1 (length mods) mods
+buildAll mods = buildMods EmptyFC 1 (length mods) mods
