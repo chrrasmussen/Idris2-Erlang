@@ -76,8 +76,9 @@ idrisTestsInteractive = MkTestPool "Interactive editing" []
        "interactive013", "interactive014", "interactive015", "interactive016",
        "interactive017", "interactive018", "interactive019", "interactive020",
        "interactive021", "interactive022", "interactive023", "interactive024",
-       "interactive025", "interactive026", "interactive027", -- TODO: Disabled for now: interactive028
-       "interactive029", "interactive030", "interactive031"]
+       "interactive025", "interactive026", "interactive027", -- "interactive028", -- Disabled due to Atom IDE fix
+       "interactive029", "interactive030", "interactive031", "interactive032",
+       "interactive033"]
 
 idrisTestsInterface : TestPool
 idrisTestsInterface = MkTestPool "Interface" []
@@ -121,7 +122,7 @@ idrisTestsRegression = MkTestPool "Various regressions" []
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
-       "reg036", "reg037", "reg038", "reg039"]
+       "reg036", "reg037", "reg038", "reg039", "reg040"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" []
