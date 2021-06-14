@@ -112,7 +112,7 @@ idrisTestsPerformance = MkTestPool "Performance" []
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
       ["perf001", "perf002", "perf003", "perf004", "perf005", "perf006",
-       "perf007"]
+       "perf007", "perf008"]
 
 idrisTestsRegression : TestPool
 idrisTestsRegression = MkTestPool "Various regressions" []
@@ -122,7 +122,7 @@ idrisTestsRegression = MkTestPool "Various regressions" []
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
-       "reg036", "reg037", "reg038", "reg039", "reg040"]
+       "reg036", "reg037", "reg038", "reg039", "reg040", "reg041"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" []
@@ -166,7 +166,7 @@ idrisTests = MkTestPool "Misc" []
        "params001","params002",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
-       "pkg008", "pkg009",
+       "pkg008", "pkg009", "pkg010",
        -- Positivity checking
        "positivity001", "positivity002", "positivity003",
        -- Larger programs arising from real usage. Typically things with

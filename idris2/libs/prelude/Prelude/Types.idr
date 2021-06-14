@@ -419,7 +419,7 @@ Traversable List where
 -- If you need to concatenate strings at compile time, use Prelude.concat.
 %foreign
   "scheme:string-concat"
-  "C:fastConcat"
+  "RefC:fastConcat"
   "javascript:lambda:(xs)=>''.concat(...__prim_idris2js_array(xs))"
 export
 fastConcat : List String -> String
@@ -547,7 +547,7 @@ pack (x :: xs) = strCons x (pack xs)
 
 %foreign
     "scheme:string-pack"
-    "C:fastPack"
+    "RefC:fastPack"
     "javascript:lambda:(xs)=>''.concat(...__prim_idris2js_array(xs))"
 export
 fastPack : List Char -> String
@@ -571,7 +571,7 @@ unpack str =
 -- If you need to unpack strings at compile time, use Prelude.unpack.
 %foreign
   "scheme:string-unpack"
-  "C:fastUnpack"
+  "RefC:fastUnpack"
   "javascript:lambda:(str)=>__prim_js2idris_array(Array.from(str))"
 export
 fastUnpack : String -> List Char
