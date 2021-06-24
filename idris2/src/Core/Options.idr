@@ -163,6 +163,8 @@ record Session where
   -- Warnings
   warningsAsErrors : Bool
   showShadowingWarning : Bool
+  -- Experimental
+  checkHashesInsteadOfModTime : Bool
 
 public export
 record PPrinter where
@@ -211,7 +213,7 @@ export
 defaultSession : Session
 defaultSession = MkSessionOpts False False False Chez [] [] Nothing False defaultLogLevel
                                False False False Nothing Nothing
-                               Nothing Nothing False False True
+                               Nothing Nothing False False True False
 
 export
 defaultElab : ElabDirectives

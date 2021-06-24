@@ -36,7 +36,8 @@ idrisTestsBasic = MkTestPool "Fundamental language features" []
        "basic041", "basic042", "basic043", "basic044", "basic045",
        "basic046", "basic047", "basic048", "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", "basic055",
-       "basic056", "basic057", "basic058", "basic059", "basic060"]
+       "basic056", "basic057", "basic058", "basic059", "basic060",
+       "basic061"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool "Coverage checking" []
@@ -122,7 +123,7 @@ idrisTestsRegression = MkTestPool "Various regressions" []
        "reg015", "reg016", "reg017", "reg018", "reg019", "reg020", "reg021",
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
-       "reg036", "reg037", "reg038", "reg039", "reg040", "reg041"]
+       "reg036", "reg037", "reg038", "reg039", "reg040", "reg041", "reg042"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" []
@@ -130,7 +131,7 @@ idrisTestsData = MkTestPool "Data and record types" []
        "data001",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006", "record007"]
+       "record006", "record007", "record008"]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" []
