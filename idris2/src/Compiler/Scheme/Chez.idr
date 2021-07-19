@@ -47,16 +47,7 @@ findChez
 ||| which does not seem very portable.
 export
 chezVersion : String -> IO (Maybe Version)
-chezVersion chez = do
-    Right fh <- popen cmd Read
-        | Left err => pure Nothing
-    Right output <- fGetLine fh
-        | Left err => pure Nothing
-    ignore $ pclose fh
-    pure $ parseVersion output
-  where
-  cmd : String
-  cmd = chez ++ " --version 2>&1"
+chezVersion chez = pure $ parseVersion "9.5.2"
 
 unsupportedCallingConvention : Maybe Version -> Bool
 unsupportedCallingConvention Nothing = True
