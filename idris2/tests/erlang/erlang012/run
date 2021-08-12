@@ -1,4 +1,4 @@
-$1 --codegen erlang --build dummy.ipkg
+$1 --build dummy.ipkg
 erlc test_support.erl
 escript test_support.beam
 rm -rf build *.beam

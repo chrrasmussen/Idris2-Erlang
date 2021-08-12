@@ -7,6 +7,6 @@ fi
 
 echo "$NProcs processors" > expected
 
-$1 --cg chez --no-banner --no-color --console-width 0 NumProcessors.idr --exec main
+$1 --no-banner --no-color --console-width 0 NumProcessors.idr --exec main
 
 rm -rf build
