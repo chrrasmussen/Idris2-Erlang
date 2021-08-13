@@ -313,7 +313,7 @@ templateTests = MkTestPool "Test templates" [] Nothing
 -- that only runs if all backends are
 -- available.
 baseLibraryTests : TestPool
-baseLibraryTests = MkTestPool "Base library" [Chez, Node] Nothing
+baseLibraryTests = MkTestPool "Base library" [Chez, Node] (Just Chez)
   [ "system_file001"
   , "data_bits001"
   , "system_info001"
@@ -327,7 +327,7 @@ contribLibraryTests = MkTestPool "Contrib library" [Chez, Node] Nothing
   ]
 
 codegenTests : TestPool
-codegenTests = MkTestPool "Code generation" [] Nothing
+codegenTests = MkTestPool "Code generation" [] (Just Chez)
   [ "con001"
   , "builtin001"
   ]
