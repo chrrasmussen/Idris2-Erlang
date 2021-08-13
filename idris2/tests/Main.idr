@@ -35,7 +35,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic036", "basic037", "basic038", "basic039", "basic040",
        "basic041", "basic042", "basic043", "basic044", "basic045",
        "basic046", "basic047",             "basic049", "basic050",
-       "basic051", "basic052", "basic053", "basic054", "basic055",
+       "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
        "basic061"]
 
@@ -195,9 +195,10 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- with-disambiguation
        "with003",
        -- pretty printing
-       "pretty001",
+       "pretty001"
        -- golden file testing
-       "golden001"]
+       -- "golden001" -- TODO: golden001 is currently executed using Erlang (the default codegen), but only works on Chez
+       ]
 
 typeddTests : TestPool
 typeddTests = MkTestPool "Type Driven Development" [] Nothing
