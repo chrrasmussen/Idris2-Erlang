@@ -20,8 +20,14 @@ jobs:
         uses: actions/checkout@v2
       - name: Install build dependencies
         run: |
-          sudo apt-get install -y chezscheme
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y erlang
+          # Install Erlang before adding a new repository. Otherwise the install will fail with unmet dependencies.
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install --assume-yes erlang
+
+          # Add a new repository to install newer version of Chez Scheme.
+          echo "deb http://security.ubuntu.com/ubuntu hirsute universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install --target-release hirsute --assume-yes chezscheme
+
           echo "$HOME/.idris2erl/bin" >> $GITHUB_PATH
       - name: Build Idris 2 from bootstrap
         run: cd idris2 && make bootstrap && make install
