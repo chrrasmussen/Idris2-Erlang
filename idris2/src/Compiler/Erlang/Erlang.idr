@@ -203,4 +203,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 
 export
 codegenErlang : Codegen
-codegenErlang = MkCG compileExpr executeExpr compileLibrary
+codegenErlang = MkCG compileExpr executeExpr compileLibrary Nothing Nothing

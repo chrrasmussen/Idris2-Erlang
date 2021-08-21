@@ -630,7 +630,11 @@ compileLib : {auto c : Ref Ctxt Defs} ->
              (changedModules : Maybe (List ModuleIdent)) ->
              Core REPLResult
 compileLib libName changedModules = do
-  ok <- cgCompileLibrary !findCG libName changedModules
+  Just cg <- findCG
+    | Nothing => do
+      iputStrLn (reflow "No such code generator available")
+      pure CompilationFailed
+  ok <- cgCompileLibrary cg libName changedModules
   maybe (pure CompilationFailed)
         (pure . CompiledLibrary)
         ok
