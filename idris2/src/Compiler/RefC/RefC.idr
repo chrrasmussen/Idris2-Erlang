@@ -1051,4 +1051,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 
 export
 codegenRefC : Codegen
-codegenRefC = MkCG (compileExpr ANF) executeExpr compileLibrary
+codegenRefC = MkCG (compileExpr ANF) executeExpr compileLibrary Nothing Nothing

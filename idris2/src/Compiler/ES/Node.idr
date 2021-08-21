@@ -63,4 +63,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 ||| Codegen wrapper for Node implementation.
 export
 codegenNode : Codegen
-codegenNode = MkCG compileExpr executeExpr compileLibrary
+codegenNode = MkCG compileExpr executeExpr compileLibrary Nothing Nothing

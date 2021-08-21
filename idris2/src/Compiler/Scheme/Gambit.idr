@@ -428,4 +428,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 
 export
 codegenGambit : Codegen
-codegenGambit = MkCG compileExpr executeExpr compileLibrary
+codegenGambit = MkCG compileExpr executeExpr compileLibrary Nothing Nothing

@@ -42,6 +42,17 @@ record Codegen where
   ||| Compile modules into a library.
   compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
                    (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+  ||| Incrementally compile definitions in the current module (toIR defs)
+  ||| if supported
+  ||| Takes a source file name, returns the name of the generated object
+  ||| file, if successful, plus any other backend specific data in a list
+  ||| of strings. The generated object file should be placed in the same
+  ||| directory as the associated TTC.
+  incCompileFile : Maybe (Ref Ctxt Defs ->
+                          (sourcefile : String) ->
+                          Core (Maybe (String, List String)))
+  ||| If incremental compilation is supported, get the output file extension
+  incExt : Maybe String
 
 -- Say which phase of compilation is the last one to use - it saves time if
 -- you only ask for what you need.
@@ -126,6 +137,14 @@ cgCompileLibrary {c} cg libName changedModules
          ensureDirectoryExists outputDir
          logTime "Code generation overall" $
              compileLibrary cg c tmpDir outputDir libName changedModules
+
+export
+incCompile : {auto c : Ref Ctxt Defs} ->
+             Codegen -> String -> Core (Maybe (String, List String))
+incCompile {c} cg src
+    = do let Just inc = incCompileFile cg
+             | Nothing => pure Nothing
+         inc c src
 
 -- If an entry isn't already decoded, get the minimal entry we need for
 -- compilation, and record the Binary so that we can put it back when we're
@@ -271,7 +290,9 @@ dumpVMCode fn lns
     dumpDef : (Name, VMDef) -> String
     dumpDef (n, d) = fullShow n ++ " = " ++ show d ++ "\n"
 
-nonErased : {auto c : Ref Ctxt Defs} -> Name -> Core Bool
+export
+nonErased : {auto c : Ref Ctxt Defs} ->
+            Name -> Core Bool
 nonErased n
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
@@ -422,6 +443,40 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   pure (MkCompileData compiledtm
                       (mapMaybe id namedefs)
                       lifted anf vmcode)
+
+export
+compileTerm : {auto c : Ref Ctxt Defs} ->
+              ClosedTerm -> Core (CExp [])
+compileTerm tm_in
+    = do tm <- toFullNames tm_in
+         fixArityExp !(compileExp tm)
+
+export
+getIncCompileData : {auto c : Ref Ctxt Defs} -> (doLazyAnnots : Bool) ->
+                    UsePhase -> Core CompileData
+getIncCompileData doLazyAnnots phase
+    = do defs <- get Ctxt
+         -- Compile all the names in 'toIR', since those are the ones defined
+         -- in the current source file
+         let ns = keys (toIR defs)
+         cns <- traverse toFullNames ns
+         rcns <- filterM nonErased cns
+         traverse_ mkForgetDef rcns
+
+         namedefs <- traverse getNamedDef rcns
+         lifted_in <- if phase >= Lifted
+                         then logTime "++ Lambda lift" $ traverse (lambdaLift doLazyAnnots) rcns
+                         else pure []
+         let lifted = concat lifted_in
+         anf <- if phase >= ANF
+                   then logTime "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+                   else pure []
+         vmcode <- if phase >= VMCode
+                      then logTime "++ Get VM Code" $ pure (allDefs anf)
+                      else pure []
+         pure (MkCompileData (CErased emptyFC)
+                             (mapMaybe id namedefs)
+                             lifted anf vmcode)
 
 -- Some things missing from Prelude.File
 

@@ -217,8 +217,9 @@ compileToSS c chez appdir tm = do
             ++ "  (import (chezscheme) (support) " ++ imports ++ ")\n\n"
       let footer = ")"
 
-      fgndefs <- traverse (Chez.getFgnCall appdir version) cu.definitions
+      fgndefs <- traverse (Chez.getFgnCall version) cu.definitions
       compdefs <- traverse (getScheme Chez.chezExtPrim Chez.chezString) cu.definitions
+      loadlibs <- traverse (loadLib appdir) (mapMaybe fst fgndefs)
 
       -- write the files
       log "compiler.scheme.chez" 3 $ "Generating code for " ++ chezLib
@@ -226,7 +227,7 @@ compileToSS c chez appdir tm = do
         [header]
         ++ map snd fgndefs  -- definitions using foreign libs
         ++ compdefs
-        ++ map fst fgndefs  -- foreign library load statements
+        ++ loadlibs  -- foreign library load statements
         ++ [footer]
 
       Core.writeFile (appdir </> chezLib <.> "hash") cuHash
@@ -316,4 +317,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 ||| Codegen wrapper for Chez scheme implementation.
 export
 codegenChezSep : Codegen
-codegenChezSep = MkCG (compileExpr True) executeExpr compileLibrary
+codegenChezSep = MkCG (compileExpr True) executeExpr compileLibrary Nothing Nothing

@@ -75,4 +75,4 @@ compileLibrary c tmpDir outputDir libName changedModules = do
 ||| Codegen wrapper for Javascript implementation.
 export
 codegenJavascript : Codegen
-codegenJavascript = MkCG compileExpr executeExpr compileLibrary
+codegenJavascript = MkCG compileExpr executeExpr compileLibrary Nothing Nothing
