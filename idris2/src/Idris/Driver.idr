@@ -27,7 +27,7 @@ import IdrisPaths
 import Data.List
 import Data.List1
 import Data.So
-import Data.Strings
+import Data.String
 import System
 import System.Directory
 import System.File
@@ -101,7 +101,7 @@ updateREPLOpts : {auto o : Ref ROpts REPLOpts} ->
 updateREPLOpts
     = do opts <- get ROpts
          ed <- coreLift $ idrisGetEnv "EDITOR"
-         the (Core ()) $ case ed of
+         case ed of
               Just e => put ROpts (record { editor = e } opts)
               Nothing => pure ()
 

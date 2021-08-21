@@ -124,7 +124,7 @@ idrisTestsRegression = MkTestPool "Various regressions" [] Nothing
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
        "reg036", "reg037", "reg038", "reg039", "reg040", "reg041", "reg042",
-       "reg043"]
+       "reg043", "reg044"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" [] Nothing
@@ -224,6 +224,7 @@ chezTests = MkTestPool "Chez backend" [] (Just Chez)
     , "semaphores002"
     , "perf001"
     , "reg001"
+    , "channels001", "channels002", "channels003", "channels004", "channels005"
     ]
 
 refcTests : TestPool
@@ -239,10 +240,7 @@ racketTests = MkTestPool "Racket backend" [] (Just Racket)
     , "semaphores001", "semaphores002"
     , "futures001"
     , "mutex001", "mutex002", "mutex003", "mutex004", "mutex005"
-    , "conditions001"
-    , "conditions002"
-    , "conditions003"
-    , "conditions004"
+    , "conditions001" , "conditions002" , "conditions003" , "conditions004"
     , "conditions005"
 --    , "conditions006"
 --    , "conditions007"
@@ -316,6 +314,7 @@ templateTests = MkTestPool "Test templates" [] Nothing
 baseLibraryTests : TestPool
 baseLibraryTests = MkTestPool "Base library" [Chez, Node] (Just Chez)
   [ "system_file001"
+  , "system_info_os001"
   , "data_bits001"
   , "system_info001"
   , "system_signal001", "system_signal002", "system_signal003", "system_signal004"

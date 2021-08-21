@@ -20,7 +20,7 @@ import Data.IOArray
 import Data.List
 import Data.List1
 import Libraries.Data.NameMap
-import Data.Strings as String
+import Data.String as String
 
 import Idris.Env
 
@@ -305,9 +305,11 @@ nonErased n
 export
 getCompileData : {auto c : Ref Ctxt Defs} -> (doLazyAnnots : Bool) ->
                  UsePhase -> ClosedTerm -> Core CompileData
-getCompileData doLazyAnnots phase tm_in
+getCompileData doLazyAnnots phase_in tm_in
     = do defs <- get Ctxt
          sopts <- getSession
+         let phase = foldl {t=List} (flip $ maybe id max) phase_in $
+                         [Cases <$ dumpcases sopts, Lifted <$ dumplifted sopts, ANF <$ dumpanf sopts, VMCode <$ dumpvmcode sopts]
          let ns = getRefs (Resolved (-1)) tm_in
          tm <- toFullNames tm_in
          natHackNames' <- traverse toResolvedNames natHackNames
