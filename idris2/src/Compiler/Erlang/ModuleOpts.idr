@@ -1,7 +1,7 @@
 module Compiler.Erlang.ModuleOpts
 
 import Data.List
-import Data.Strings
+import Data.String
 import Core.Name
 import Compiler.Erlang.Name
 

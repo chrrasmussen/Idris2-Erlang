@@ -2,7 +2,7 @@ module Erlang.System
 
 import public Data.So
 import Data.Maybe
-import Data.Strings
+import Data.String
 
 import Erlang
 

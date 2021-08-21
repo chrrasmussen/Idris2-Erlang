@@ -1,6 +1,6 @@
 module Compiler.Erlang.Cmd
 
-import Data.Strings
+import Data.String
 
 
 %default total

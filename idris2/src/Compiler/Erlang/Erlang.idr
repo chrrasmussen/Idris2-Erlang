@@ -23,7 +23,7 @@ import Core.TT
 import Libraries.Data.NameMap
 import Data.List
 import Libraries.Data.SortedMap
-import Data.Strings
+import Data.String
 import Libraries.Utils.Binary
 import Libraries.Utils.Path
 import System

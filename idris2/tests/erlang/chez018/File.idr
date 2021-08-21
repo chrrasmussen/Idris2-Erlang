@@ -1,5 +1,5 @@
 import Data.List
-import Data.Strings
+import Data.String
 import Erlang.System.File
 
 -- Copied from `System.File`. Testing the indiviudual functions
