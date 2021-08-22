@@ -6,6 +6,9 @@
 
 * Missing methods in implementations now give a compile time error. This was
   always the intended behaviour, but until now had not been implemented!
+* Records now work in `parameters` blocks and `where` clauses.
+* Implementations of interfaces now work in `parameters` blocks and
+  `where` clauses
 
 ### Compiler changes
 
@@ -16,6 +19,7 @@
   half as good. The `--whole-program` flag overrides incremental compilation,
   and reverts to whole program compilation. Incremental compilation is currently
   supported only by the Chez Scheme back end.
+  This is currently supported only on Unix-like platforms (not yet Windows)
 
 ### Library Changes
 

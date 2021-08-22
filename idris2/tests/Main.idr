@@ -90,7 +90,7 @@ idrisTestsInterface = MkTestPool "Interface" [] Nothing
        "interface013", "interface014", "interface015", "interface016",
        "interface017", "interface018", "interface019", "interface020",
        "interface021", "interface022", "interface023", "interface024",
-       "interface025", "interface026"]
+       "interface025", "interface026", "interface027"]
 
 idrisTestsLinear : TestPool
 idrisTestsLinear = MkTestPool "Quantities" [] Nothing
@@ -132,7 +132,7 @@ idrisTestsData = MkTestPool "Data and record types" [] Nothing
        "data001",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006", "record007", "record008"]
+       "record006", "record007", "record008", "record009"]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" [] Nothing
@@ -174,7 +174,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- Namespace blocks
        "namespace001",
        -- Parameters blocks
-       "params001","params002",
+       "params001", "params002", "params003",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
        "pkg008", "pkg009", "pkg010",
@@ -214,7 +214,7 @@ chezTests = MkTestPool "Chez backend" [] (Just Chez)
     , "chez013", "chez014", "chez015", "chez016", "chez017", "chez018"
     , "chez019", "chez020", "chez021", "chez022", "chez023", "chez024"
     , "chez025", "chez026", "chez027", "chez028", "chez029", "chez030"
-    , "chez031", "chez032"
+    , "chez031", "chez032", "chez033"
     , "futures001"
     , "bitops"
     , "casts"
@@ -265,6 +265,11 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     , "integers"
     ]
 
+vmcodeInterpTests : TestPool
+vmcodeInterpTests = MkTestPool "VMCode interpreter" [] Nothing
+    [ "basic001"
+    ]
+
 erlangTests : TestPool
 erlangTests = MkTestPool "Erlang backend" [] (Just Erlang)
     [ "erlang001", "erlang002", "erlang003", "erlang004", "erlang005"
@@ -313,8 +318,10 @@ templateTests = MkTestPool "Test templates" [] Nothing
 -- available.
 baseLibraryTests : TestPool
 baseLibraryTests = MkTestPool "Base library" [Chez, Node] (Just Chez)
-  [ "system_file001"
+  [ "control_app001"
+  , "system_file001"
   , "system_info_os001"
+  , "system_system"
   , "data_bits001"
   , "system_info001"
   , "system_signal001", "system_signal002", "system_signal003", "system_signal004"
@@ -359,6 +366,7 @@ main = runner $
 --   , testPaths "refc" refcTests -- TODO: Disabled because of missing header file (runtime.h)
   , testPaths "racket" racketTests
   , testPaths "node" nodeTests
+  , testPaths "vmcode" vmcodeInterpTests
   , testPaths "erlang" erlangTests
   , testPaths "templates" templateTests
   , testPaths "codegen" codegenTests
