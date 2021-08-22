@@ -2,7 +2,6 @@
 
 [![Ubuntu CI](https://github.com/chrrasmussen/Idris2-Erlang/workflows/Ubuntu/badge.svg)](https://github.com/chrrasmussen/Idris2-Erlang/actions?query=workflow%3AUbuntu)
 [![macOS CI](https://github.com/chrrasmussen/Idris2-Erlang/workflows/macOS/badge.svg)](https://github.com/chrrasmussen/Idris2-Erlang/actions?query=workflow%3AmacOS)
-[![Nix CI](https://github.com/chrrasmussen/Idris2-Erlang/workflows/Nix/badge.svg)](https://github.com/chrrasmussen/Idris2-Erlang/actions?query=workflow%3ANix)
 
 
 Erlang code generator for [Idris 2](https://github.com/idris-lang/Idris2). Currently this repository includes a full copy of the Idris 2 compiler, but at some point I want to make this repository into a standalone code generator.
