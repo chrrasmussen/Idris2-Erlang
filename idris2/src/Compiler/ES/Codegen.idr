@@ -677,9 +677,9 @@ compileToES c cg tm ccTypes = do
 
   -- read a derive the codegen mode to use from
   -- user defined directives for the
-  directives <- getDirectives cg
-  let mode = if "minimal" `elem` directives then Minimal
-             else if "compact" `elem` directives then Compact
+  ds <- getDirectives cg
+  let mode = if "minimal" `elem` (map snd ds) then Minimal
+             else if "compact" `elem` (map snd ds) then Compact
              else Pretty
 
   -- initialize the state used in the code generator

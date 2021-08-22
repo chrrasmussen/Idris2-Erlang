@@ -280,6 +280,11 @@ executeExpr c _ tm = do
     st <- newRef State !(initInterpState cdata.vmcode)
     ignore $ callFunc [] (MN "__mainExpression" 0) []
 
+compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
+compileLibrary c tmpDir outputDir libName changedModules = do
+  coreLift $ putStrLn "Compiling to library is not supported."
+  pure Nothing
+
 export
 codegenVMCodeInterp : Codegen
-codegenVMCodeInterp = MkCG compileExpr executeExpr Nothing Nothing
+codegenVMCodeInterp = MkCG compileExpr executeExpr compileLibrary Nothing Nothing
