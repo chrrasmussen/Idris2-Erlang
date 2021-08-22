@@ -131,10 +131,12 @@ retest: testenv
 
 support:
 	@${MAKE} -C support/c
+	@${MAKE} -C support/refc
 	@${MAKE} -C support/chez
 
 support-clean:
 	@${MAKE} -C support/c clean
+	@${MAKE} -C support/refc clean
 	@${MAKE} -C support/chez clean
 
 clean-libs:
@@ -180,6 +182,7 @@ install-support:
 	install support/gambit/* ${PREFIX}/${NAME_VERSION}/support/gambit
 	install support/js/* ${PREFIX}/${NAME_VERSION}/support/js
 	@${MAKE} -C support/c install
+	@${MAKE} -C support/refc install
 	@${MAKE} -C support/chez install
 
 install-libs:
