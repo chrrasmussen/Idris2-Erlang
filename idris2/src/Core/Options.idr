@@ -4,6 +4,7 @@ import Core.Core
 import Core.Name
 import public Core.Options.Log
 import Core.TT
+
 import Libraries.Utils.Binary
 import Libraries.Utils.Path
 
@@ -150,24 +151,30 @@ record Session where
   directives : List String
   packages : List String
   changedModules : Maybe (List1 ModuleIdent)
+  searchTimeout : Integer -- maximum number of milliseconds to run
+                          -- expression/program search
+  ignoreMissingPkg : Bool -- fail silently on missing packages. This is because
+          -- while we're bootstrapping, we find modules by a different route
+          -- but we still want to have the dependencies listed properly
+
+  -- Troubleshooting
   logEnabled : Bool -- do we check logging flags at all? This is 'False' until
                     -- any logging is enabled.
   logLevel : LogLevels
   logTimings : Bool
-  ignoreMissingPkg : Bool -- fail silently on missing packages. This is because
-          -- while we're bootstrapping, we find modules by a different route
-          -- but we still want to have the dependencies listed properly
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
   dumpcases : Maybe String -- file to output compiled case trees
   dumplifted : Maybe String -- file to output lambda lifted definitions
   dumpanf : Maybe String -- file to output ANF definitions
   dumpvmcode : Maybe String -- file to output VM code definitions
   profile : Bool -- generate profiling information, if supported
-  searchTimeout : Integer -- maximum number of milliseconds to run
-                          -- expression/program search
+  logErrorCount : Nat -- when parsing alternatives fails, how many errors
+                      -- should be shown.
+
   -- Warnings
   warningsAsErrors : Bool
   showShadowingWarning : Bool
+
   -- Experimental
   checkHashesInsteadOfModTime : Bool
   incrementalCGs : List CG
@@ -175,6 +182,7 @@ record Session where
      -- Use whole program compilation for executables, no matter what
      -- incremental CGs are set (intended for overriding any environment
      -- variables that set incremental compilation)
+  caseTreeHeuristics : Bool -- apply heuristics to pick matches for case tree building
 
 public export
 record PPrinter where
@@ -195,6 +203,7 @@ record Options where
   primnames : PrimNames
   extensions : List LangExt
   additionalCGs : List (String, CG)
+  hashFn : String
 
 
 export
@@ -222,21 +231,33 @@ defaultPPrint = MkPPOpts False True False
 
 export
 defaultSession : Session
-defaultSession = MkSessionOpts False False False Chez [] [] Nothing False defaultLogLevel
-                               False False False Nothing Nothing
-                               Nothing Nothing False 1000 False True
-                               False [] False
+defaultSession = MkSessionOpts False False False Chez [] [] Nothing 1000 False False
+                               defaultLogLevel False False Nothing Nothing
+                               Nothing Nothing False 1 False True
+                               False [] False False
 
 export
 defaultElab : ElabDirectives
 defaultElab = MkElabDirectives True True CoveringOnly 3 50 50 True
 
 export
-defaults : Options
-defaults = MkOptions defaultDirs defaultPPrint defaultSession
-                     defaultElab Nothing Nothing
-                     (MkPrimNs Nothing Nothing Nothing Nothing) []
-                     []
+defaultHashFn : Core String
+defaultHashFn
+    = do Nothing <- coreLift $ pathLookup ["sha256sum", "gsha256sum"]
+           | Just p => pure $ p ++ " --tag"
+         Nothing <- coreLift $ pathLookup ["sha256"]
+           | Just p => pure $ p
+         Nothing <- coreLift $ pathLookup ["openssl"]
+           | Just p => pure $ p ++ " sha256"
+         coreFail $ InternalError ("Can't get util to get sha256sum (tried `sha256sum`, `gsha256sum`, `sha256`, `openssl`)")
+
+export
+defaults : Core Options
+defaults
+    = do hashFn <- defaultHashFn
+         pure $ MkOptions
+           defaultDirs defaultPPrint defaultSession defaultElab Nothing Nothing
+           (MkPrimNs Nothing Nothing Nothing Nothing) [] [] hashFn
 
 -- Reset the options which are set by source files
 export

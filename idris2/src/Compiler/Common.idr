@@ -13,10 +13,10 @@ import Core.Directory
 import Core.Options
 import Core.TT
 import Core.TTC
+import Libraries.Data.IOArray
 import Libraries.Utils.Binary
 import Libraries.Utils.Path
 
-import Data.IOArray
 import Data.List
 import Data.List1
 import Libraries.Data.NameMap
@@ -593,18 +593,6 @@ getExtraRuntime directives
       Right contents <- coreLift $ readFile p
         | Left err => throw (FileErr p err)
       pure contents
-
-||| Looks up an executable from a list of candidate names in the PATH
-export
-pathLookup : List String -> IO (Maybe String)
-pathLookup candidates
-    = do path <- idrisGetEnv "PATH"
-         let extensions = if isWindows then [".exe", ".cmd", ".bat", ""] else [""]
-         let pathList = forget $ String.split (== pathSeparator) $ fromMaybe "/usr/bin:/usr/local/bin" path
-         let candidates = [p ++ "/" ++ x ++ y | p <- pathList,
-                                                x <- candidates,
-                                                y <- extensions ]
-         firstExists candidates
 
 ||| Cast implementations. Values of `ConstantPrimitives` can
 ||| be used in a call to `castInt`, which then determines

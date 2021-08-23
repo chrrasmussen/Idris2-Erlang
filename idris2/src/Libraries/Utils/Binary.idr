@@ -17,7 +17,7 @@ import System.File
 import Libraries.Data.PosMap
 import Libraries.Utils.String
 
-import public Data.IOArray
+import public Libraries.Data.IOArray
 
 -- Serialising data as binary. Provides an interface TTC which allows
 -- reading and writing to chunks of memory, "Binary", which can be written
@@ -471,20 +471,22 @@ modTime fname
        pure t
 
 export
-hashFile : String -> Core String
-hashFile fileName
+hashFileWith : String -> String -> Core String
+hashFileWith sha256sum fileName
   = do Right fileHandle <- coreLift $ popen
-            ("sha256sum \"" ++ osEscape fileName ++ "\"") Read
-         | Left _ => coreFail $ InternalError ("Can't get sha256sum of " ++ fileName)
+            (sha256sum ++ " \"" ++ osEscape fileName ++ "\"") Read
+         | Left _ => err
        Right hashLine <- coreLift $ fGetLine fileHandle
          | Left _ =>
            do coreLift $ pclose fileHandle
-              coreFail $ InternalError ("Can't get sha256sum of " ++ fileName)
+              err
        coreLift $ pclose fileHandle
-       let (hash::_) = words hashLine
-         | Nil => coreFail $ InternalError ("Can't get sha256sum of " ++ fileName)
-       pure hash
+       let w@(_::_) = words hashLine
+         | Nil => err
+       pure $ last w
   where
+    err : Core String
+    err = coreFail $ InternalError ("Can't get " ++ sha256sum ++ " of " ++ fileName)
     osEscape : String -> String
     osEscape = if isWindows
       then id
