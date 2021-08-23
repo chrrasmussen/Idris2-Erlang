@@ -42,6 +42,7 @@ prepare-libs:
 	cp -R idris2/libs/test/build/ttc/ ${PRIV_LIBS_DIR}/test
 	cp -R idris2/libs/erlang/build/ttc/ ${PRIV_LIBS_DIR}/erlang
 	find ${PRIV_LIBS_DIR} -type f ! -name "*.ttc" -exec ${RM} "{}" \;
+	find ${PRIV_LIBS_DIR} -name "ttc" -exec ${RM} "{}" \;
 
 prepare-support:
 	mkdir -p ${PRIV_SUPPORT_DIR}
