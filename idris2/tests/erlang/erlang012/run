@@ -1,4 +1,5 @@
+rm -rf build *.beam
+
 $1 --build dummy.ipkg
 erlc test_support.erl
 escript test_support.beam
-rm -rf build *.beam

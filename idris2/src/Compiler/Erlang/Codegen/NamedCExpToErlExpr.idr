@@ -123,6 +123,7 @@ genOp l StrSubstr [start, len, str] = pure $ genUnicodeStringSubstr l start len 
 -- `e` is Euler's number, which approximates to: 2.718281828459045
 genOp l DoubleExp [x] = pure $ genFunCall l "math" "pow" [EFloat l 2.718281828459045, x] -- Base is `e`
 genOp l DoubleLog [x] = pure $ genFunCall l "math" "log" [x] -- Base is `e`
+genOp l DoublePow [x, y] = pure $ genFunCall l "math" "pow" [x, y]
 genOp l DoubleSin [x] = pure $ genFunCall l "math" "sin" [x]
 genOp l DoubleCos [x] = pure $ genFunCall l "math" "cos" [x]
 genOp l DoubleTan [x] = pure $ genFunCall l "math" "tan" [x]
