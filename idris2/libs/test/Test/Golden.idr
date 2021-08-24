@@ -178,7 +178,7 @@ options args = case args of
                  | Nothing => pure (Just opts)
            Right only <- readFile fp
              | Left err => fail (show err)
-           pure $ Just $ record { onlyNames $= (forget (lines only) ++) } opts
+           pure $ Just $ record { onlyNames $= ((lines only) ++) } opts
 
 ||| Normalise strings between different OS.
 |||
@@ -235,7 +235,7 @@ runTest opts testPath = forkIO $ do
         (if opts.color then show . colored BrightRed else id) "FAILURE"
       if interactive opts
         then mayOverwrite (Just exp) out
-        else putStrLn . unlines $ expVsOut exp out
+        else putStr . unlines $ expVsOut exp out
 
   pure $ if result then Right testPath else Left testPath
 
@@ -246,6 +246,7 @@ runTest opts testPath = forkIO $ do
       case str of
         "y" => pure True
         "n" => pure False
+        "N" => pure False
         ""  => pure False
         _   => do putStrLn "Invalid answer."
                   getAnswer
@@ -265,7 +266,7 @@ runTest opts testPath = forkIO $ do
           code <- system $ "git diff --no-index --exit-code " ++
             (if opts.color then  "--word-diff=color " else "") ++
             testPath ++ "/expected " ++ testPath ++ "/output"
-          putStrLn . unlines $
+          putStr . unlines $
             ["Golden value differs from actual value."] ++
             (if (code < 0) then expVsOut exp out else []) ++
             ["Accept actual value as new golden value? [y/N]"]
@@ -383,6 +384,34 @@ record TestPool where
   codegen : Codegen
   testCases : List String
 
+||| Find all the test in the given directory.
+export
+testsInDir : (dirName : String) -> (testNameFilter : String -> Bool) -> (poolName : String) -> List Requirement -> Codegen -> IO TestPool
+testsInDir dirName testNameFilter poolName reqs cg = do
+  Right names <- listDir dirName
+    | Left e => do putStrLn ("failed to list " ++ dirName ++ ": " ++ show e)
+                   exitFailure
+  let names = [n | n <- names, testNameFilter n]
+  let testNames = [dirName ++ "/" ++ n | n <- names]
+  testNames <- filter testNames
+  when (length testNames == 0) $ do
+    putStrLn ("no tests found in " ++ dirName)
+    exitFailure
+  pure $ MkTestPool poolName reqs cg testNames
+    where
+      -- Directory without `run` file is not a test
+      isTest : (path : String) -> IO Bool
+      isTest path = exists (path ++ "/run")
+
+      filter : (testPaths : List String) -> IO (List String)
+      filter [] = pure []
+      filter (p :: ps) =
+          do rem <- filter ps
+             case !(isTest p) of
+               True  => pure $ p :: rem
+               False => pure rem
+
+
 ||| Only keep the tests that have been asked for
 export
 filterTests : Options -> List String -> List String
@@ -457,7 +486,7 @@ poolRunner opts pool
     banner msgs = fastUnlines
         $ [ "", separator, pool.poolName ]
        ++ msgs
-       ++ [ separator, "" ]
+       ++ [ separator ]
 
     loop : Options -> Summary -> List String -> IO Summary
     loop opts acc [] = pure acc
@@ -492,7 +521,7 @@ runner tests
          let list = fastUnlines res.failure
          when (nfail > 0) $
            do putStrLn "Failing tests:"
-              putStrLn list
+              putStr list
          -- always overwrite the failure file, if it is given
          whenJust opts.failureFile $ \ path =>
            do Right _ <- writeFile path list
