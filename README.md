@@ -78,7 +78,7 @@ On Windows, you may need to install via MSYS2 (https://www.msys2.org/). On Windo
 
 This repository contains a [rebar3](https://www.rebar3.org) project that can build a standalone Escript executable. The Escript contains the libraries and can be freely moved around. The Erlang run-time needs to be available to run this Escript.
 
-The generated Erlang source files are only included in specific [releases](https://github.com/chrrasmussen/Idris2-Erlang/releases), and not in the `master` branch.
+The generated Erlang source files are only included in specific [releases](https://github.com/chrrasmussen/Idris2-Erlang/releases), and not in the `main` branch.
 
 **Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`
@@ -104,7 +104,7 @@ This will install the `idris2erl` executable, libraries and support files into `
 
 ### Alternative 3: Using an existing `idris2` executable
 
-This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/master/INSTALL.md).
+This installation method requires [Chez Scheme](https://cisco.github.io/ChezScheme/) to be installed, and that you have `idris2` available in `$PATH`. To install the official version of Idris 2, see [Idris 2's installation instructions](https://github.com/idris-lang/Idris2/blob/main/INSTALL.md).
 
 **Steps:**
 1. `git clone https://github.com/chrrasmussen/Idris2-Erlang`

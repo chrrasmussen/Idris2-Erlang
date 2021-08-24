@@ -13,7 +13,7 @@ setup:
 	git remote add idris2 https://github.com/idris-lang/Idris2
 
 pull-idris2:
-	git pull --strategy=subtree idris2 master
+	git pull --strategy=subtree idris2 main
 
 
 build: build-exec build-libs

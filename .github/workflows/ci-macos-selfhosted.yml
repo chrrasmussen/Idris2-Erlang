@@ -3,9 +3,6 @@ on:
   push:
     branches:
       - 'selfhosted-*'
-  pull_request:
-    branches:
-      - master
 
 env:
   SCHEME: chez
