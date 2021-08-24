@@ -36,8 +36,8 @@ removeDir dirPath = do
 
 -- TODO: Should this function return `.` and `..`? The Chez codegen does this
 export
-dirEntries : HasIO io => String -> io (Either FileError (List String))
-dirEntries dirPath = do
+listDir : HasIO io => String -> io (Either FileError (List String))
+listDir dirPath = do
   result <- pure $ erlUnsafeCall ErlTerm "file" "list_dir" [dirPath]
   pure $ erlDecodeDef
     (Left unknownError)
