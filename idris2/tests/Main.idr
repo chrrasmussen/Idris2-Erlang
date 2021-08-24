@@ -41,7 +41,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
-       "basic061"]
+       "interpolation001", "interpolation002"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool "Coverage checking" [] Nothing
@@ -67,10 +67,11 @@ idrisTestsError = MkTestPool "Error messages" [] Nothing
       ["error001", "error002", "error003", "error004", "error005",
        "error006", "error007", "error008", "error009", "error010",
        "error011", "error012", "error013", "error014", "error015",
-       "error016", "error017", "error018", "error019",
+       "error016", "error017", "error018", "error019", "error020",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
-       "perror006", "perror007", "perror008", "perror009"]
+       "perror006", "perror007", "perror008", "perror009", "perror010",
+       "perror011"]
 
 idrisTestsInteractive : TestPool
 idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
@@ -128,7 +129,7 @@ idrisTestsRegression = MkTestPool "Various regressions" [] Nothing
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
        "reg036", "reg037", "reg038", "reg039", "reg040", "reg041", "reg042",
-       "reg043", "reg044", "reg045", "reg046", "reg047", "reg048"]
+       "reg043", "reg044", "reg045", "reg046", "reg047", "reg048", "reg049"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" [] Nothing
@@ -165,6 +166,16 @@ idrisTestsAllBackends cg = MkTestPool
        "basic048",
        "perf006"]
 
+idrisTestsTotality : TestPool
+idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
+       -- Positivity checking
+      ["positivity001", "positivity002", "positivity003", "positivity004",
+       -- Totality checking
+       "total001", "total002", "total003", "total004", "total005",
+       "total006", "total007", "total008", "total009", "total010",
+       "total011"
+      ]
+
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
        -- Documentation strings
@@ -176,14 +187,12 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- Implicit laziness, lazy evaluation
        "lazy001", "lazy002",
        -- Namespace blocks
-       "namespace001",
+       "namespace001", "namespace002",
        -- Parameters blocks
        "params001", "params002", "params003",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
        "pkg008", "pkg009", "pkg010",
-       -- Positivity checking
-       "positivity001", "positivity002", "positivity003",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
@@ -191,9 +200,6 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
        "reflection009","reflection010",
-       -- Totality checking
-       "total001", "total002", "total003", "total004", "total005",
-       "total006", "total007", "total008", "total009", "total010",
        -- The 'with' rule
        "with001", "with002", "with004", "with005",
        -- with-disambiguation
@@ -247,7 +253,7 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     [ "node001", "node002", "node003", "node004", "node005", "node006"
     , "node007", "node008", "node009", "node011", "node012", "node015"
     , "node017", "node018", "node019", "node021", "node022", "node023"
-    , "node024", "node025"
+    , "node024", "node025", "node026"
     , "perf001"
     -- , "node14", "node020"
     , "args"
@@ -259,6 +265,7 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     , "tailrec001"
     , "idiom001"
     , "integers"
+    , "fix1839"
     ]
 
 vmcodeInterpTests : IO TestPool
@@ -331,6 +338,7 @@ main = runner $
   , testPaths "idris2" idrisTestsData
   , testPaths "idris2" idrisTestsBuiltin
   , testPaths "idris2" idrisTestsEvaluator
+  , testPaths "idris2" idrisTestsTotality
   , testPaths "idris2" idrisTests
   , !typeddTests
   , !ideModeTests

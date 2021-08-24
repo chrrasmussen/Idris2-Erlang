@@ -19,6 +19,7 @@ import TTImp.Elab
 import TTImp.TTImp
 import TTImp.Utils
 
+import Data.DPair
 import Data.List
 import Libraries.Data.NameMap
 
@@ -50,7 +51,7 @@ checkRetType env nf chk = chk nf
 checkIsType : {auto c : Ref Ctxt Defs} ->
               FC -> Name -> Env Term vars -> NF vars -> Core ()
 checkIsType loc n env nf
-    = checkRetType env nf
+    = checkRetType env nf $
          \case
            NType _ => pure ()
            _ => throw $ BadTypeConType loc n
@@ -58,7 +59,7 @@ checkIsType loc n env nf
 checkFamily : {auto c : Ref Ctxt Defs} ->
               FC -> Name -> Name -> Env Term vars -> NF vars -> Core ()
 checkFamily loc cn tn env nf
-    = checkRetType env nf
+    = checkRetType env nf $
          \case
            NType _ => throw $ BadDataConType loc cn tn
            NTCon _ n' _ _ _ =>
@@ -118,9 +119,6 @@ checkCon {vars} opts nest env vis tn_in tn (MkImpTy fc _ cn_in ty_raw)
                            addHashWithNames fullty
               _ => pure ()
          pure (MkCon fc cn !(getArity defs [] fullty) fullty)
-
-conName : Constructor -> Name
-conName (MkCon _ cn _ _) = cn
 
 -- Get the indices of the constructor type (with non-constructor parts erased)
 getIndexPats : {auto c : Ref Ctxt Defs} ->
@@ -205,12 +203,13 @@ getDetags fc tys
                 else pure rest
 
 -- If exactly one argument is unerased, return its position
-getRelevantArg : Defs -> Nat -> Maybe Nat -> Bool -> NF [] ->
+getRelevantArg : {auto c : Ref Ctxt Defs} ->
+                 Defs -> Nat -> Maybe Nat -> Bool -> NF [] ->
                  Core (Maybe (Bool, Nat))
 getRelevantArg defs i rel world (NBind fc _ (Pi _ rig _ val) sc)
     = branchZero (getRelevantArg defs (1 + i) rel world
                               !(sc defs (toClosure defaultOpts [] (Erased fc False))))
-                 (case val of
+                 (case !(evalClosure defs val) of
                        -- %World is never inspected, so might as well be deleted from data types,
                        -- although it needs care when compiling to ensure that the function that
                        -- returns the IO/%World type isn't erased
@@ -238,7 +237,7 @@ findNewtype [con]
     = do defs <- get Ctxt
          Just arg <- getRelevantArg defs 0 Nothing True !(nf defs [] (type con))
               | Nothing => pure ()
-         updateDef (name con)
+         updateDef (name con) $
                \case
                  DCon t a _ => Just $ DCon t a $ Just arg
                  _ => Nothing
@@ -255,6 +254,19 @@ hasArgs Z (Bind _ _ (Pi _ c _ _) sc)
          then hasArgs Z sc
          else False
 hasArgs Z _ = True
+
+-- get the first non-erased argument
+firstArg : Term vs -> Maybe (Exists Term)
+firstArg (Bind _ _ (Pi _ c _ val) sc)
+    = if isErased c
+         then firstArg sc
+         else Just $ Evidence _ val
+firstArg tm = Nothing
+
+typeCon : Term vs -> Maybe Name
+typeCon (Ref _ (TyCon _ _) n) = Just n
+typeCon (App _ fn _) = typeCon fn
+typeCon _ = Nothing
 
 shaped : {auto c : Ref Ctxt Defs} ->
          (forall vs . Term vs -> Bool) ->
@@ -324,10 +336,36 @@ calcRecord fc [c]
          pure True
 calcRecord _ _ = pure False
 
+-- has two constructors
+-- - ZERO: 0 args
+-- - SUCC: 1 arg, of same type
+calcNaty : {auto c : Ref Ctxt Defs} ->
+           FC -> Name -> List Constructor -> Core Bool
+calcNaty fc tyCon cs@[_, _]
+    = do Just zero <- shaped (hasArgs 0) cs
+              | Nothing => pure False
+         Just succ <- shaped (hasArgs 1) cs
+              | Nothing => pure False
+         let Just succCon = find (\con => name con == succ) cs
+              | Nothing => pure False
+         let Just (Evidence _ succArgTy) = firstArg (type succCon)
+              | Nothing => pure False
+         let Just succArgCon = typeCon succArgTy
+              | Nothing => pure False
+         if succArgCon == tyCon
+            then do setFlag fc zero (ConType ZERO)
+                    setFlag fc succ (ConType SUCC)
+                    pure True
+            else pure False
+calcNaty _ _ _ = pure False
+
+
 calcConInfo : {auto c : Ref Ctxt Defs} ->
-              FC -> List Constructor -> Core ()
-calcConInfo fc cons
-   = do False <- calcListy fc cons
+              FC -> Name -> List Constructor -> Core ()
+calcConInfo fc type cons
+   = do False <- calcNaty fc type cons
+           | True => pure ()
+        False <- calcListy fc cons
            | True => pure ()
         False <- calcMaybe fc cons
            | True => pure ()
@@ -457,10 +495,10 @@ processData {vars} eopts nest env fc vis (MkImpData dfc n_in ty_raw opts cons_ra
          addToSave n
          log "declare.data" 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
-         let connames = map conName cons
+         let connames = map name cons
          unless (NoHints `elem` opts) $
               traverse_ (\x => addHintFor fc (Resolved tidx) x True False) connames
 
          unless (NoEnum `elem` opts) $
-              calcConInfo fc cons
+              calcConInfo fc (Resolved tidx) cons
          traverse_ updateErasable (Resolved tidx :: connames)

@@ -175,7 +175,7 @@ public export
 data EditResult : Type where
   DisplayEdit : Doc IdrisAnn -> EditResult
   EditError : Doc IdrisAnn -> EditResult
-  MadeLemma : Maybe String -> Name -> PTerm -> String -> EditResult
+  MadeLemma : Maybe String -> Name -> IPTerm -> String -> EditResult
   MadeWith : Maybe String -> List String -> EditResult
   MadeCase : Maybe String -> List String -> EditResult
 
@@ -191,9 +191,9 @@ data REPLResult : Type where
   REPLError : Doc IdrisAnn -> REPLResult
   Executed : PTerm -> REPLResult
   RequestedHelp : REPLResult
-  Evaluated : PTerm -> (Maybe PTerm) -> REPLResult
+  Evaluated : IPTerm -> Maybe IPTerm -> REPLResult
   Printed : Doc IdrisAnn -> REPLResult
-  TermChecked : PTerm -> PTerm -> REPLResult
+  TermChecked : IPTerm -> IPTerm -> REPLResult
   FileLoaded : String -> REPLResult
   ModuleLoaded : String -> REPLResult
   ErrorLoadingModule : String -> Error -> REPLResult
@@ -204,7 +204,7 @@ data REPLResult : Type where
   CompilationFailed: REPLResult
   Compiled : String -> REPLResult
   CompiledLibrary : (String, List String) -> REPLResult
-  ProofFound : PTerm -> REPLResult
+  ProofFound : IPTerm -> REPLResult
   Missed : List MissedResult -> REPLResult
   CheckedTotal : List (Name, Totality) -> REPLResult
   FoundHoles : List HoleData -> REPLResult
@@ -227,10 +227,10 @@ docsOrSignature fc n
          defs <- get Ctxt
          all@(_ :: _) <- lookupCtxtName n (gamma defs)
              | _ => undefinedName fc n
-         let ns@(_ :: _) = concatMap (\n => lookupName n (docstrings syn))
+         let ns@(_ :: _) = concatMap (\n => lookupName n (defDocstrings syn))
                                      (map fst all)
              | [] => typeSummary defs
-         pure [!(render styleAnn !(getDocsForName fc n))]
+         pure [!(render styleAnn !(getDocsForName fc n MkConfig))]
   where
     typeSummary : Defs -> Core (List String)
     typeSummary defs = do Just def <- lookupCtxtExact n (gamma defs)
