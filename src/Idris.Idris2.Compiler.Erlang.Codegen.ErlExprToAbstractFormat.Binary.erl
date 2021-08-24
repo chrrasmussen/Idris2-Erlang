@@ -1,0 +1,12 @@
+-module('Idris.Idris2.Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Binary').
+-compile('no_auto_import').
+-compile('inline').
+-compile({'inline_size',24}).
+-export([
+  'un--zeroPadded'/2,
+  'un--empty'/1,
+  'un--concat'/3
+]).
+'un--zeroPadded'(V0, V1) -> begin (V2 = {'Idris.Compiler.Erlang.IR.AbstractFormat.AEBitstring', V0, [{'Idris.Compiler.Erlang.IR.AbstractFormat.MkBitSegment', V0, {'Idris.Compiler.Erlang.IR.AbstractFormat.AELiteral', {'Idris.Compiler.Erlang.IR.AbstractFormat.ALInteger', V0, 0}}, {'Idris.Compiler.Erlang.IR.AbstractFormat.ABSDefault'}, {'Idris.Compiler.Erlang.IR.AbstractFormat.MkTSL', {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Nothing'}}} | []]}), ('Idris.Idris2.Compiler.Erlang.Codegen.ErlExprToAbstractFormat.Internal':'un--genFunCall'(V0, <<"binary"/utf8>>, <<"copy"/utf8>>, [V2 | [V1 | []]])) end.
+'un--empty'(V0) -> {'Idris.Compiler.Erlang.IR.AbstractFormat.AEBitstring', V0, []}.
+'un--concat'(V0, V1, V2) -> begin (V3 = {'Idris.Compiler.Erlang.IR.AbstractFormat.AEBitstring', V0, [{'Idris.Compiler.Erlang.IR.AbstractFormat.MkBitSegment', V0, {'Idris.Compiler.Erlang.IR.AbstractFormat.AEVar', V0, <<"Bin1"/utf8>>}, {'Idris.Compiler.Erlang.IR.AbstractFormat.ABSDefault'}, {'Idris.Compiler.Erlang.IR.AbstractFormat.MkTSL', {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Just', 2}, {'Idris.Prelude.Types.Nothing'}}} | [{'Idris.Compiler.Erlang.IR.AbstractFormat.MkBitSegment', V0, {'Idris.Compiler.Erlang.IR.AbstractFormat.AEVar', V0, <<"Bin2"/utf8>>}, {'Idris.Compiler.Erlang.IR.AbstractFormat.ABSDefault'}, {'Idris.Compiler.Erlang.IR.AbstractFormat.MkTSL', {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Nothing'}, {'Idris.Prelude.Types.Just', 2}, {'Idris.Prelude.Types.Nothing'}}} | []]]}), begin (V4 = {'Idris.Compiler.Erlang.IR.AbstractFormat.AEFun', V0, (1 + (1 + 0)), {'Idris.Data.Vect.::', {'Idris.Compiler.Erlang.IR.AbstractFormat.MkFunClause', V0, {'Idris.Data.Vect.::', {'Idris.Compiler.Erlang.IR.AbstractFormat.APVar', V0, <<"Bin1"/utf8>>}, {'Idris.Data.Vect.::', {'Idris.Compiler.Erlang.IR.AbstractFormat.APVar', V0, <<"Bin2"/utf8>>}, {'Idris.Data.Vect.Nil'}}}, [], {'Idris.Data.Vect.::', V3, {'Idris.Data.Vect.Nil'}}}, {'Idris.Data.Vect.Nil'}}}), {'Idris.Compiler.Erlang.IR.AbstractFormat.AEFunCall', V0, V4, [V1 | [V2 | []]]} end end.

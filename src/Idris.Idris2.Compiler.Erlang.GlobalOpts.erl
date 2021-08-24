@@ -1,0 +1,22 @@
+-module('Idris.Idris2.Compiler.Erlang.GlobalOpts').
+-compile('no_auto_import').
+-compile('inline').
+-compile({'inline_size',24}).
+-export([
+  'nested--3140-2100--in--un--parseFlag'/2,
+  'nested--3100-2062--in--un--flagsToOpts\x{27}'/3,
+  'un--stringToFlags'/1,
+  'un--parseOutputFormat'/1,
+  'un--parseOpts'/1,
+  'un--flagsToOpts'/1,
+  'un--flagToOpts'/2,
+  'un--defaultGlobalOpts'/0
+]).
+'nested--3140-2100--in--un--parseFlag'(V0, V1) -> case V1 of [E0 | E1] -> (fun (V2, V3) -> case V2 of <<"format"/utf8>> -> case V3 of [E2 | E3] -> (fun (V4, V5) -> case V5 of [] -> ('Idris.Idris2.Prelude.Interfaces':'un--<$>'(fun (V6) -> fun (V7) -> fun (V8) -> fun (V9) -> ('Idris.Idris2.Prelude.Types':'dn--un--map_Functor_Maybe'(V8, V9)) end end end end, fun (V10) -> {'Idris.Compiler.Erlang.GlobalOpts.SetOutputFormat', V10} end, ('un--parseOutputFormat'(V4)))); _ -> {'Idris.Prelude.Types.Nothing'} end end(E2, E3)); _ -> {'Idris.Prelude.Types.Nothing'} end; <<"prefix"/utf8>> -> case V3 of [E4 | E5] -> (fun (V11, V12) -> case V12 of [] -> {'Idris.Prelude.Types.Just', {'Idris.Compiler.Erlang.GlobalOpts.SetPrefix', V11}}; _ -> {'Idris.Prelude.Types.Nothing'} end end(E4, E5)); _ -> {'Idris.Prelude.Types.Nothing'} end; <<"inline"/utf8>> -> case V3 of [E6 | E7] -> (fun (V13, V14) -> case V14 of [] -> {'Idris.Prelude.Types.Just', {'Idris.Compiler.Erlang.GlobalOpts.SetInlineSize', ('Idris.Idris2.Prelude.Types':'un--prim__integerToNat'(('Idris.Idris2.Prelude.Cast':'dn--un--cast_Cast_String_Integer'(V13))))}}; _ -> {'Idris.Prelude.Types.Nothing'} end end(E6, E7)); _ -> {'Idris.Prelude.Types.Nothing'} end; <<"mutablestorage"/utf8>> -> case V3 of [] -> {'Idris.Prelude.Types.Just', {'Idris.Compiler.Erlang.GlobalOpts.SetUseMutableStorage', 1}}; _ -> {'Idris.Prelude.Types.Nothing'} end; _ -> {'Idris.Prelude.Types.Nothing'} end end(E0, E1)); _ -> {'Idris.Prelude.Types.Nothing'} end.
+'nested--3100-2062--in--un--flagsToOpts\x{27}'(V0, V1, V2) -> case V1 of [] -> V2; [E0 | E1] -> (fun (V3, V4) -> ('nested--3100-2062--in--un--flagsToOpts\x{27}'(V0, V4, ('un--flagToOpts'(V3, V2)))) end(E0, E1)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end.
+'un--stringToFlags'(V0) -> ('Idris.Idris2.Data.List':'un--mapMaybe'(fun (V1) -> ('nested--3140-2100--in--un--parseFlag'(V0, V1)) end, ('Idris.Idris2.Prelude.Types':'dn--un--map_Functor_List'(fun (V2) -> ('Idris.Idris2.Data.String':'un--words'(V2)) end, V0)))).
+'un--parseOutputFormat'(V0) -> case V0 of <<"erl"/utf8>> -> {'Idris.Prelude.Types.Just', 0}; <<"erl-pretty"/utf8>> -> {'Idris.Prelude.Types.Just', 1}; <<"abstr"/utf8>> -> {'Idris.Prelude.Types.Just', 2}; <<"beam"/utf8>> -> {'Idris.Prelude.Types.Just', 3}; <<"beam-abstr"/utf8>> -> {'Idris.Prelude.Types.Just', 4}; _ -> {'Idris.Prelude.Types.Nothing'} end.
+'un--parseOpts'(V0) -> ('un--flagsToOpts'(('un--stringToFlags'(V0)))).
+'un--flagsToOpts'(V0) -> ('nested--3100-2062--in--un--flagsToOpts\x{27}'(V0, V0, ('un--defaultGlobalOpts'()))).
+'un--flagToOpts'(V0, V1) -> case V0 of {'Idris.Compiler.Erlang.GlobalOpts.SetOutputFormat', E0} -> (fun (V2) -> case V1 of {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', E1, E2, E3, E4} -> (fun (V3, V4, V5, V6) -> {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', V2, V4, V5, V6} end(E1, E2, E3, E4)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end end(E0)); {'Idris.Compiler.Erlang.GlobalOpts.SetPrefix', E5} -> (fun (V7) -> case V1 of {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', E6, E7, E8, E9} -> (fun (V8, V9, V10, V11) -> {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', V8, V7, V10, V11} end(E6, E7, E8, E9)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end end(E5)); {'Idris.Compiler.Erlang.GlobalOpts.SetInlineSize', E10} -> (fun (V12) -> case V1 of {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', E11, E12, E13, E14} -> (fun (V13, V14, V15, V16) -> {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', V13, V14, V12, V16} end(E11, E12, E13, E14)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end end(E10)); {'Idris.Compiler.Erlang.GlobalOpts.SetUseMutableStorage', E15} -> (fun (V17) -> case V1 of {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', E16, E17, E18, E19} -> (fun (V18, V19, V20, V21) -> {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', V18, V19, V20, V17} end(E16, E17, E18, E19)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end end(E15)); _ -> ('erlang':'throw'("Error: Unreachable branch")) end.
+'un--defaultGlobalOpts'() -> {'Idris.Compiler.Erlang.GlobalOpts.MkGlobalOpts', 3, <<"Idris"/utf8>>, 0, 0}.
