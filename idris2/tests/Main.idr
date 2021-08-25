@@ -346,7 +346,7 @@ main = runner $
   , !baseLibraryTests
   , !contribLibraryTests
   , testPaths "chez" chezTests
-  -- , !refcTests -- TODO: Disabled because of missing header file (runtime.h)
+  , !refcTests
   , testPaths "racket" racketTests
   , testPaths "node" nodeTests
   , !vmcodeInterpTests
