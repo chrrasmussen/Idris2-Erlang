@@ -99,8 +99,8 @@ namespace ProperList
   |||
   ||| | Idris                                  | Erlang              |
   ||| | -------------------------------------- | ------------------- |
-  ||| | `the (ErlCons Int Int) (3 :: 7)`       | `[3 | 7]`           |
-  ||| | `the (ErlCons Int ErlNil) (42 :: Nil)` | `[42 | []]`, `[42]` |
+  ||| | `the (ErlList [Int, Double]) [3, 7.5]` | `[3, 7.5]`          |
+  ||| | `the (ErlList [Int]) [42]`             | `[42]`              |
   public export
   data ErlList : List Type -> Type where
     Nil : ErlList []
