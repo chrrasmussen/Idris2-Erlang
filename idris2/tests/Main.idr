@@ -15,9 +15,9 @@ ttimpTests : TestPool
 ttimpTests = MkTestPool "TTImp" [] Nothing
      [ "basic001", "basic002", "basic003", "basic004", "basic005"
      , "basic006"
-     , "coverage001", "coverage002"
+     , "coverage002"
      , "dot001"
-     , "eta001", "eta002"
+     , "eta001"
      , "lazy001"
      , "nest001", "nest002"
      , "perf001", "perf002", "perf003"
@@ -41,6 +41,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
+       "basic061",
        "interpolation001", "interpolation002"]
 
 idrisTestsCoverage : TestPool
@@ -68,6 +69,7 @@ idrisTestsError = MkTestPool "Error messages" [] Nothing
        "error006", "error007", "error008", "error009", "error010",
        "error011", "error012", "error013", "error014", "error015",
        "error016", "error017", "error018", "error019", "error020",
+       "error021",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006", "perror007", "perror008", "perror009", "perror010",
@@ -129,7 +131,8 @@ idrisTestsRegression = MkTestPool "Various regressions" [] Nothing
        "reg022", "reg023", "reg024", "reg025", "reg026", "reg027", "reg028",
        "reg029", "reg030", "reg031", "reg032", "reg033", "reg034", "reg035",
        "reg036", "reg037", "reg038", "reg039", "reg040", "reg041", "reg042",
-       "reg043", "reg044", "reg045", "reg046", "reg047", "reg048", "reg049"]
+       "reg043", "reg044", "reg045", "reg046", "reg047", "reg048", "reg049",
+       "reg050"]
 
 idrisTestsData : TestPool
 idrisTestsData = MkTestPool "Data and record types" [] Nothing
@@ -173,7 +176,7 @@ idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
        -- Totality checking
        "total001", "total002", "total003", "total004", "total005",
        "total006", "total007", "total008", "total009", "total010",
-       "total011"
+       "total011", "total012"
       ]
 
 idrisTests : TestPool
@@ -201,7 +204,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "reflection005", "reflection006", "reflection007", "reflection008",
        "reflection009","reflection010",
        -- The 'with' rule
-       "with001", "with002", "with004", "with005",
+       "with001", "with002", "with004", "with005", "with006",
        -- with-disambiguation
        "with003",
        -- pretty printing
