@@ -347,7 +347,7 @@ main = runner $
   , !ideModeTests
   , !preludeTests
   , !baseLibraryTests
-  , !contribLibraryTests
+  --, !contribLibraryTests -- TODO: Disabled because of missing `Erlang.System.File.copyDir`
   , testPaths "chez" chezTests
   , !refcTests
   , testPaths "racket" racketTests
