@@ -38,3 +38,6 @@ jobs:
       - name: Run tests
         run: cd idris2 && IDRIS2_BOOT=idris2erl make test INTERACTIVE=''
         shell: bash
+      - name: Run samples
+        run: cd samples && ./runsamples.sh
+        shell: bash
