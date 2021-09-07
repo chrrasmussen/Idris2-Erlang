@@ -401,13 +401,17 @@ ioData =
         map believe_me (cons (assert_total listHead) ioData)
 
 ||| Decoder for an Erlang map entry.
+|||
+||| This function does not put any restrictions on the keys and values because
+||| getting them wrong just means you won't get the expected result. It will
+||| not result in any run-time errors.
 export
-mapEntry : IsErlType key => key -> ErlDecoder value -> ErlDecoder value
+mapEntry : key -> ErlDecoder value -> ErlDecoder value
 mapEntry key (MkDecoder valueDecoder) =
   MkDecoder (\term => do
     let Just m = prim__erlDecodeAnyMap term
       | Nothing => Left (Error "Expected a map")
-    let lookupResult = erlUnsafeCall ErlTerm "maps" "find" [key, m]
+    let lookupResult = erlUnsafeCall ErlTerm "maps" "find" [MkRaw key, m]
     let Just (MkTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
       | Nothing => Left (Error "Could not find key in map")
     valueDecoder value)
@@ -418,9 +422,9 @@ mapEntry key (MkDecoder valueDecoder) =
 ||| getting them wrong just means you won't get the expected result. It will
 ||| not result in any run-time errors.
 export
-mapSubset : ErlMapDecoders xs -> ErlDecoder (ErlMapSubset xs)
-mapSubset [] = believe_me anyMap
-mapSubset (MkDecoderMapEntry key valueDecoder :: xs) = believe_me (mapEntry (MkRaw key) valueDecoder *> mapSubset xs)
+mapEntries : ErlMapDecoders xs -> ErlDecoder (ErlList (map ErlMapEntryValueType xs))
+mapEntries [] = anyMap *> pure []
+mapEntries (MkDecoderMapEntry key valueDecoder :: xs) = [| mapEntry key valueDecoder :: mapEntries xs |]
 
 ||| Decoder that expects a function of arity 0.
 |||

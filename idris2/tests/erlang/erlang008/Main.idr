@@ -206,15 +206,15 @@ testMapEntry = do
   putStrLn (erlDecodeDef "not found" (map show (mapEntry "first" integer)) mapEx1) -- Wrong type
   putStrLn (erlDecodeDef "not found" (mapEntry "first" string) mapEx2)
 
-testMapSubset : IO ()
-testMapSubset = do
-  putStrLn "testMapSubset"
-  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapSubset [])) "not a map")
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" .= string])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m)) (mapSubset ["first" .= string])) mapEx2)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" .= string, "second" .= integer])) mapEx1)
-  putStrLn (erlDecodeDef "not found" (map (\m => show (get "first" m, get "second" m)) (mapSubset ["first" .= string, "second" .= integer])) mapEx2)
+testMapEntries : IO ()
+testMapEntries = do
+  putStrLn "testMapEntries"
+  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapEntries [])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (const "found map") (mapEntries [])) "not a map")
+  putStrLn (erlDecodeDef "not found" (map (\case [first] => show first) (mapEntries ["first" .= string])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\case [first] => show first) (mapEntries ["first" .= string])) mapEx2)
+  putStrLn (erlDecodeDef "not found" (map (\case [first, second] => show (first, second)) (mapEntries ["first" .= string, "second" .= integer])) mapEx1)
+  putStrLn (erlDecodeDef "not found" (map (\case [first, second] => show (first, second)) (mapEntries ["first" .= string, "second" .= integer])) mapEx2)
 
 testOptional : IO ()
 testOptional = do
@@ -286,6 +286,6 @@ main = do
   testHList
   testTuple
   testMapEntry
-  testMapSubset
+  testMapEntries
   testOptional
   testIO

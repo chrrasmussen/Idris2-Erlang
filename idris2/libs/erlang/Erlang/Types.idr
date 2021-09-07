@@ -117,6 +117,10 @@ public export
 data ErlMapEntry : Type where
   MkMapEntry : key -> (valueTy : Type) -> ErlMapEntry
 
+public export
+ErlMapEntryValueType : ErlMapEntry -> Type
+ErlMapEntryValueType (MkMapEntry key valueTy) = valueTy
+
 infix 0 .=
 
 ||| A convenience operator to describe an entry in an Erlang map.
