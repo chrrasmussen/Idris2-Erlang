@@ -2,13 +2,16 @@ module Main
 
 import Erlang
 
+%default total
+
+
 ||| Helper function used to simulate delay.
 sleep : Int -> IO ()
-sleep ms = do
-  erlCall "timer" "sleep" [ms]
-  pure ()
+sleep ms =
+  ignore $ erlCall "timer" "sleep" [ms]
 
 
+covering
 loop : IO ()
 loop = do
   Just (MkTuple2 from msg) <- erlReceive 5000 Nothing
@@ -21,6 +24,7 @@ loop = do
   erlSend from (MkTuple2 currentPid msg)
   loop
 
+covering
 main : IO ()
 main = do
   loopPid <- erlSpawnLink loop

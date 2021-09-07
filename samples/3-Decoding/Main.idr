@@ -2,6 +2,8 @@ module Main
 
 import Erlang
 
+%default total
+
 
 readFile : String -> IO (Maybe String)
 readFile filename = do
@@ -26,7 +28,7 @@ main = do
 
 
 examplePerson : ErlAnyMap
-examplePerson = insert "loves_idris" (MkAtom "true") $ insert "age" 33 $ insert "name" "Christian" empty
+examplePerson = insert "loves_idris" (MkAtom "true") $ insert "age" 34 $ insert "name" "Christian" empty
 
 record Person where
   constructor MkPerson
@@ -35,19 +37,16 @@ record Person where
   lovesIdris : Bool
 
 Show Person where
-  show (MkPerson name age lovesIdris) = "(MkPerson " ++ show name ++ " " ++ show age ++ " " ++ show lovesIdris ++ ")"
+  show (MkPerson name age lovesIdris) = "MkPerson \{show name} \{show age} \{show lovesIdris}"
 
 main2 : IO ()
 main2 = do
-  let Just result = erlDecodeMay
-        (mapSubset
-          [ "name" := string
-          , "age" := integer
-          , "loves_idris" := bool
+  let Just [name, age, lovesIdris] = erlDecodeMay
+        (mapEntries
+          [ "name" .= string
+          , "age" .= integer
+          , "loves_idris" .= bool
           ])
         examplePerson
     | Nothing => putStrLn "Unable to decode person"
-  let name = get "name" result
-  let age = get "age" result
-  let lovesIdris = get "loves_idris" result
   printLn (MkPerson name age lovesIdris)

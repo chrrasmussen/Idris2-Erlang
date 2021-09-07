@@ -1,5 +1,7 @@
 module Main
 
+%default total
+
 
 ||| Hello world program.
 main : IO ()

@@ -2,6 +2,7 @@ module Main
 
 import Erlang
 
+%default total
 %cg erlang export exports
 
 

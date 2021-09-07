@@ -5,4 +5,4 @@
 
 ## Running the examples
 
-`idris2erl --exec main Main.idr`
+- `idris2erl --exec main Main.idr`
