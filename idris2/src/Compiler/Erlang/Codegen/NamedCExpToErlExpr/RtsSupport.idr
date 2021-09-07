@@ -4,7 +4,7 @@ import Data.List
 import Libraries.Data.NameMap
 import Data.Stream
 import Data.Vect
-import Core.Core
+import Core.Context
 import Core.TT
 import Compiler.Erlang.Name
 import Compiler.Erlang.IR.ErlExpr
@@ -248,7 +248,7 @@ genBoolToInt l expr =
 -- ARITHMETIC
 
 integerPower : Integer -> Nat -> Integer
-integerPower base exp = product (take exp (repeat base))
+integerPower base exp = product (Prelude.take exp (repeat base))
 
 genIntOp : (op : String) -> Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
 genIntOp op l bits x y = EOp l "rem" (EOp l op x y) (EInteger l (integerPower 2 bits))

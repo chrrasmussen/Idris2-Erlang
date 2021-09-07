@@ -415,17 +415,17 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   -- unknown due to cyclic modules (i.e. declared in one, defined in
   -- another)
   rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
+  cseDefs <- mapMaybe id <$> traverse (cseDef empty) rcns
   logTime "Merge lambda" $ traverse_ mergeLamDef rcns
   logTime "Fix arity" $ traverse_ fixArityDef rcns
-  logTime "Forget names" $ traverse_ mkForgetDef rcns
 
   compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
   let mainname = MN "__mainExpression" 0
   (liftedtm, ldefs) <- liftBody {doLazyAnnots} mainname compiledtm
 
-  namedefs <- traverse getNamedDef rcns
+  namedefs <- traverse getNamedDef cseDefs
   lifted_in <- if phase >= Lifted
-                  then logTime "Lambda lift" $ traverse (lambdaLift doLazyAnnots) rcns
+                  then logTime "Lambda lift" $ traverse (lambdaLift doLazyAnnots) cseDefs
                   else pure []
 
   let lifted = (mainname, MkLFun [] [] liftedtm) ::
@@ -440,7 +440,7 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
 
   -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
   pure (MkCompileData compiledtm
-                      (mapMaybe id namedefs)
+                      namedefs
                       lifted anf vmcode)
 
 export

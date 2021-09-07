@@ -60,7 +60,7 @@ getCompileExpr name = do
   defs <- get Ctxt
   Just globalDef <- lookupCtxtExact name (gamma defs)
     | Nothing => throw (InternalError ("Compiling undefined name " ++ show name))
-  let Just expr = namedcompexpr globalDef
+  let Just expr = forgetDef <$> compexpr globalDef
     | Nothing => throw (InternalError ("No compiled definition for " ++ show name))
   pure expr
 
