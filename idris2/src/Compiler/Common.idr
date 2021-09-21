@@ -412,6 +412,12 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   cns <- traverse toFullNames allNs
   rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
 
+  -- Do a round of merging/arity fixing for any names which were
+  -- unknown due to cyclic modules (i.e. declared in one, defined in
+  -- another)
+  logTime "++ Merge lambda" $ traverse_ mergeLamDef rcns
+  logTime "++ Fix arity" $ traverse_ fixArityDef rcns
+
   cseDefs <- mapMaybe id <$> traverse (cseDef empty) rcns
 
   namedDefs <- traverse getNamedDef cseDefs
