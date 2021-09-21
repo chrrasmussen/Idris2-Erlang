@@ -405,43 +405,29 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   let visibleCns = mapMaybe exportedName cnsWithGlobalDef
 
   resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
-  logTime "Get names" $ getAllDesc resolvedNames arr defs
+  logTime "++ Get names" $ getAllDesc resolvedNames arr defs
 
   let entries = mapMaybe id !(coreLift (toList arr))
   let allNs = map (Resolved . fst) entries
   cns <- traverse toFullNames allNs
-
-  -- Do a round of merging/arity fixing for any names which were
-  -- unknown due to cyclic modules (i.e. declared in one, defined in
-  -- another)
   rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
+
   cseDefs <- mapMaybe id <$> traverse (cseDef empty) rcns
-  logTime "Merge lambda" $ traverse_ mergeLamDef rcns
-  logTime "Fix arity" $ traverse_ fixArityDef rcns
 
-  compiledtm <- fixArityExp (the (CExp []) (CErased EmptyFC))
-  let mainname = MN "__mainExpression" 0
-  (liftedtm, ldefs) <- liftBody {doLazyAnnots} mainname compiledtm
+  namedDefs <- traverse getNamedDef cseDefs
 
-  namedefs <- traverse getNamedDef cseDefs
   lifted_in <- if phase >= Lifted
-                  then logTime "Lambda lift" $ traverse (lambdaLift doLazyAnnots) cseDefs
+                  then logTime "++ Lambda lift" $
+                      traverse (lambdaLift doLazyAnnots) cseDefs
                   else pure []
-
-  let lifted = (mainname, MkLFun [] [] liftedtm) ::
-              ldefs ++ concat lifted_in
-
+  let lifted = concat lifted_in
   anf <- if phase >= ANF
-            then logTime "Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+            then logTime "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
             else pure []
   vmcode <- if phase >= VMCode
-              then logTime "Get VM Code" $ pure (allDefs anf)
+              then logTime "++ Get VM Code" $ pure (allDefs anf)
               else pure []
-
-  -- TODO: Removed `dumpCases`, `dumpLifted`, `dumpANF`, `dumpVMCode`, `replaceEntry`
-  pure (MkCompileData compiledtm
-                      namedefs
-                      lifted anf vmcode)
+  pure (MkCompileData (CErased emptyFC) namedDefs lifted anf vmcode)
 
 export
 compileTerm : {auto c : Ref Ctxt Defs} ->
