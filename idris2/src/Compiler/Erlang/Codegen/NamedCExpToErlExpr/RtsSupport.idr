@@ -62,34 +62,34 @@ genFC EmptyFC = 1 -- TODO: What value should I put here?
 export
 genMkUnit : Line -> ErlExpr
 genMkUnit l =
-  ECon l (constructorName (NS builtinNS (UN "MkUnit"))) []
+  ECon l (constructorName (NS builtinNS (UN (Basic "MkUnit")))) []
 
 export
 genJust : Line -> ErlExpr -> ErlExpr
 genJust l expr =
-  ECon l (constructorName (NS typesNS (UN "Just"))) [expr]
+  ECon l (constructorName (NS typesNS (UN (Basic "Just")))) [expr]
 
 export
 genNothing : Line -> ErlExpr
 genNothing l =
-  ECon l (constructorName (NS typesNS (UN "Nothing"))) []
+  ECon l (constructorName (NS typesNS (UN (Basic "Nothing")))) []
 
 export
 genRight : Line -> ErlExpr -> ErlExpr
 genRight l expr =
-  ECon l (constructorName (NS typesNS (UN "Right"))) [expr]
+  ECon l (constructorName (NS typesNS (UN (Basic "Right")))) [expr]
 
 export
 genLeft : Line -> ErlExpr -> ErlExpr
 genLeft l expr =
-  ECon l (constructorName (NS typesNS (UN "Left"))) [expr]
+  ECon l (constructorName (NS typesNS (UN (Basic "Left")))) [expr]
 
 -- PrimIO.MkIORes : {0 a : Type} -> (result : a) -> (1 x : %World) -> IORes a
 export
 genMkIORes : Line -> ErlExpr -> ErlExpr
 genMkIORes l expr =
   -- Newtype optimization removes the data constructor:
-  -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIORes"))) [expr, EIdrisConstant l IWorldVal]
+  -- ECon l (constructorName (NS ["PrimIO"] (UN (Basic "MkIORes")))) [expr, EIdrisConstant l IWorldVal]
   expr
 
 -- PrimIO.MkIO : {0 a : Type} -> (1 fn : (1 x : %World) -> IORes a) -> IO a
@@ -98,7 +98,7 @@ genMkIO : Line -> (worldVar : LocalVar) -> ErlExpr -> ErlExpr
 genMkIO l worldVar expr =
   let fn = ELam l [worldVar] (genMkIORes l expr)
   in -- Newtype optimization removes the data constructor (See commit: 8fccd5f)
-     -- ECon l (constructorName (NS ["PrimIO"] (UN "MkIO"))) [fn]
+     -- ECon l (constructorName (NS ["PrimIO"] (UN (Basic "MkIO")))) [fn]
      fn
 
 
@@ -116,7 +116,7 @@ export
 genUnsafePerformIO : NamespaceInfo -> Line -> ErlExpr -> ErlExpr
 genUnsafePerformIO namespaceInfo l action =
   -- Erased arguments are now removed (See commit: 73d374e)
-  EApp l (genRef namespaceInfo l (NS primIONS (UN "unsafePerformIO"))) [action]
+  EApp l (genRef namespaceInfo l (NS primIONS (UN (Basic "unsafePerformIO")))) [action]
 
 export
 genFunCall : Line -> String -> String -> List ErlExpr -> ErlExpr

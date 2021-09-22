@@ -203,9 +203,9 @@ genOp l Crash [_, msg] = do
 
 genCon : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
 genCon namespaceInfo l name args = do
-  let (NS ns (UN un)) = name
+  let (NS ns (UN (Basic n))) = name
     | _ => pure $ ECon l (constructorName name) args
-  case (unsafeUnfoldNamespace ns, un, args) of
+  case (unsafeUnfoldNamespace ns, n, args) of
     -- List
     (["Basics", "Prelude"], "Nil", []) =>
       pure $ ENil l
@@ -276,9 +276,9 @@ readConAltFun l arity funVar body transform = do
 
 readConAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> (args : List LocalVar) -> ErlExpr -> Core ErlMatcher
 readConAlt namespaceInfo l name args body = do
-  let NS ns (UN un) = name
+  let NS ns (UN (Basic n)) = name
     | _ => pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
-  case (unsafeUnfoldNamespace ns, un, args) of
+  case (unsafeUnfoldNamespace ns, n, args) of
     -- List
     (["Basics", "Prelude"], "Nil", []) =>
       pure $ MConst MNil body
@@ -393,148 +393,148 @@ genDecodeTuple l term arity = do
   genDecode l term $ MTuple (argsToErlMatchers args) (ETuple l (map (ELocal l) args))
 
 genExtPrim : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
-genExtPrim namespaceInfo l (NS _ (UN "void")) [_, _] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "void"))) [_, _] =
   pure $ genThrow l "Error: Executed 'void'"
-genExtPrim namespaceInfo l (NS _ (UN "prim__os")) [] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__os"))) [] =
   genOsType l
-genExtPrim namespaceInfo l (NS _ (UN "prim__codegen")) [] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__codegen"))) [] =
   pure $ EBinary l "erlang"
-genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__newIORef")) [_, val, world] = do
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN (Basic "prim__newIORef"))) [_, val, world] = do
   expr <- if cgOpts.useMutableStorage
     then pure $ genFunCall l "mutable_storage" "term_new" [val]
     else do
       refVar <- newLocalVar
       pure $ genMkIORes l $ genProcessDictNewIORef l refVar val
   pure $ genMkIORes l expr
-genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__readIORef")) [_, mutableRef, world] = do
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN (Basic "prim__readIORef"))) [_, mutableRef, world] = do
   let expr = if cgOpts.useMutableStorage
         then genFunCall l "mutable_storage" "term_get" [mutableRef]
         else genProcessDictReadIORef l mutableRef
   pure $ genMkIORes l expr
-genExtPrim {cgOpts} namespaceInfo l (NS _ (UN "prim__writeIORef")) [_, mutableRef, newVal, world] = do
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN (Basic "prim__writeIORef"))) [_, mutableRef, newVal, world] = do
   let expr = if cgOpts.useMutableStorage
         then genFunCall l "mutable_storage" "term_set" [mutableRef, newVal]
         else genProcessDictWriteIORef l mutableRef newVal
   pure $ genMkIORes l expr
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlUnsafeCall")) [_, ret, modName, fnName, args] = do
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlUnsafeCall"))) [_, ret, modName, fnName, args] = do
   pure $ genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlTryCatch")) [_, action, world] = do
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlTryCatch"))) [_, action, world] = do
   okVar <- newLocalVar
   errorVar <- newLocalVar
   let actionExpr = genUnsafePerformIO namespaceInfo l action
   let body = ETryCatch l actionExpr okVar (genRight l (ELocal l okVar)) errorVar (genLeft l (ELocal l errorVar))
   pure $ genMkIORes l body
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlReceive")) [timeout, world] = do
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlReceive"))) [timeout, world] = do
   tempVar <- newLocalVar
   let receive = EReceive l [MTransform MAny tempVar (genJust l (ELocal l tempVar))] timeout (genNothing l)
   pure $ genMkIORes l receive
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlModule")) [] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlModule"))) [] =
   pure $ EAtom l (currentModuleName namespaceInfo)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlMatchExact")) [x, y] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlMatchExact"))) [x, y] =
   pure $ genBoolToInt l (EOp l "=:=" x y)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeCodepoint")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeCodepoint"))) [term] =
   genDecode l term MCodepoint
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeInteger")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeInteger"))) [term] =
    genDecode l term MInteger
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeDouble")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeDouble"))) [term] =
   genDecode l term MFloat
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeAtom")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeAtom"))) [term] =
   genDecode l term MAtom
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeBinary")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeBinary"))) [term] =
   genDecode l term MBinary
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodePid")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodePid"))) [term] =
   genDecode l term MPid
-genExtPrim namespaceInfo l (NS _ (UN "prim__erldecodeReference")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erldecodeReference"))) [term] =
   genDecode l term MRef
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodePort")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodePort"))) [term] =
   genDecode l term MPort
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeAnyMap")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeAnyMap"))) [term] =
   genDecode l term MMap
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeAnyList")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeAnyList"))) [term] =
   genDecode l term MAnyList
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeNil")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeNil"))) [term] =
   genDecode l term MNil
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeCons")) [term] = do
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeCons"))) [term] = do
   hdVar <- newLocalVar
   tlVar <- newLocalVar
   genDecode l term $ MCons MAny MAny hdVar tlVar (ECons l (ELocal l hdVar) (ELocal l tlVar))
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple0")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple0"))) [term] =
   genDecodeTuple l term 0
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple1")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple1"))) [term] =
   genDecodeTuple l term 1
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple2")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple2"))) [term] =
   genDecodeTuple l term 2
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple3")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple3"))) [term] =
   genDecodeTuple l term 3
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple4")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple4"))) [term] =
   genDecodeTuple l term 4
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple5")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple5"))) [term] =
   genDecodeTuple l term 5
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple6")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple6"))) [term] =
   genDecodeTuple l term 6
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple7")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple7"))) [term] =
   genDecodeTuple l term 7
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeTuple8")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeTuple8"))) [term] =
   genDecodeTuple l term 8
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun0")) [term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun0"))) [term] =
   genDecode l term (MFun 0)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun1")) [_, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun1"))) [_, term] =
   genDecode l term (MFun 1)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun2")) [_, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun2"))) [_, _, term] =
   genDecode l term (MFun 2)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun3")) [_, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun3"))) [_, _, _, term] =
   genDecode l term (MFun 3)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun4")) [_, _, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun4"))) [_, _, _, _, term] =
   genDecode l term (MFun 4)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun5")) [_, _, _, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun5"))) [_, _, _, _, _, term] =
   genDecode l term (MFun 5)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun6")) [_, _, _, _, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun6"))) [_, _, _, _, _, _, term] =
   genDecode l term (MFun 6)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun7")) [_, _, _, _, _, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun7"))) [_, _, _, _, _, _, _, term] =
   genDecode l term (MFun 7)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlDecodeFun8")) [_, _, _, _, _, _, _, _, term] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlDecodeFun8"))) [_, _, _, _, _, _, _, _, term] =
   genDecode l term (MFun 8)
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferNew")) [size] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferNew"))) [size] =
   pure $ EBufferNew l size
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferResize")) [bin, newSize] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferResize"))) [bin, newSize] =
   pure $ EBufferResize l bin newSize
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferFlatten")) [bin, maxbytes] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferFlatten"))) [bin, maxbytes] =
   pure $ EBufferFlatten l bin maxbytes
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetByte")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetByte"))) [bin, loc, value] =
   pure $ EBufferSetBits8 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetByte")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetByte"))) [bin, loc] =
   pure $ EBufferGetBits8 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits8")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetBits8"))) [bin, loc, value] =
   pure $ EBufferSetBits8 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits8")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetBits8"))) [bin, loc] =
   pure $ EBufferGetBits8 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits16")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetBits16"))) [bin, loc, value] =
   pure $ EBufferSetBits16 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits16")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetBits16"))) [bin, loc] =
   pure $ EBufferGetBits16 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits32")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetBits32"))) [bin, loc, value] =
   pure $ EBufferSetBits32 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits32")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetBits32"))) [bin, loc] =
   pure $ EBufferGetBits32 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetBits64")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetBits64"))) [bin, loc, value] =
   pure $ EBufferSetBits64 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetBits64")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetBits64"))) [bin, loc] =
   pure $ EBufferGetBits64 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetInt32")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetInt32"))) [bin, loc, value] =
   pure $ EBufferSetInt32 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetInt32")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetInt32"))) [bin, loc] =
   pure $ EBufferGetInt32 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetInt64")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetInt64"))) [bin, loc, value] =
   pure $ EBufferSetInt64 l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetInt64")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetInt64"))) [bin, loc] =
   pure $ EBufferGetInt64 l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetDouble")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetDouble"))) [bin, loc, value] =
   pure $ EBufferSetDouble l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetDouble")) [bin, loc] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetDouble"))) [bin, loc] =
   pure $ EBufferGetDouble l bin loc
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferSetString")) [bin, loc, value] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferSetString"))) [bin, loc, value] =
   pure $ EBufferSetString l bin loc value
-genExtPrim namespaceInfo l (NS _ (UN "prim__erlBufferGetString")) [bin, loc, len] =
+genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetString"))) [bin, loc, len] =
   pure $ EBufferGetString l bin loc len
 -- genExtPrim namespaceInfo l name args =
 --   throw (InternalError ("Badly formed external primitive " ++ show name))
@@ -545,18 +545,18 @@ genExtPrim namespaceInfo l name args =
 -- %FOREIGN PRIMITIVES
 
 genForeign : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
-genForeign namespaceInfo l (NS _ (UN "prim__putStr")) [arg, world] = do
+genForeign namespaceInfo l (NS _ (UN (Basic "prim__putStr"))) [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
   let retVal = genMkIORes l (genMkUnit l)
   pure $ ESequence l [putStrCall, retVal]
-genForeign namespaceInfo l (NS _ (UN "prim__getStr")) [world] = do
+genForeign namespaceInfo l (NS _ (UN (Basic "prim__getStr"))) [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
   pure $ genMkIORes l getStrCall
-genForeign namespaceInfo l (NS _ (UN "fastPack")) [xs] = do
+genForeign namespaceInfo l (NS _ (UN (Basic "fastPack"))) [xs] = do
   pure $ genFunCall l "unicode" "characters_to_binary" [xs]
-genForeign namespaceInfo l (NS _ (UN "fastUnpack")) [str] = do
+genForeign namespaceInfo l (NS _ (UN (Basic "fastUnpack"))) [str] = do
   pure $ genFunCall l "string" "to_graphemes" [str]
-genForeign namespaceInfo l (NS _ (UN "fastConcat")) [xs] = do
+genForeign namespaceInfo l (NS _ (UN (Basic "fastConcat"))) [xs] = do
   pure $ genFunCall l "unicode" "characters_to_binary" [xs] -- TODO: Can this be improved?
 -- genForeign namespaceInfo l name args =
 --   throw (InternalError ("Unsupported %foreign primitive " ++ show name))
@@ -680,9 +680,9 @@ genDef namespaceInfo l name (MkNmError body) = do
 data InternalArity = Value | Arity Nat
 
 internalArity : NamedCExp -> InternalArity
-internalArity (NmCon fc (NS ns (UN un)) _ _ _) =
+internalArity (NmCon fc (NS ns (UN (Basic n))) _ _ _) =
   if ns == erlangTypesNS
-    then case un of
+    then case n of
       "ETFun" => Arity 1
       "ETErlFun0" => Arity 0
       "ETErlFun1" => Arity 1
@@ -715,7 +715,7 @@ export
 readExports : NamespaceInfo -> Line -> NamedCExp -> Core (List ErlFunDecl)
 readExports namespaceInfo l tm = do
   case tm of
-    NmCon fc (NS ns (UN "Fun")) ci tag [exprTy, NmPrimVal _ (Str fnName), expr] => do
+    NmCon fc (NS ns (UN (Basic "Fun"))) ci tag [exprTy, NmPrimVal _ (Str fnName), expr] => do
       let True = ns == erlangIONS
         | False => throw (InternalError ("Invalid export: " ++ show tm))
       lv <- newRef LV (initLocalVars "V")
@@ -729,7 +729,7 @@ readExports namespaceInfo l tm = do
             Arity arity => EApp l body (genArgsToLocals l vars)
       let funDecl = MkFunDecl l Public fnName vars invokedBody
       pure $ [funDecl]
-    NmCon fc (NS ns (UN "Combine")) ci tag [exports1, exports2] => do
+    NmCon fc (NS ns (UN (Basic "Combine"))) ci tag [exports1, exports2] => do
       let True = ns == erlangIONS
         | False => throw (InternalError ("Invalid export: " ++ show tm))
       pure $ !(readExports namespaceInfo l exports1) ++ !(readExports namespaceInfo l exports2)

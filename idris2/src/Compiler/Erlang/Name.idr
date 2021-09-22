@@ -51,11 +51,10 @@ getNamespace n = emptyNS -- TODO: Fix emptyNS
 
 genName : Name -> String
 genName (NS ns n) = "ns--" ++ show ns ++ "--" ++ genName n
-genName (UN n) = "un--" ++ n
-genName (MN n i) = n ++ "_" ++ show i
+genName (UN n) = "un--" ++ show n
+genName (MN n i) = "mn--" ++ n ++ "-" ++ show i
 genName (PV n d) = "pat--" ++ genName n
 genName (DN _ n) = "dn--" ++ genName n
-genName (RF n) = "rf--" ++ n
 genName (Nested (i, x) n) = "nested--" ++ show i ++ "-" ++ show x ++ "--in--" ++ genName n
 genName (CaseBlock x y) = "case--" ++ x ++ "-" ++ show y
 genName (WithBlock x y) = "with--" ++ x ++ "-" ++ show y
@@ -96,7 +95,7 @@ constructorName : Name -> String
 constructorName name =
   let ns = mkNamespace "Idris" <.> getNamespace name
       ctorName = case dropNS name of
-        (UN dataCtor) => dataCtor
+        (UN (Basic dataCtor)) => dataCtor
         n => genName n
   in show ns ++ "." ++ ctorName
 
