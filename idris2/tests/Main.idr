@@ -51,7 +51,7 @@ idrisTestsCoverage = MkTestPool "Coverage checking" [] Nothing
        "coverage005", "coverage006", "coverage007", "coverage008",
        "coverage009", "coverage010", "coverage011", "coverage012",
        "coverage013", "coverage014", "coverage015", "coverage016",
-       "coverage017"]
+       "coverage017", "coverage018", "coverage019"]
 
 idrisTestsCasetree : TestPool
 idrisTestsCasetree = MkTestPool "Case tree building" [] Nothing
@@ -227,6 +227,7 @@ chezTests = MkTestPool "Chez backend" [] (Just Chez)
     , "futures001"
     , "bitops"
     , "casts"
+    , "memo"
     , "newints"
     , "integers"
     , "semaphores001"
@@ -262,8 +263,10 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     , "args"
     , "bitops"
     , "casts"
+    , "memo"
     , "newints"
     , "reg001"
+    , "stringcast"
     , "syntax001"
     , "tailrec001"
     , "idiom001"
