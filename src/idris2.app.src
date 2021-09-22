@@ -1,6 +1,6 @@
 {application, idris2,
  [{description, "Erlang code generator for Idris 2"},
-  {vsn, "0.4.0-alpha.1"},
+  {vsn, "0.5.1-alpha.1"},
   {registered, []},
   {applications,
    [kernel,
