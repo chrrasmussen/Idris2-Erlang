@@ -1,6 +1,6 @@
 # Data types
 
-[The data types in Erlang](http://erlang.org/doc/reference_manual/data_types.html) are mapped to the following types in Idris. The types that are prefixed with `Erl` are available in the [`Erlang.Types`](../idris2/libs/erlang/Erlang/Types.idr) module in the [`erlang`](../idris2/libs/erlang) package. The `/N` postfix means there are multiple variants available, e.g. `ErlTuple0`, `ErlTuple1`. [1]
+[The data types in Erlang](http://erlang.org/doc/reference_manual/data_types.html) are mapped to the following types in Idris. The types that are prefixed with `Erl` are available in the [`Erlang`](../idris2/libs/erlang/Erlang/Types.idr) module in the [`erlang`](../idris2/libs/erlang) package. The `/N` postfix means there are multiple variants available, e.g. `ErlTuple0`, `ErlTuple1`. [1]
 
 | Erlang    | Idris                                  | Comment     |
 | --------- | -------------------------------------- | ----------- |

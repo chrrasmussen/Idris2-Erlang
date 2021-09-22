@@ -37,7 +37,7 @@ erlUnsafeCall : (ret : Type) -> (modName : String) -> (funName : String) -> (arg
 
 Example usage:
 ```idris
-erlUnsafeCall String "string" "length" ["Hello"] -- Returns: 5
+erlUnsafeCall Integer "string" "length" ["Hello"] -- Returns: 5
 ```
 
 The reasons that `erlUnsafeCall` is considered unsafe:
@@ -99,5 +99,5 @@ References:
 
 ## Running the examples
 
-To run the Idris 2 programs in `Main.idr`, you can use the command
-`idris2erl --exec <name> Main.idr`. For example: `idris2erl --exec main Main.idr`
+To run the Idris 2 programs in `Main.idr`, you can use the command `idris2erl --exec <entrypoint> Main.idr`. For example:
+- `idris2erl --exec main Main.idr`

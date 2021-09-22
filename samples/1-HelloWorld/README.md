@@ -10,9 +10,14 @@ To execute an Idris 2 program, one can write `idris2erl --exec <name> <file>`. F
 ### Generating the Erlang source code
 
 To generate the Erlang source code from an Idris 2 program, run the following command:
-1. `idris2erl -o main --output-dir . Main.idr`
+- `idris2erl -o main --directive "format erl" --output-dir . Main.idr`
 
-This will create `main.erl` in the current directory. `--output-dir` is necessary because the default output directory is `build/exec`.
+This will create the file `main.erl` in the current directory.
+
+Explanation of the parameters:
+- `-o main` — Generate the output to `main.<extension>`
+- `--directive "format erl"` — Set the output format to Erlang source (Default is `beam`)
+- `--output-dir .` — Set the output directory to the current folder (Default is `build/exec`)
 
 
 ### Using the REPL
