@@ -17,7 +17,7 @@ This will create the file `main.erl` in the current directory.
 Explanation of the parameters:
 - `-o main` — Generate the output to `main.<extension>`
 - `--directive "format erl"` — Set the output format to Erlang source (Default is `beam`)
-- `--output-dir .` — Set the output directory to the current folder (Default is `build/exec`)
+- `--output-dir .` — Set the output directory to the current directory (Default is `build/exec`)
 
 
 ### Using the REPL
