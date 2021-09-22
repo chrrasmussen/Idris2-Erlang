@@ -35,7 +35,7 @@ Idris 2 is a purely functional programming language with first class types. The 
 - Compile Idris 2 programs to Erlang source code or compile to BEAM (via `erlc`)
   - Basic support for separate compilation. Use together with [`mix_idris2`](https://github.com/chrrasmussen/mix_idris2) to automatically recompile changed modules.
 - Erlang interop
-  - Almost all of Erlang's data types have a [corresponding type in Idris](idris2/libs/erlang/Erlang/Types.idr). [1]
+  - Almost all of Erlang's data types have a [corresponding type in Idris](docs/datatypes.md).
   - Call almost any Erlang function from Idris.
   - Export Idris functions to be called from Erlang code.
   - Includes [decoding functions](idris2/libs/erlang/Erlang/Decode.idr) to safely convert untyped Erlang values to typed Idris values.
@@ -162,9 +162,3 @@ The [Idris website](https://www.idris-lang.org) contains links to locations wher
 The Idris 2 compiler is released under the [3-clause BSD license](idris2/LICENSE).
 
 The Erlang code generator is derived from the Idris 2 compiler and is released under the [3-clause BSD license](LICENSE).
-
----
-
-**Footnotes:**
-
-[1] `bitstring` is not supported as a separate data type. Some data types, such as tuples and functions, include a size/arity in their names: These data types are currently limited to a maximum size/arity of `8`.
