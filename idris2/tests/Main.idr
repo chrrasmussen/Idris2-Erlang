@@ -21,7 +21,7 @@ ttimpTests = MkTestPool "TTImp" [] Nothing
      , "lazy001"
      , "nest001", "nest002"
      , "perf001", "perf002", "perf003"
-     , "record001", "record002", "record003"
+     , "record001", "record002", "record003", "record004"
      , "qtt001", "qtt003"
      , "total001", "total002", "total003"
      ]
@@ -41,7 +41,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
-       "basic061",
+       "basic061", "basic062",
        "interpolation001", "interpolation002"]
 
 idrisTestsCoverage : TestPool
@@ -56,7 +56,7 @@ idrisTestsCoverage = MkTestPool "Coverage checking" [] Nothing
 idrisTestsCasetree : TestPool
 idrisTestsCasetree = MkTestPool "Case tree building" [] Nothing
        -- Case tree building
-      ["casetree001"]
+      ["casetree001", "casetree002"]
 
 idrisTestsWarning : TestPool
 idrisTestsWarning = MkTestPool "Warnings" [] Nothing
@@ -179,6 +179,13 @@ idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
        "total006", "total007", "total008", "total009", "total010",
        "total011", "total012"
       ]
+
+-- This will only work with an Idris compiled via Chez or Racket, but at
+-- least for the moment we're not officially supporting self hosting any
+-- other way. If we do, we'll need to have a way to disable these.
+idrisTestsSchemeEval : TestPool
+idrisTestsSchemeEval = MkTestPool "Scheme Evaluator" [] Nothing
+     ["schemeeval001", "schemeeval002", "schemeeval003", "schemeeval004"]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -351,6 +358,7 @@ main = runner $
   , testPaths "idris2" idrisTestsBuiltin
   , testPaths "idris2" idrisTestsEvaluator
   , testPaths "idris2" idrisTestsTotality
+  , testPaths "idris2" idrisTestsSchemeEval
   , testPaths "idris2" idrisTests
   , !typeddTests
   , !ideModeTests

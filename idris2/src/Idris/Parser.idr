@@ -58,6 +58,12 @@ decoratedKeyword fname kwd = decorate fname Keyword (keyword kwd)
 decoratedSymbol : OriginDesc -> String -> Rule ()
 decoratedSymbol fname smb = decorate fname Keyword (symbol smb)
 
+parens : {b : _} -> OriginDesc -> BRule b a -> Rule a
+parens fname p
+  = pure id <* decoratedSymbol fname "("
+            <*> p
+            <* decoratedSymbol fname ")"
+
 decoratedDataTypeName : OriginDesc -> Rule Name
 decoratedDataTypeName fname = decorate fname Typ dataTypeName
 
@@ -66,6 +72,11 @@ decoratedDataConstructorName fname = decorate fname Data dataConstructorName
 
 decoratedSimpleBinderName : OriginDesc -> Rule String
 decoratedSimpleBinderName fname = decorate fname Bound unqualifiedName
+
+decoratedSimpleNamedArg : OriginDesc -> Rule String
+decoratedSimpleNamedArg fname
+  = decorate fname Bound unqualifiedName
+  <|> parens fname (decorate fname Bound unqualifiedOperatorName)
 
 -- Forward declare since they're used in the parser
 topDecl : OriginDesc -> IndentInfo -> Rule (List PDecl)
@@ -225,7 +236,7 @@ mutual
       braceArgs fname indents
           = do start <- bounds (decoratedSymbol fname "{")
                list <- sepBy (decoratedSymbol fname ",")
-                        $ do x <- bounds (UN . Basic <$> decoratedSimpleBinderName fname)
+                        $ do x <- bounds (UN . Basic <$> decoratedSimpleNamedArg fname)
                              let fc = boundToFC fname x
                              option (NamedArg x.val $ PRef fc x.val)
                               $ do tm <- decoratedSymbol fname "=" *> typeExpr pdef fname indents
@@ -619,11 +630,7 @@ mutual
 
   explicitPi : OriginDesc -> IndentInfo -> Rule PTerm
   explicitPi fname indents
-      = do b <- bounds $ do
-                  decoratedSymbol fname "("
-                  binders <- pibindList fname indents
-                  decoratedSymbol fname ")"
-                  pure binders
+      = do b <- bounds $ parens fname $ pibindList fname indents
            exp <- mustWorkBecause b.bounds "Cannot return a named argument"
                     $ bindSymbol fname
            scope <- mustWork $ typeExpr pdef fname indents
@@ -1532,9 +1539,7 @@ fieldDecl fname indents
 
 typedArg : OriginDesc -> IndentInfo -> Rule (List (Name, RigCount, PiInfo PTerm, PTerm))
 typedArg fname indents
-    = do decoratedSymbol fname "("
-         params <- pibindListName fname indents
-         decoratedSymbol fname ")"
+    = do params <- parens fname $ pibindListName fname indents
          pure $ map (\(c, n, tm) => (n.val, c, Explicit, tm)) params
   <|> do decoratedSymbol fname "{"
          commit
@@ -1751,17 +1756,23 @@ parseMode
           pure EvalTC
    <|> do exactIdent "normalise"
           pure NormaliseAll
+   <|> do exactIdent "default"
+          pure NormaliseAll
+   <|> do exactIdent "normal"
+          pure NormaliseAll
    <|> do exactIdent "normalize" -- oh alright then
           pure NormaliseAll
    <|> do exactIdent "execute"
           pure Execute
    <|> do exactIdent "exec"
           pure Execute
+   <|> do exactIdent "scheme"
+          pure Scheme
 
 setVarOption : Rule REPLOpt
 setVarOption
     = do exactIdent "eval"
-         mode <- parseMode
+         mode <- option NormaliseAll parseMode
          pure (EvalMode mode)
   <|> do exactIdent "editor"
          e <- unqualifiedName
@@ -1780,6 +1791,8 @@ setOption set
          pure (ShowTypes set)
   <|> do exactIdent "profile"
          pure (Profile set)
+  <|> do exactIdent "evaltiming"
+         pure (EvalTiming set)
   <|> if set then setVarOption else fatalError "Unrecognised option"
 
 replCmd : List String -> Rule ()

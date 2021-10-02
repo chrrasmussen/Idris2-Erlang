@@ -11,7 +11,7 @@ import Compiler.RefC.RefC
 import Compiler.Inline
 
 import Core.AutoSearch
-import Core.CaseTree
+import Core.Case.CaseTree
 import Core.CompileExpr
 import Core.Context
 import Core.Context.Log
@@ -27,6 +27,8 @@ import Core.TT
 import Core.Termination
 import Core.Unify
 import Core.Value
+
+import Core.SchemeEval
 
 import Parser.Unlit
 
@@ -198,6 +200,8 @@ setOpt (CG e)
 setOpt (Profile t)
     = do pp <- getSession
          setSession (record { profile = t } pp)
+setOpt (EvalTiming t)
+    = setEvalTiming t
 
 getOptions : {auto c : Ref Ctxt Defs} ->
          {auto o : Ref ROpts REPLOpts} ->
@@ -590,7 +594,8 @@ execExp ctm
               | Nothing =>
                    do iputStrLn (reflow "No such code generator available")
                       pure CompilationFailed
-         cgExecuteExpr cg tm_erased
+         logTimeWhen !getEvalTiming "Execution" $
+           cgExecuteExpr cg tm_erased
          pure $ Executed ctm
 
 
@@ -747,9 +752,17 @@ process (Eval itm)
          let emode = evalMode opts
          case emode of
             Execute => do ignore (execExp itm); pure (Executed itm)
+            Scheme =>
+              do defs <- get Ctxt
+                 (tm `WithType` ty) <- inferAndElab InExpr itm
+                 qtm <- logTimeWhen !getEvalTiming "Evaluation" $
+                           (do nf <- snfAll [] tm
+                               quote [] nf)
+                 itm <- logTimeWhen False "resugar" $ resugar [] qtm
+                 pure (Evaluated itm Nothing)
             _ =>
-              do
-                 (ntm `WithType` ty) <- inferAndNormalize emode itm
+              do (ntm `WithType` ty) <- logTimeWhen !getEvalTiming "Evaluation" $
+                                           inferAndNormalize emode itm
                  itm <- resugar [] ntm
                  defs <- get Ctxt
                  opts <- get ROpts
@@ -1070,6 +1083,7 @@ mutual
       prompt EvalTC = "[tc] "
       prompt NormaliseAll = ""
       prompt Execute = "[exec] "
+      prompt Scheme = "[scheme] "
 
   export
   handleMissing' : MissedResult -> String
