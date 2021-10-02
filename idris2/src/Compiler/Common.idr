@@ -327,68 +327,6 @@ getCompileData doLazyAnnots phase_in tm_in
          traverse_ replaceEntry entries
          pure (MkCompileData csetm namedDefs lifted anf vmcode)
 
-isExported : Visibility -> Bool
-isExported Public = True
-isExported Export = True
-isExported Private = False
-
-exportedName : (Name, Maybe GlobalDef) -> Maybe Name
-exportedName (n, Just gd) = if isExported (visibility gd)
-  then Just n
-  else Nothing
-exportedName _ = Nothing
-
-skipUnusedNames : Name -> Bool
-skipUnusedNames (NS _ n) = skipUnusedNames n
-skipUnusedNames (MN _ _) = False
-skipUnusedNames (Resolved _) = False
-skipUnusedNames _ = True
-
-export
-getExportedCompileData : {auto c : Ref Ctxt Defs} -> (doLazyAnnots : Bool) -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
-getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
-  defs <- get Ctxt
-  sopts <- getSession
-  -- make an array of Bools to hold which names we've found (quicker
-  -- to check than a NameMap!)
-  asize <- getNextEntry
-  arr <- coreLift $ newArray asize
-
-  let namesToCompile = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
-  cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) namesToCompile
-  let visibleCns = mapMaybe exportedName cnsWithGlobalDef
-
-  resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
-  logTime "++ Get names" $ getAllDesc resolvedNames arr defs
-
-  let entries = mapMaybe id !(coreLift (toList arr))
-  let allNs = map (Resolved . fst) entries
-  cns <- traverse toFullNames allNs
-  rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
-
-  -- Do a round of merging/arity fixing for any names which were
-  -- unknown due to cyclic modules (i.e. declared in one, defined in
-  -- another)
-  logTime "++ Merge lambda" $ traverse_ mergeLamDef rcns
-  logTime "++ Fix arity" $ traverse_ fixArityDef rcns
-
-  cseDefs <- mapMaybe id <$> traverse (cseDef empty) rcns
-
-  namedDefs <- traverse getNamedDef cseDefs
-
-  lifted_in <- if phase >= Lifted
-                  then logTime "++ Lambda lift" $
-                      traverse (lambdaLift doLazyAnnots) cseDefs
-                  else pure []
-  let lifted = concat lifted_in
-  anf <- if phase >= ANF
-            then logTime "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
-            else pure []
-  vmcode <- if phase >= VMCode
-              then logTime "++ Get VM Code" $ pure (allDefs anf)
-              else pure []
-  pure (MkCompileData (CErased emptyFC) namedDefs lifted anf vmcode)
-
 export
 compileTerm : {auto c : Ref Ctxt Defs} ->
               ClosedTerm -> Core (CExp [])
@@ -577,3 +515,66 @@ castInt p from to x =
        ((_, Just k), (DoubleType, _)) => p.intToDouble k x
        ((_, Just k1), (_, Just k2))   => p.intToInt k1 k2 x
        _ => throw $ InternalError $ "invalid cast: + " ++ show from ++ " + ' -> ' + " ++ show to
+
+
+isExported : Visibility -> Bool
+isExported Public = True
+isExported Export = True
+isExported Private = False
+
+exportedName : (Name, Maybe GlobalDef) -> Maybe Name
+exportedName (n, Just gd) = if isExported (visibility gd)
+  then Just n
+  else Nothing
+exportedName _ = Nothing
+
+skipUnusedNames : Name -> Bool
+skipUnusedNames (NS _ n) = skipUnusedNames n
+skipUnusedNames (MN _ _) = False
+skipUnusedNames (Resolved _) = False
+skipUnusedNames _ = True
+
+export
+getExportedCompileData : {auto c : Ref Ctxt Defs} -> (doLazyAnnots : Bool) -> UsePhase -> (Name -> Bool) -> List Name -> Core CompileData
+getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
+  defs <- get Ctxt
+  sopts <- getSession
+  -- make an array of Bools to hold which names we've found (quicker
+  -- to check than a NameMap!)
+  asize <- getNextEntry
+  arr <- coreLift $ newArray asize
+
+  let namesToCompile = filter shouldCompileName $ filter skipUnusedNames $ keys (getResolvedAs (gamma defs))
+  cnsWithGlobalDef <- traverse (\n => pure (n, !(lookupCtxtExact n (gamma defs)))) namesToCompile
+  let visibleCns = mapMaybe exportedName cnsWithGlobalDef
+
+  resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
+  logTime "++ Get names" $ getAllDesc resolvedNames arr defs
+
+  let entries = catMaybes !(coreLift (toList arr))
+  let allNs = map (Resolved . fst) entries
+  cns <- traverse toFullNames allNs
+  rcns <- filterM nonErased (nub (filter skipUnusedNames cns))
+
+  -- Do a round of merging/arity fixing for any names which were
+  -- unknown due to cyclic modules (i.e. declared in one, defined in
+  -- another)
+  logTime "++ Merge lambda" $ traverse_ mergeLamDef rcns
+  logTime "++ Fix arity" $ traverse_ fixArityDef rcns
+
+  cseDefs <- catMaybes <$> traverse compDef rcns
+
+  namedDefs <- traverse getNamedDef cseDefs
+
+  lifted_in <- if phase >= Lifted
+                  then logTime "++ Lambda lift" $
+                      traverse (lambdaLift doLazyAnnots) cseDefs
+                  else pure []
+  let lifted = concat lifted_in
+  anf <- if phase >= ANF
+            then logTime "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+            else pure []
+  vmcode <- if phase >= VMCode
+              then logTime "++ Get VM Code" $ pure (allDefs anf)
+              else pure []
+  pure (MkCompileData (CErased emptyFC) namedDefs lifted anf vmcode)
