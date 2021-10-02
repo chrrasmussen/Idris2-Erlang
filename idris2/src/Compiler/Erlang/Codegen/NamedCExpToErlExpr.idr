@@ -63,40 +63,76 @@ genConstant WorldType = IWorldType
 
 -- OPERATORS
 
+precToNat : Int -> Nat
+precToNat = integerToNat . cast
+
+genBoundedInt : {auto lv : Ref LV LocalVars} -> Line -> IntKind -> ErlExpr -> Core ErlExpr
+genBoundedInt l (Signed Unlimited) x = pure x
+genBoundedInt l (Signed $ P n)     x = pure $ genToBoundedSignedInt l (precToNat n) x
+genBoundedInt l (Unsigned n)       x = genToBoundedUnsignedInt l (precToNat n) x
+
+genAdd : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
+genAdd l (Just ty) x y = genBoundedInt l ty (EOp l "+" x y)
+genAdd l _         x y = pure $ EOp l "+" x y
+
+genSub : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
+genSub l (Just ty) x y = genBoundedInt l ty (EOp l "-" x y)
+genSub l _         x y = pure $ EOp l "-" x y
+
+genMul : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
+genMul l (Just ty) x y = genBoundedInt l ty (EOp l "*" x y)
+genMul l _         x y = pure $ EOp l "*" x y
+
+genDiv : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
+genDiv l (Just ty) x y = genBoundedInt l ty (EOp l "div" x y)
+genDiv l _         x y = pure $ EOp l "/" x y
+
+genShl : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
+genShl l (Just ty) x y = genBoundedInt l ty (EOp l "bsl" x y)
+genShl l _         x y = pure $ EOp l "bsl" x y
+
+constPrimitives : {auto lv : Ref LV LocalVars} -> Line -> ConstantPrimitives ErlExpr
+constPrimitives l = MkConstantPrimitives {
+    charToInt    = \k, x => pure $ genCharToInt l x
+  , intToChar    = \_, x => pure $ genIntToChar l x
+  , stringToInt  = \k, x => do
+      int <- genStringToInteger l x
+      genBoundedInt l k int
+  , intToString  = \_, x => pure $ genFunCall l "erlang" "integer_to_binary" [x]
+  , doubleToInt  = \k, x => genBoundedInt l k (genFunCall l "erlang" "trunc" [x])
+  , intToDouble  = \_, x => pure $ genFunCall l "erlang" "float" [x]
+  , intToInt     = intToInt
+  }
+  where
+    intToInt : IntKind -> IntKind -> ErlExpr -> Core ErlExpr
+    intToInt _ (Signed Unlimited) x = pure x
+    intToInt (Signed m) (Signed $ P n) x =
+      if P n >= m
+        then pure x
+        else pure $ genToBoundedSignedInt l (precToNat n) x
+
+    -- Only if the precision of the target is greater
+    -- than the one of the source, there is no need to cast.
+    intToInt (Unsigned m) (Signed $ P n) x =
+      if n > m
+        then pure $ x
+        else pure $ genToBoundedSignedInt l (precToNat n) x
+
+    intToInt (Signed _) (Unsigned n) x = genToBoundedUnsignedInt l (precToNat n) x
+
+    intToInt (Unsigned m) (Unsigned n) x =
+      if n >= m
+        then pure x
+        else genToBoundedUnsignedInt l (precToNat n) x
+
 genOp : forall arity . {auto lv : Ref LV LocalVars} -> Line -> PrimFn arity -> Vect arity ErlExpr -> Core ErlExpr
-genOp l (Add IntType) [x, y] = pure $ genIntAdd l 63 x y
-genOp l (Sub IntType) [x, y] = pure $ genIntSub l 63 x y
-genOp l (Mul IntType) [x, y] = pure $ genIntMult l 63 x y
-genOp l (Div IntType) [x, y] = pure $ genIntDiv l 63 x y
-genOp l (Add Bits8Type) [x, y] = pure $ genIntAdd l 8 x y
-genOp l (Sub Bits8Type) [x, y] = pure $ genIntSub l 8 x y
-genOp l (Mul Bits8Type) [x, y] = pure $ genIntMult l 8 x y
-genOp l (Div Bits8Type) [x, y] = pure $ genIntDiv l 8 x y
-genOp l (Add Bits16Type) [x, y] = pure $ genIntAdd l 16 x y
-genOp l (Sub Bits16Type) [x, y] = pure $ genIntSub l 16 x y
-genOp l (Mul Bits16Type) [x, y] = pure $ genIntMult l 16 x y
-genOp l (Div Bits16Type) [x, y] = pure $ genIntDiv l 16 x y
-genOp l (Add Bits32Type) [x, y] = pure $ genIntAdd l 32 x y
-genOp l (Sub Bits32Type) [x, y] = pure $ genIntSub l 32 x y
-genOp l (Mul Bits32Type) [x, y] = pure $ genIntMult l 32 x y
-genOp l (Div Bits32Type) [x, y] = pure $ genIntDiv l 32 x y
-genOp l (Add Bits64Type) [x, y] = pure $ genIntAdd l 64 x y
-genOp l (Sub Bits64Type) [x, y] = pure $ genIntSub l 64 x y
-genOp l (Mul Bits64Type) [x, y] = pure $ genIntMult l 64 x y
-genOp l (Div Bits64Type) [x, y] = pure $ genIntDiv l 64 x y
-genOp l (Add ty) [x, y] = pure $ EOp l "+" x y
-genOp l (Sub ty) [x, y] = pure $ EOp l "-" x y
-genOp l (Mul ty) [x, y] = pure $ EOp l "*" x y
-genOp l (Div IntegerType) [x, y] = pure $ EOp l "div" x y -- NOTE: Is allowed to be partial
-genOp l (Div ty) [x, y] = pure $ EOp l "/" x y -- NOTE: Is allowed to be partial
+genOp l (Add ty) [x, y] = genAdd l (intKind ty) x y
+genOp l (Sub ty) [x, y] = genSub l (intKind ty) x y
+genOp l (Mul ty) [x, y] = genMul l (intKind ty) x y
+genOp l (Div ty) [x, y] = genDiv l (intKind ty) x y -- NOTE: Is allowed to be partial
 genOp l (Mod ty) [x, y] = pure $ EOp l "rem" x y -- NOTE: Is allowed to be partial
 genOp l (Neg ty) [x] = pure $ genFunCall l "erlang" "-" [x]
-genOp l (ShiftL IntType) [x, y] = pure $ genIntShiftL l 63 x y
-genOp l (ShiftL Bits8Type) [x, y] = pure $ genIntShiftL l 8 x y
-genOp l (ShiftL Bits16Type) [x, y] = pure $ genIntShiftL l 16 x y
-genOp l (ShiftL Bits32Type) [x, y] = pure $ genIntShiftL l 32 x y
-genOp l (ShiftL Bits64Type) [x, y] = pure $ genIntShiftL l 64 x y
-genOp l (ShiftL ty) [x, y] = pure $ EOp l "bsl" x y
+genOp l (ShiftL ty) [x, y] = genShl l (intKind ty) x y
 genOp l (ShiftR ty) [x, y] = pure $ EOp l "bsr" x y
 genOp l (BAnd ty) [x, y] = pure $ EOp l "band" x y
 genOp l (BOr ty) [x, y] = pure $ EOp l "bor" x y
@@ -134,64 +170,11 @@ genOp l DoubleSqrt [x] = pure $ genFunCall l "math" "sqrt" [x]
 genOp l DoubleFloor [x] = pure $ genFunCall l "erlang" "floor" [x]
 genOp l DoubleCeiling [x] = pure $ genFunCall l "erlang" "ceil" [x]
 
-genOp l (Cast IntType     StringType) [x] = pure $ genIntToString l x
-genOp l (Cast IntegerType StringType) [x] = pure $ genIntegerToString l x
-genOp l (Cast Bits8Type   StringType) [x] = pure $ genIntegerToString l x
-genOp l (Cast Bits16Type  StringType) [x] = pure $ genIntegerToString l x
-genOp l (Cast Bits32Type  StringType) [x] = pure $ genIntegerToString l x
-genOp l (Cast Bits64Type  StringType) [x] = pure $ genIntegerToString l x
-genOp l (Cast CharType    StringType) [x] = pure $ genCharToString l x
-genOp l (Cast DoubleType  StringType) [x] = pure $ genDoubleToString l x
+genOp l (Cast DoubleType StringType)  [x] = pure $ genDoubleToString l x
+genOp l (Cast CharType StringType)    [x] = pure $ genCharToString l x
+genOp l (Cast StringType DoubleType)  [x] = genStringToDouble l x
 
-genOp l (Cast StringType  IntegerType) [x] = genStringToInteger l x
-genOp l (Cast IntType     IntegerType) [x] = pure $ genIntToInteger l x
-genOp l (Cast Bits8Type   IntegerType) [x] = pure $ x
-genOp l (Cast Bits16Type  IntegerType) [x] = pure $ x
-genOp l (Cast Bits32Type  IntegerType) [x] = pure $ x
-genOp l (Cast Bits64Type  IntegerType) [x] = pure $ x
-genOp l (Cast CharType    IntegerType) [x] = pure $ genCharToInteger l x
-genOp l (Cast DoubleType  IntegerType) [x] = pure $ genDoubleToInteger l x
-
-genOp l (Cast StringType  IntType) [x] = genStringToInt l x
-genOp l (Cast IntegerType IntType) [x] = pure $ genIntegerToInt l x
-genOp l (Cast Bits8Type   IntType) [x] = pure $ x
-genOp l (Cast Bits16Type  IntType) [x] = pure $ x
-genOp l (Cast Bits32Type  IntType) [x] = pure $ x
-genOp l (Cast Bits64Type  IntType) [x] = pure $ x
-genOp l (Cast CharType    IntType) [x] = pure $ genCharToInt l x
-genOp l (Cast DoubleType  IntType) [x] = pure $ genDoubleToInt l x
-
-genOp l (Cast StringType  DoubleType) [x] = genStringToDouble l x
-genOp l (Cast IntType     DoubleType) [x] = pure $ genIntToDouble l x
-genOp l (Cast IntegerType DoubleType) [x] = pure $ genIntegerToDouble l x
-
-genOp l (Cast IntType     CharType) [x] = pure $ genIntToChar l x
-
-genOp l (Cast IntType     Bits8Type) [x] = pure $ genIntegerToBits l 8 x
-genOp l (Cast IntegerType Bits8Type) [x] = pure $ genIntegerToBits l 8 x
-genOp l (Cast Bits16Type  Bits8Type) [x] = pure $ genIntegerToBits l 8 x
-genOp l (Cast Bits32Type  Bits8Type) [x] = pure $ genIntegerToBits l 8 x
-genOp l (Cast Bits64Type  Bits8Type) [x] = pure $ genIntegerToBits l 8 x
-
-genOp l (Cast IntType     Bits16Type) [x] = pure $ genIntegerToBits l 16 x
-genOp l (Cast IntegerType Bits16Type) [x] = pure $ genIntegerToBits l 16 x
-genOp l (Cast Bits8Type   Bits16Type) [x] = pure $ x
-genOp l (Cast Bits32Type  Bits16Type) [x] = pure $ genIntegerToBits l 16 x
-genOp l (Cast Bits64Type  Bits16Type) [x] = pure $ genIntegerToBits l 16 x
-
-genOp l (Cast IntType     Bits32Type) [x] = pure $ genIntegerToBits l 32 x
-genOp l (Cast IntegerType Bits32Type) [x] = pure $ genIntegerToBits l 32 x
-genOp l (Cast Bits8Type   Bits32Type) [x] = pure $ x
-genOp l (Cast Bits16Type  Bits32Type) [x] = pure $ x
-genOp l (Cast Bits64Type  Bits32Type) [x] = pure $ genIntegerToBits l 32 x
-
-genOp l (Cast IntType     Bits64Type) [x] = pure $ genIntegerToBits l 64 x
-genOp l (Cast IntegerType Bits64Type) [x] = pure $ genIntegerToBits l 64 x
-genOp l (Cast Bits8Type   Bits64Type) [x] = pure $ x
-genOp l (Cast Bits16Type  Bits64Type) [x] = pure $ x
-genOp l (Cast Bits32Type  Bits64Type) [x] = pure $ x
-
-genOp l (Cast from to) [x] = pure $ genThrow l ("Invalid cast " ++ show from ++ "->" ++ show to)
+genOp l (Cast from to)                [x] = castInt (constPrimitives l) from to x
 
 genOp l BelieveMe [_, _, x] = pure $ x
 genOp l Crash [_, msg] = do

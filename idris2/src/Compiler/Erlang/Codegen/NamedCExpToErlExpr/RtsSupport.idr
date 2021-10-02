@@ -250,36 +250,46 @@ genBoolToInt l expr =
 integerPower : Integer -> Nat -> Integer
 integerPower base exp = product (Prelude.take exp (repeat base))
 
-genIntOp : (op : String) -> Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntOp op l bits x y = EOp l "rem" (EOp l op x y) (EInteger l (integerPower 2 bits))
+-- Implementation ported from: https://github.com/elixir-lang/elixir/blob/v1.12.3/lib/elixir/lib/integer.ex#L135-L143
+export
+genMod : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> ErlExpr -> Core ErlExpr
+genMod l dividendExpr divisorExpr = do
+  let rem = EOp l "rem"
+  let mult = EOp l "*"
+  let lt = EOp l "<"
+  let plus = EOp l "+"
+  dividendVar <- newLocalVar
+  divisorVar <- newLocalVar
+  remainderVar <- newLocalVar
+  pure $ ELet l dividendVar dividendExpr $
+    ELet l divisorVar divisorExpr $
+      ELet l remainderVar ((ELocal l dividendVar) `rem` (ELocal l divisorVar)) $
+        EMatcherCase l
+          (((ELocal l remainderVar) `mult` (ELocal l divisorVar)) `lt` EInteger l 0)
+          [ MConst (MExact (EAtom l "true")) ((ELocal l remainderVar) `plus` (ELocal l divisorVar))
+          ]
+          (ELocal l remainderVar)
 
 export
-genIntAdd : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntAdd = genIntOp "+"
+genToBoundedUnsignedInt : {auto lv : Ref LV LocalVars} -> Line -> (bits : Nat) -> ErlExpr -> Core ErlExpr
+genToBoundedUnsignedInt l bits x =
+  genMod l x (EInteger l (integerPower 2 bits))
 
 export
-genIntSub : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntSub = genIntOp "-"
-
-export
-genIntMult : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntMult = genIntOp "*"
-
-export
-genIntDiv : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntDiv = genIntOp "div"
-
-export
-genIntShiftL : Line -> (bits : Nat) -> ErlExpr -> ErlExpr -> ErlExpr
-genIntShiftL = genIntOp "bsl"
-
-genMod : Line -> ErlExpr -> ErlExpr -> ErlExpr
-genMod l x y =
-  EMatcherCase l
-    (EOp l ">=" x (EInteger l 0))
-    [ MConst (MExact (EAtom l "true")) (EOp l "rem" x y)
-    ]
-    (EOp l "rem" (EOp l "+" x y) y)
+genToBoundedSignedInt : Line -> (bits : Nat) -> ErlExpr -> ErlExpr
+genToBoundedSignedInt l bits x =
+  let
+    isNotEq = EOp l "=/="
+    band = EOp l "band"
+    bor = EOp l "bor"
+    bitsValue = integerPower 2 (bits `minus` 1)
+    isMostSignificantBitSet = (x `band` (EInteger l bitsValue)) `isNotEq` EInteger l 0
+  in
+    EMatcherCase l
+      isMostSignificantBitSet
+      [ MConst (MExact (EAtom l "true")) (x `bor` EInteger l (-bitsValue))
+      ]
+      (EOp l "band" x (EInteger l (bitsValue - 1)))
 
 
 -- STRINGS
@@ -387,40 +397,7 @@ genValidChar l x =
   EMatcherCase l x [MCodepoint] (EInteger l 65533)
 
 
--- CAST: Integer -> *
-
-export
-genIntegerToInt : Line -> ErlExpr -> ErlExpr
-genIntegerToInt l integer =
-  integer
-
-export
-genIntegerToDouble : Line -> ErlExpr -> ErlExpr
-genIntegerToDouble l integer =
-  genFunCall l "erlang" "float" [integer]
-
-export
-genIntegerToString : Line -> ErlExpr -> ErlExpr
-genIntegerToString l integer =
-  genFunCall l "erlang" "integer_to_binary" [integer]
-
-export
-genIntegerToBits : Line -> (bits : Nat) -> ErlExpr -> ErlExpr
-genIntegerToBits l bits integer =
-  genMod l integer (EInteger l (integerPower 2 bits))
-
-
 -- CAST: Int -> *
-
-export
-genIntToInteger : Line -> ErlExpr -> ErlExpr
-genIntToInteger l int =
-  int
-
-export
-genIntToDouble : Line -> ErlExpr -> ErlExpr
-genIntToDouble l int =
-  genFunCall l "erlang" "float" [int]
 
 -- Char is an integer
 export
@@ -428,23 +405,8 @@ genIntToChar : Line -> ErlExpr -> ErlExpr
 genIntToChar l int =
   genValidChar l int
 
-export
-genIntToString : Line -> ErlExpr -> ErlExpr
-genIntToString l int =
-  genFunCall l "erlang" "integer_to_binary" [int]
-
 
 -- CAST: Double -> *
-
-export
-genDoubleToInteger : Line -> ErlExpr -> ErlExpr
-genDoubleToInteger l double =
-  genFunCall l "erlang" "trunc" [double]
-
-export
-genDoubleToInt : Line -> ErlExpr -> ErlExpr
-genDoubleToInt l double =
-  genFunCall l "erlang" "trunc" [double]
 
 export
 genDoubleToString : Line -> ErlExpr -> ErlExpr
@@ -454,11 +416,6 @@ genDoubleToString l double =
 
 
 -- CAST: Char -> *
-
-export
-genCharToInteger : Line -> ErlExpr -> ErlExpr
-genCharToInteger l char =
-  genValidChar l char
 
 export
 genCharToInt : Line -> ErlExpr -> ErlExpr
@@ -489,11 +446,6 @@ genStringToInteger l str = do
             (EInteger l 0))
       ]
       (EInteger l 0)
-
-export
-genStringToInt : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> Core ErlExpr
-genStringToInt l str =
-  genStringToInteger l str
 
 -- Try to convert String to Double
 -- If it fails; try to convert String to Integer to Double
