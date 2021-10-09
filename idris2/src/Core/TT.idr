@@ -9,6 +9,7 @@ import Data.Vect
 import Decidable.Equality
 
 import Libraries.Data.NameMap
+import Libraries.Data.Primitives
 import Libraries.Text.PrettyPrint.Prettyprinter
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
 
@@ -45,20 +46,19 @@ Show KindedName where show = show . rawName
 
 public export
 data Constant
-    = I Int
-    | I8 Integer -- reuse code from I64 with fewer casts
-    | I16 Integer
-    | I32 Integer
-    | I64 Integer
-    | BI Integer
-    | B8 Int -- For now, since we don't have Bits types. We need to
-                -- make sure the Integer remains in range
-    | B16 Int
-    | B32 Int
-    | B64 Integer
+    = I   Int
+    | I8  Int8
+    | I16 Int16
+    | I32 Int32
+    | I64 Int64
+    | BI  Integer
+    | B8  Bits8
+    | B16 Bits16
+    | B32 Bits32
+    | B64 Bits64
     | Str String
-    | Ch Char
-    | Db Double
+    | Ch  Char
+    | Db  Double
     | WorldVal
 
     | IntType
@@ -128,21 +128,35 @@ isPrimType CharType    = True
 isPrimType DoubleType  = True
 isPrimType WorldType   = True
 
+-- TODO : The `TempXY` instances can be removed after the next release
+--        (see also `Libraries.Data.Primitives`)
 export
 constantEq : (x, y : Constant) -> Maybe (x = y)
 constantEq (I x) (I y) = case decEq x y of
                               Yes Refl => Just Refl
                               No contra => Nothing
-constantEq (I8 x) (I8 y) = case decEq x y of
+constantEq (I8 x) (I8 y) = case decEq @{TempI8} x y of
                                   Yes Refl => Just Refl
                                   No contra => Nothing
-constantEq (I16 x) (I16 y) = case decEq x y of
+constantEq (I16 x) (I16 y) = case decEq @{TempI16} x y of
                                   Yes Refl => Just Refl
                                   No contra => Nothing
-constantEq (I32 x) (I32 y) = case decEq x y of
+constantEq (I32 x) (I32 y) = case decEq @{TempI32} x y of
                                   Yes Refl => Just Refl
                                   No contra => Nothing
-constantEq (I64 x) (I64 y) = case decEq x y of
+constantEq (I64 x) (I64 y) = case decEq @{TempI64} x y of
+                                  Yes Refl => Just Refl
+                                  No contra => Nothing
+constantEq (B8 x) (B8 y) = case decEq @{TempB8} x y of
+                                  Yes Refl => Just Refl
+                                  No contra => Nothing
+constantEq (B16 x) (B16 y) = case decEq @{TempB16} x y of
+                                  Yes Refl => Just Refl
+                                  No contra => Nothing
+constantEq (B32 x) (B32 y) = case decEq @{TempB32} x y of
+                                  Yes Refl => Just Refl
+                                  No contra => Nothing
+constantEq (B64 x) (B64 y) = case decEq @{TempB64} x y of
                                   Yes Refl => Just Refl
                                   No contra => Nothing
 constantEq (BI x) (BI y) = case decEq x y of
@@ -669,6 +683,10 @@ record SizeOf {a : Type} (xs : List a) where
 namespace SizeOf
 
   export
+  0 theList : SizeOf {a} xs -> List a
+  theList _ = xs
+
+  export
   zero : SizeOf []
   zero = MkSizeOf Z Z
 
@@ -1115,6 +1133,20 @@ insertVar : SizeOf outer ->
             Var (outer ++ inner) ->
             Var (outer ++ n :: inner)
 insertVar p (MkVar v) = let MkNVar v' = insertNVar p (MkNVar v) in MkVar v'
+
+
+||| The (partial) inverse to insertVar
+export
+removeVar : SizeOf outer ->
+            Var        (outer ++ [x] ++ inner) ->
+            Maybe (Var (outer        ++ inner))
+removeVar out var = case sizedView out of
+  Z => case var of
+          MkVar First     => Nothing
+          MkVar (Later p) => Just (MkVar p)
+  S out' => case var of
+              MkVar First     => Just (MkVar First)
+              MkVar (Later p) => later <$> removeVar out' (MkVar p)
 
 export
 weakenVar : SizeOf ns -> Var inner -> Var (ns ++ inner)
