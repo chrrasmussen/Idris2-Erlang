@@ -69,15 +69,15 @@ genIdrisConstant : Line -> (String -> a) -> (Literal -> a) -> IdrisConstant -> a
 genIdrisConstant l fromStringValue fromLiteral constant =
   case constant of
     IInt x => fromLiteral (ALInteger l (cast x))
-    IInt8 x => fromLiteral (ALInteger l x)
-    IInt16 x => fromLiteral (ALInteger l x)
-    IInt32 x => fromLiteral (ALInteger l x)
-    IInt64 x => fromLiteral (ALInteger l x)
+    IInt8 x => fromLiteral (ALInteger l (cast x))
+    IInt16 x => fromLiteral (ALInteger l (cast x))
+    IInt32 x => fromLiteral (ALInteger l (cast x))
+    IInt64 x => fromLiteral (ALInteger l (cast x))
     IInteger x => fromLiteral (ALInteger l x)
     IB8 x => fromLiteral (ALInteger l (cast x))
     IB16 x => fromLiteral (ALInteger l (cast x))
     IB32 x => fromLiteral (ALInteger l (cast x))
-    IB64 x => fromLiteral (ALInteger l x)
+    IB64 x => fromLiteral (ALInteger l (cast x))
     IString x => fromStringValue x
     IChar x => fromLiteral (ALChar l x)
     IDouble x => fromLiteral (ALFloat l x)

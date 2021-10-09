@@ -55,15 +55,15 @@ namespace LocalVars
 public export
 data IdrisConstant
   = IInt Int
-  | IInt8 Integer
-  | IInt16 Integer
-  | IInt32 Integer
-  | IInt64 Integer
+  | IInt8 Int8
+  | IInt16 Int16
+  | IInt32 Int32
+  | IInt64 Int64
   | IInteger Integer
-  | IB8 Int
-  | IB16 Int
-  | IB32 Int
-  | IB64 Integer
+  | IB8 Bits8
+  | IB16 Bits16
+  | IB32 Bits32
+  | IB64 Bits64
   | IString String
   | IChar Char
   | IDouble Double
