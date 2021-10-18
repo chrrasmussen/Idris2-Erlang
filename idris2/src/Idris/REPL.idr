@@ -611,6 +611,7 @@ processLocal : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
+             {auto s : Ref Syn SyntaxInfo} ->
              List ElabOpt ->
              NestedNames vars -> Env Term vars ->
              List ImpDecl -> (scope : List ImpDecl) ->
@@ -830,7 +831,7 @@ process (Check itm)
          defs <- get Ctxt
          itm <- resugar [] !(normaliseHoles defs [] tm)
          -- ty <- getTerm gty
-         ity <- resugar [] !(normaliseScope defs [] ty)
+         ity <- resugar [] !(normalise defs [] ty)
          pure (TermChecked itm ity)
 process (CheckWithImplicits itm)
     = do showImplicits <- showImplicits <$> getPPrint

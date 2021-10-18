@@ -49,7 +49,7 @@ jsString s = "'" ++ (concatMap okchar (unpack s)) ++ "'"
                             '"' => "\\\""
                             '\r' => "\\r"
                             '\n' => "\\n"
-                            other => "\\u{" ++ asHex (cast {to=Int} c) ++ "}"
+                            other => "\\u{" ++ asHex (cast c) ++ "}"
 
 ||| Alias for Text . jsString
 jsStringDoc : String -> Doc
@@ -69,7 +69,7 @@ jsIdent s = concatMap okchar (unpack s)
     okchar '_' = "_"
     okchar c = if isAlphaNum c
                   then cast c
-                  else "x" ++ the (String) (asHex (cast {to=Int} c))
+                  else "x" ++ asHex (cast c)
 
 keywordSafe : String -> String
 keywordSafe "var"    = "var$"
@@ -111,8 +111,8 @@ mainExpr = MN "__mainExpression" 0
 
 var : Var -> Doc
 var (VName x) = jsNameDoc x
-var (VLoc x)  = Text $ "$" ++ asHex x
-var (VRef x)  = Text $ "$R" ++ asHex x
+var (VLoc x)  = Text $ "$" ++ asHex (cast x)
+var (VRef x)  = Text $ "$R" ++ asHex (cast x)
 
 minimal : Minimal -> Doc
 minimal (MVar v)          = var v
@@ -149,6 +149,7 @@ applyCon NOTHING _ [] = "{h" <+> softColon <+> "0}"
 applyCon CONS    _ as = applyObj (conTags as)
 applyCon JUST    _ as = applyObj (conTags as)
 applyCon RECORD  _ as = applyObj (conTags as)
+applyCon UNIT    _ [] = "undefined"
 applyCon _       t as = applyObj (("h" <+> softColon <+> tag2es t)::conTags as)
 
 -- applys the given list of arguments to the given function.
@@ -647,6 +648,7 @@ mutual
         alt (MkEConAlt _ CONS b)    = ("undefined",) <$> stmt b
         alt (MkEConAlt _ NOTHING b) = ("0",) <$> stmt b
         alt (MkEConAlt _ JUST b)    = ("undefined",) <$> stmt b
+        alt (MkEConAlt _ UNIT b)    = ("undefined",) <$> stmt b
         alt (MkEConAlt t _ b)       = (tag2es t,) <$> stmt b
 
   stmt (ConstSwitch r sc alts def) = do

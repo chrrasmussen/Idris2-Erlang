@@ -41,8 +41,8 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
-       "basic061", "basic062",
-       "interpolation001", "interpolation002"]
+       "basic061", "basic062", "basic063",
+       "interpolation001", "interpolation002", "interpolation003"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool "Coverage checking" [] Nothing
@@ -121,7 +121,7 @@ idrisTestsPerformance = MkTestPool "Performance" [] Nothing
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
       ["perf001", "perf002", "perf003", "perf004", "perf005",
-       "perf007", "perf008", "perf009"]
+       "perf007", "perf008", "perf009", "perf010"]
 
 idrisTestsRegression : TestPool
 idrisTestsRegression = MkTestPool "Various regressions" [] Nothing
@@ -185,7 +185,8 @@ idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
 -- other way. If we do, we'll need to have a way to disable these.
 idrisTestsSchemeEval : TestPool
 idrisTestsSchemeEval = MkTestPool "Scheme Evaluator" [] Nothing
-     ["schemeeval001", "schemeeval002", "schemeeval003", "schemeeval004"]
+     ["schemeeval001", "schemeeval002", "schemeeval003", "schemeeval004",
+      "schemeeval005"]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -210,7 +211,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- Quotation and reflection
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
-       "reflection009","reflection010",
+       "reflection009", "reflection010", "reflection011",
        -- The 'with' rule
        "with001", "with002", "with004", "with005", "with006",
        -- with-disambiguation
@@ -272,8 +273,9 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     , "bitops"
     , "casts"
     , "memo"
+    , "fastConcat"
     , "newints"
-    , "reg001"
+    , "reg001", "reg002"
     , "stringcast"
     , "syntax001"
     , "tailrec001"
