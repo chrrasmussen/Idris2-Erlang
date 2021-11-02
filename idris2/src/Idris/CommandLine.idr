@@ -13,7 +13,7 @@ import Data.Either
 import Data.List1
 import Core.Name.Namespace
 
-import System
+import Erlang.System
 
 %default total
 

@@ -7,7 +7,7 @@ import Core.Name
 import public Idris.REPL.Opts
 import Protocol.Hex
 
-import System.File
+import Erlang.System.File
 
 import public Protocol.IDE
 import public Protocol.SExp

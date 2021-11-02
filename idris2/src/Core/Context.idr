@@ -19,7 +19,7 @@ import Idris.Syntax.Pragmas
 
 import Data.Either
 import Data.Fin
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Data.IntMap
 import Data.List
 import Data.List1
@@ -31,7 +31,8 @@ import Libraries.Data.UserNameMap
 import Libraries.Text.Distance.Levenshtein
 
 import System.Clock
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 
 %default covering
 

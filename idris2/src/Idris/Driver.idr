@@ -26,8 +26,8 @@ import IdrisPaths
 
 import Data.List
 import Data.String
-import System
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 import Libraries.Utils.Path
 import Libraries.Utils.Term
 

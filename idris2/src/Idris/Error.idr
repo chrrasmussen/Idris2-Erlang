@@ -22,7 +22,7 @@ import Libraries.Data.List1 as Lib
 import Libraries.Data.String.Extra
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
 
-import System.File
+import Erlang.System.File
 
 %default covering
 

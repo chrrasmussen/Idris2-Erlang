@@ -9,8 +9,7 @@ import Data.Maybe
 import Data.String
 
 import Idris.Package.Types
-import System.Directory
-import Control.App.FileIO
+import Erlang.System.Directory
 
 import Libraries.Utils.Path
 import Libraries.System.Directory.Tree

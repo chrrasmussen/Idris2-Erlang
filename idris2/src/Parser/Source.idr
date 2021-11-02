@@ -9,7 +9,7 @@ import Core.Name
 import Core.Metadata
 import Core.FC
 
-import System.File
+import Erlang.System.File
 
 %default total
 

@@ -26,8 +26,8 @@ import Data.List.Views
 import Data.SnocList
 import Libraries.Data.List.Extra
 import Data.String
-import System.File
 import Data.Fin
+import Erlang.System.File
 
 %default covering
 

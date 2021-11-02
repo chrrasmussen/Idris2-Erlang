@@ -23,8 +23,8 @@ import Data.String
 import Idris.Env
 import Idris.Syntax
 
-import System
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 import System.Info
 
 import Libraries.Data.Version

@@ -1,6 +1,6 @@
 module Libraries.Data.IOMatrix
 
-import Data.IOArray.Prims
+import Erlang.Data.IOArray
 
 %default total
 

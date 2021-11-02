@@ -11,7 +11,7 @@ import Data.IORef
 import Data.String
 
 import Libraries.Data.IntMap
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Data.NameMap
 import Libraries.Data.UserNameMap
 import Libraries.Utils.Binary

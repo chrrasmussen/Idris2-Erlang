@@ -5,7 +5,7 @@ import Core.Context.Log
 import Core.Options
 import Core.Directory
 
-import System
+import Erlang.System
 
 %default total
 

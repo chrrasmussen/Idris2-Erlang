@@ -16,7 +16,7 @@ import Core.UnifyState
 import Data.List
 import Data.String
 
-import System.File
+import Erlang.System.File
 
 import Libraries.Data.NameMap
 

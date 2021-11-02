@@ -13,7 +13,7 @@ import Core.TT
 
 import Libraries.Data.NameMap
 
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Data.Vect
 
 import Libraries.Utils.Binary

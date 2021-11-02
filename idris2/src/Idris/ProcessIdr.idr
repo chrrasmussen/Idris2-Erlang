@@ -43,7 +43,7 @@ import Data.List
 import Data.String
 import Libraries.Data.SortedMap
 
-import System.File
+import Erlang.System.File
 
 %default covering
 

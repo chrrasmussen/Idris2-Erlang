@@ -20,7 +20,7 @@ import Data.List
 import Data.Either
 import Data.String
 
-import System.Directory
+import Erlang.System.Directory
 
 import Libraries.Data.StringMap
 import Libraries.Data.String.Extra as Extra

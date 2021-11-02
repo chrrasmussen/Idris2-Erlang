@@ -10,7 +10,8 @@ import Data.List1
 import Libraries.Data.List.Extra
 import Libraries.Data.Tap
 import Data.String
-import System.File
+import Erlang.System.File
+import Libraries.Data.String.Extra
 
 %default total
 

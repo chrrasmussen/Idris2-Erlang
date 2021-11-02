@@ -11,7 +11,7 @@ import Compiler.VMCode
 
 import Idris.Syntax
 
-import Libraries.Data.IOArray
+import Erlang.Data.IOArray
 import Libraries.Data.NameMap
 import Data.Nat
 import Data.SnocList

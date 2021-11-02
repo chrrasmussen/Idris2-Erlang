@@ -19,8 +19,8 @@ import Data.Nat
 import Libraries.Data.SortedSet
 import Data.Vect
 
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 import Protocol.Hex
 import Libraries.Utils.Path

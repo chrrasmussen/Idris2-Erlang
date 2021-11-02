@@ -19,10 +19,10 @@ import Data.String
 import Data.These
 
 import Parser.Package
-import System
-import System.Directory
+import Erlang.System
+import Erlang.System.Directory
 import Libraries.System.Directory.Tree
-import System.File
+import Erlang.System.File
 
 import Libraries.Data.SortedMap
 import Libraries.Data.StringMap

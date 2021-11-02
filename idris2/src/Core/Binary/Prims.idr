@@ -3,7 +3,7 @@ module Core.Binary.Prims
 import Core.Context.Context
 import Core.Core
 
-import Data.Buffer
+import Erlang.Data.Buffer
 import Data.List
 import Data.List.Elem
 import Data.List1
@@ -16,7 +16,7 @@ import public Libraries.Utils.Binary
 import public Libraries.Utils.String
 
 import System.Info
-import System.File
+import Erlang.System.File
 
 -- A label for binary states
 export

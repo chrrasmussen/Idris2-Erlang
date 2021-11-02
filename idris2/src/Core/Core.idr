@@ -14,7 +14,7 @@ import Libraries.Text.PrettyPrint.Prettyprinter.Util
 import Libraries.Data.Tap
 
 import public Data.IORef
-import System.File
+import Erlang.System.File
 
 %default covering
 

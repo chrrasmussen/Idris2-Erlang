@@ -13,7 +13,7 @@ import Core.Options
 import Core.TT
 import Libraries.Utils.Path
 
-import System
+import Erlang.System
 
 import Data.Maybe
 

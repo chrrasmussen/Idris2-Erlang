@@ -26,8 +26,8 @@ import Libraries.Data.SortedMap
 import Data.String
 import Libraries.Utils.Binary
 import Libraries.Utils.Path
-import System
-import System.File
+import Erlang.System
+import Erlang.System.File
 
 import Idris.Syntax
 

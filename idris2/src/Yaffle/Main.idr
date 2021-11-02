@@ -17,7 +17,7 @@ import TTImp.ProcessDecls
 
 import Yaffle.REPL
 
-import System
+import Erlang.System
 
 %default covering
 

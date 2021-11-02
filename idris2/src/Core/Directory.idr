@@ -17,7 +17,7 @@ import Libraries.Utils.Path
 import Data.List
 import Data.Maybe
 
-import System.Directory
+import Erlang.System.Directory
 
 %default total
 

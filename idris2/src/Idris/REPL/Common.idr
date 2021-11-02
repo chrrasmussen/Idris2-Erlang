@@ -25,7 +25,7 @@ import Libraries.Data.ANameMap
 import Libraries.Data.String.Extra
 
 import Data.String
-import System.File
+import Erlang.System.File
 
 %default covering
 
