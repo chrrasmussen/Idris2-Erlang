@@ -298,7 +298,7 @@ erlangTests = MkTestPool "Erlang backend" [] (Just Erlang)
     , "chez001", "chez002", "chez003", "chez004", "chez005", "chez006"
     , "chez007", "chez008", "chez009",            "chez011", "chez012"
     ,                       "chez015", "chez016", "chez017", "chez018"
-    ,                       "chez021",                       "chez024"
+    , "chez019",            "chez021",                       "chez024"
     , "chez025", "chez026", "chez027", "chez028", "chez029"
     ,            "chez032"
     , "reg001"
@@ -307,9 +307,6 @@ erlangTests = MkTestPool "Erlang backend" [] (Just Erlang)
     , "newints"
     , "integers"
     ]
-    -- Disabled tests:
-    -- * chez019
-    --
     -- Missing tests:
     -- * chez010: Calling C functions is not supported
     -- * chez013: Calling C functions is not supported
