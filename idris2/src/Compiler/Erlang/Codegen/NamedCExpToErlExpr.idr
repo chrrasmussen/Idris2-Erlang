@@ -179,7 +179,7 @@ genOp l (Cast from to)                [x] = castInt (constPrimitives l) from to 
 genOp l BelieveMe [_, _, x] = pure $ x
 genOp l Crash [_, msg] = do
   let crashMsg = EBinaryConcat l (EBinary l "Crash: ") msg
-  pure $ genFunCall l "erlang" "throw" [crashMsg]
+  pure $ genThrowBinary l crashMsg
 
 
 -- DATA CONSTRUCTORS
@@ -377,7 +377,7 @@ genDecodeTuple l term arity = do
 
 genExtPrim : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> List ErlExpr -> Core ErlExpr
 genExtPrim namespaceInfo l (NS _ (UN (Basic "void"))) [_, _] =
-  pure $ genThrow l "Error: Executed 'void'"
+  pure $ genThrowMsg l "Error: Executed 'void'"
 genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__os"))) [] =
   genOsType l
 genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__codegen"))) [] =
@@ -522,7 +522,7 @@ genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlBufferGetString"))) [bin, 
 -- genExtPrim namespaceInfo l name args =
 --   throw (InternalError ("Badly formed external primitive " ++ show name))
 genExtPrim namespaceInfo l name args =
-  pure $ genThrow l ("Error: Badly formed external primitive " ++ show name) -- TODO: Should fail at compile-time instead
+  pure $ genThrowMsg l ("Error: Badly formed external primitive " ++ show name) -- TODO: Should fail at compile-time instead
 
 
 -- %FOREIGN PRIMITIVES
@@ -544,7 +544,7 @@ genForeign namespaceInfo l (NS _ (UN (Basic "fastConcat"))) [xs] = do
 -- genForeign namespaceInfo l name args =
 --   throw (InternalError ("Unsupported %foreign primitive " ++ show name))
 genForeign namespaceInfo l name args =
-  pure $ genThrow l ("Error: Unsupported %foreign primitive " ++ show name) -- TODO: Should fail at compile-time instead
+  pure $ genThrowMsg l ("Error: Unsupported %foreign primitive " ++ show name) -- TODO: Should fail at compile-time instead
 
 
 -- CODE GENERATION
@@ -599,7 +599,7 @@ mutual
     alts' <- assert_total $ traverse (genConAlt namespaceInfo vs l) alts
     def' <- case def of
           Just defExpr => genNmExp namespaceInfo vs defExpr
-          Nothing => pure $ genThrow l "Error: Unreachable branch"
+          Nothing => pure $ genThrowMsg l "Error: Unreachable branch"
     pure $ EMatcherCase l sc' alts' def'
   genNmExp namespaceInfo vs (NmConstCase fc sc alts def) = do
     let l = genFC fc
@@ -607,7 +607,7 @@ mutual
     alts' <- assert_total $ traverse (genConstAlt namespaceInfo vs) alts
     def' <- case def of
           Just defExpr => genNmExp namespaceInfo vs defExpr
-          Nothing => pure $ genThrow l "Error: Unreachable branch"
+          Nothing => pure $ genThrowMsg l "Error: Unreachable branch"
     pure $ EConstCase l sc' alts' def'
   genNmExp namespaceInfo vs (NmPrimVal fc c) = do
     let l = genFC fc
@@ -617,7 +617,7 @@ mutual
     pure $ EAtom l "erased"
   genNmExp namespaceInfo vs (NmCrash fc msg) = do
     let l = genFC fc
-    pure $ genThrow l msg
+    pure $ genThrowMsg l msg
 
   traverseVect : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> NameMap LocalVar -> Vect n NamedCExp -> Core (Vect n ErlExpr)
   traverseVect namespaceInfo vs [] = pure []

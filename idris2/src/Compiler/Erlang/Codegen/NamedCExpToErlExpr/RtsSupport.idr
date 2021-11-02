@@ -13,6 +13,11 @@ import Compiler.Erlang.IR.ErlExpr
 %default total
 
 
+-- Tag errors originating from Idris
+runTimeErrorTag : String
+runTimeErrorTag = "$idris_error"
+
+
 -- LOCAL VARIABLES
 
 export
@@ -128,9 +133,14 @@ genList : Line -> List ErlExpr -> ErlExpr
 genList l xs = foldr (\x, acc => ECons l x acc) (ENil l) xs
 
 export
-genThrow : Line -> String -> ErlExpr
-genThrow l msg =
-  genFunCall l "erlang" "throw" [ECharlist l msg]
+genThrowBinary : Line -> ErlExpr -> ErlExpr
+genThrowBinary l msg =
+  genFunCall l "erlang" "throw" [ETuple l [EAtom l runTimeErrorTag, msg]]
+
+export
+genThrowMsg : Line -> String -> ErlExpr
+genThrowMsg l msg =
+  genThrowBinary l (EBinary l msg)
 
 export
 genUnsafeStringToAtom : Line -> ErlExpr -> ErlExpr
