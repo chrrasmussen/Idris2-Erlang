@@ -42,7 +42,8 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
        "basic061", "basic062", "basic063",
-       "interpolation001", "interpolation002", "interpolation003"]
+       "interpolation001", "interpolation002", "interpolation003",
+       "interpolation004"]
 
 idrisTestsCoverage : TestPool
 idrisTestsCoverage = MkTestPool "Coverage checking" [] Nothing
@@ -69,7 +70,7 @@ idrisTestsError = MkTestPool "Error messages" [] Nothing
        "error006", "error007", "error008", "error009", "error010",
        "error011", "error012", "error013", "error014", "error015",
        "error016", "error017", "error018", "error019", "error020",
-       "error021", "error022",
+       "error021", "error022", "error023",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006", "perror007", "perror008", "perror009", "perror010",
@@ -87,7 +88,7 @@ idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
        "interactive025", "interactive026", "interactive027", -- "interactive028", -- Disabled due to Atom IDE fix
        "interactive029", "interactive030", "interactive031", "interactive032",
        "interactive033", "interactive034", "interactive035", "interactive036",
-       "interactive037"]
+       "interactive037", "interactive038", "interactive039", "interactive040"]
 
 idrisTestsInterface : TestPool
 idrisTestsInterface = MkTestPool "Interface" [] Nothing
@@ -121,7 +122,7 @@ idrisTestsPerformance = MkTestPool "Performance" [] Nothing
        -- Performance: things which have been slow in the past, or which
        -- pose interesting challenges for the elaborator
       ["perf001", "perf002", "perf003", "perf004", "perf005",
-       "perf007", "perf008", "perf009", "perf010"]
+       "perf007", "perf008", "perf009", "perf010", "perf011"]
 
 idrisTestsRegression : TestPool
 idrisTestsRegression = MkTestPool "Various regressions" [] Nothing
@@ -141,7 +142,7 @@ idrisTestsData = MkTestPool "Data and record types" [] Nothing
        "data001",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006", "record007", "record008", "record009"]
+       "record006", "record007", "record008", "record009", "record010"]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" [] Nothing
@@ -156,7 +157,7 @@ idrisTestsEvaluator = MkTestPool "Evaluation" [] Nothing
        "evaluator001", "evaluator002", "evaluator003",
        -- Miscellaneous REPL
        "interpreter001", "interpreter002", "interpreter003", "interpreter004",
-       "interpreter005", "interpreter006", "interpreter007"]
+       "interpreter005", "interpreter006", "interpreter007", "interpreter008"]
 
 idrisTestsAllBackends : Requirement -> TestPool
 idrisTestsAllBackends cg = MkTestPool
@@ -196,6 +197,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "eta001",
        -- Modules and imports
        "import001", "import002", "import003", "import004", "import005", "import006",
+       "import007",
        -- Implicit laziness, lazy evaluation
        "lazy001", "lazy002",
        -- Namespace blocks

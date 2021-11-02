@@ -15,6 +15,7 @@ import Data.List.Views
 import Data.List1
 import Data.Maybe
 import Data.Nat
+import Data.SnocList
 import Data.String
 import Libraries.Utils.String
 
@@ -974,19 +975,23 @@ mutual
                             xs <- many $ bounds $ (interpBlock q fname idents) <||> strLitLines
                             endloc <- location
                             strEnd
-                            pure (endloc, toLines xs [] [])
+                            pure (endloc, toLines xs [<] [<])
            pure $ let ((_, col), xs) = b.val in
                       PMultiline (boundToFC fname b) (fromInteger $ cast col) xs
     where
-      toLines : List (WithBounds $ Either PTerm (List1 String)) -> List PStr -> List (List PStr) -> List (List PStr)
-      toLines [] line acc = acc `snoc` line
-      toLines (x::xs) line acc
-          = case x.val of
-                 Left tm => toLines xs (line `snoc` (StrInterp (boundToFC fname x) tm)) acc
-                 Right (str:::[]) => toLines xs (line `snoc` (StrLiteral (boundToFC fname x) str)) acc
-                 Right (str:::strs@(_::_)) => toLines xs [StrLiteral (boundToFC fname x) (last strs)]
-                                                         ((acc `snoc` (line `snoc` (StrLiteral (boundToFC fname x) str))) ++
-                                                               ((\str => [StrLiteral (boundToFC fname x) str]) <$> (init strs)))
+      toLines : List (WithBounds $ Either PTerm (List1 String)) ->
+                SnocList PStr -> SnocList (List PStr) -> List (List PStr)
+      toLines [] line acc = acc <>> [line <>> []]
+      toLines (x::xs) line acc = case x.val of
+        Left tm =>
+          toLines xs (line :< StrInterp (boundToFC fname x) tm) acc
+        Right (str:::[]) =>
+          toLines xs (line :< StrLiteral (boundToFC fname x) str) acc
+        Right (str:::strs@(_::_)) =>
+          let fc = boundToFC fname x in
+          toLines xs [< StrLiteral fc (last strs)]
+            $ acc :< (line <>> [StrLiteral fc str])
+            <>< map (\str => [StrLiteral fc str]) (init strs)
 
 visOption : OriginDesc ->  Rule Visibility
 visOption fname
@@ -1379,6 +1384,9 @@ fnDirectOpt fname
   <|> do pragma "inline"
          commit
          pure $ IFnOpt Inline
+  <|> do pragma "noinline"
+         commit
+         pure $ IFnOpt NoInline
   <|> do pragma "tcinline"
          commit
          pure $ IFnOpt TCInline
@@ -1825,7 +1833,8 @@ editCmd
          upd <- option False (symbol "!" $> True)
          line <- intLit
          n <- name
-         pure (ExprSearch upd (fromInteger line) n [])
+         hints <- sepBy (symbol ",") name
+         pure (ExprSearch upd (fromInteger line) n hints)
   <|> do replCmd ["psnext"]
          pure ExprSearchNext
   <|> do replCmd ["gd"]
@@ -1864,6 +1873,9 @@ data CmdArg : Type where
      ||| The command takes an expression.
      ExprArg : CmdArg
 
+     ||| The command takes a documentation directive.
+     DocArg : CmdArg
+
      ||| The command takes a list of declarations
      DeclsArg : CmdArg
 
@@ -1896,6 +1908,7 @@ Show CmdArg where
   show NoArg = ""
   show NameArg = "<name>"
   show ExprArg = "<expr>"
+  show DocArg = "<keyword|expr>"
   show DeclsArg = "<decls>"
   show NumberArg = "<number>"
   show AutoNumberArg = "<number|auto>"
@@ -1991,6 +2004,20 @@ exprArgCmd parseCmd command doc = (names, ExprArg, doc, parse)
       runParseCmd parseCmd
       tm <- mustWork $ typeExpr pdef (Virtual Interactive) init
       pure (command tm)
+
+docArgCmd : ParseCmd -> (DocDirective -> REPLCmd) -> String -> CommandDefinition
+docArgCmd parseCmd command doc = (names, DocArg, doc, parse)
+  where
+    names : List String
+    names = extractNames parseCmd
+
+    parse : Rule REPLCmd
+    parse = do
+      symbol ":"
+      runParseCmd parseCmd
+      dir <- mustWork $ Keyword <$> anyKeyword
+                    <|> APTerm <$> typeExpr pdef (Virtual Interactive) init
+      pure (command dir)
 
 declsArgCmd : ParseCmd -> (List PDecl -> REPLCmd) -> String -> CommandDefinition
 declsArgCmd parseCmd command doc = (names, DeclsArg, doc, parse)
@@ -2108,7 +2135,7 @@ parserCommandsForHelp =
   , noArgCmd (ParseREPLCmd ["e", "edit"]) Edit "Edit current file using $EDITOR or $VISUAL"
   , nameArgCmd (ParseREPLCmd ["miss", "missing"]) Missing "Show missing clauses"
   , nameArgCmd (ParseKeywordCmd "total") Total "Check the totality of a name"
-  , exprArgCmd (ParseIdentCmd "doc") Doc "Show documentation for a name or primitive"
+  , docArgCmd (ParseIdentCmd "doc") Doc "Show documentation for a keyword, a name, or a primitive"
   , moduleArgCmd (ParseIdentCmd "browse") (Browse . miAsNamespace) "Browse contents of a namespace"
   , loggingArgCmd (ParseREPLCmd ["log", "logging"]) SetLog "Set logging level"
   , autoNumberArgCmd (ParseREPLCmd ["consolewidth"]) SetConsoleWidth "Set the width of the console output (0 for unbounded) (auto by default)"

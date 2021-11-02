@@ -69,8 +69,7 @@ getNameType rigc env fc x
            Nothing =>
               do defs <- get Ctxt
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
-                      | [] => undefinedName fc x
-                      | ns => throw (AmbiguousName fc (map fst ns))
+                      | ns => ambiguousName fc x (map fst ns)
                  checkVisibleNS fc (fullname def) (visibility def)
                  rigSafe (multiplicity def) rigc
                  let nt = fromMaybe Func (defNameType $ definition def)
@@ -692,11 +691,12 @@ mutual
            logTerm "elab.with" 10 "Function " tm
            argn <- genName "argTy"
            retn <- genName "retTy"
-           argTy <- metaVar fc erased env argn (TType fc)
+           u <- uniVar fc
+           argTy <- metaVar fc erased env argn (TType fc u)
            let argTyG = gnf env argTy
            retTy <- metaVar -- {vars = argn :: vars}
                             fc erased env -- (Pi RigW Explicit argTy :: env)
-                            retn (TType fc)
+                            retn (TType fc u)
            (argv, argt) <- check rig elabinfo
                                  nest env arg (Just argTyG)
            let fntm = App fc tm argv

@@ -59,6 +59,7 @@ schFooter = "(collect 4)\n(blodwen-run-finalisers)\n"
 startChez : String -> String -> String -> String
 startChez chez appDirSh targetSh = Chez.startChezPreamble ++ unlines
     [ "export LD_LIBRARY_PATH=\"$DIR/" ++ appDirSh ++ ":$LD_LIBRARY_PATH\""
+    , "export DYLD_LIBRARY_PATH=\"$DIR/" ++ appDirSh ++ ":$DYLD_LIBRARY_PATH\""
     , "\"" ++ chez ++ "\" -q "
         ++ "--libdirs \"$DIR/" ++ appDirSh ++ "\" "
         ++ "--program \"$DIR/" ++ targetSh ++ "\" "
@@ -224,7 +225,7 @@ compileToSS c chez appdir tm = do
 
       -- write the files
       log "compiler.scheme.chez" 3 $ "Generating code for " ++ chezLib
-      Core.writeFile (appdir </> chezLib <.> "ss") $ fastAppend $
+      Core.writeFile (appdir </> chezLib <.> "ss") $ fastConcat $
         [header]
         ++ map snd fgndefs  -- definitions using foreign libs
         ++ compdefs

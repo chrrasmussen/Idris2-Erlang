@@ -33,6 +33,7 @@ showDefType (Hole {}) = "hole"
 showDefType (BySearch {}) = "search"
 showDefType (Guess {}) = "guess"
 showDefType ImpBind = "bound name"
+showDefType (UniverseLevel {}) = "universe level"
 showDefType Delayed = "delayed"
 
 ||| Get the return type.
@@ -121,7 +122,7 @@ termConMatch (TForce _ _ tm0) tm1 = termConMatch tm0 tm1
 termConMatch tm0 (TForce _ _ tm1) = termConMatch tm0 tm1
 termConMatch (PrimVal _ _) (PrimVal _ _) = True -- no constructor to check.
 termConMatch (Erased _ _) (Erased _ _) = True -- return type can't erased?
-termConMatch (TType _) (TType _) = True
+termConMatch (TType _ _) (TType _ _) = True
 termConMatch _ _ = False
 
 ||| Check a type is strict.
@@ -137,7 +138,7 @@ isStrict (TDelay _ _ f x) = isStrict f && isStrict x
 isStrict (TForce _ _ tm) = isStrict tm
 isStrict (PrimVal _ _) = True
 isStrict (Erased _ _) = True
-isStrict (TType _) = True
+isStrict (TType _ _) = True
 
 ||| Get the name and definition of a list of names.
 getConsGDef :
@@ -149,8 +150,7 @@ getConsGDef fc cons = do
     let c = defs.gamma
     for cons $ \n => do
         [(n', _, gdef)] <- lookupCtxtName n c
-            | [] => undefinedName fc n
-            | ns => throw $ AmbiguousName fc $ (\(n, _, _) => n) <$> ns
+            | ns => ambiguousName fc n $ (\(n, _, _) => n) <$> ns
         pure (n', gdef)
 
 isNatural : Ref Ctxt Defs => FC ->Name -> Core Bool
@@ -225,8 +225,7 @@ processBuiltinNatural fc name = do
     ds <- get Ctxt
     log "builtin.Natural" 5 $ "Processing %builtin Natural " ++ show name ++ "."
     [(n, _, gdef)] <- lookupCtxtName name ds.gamma
-        | [] => undefinedName fc name
-        | ns => throw $ AmbiguousName fc $ (\(n, _, _) => n) <$> ns
+        | ns => ambiguousName fc name $ (\(n, _, _) => n) <$> ns
     False <- isNatural fc n
         | True => pure ()
     let TCon _ _ _ _ _ _ dcons _ = gdef.definition
@@ -244,8 +243,7 @@ processNatToInteger fc fn = do
     ds <- get Ctxt
     log "builtin.NaturalToInteger" 5 $ "Processing %builtin NaturalToInteger " ++ show_fn ++ "."
     [(_ , i, gdef)] <- lookupCtxtName fn ds.gamma
-        | [] => undefinedName fc fn
-        | ns => throw $ AmbiguousName fc $ (\(n, _, _) => n) <$> ns
+        | ns => ambiguousName fc fn $ (\(n, _, _) => n) <$> ns
     let PMDef _ args _ cases _ = gdef.definition
         | def => throw $ GenericMsg fc
             $ "Expected function definition, found " ++ showDefType def ++ "."
@@ -272,8 +270,7 @@ processIntegerToNat fc fn = do
     ds <- get Ctxt
     log "builtin.IntegerToNatural" 5 $ "Processing %builtin IntegerToNatural " ++ show_fn ++ "."
     [(_, i, gdef)] <- lookupCtxtName fn ds.gamma
-        | [] => undefinedName fc fn
-        | ns => throw $ AmbiguousName fc $ (\(n, _, _) => n) <$> ns
+        | ns => ambiguousName fc fn $ (\(n, _, _) => n) <$> ns
     type <- toFullNames gdef.type
     let PMDef _ _ _ _ _ = gdef.definition
         | def => throw $ GenericMsg fc

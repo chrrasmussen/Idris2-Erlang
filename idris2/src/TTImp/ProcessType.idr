@@ -34,11 +34,19 @@ getRetTy defs ty
     = throw (GenericMsg (getLoc ty)
              "Can only add hints for concrete return types")
 
+throwIfHasFlag : {auto c : Ref Ctxt Defs} -> FC -> Name -> DefFlag -> String -> Core ()
+throwIfHasFlag fc ndef fl msg
+    = when !(hasFlag fc ndef fl) $ throw (GenericMsg fc msg)
+
 processFnOpt : {auto c : Ref Ctxt Defs} ->
                FC -> Bool -> -- ^ top level name?
                Name -> FnOpt -> Core ()
 processFnOpt fc _ ndef Inline
-    = setFlag fc ndef Inline
+    = do throwIfHasFlag fc ndef NoInline "%noinline and %inline are mutually exclusive"
+         setFlag fc ndef Inline
+processFnOpt fc _ ndef NoInline
+    = do throwIfHasFlag fc ndef Inline "%inline and %noinline are mutually exclusive"
+         setFlag fc ndef NoInline
 processFnOpt fc _ ndef TCInline
     = setFlag fc ndef TCInline
 processFnOpt fc True ndef (Hint d)
@@ -281,11 +289,12 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc nameFC n_in ty_ra
          Nothing <- lookupCtxtExact (Resolved idx) (gamma defs)
               | Just gdef => throw (AlreadyDefined fc n)
 
+         u <- uniVar fc
          ty <-
              wrapErrorC eopts (InType fc n) $
                    checkTerm idx InType (HolesOkay :: eopts) nest env
                              (IBindHere fc (PI erased) ty_raw)
-                             (gType fc)
+                             (gType fc u)
          logTermNF "declare.type" 3 ("Type of " ++ show n) [] (abstractFullEnvType tfc env ty)
 
          def <- initDef n env ty opts

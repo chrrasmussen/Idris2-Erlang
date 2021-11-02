@@ -102,7 +102,7 @@ data Error : Type where
                          FC -> Env Term vars -> Term vars -> Error
      AmbiguousName : FC -> List Name -> Error
      AmbiguousElab : {vars : _} ->
-                     FC -> Env Term vars -> List (Term vars) -> Error
+                     FC -> Env Term vars -> List (Context, Term vars) -> Error
      AmbiguousSearch : {vars : _} ->
                        FC -> Env Term vars -> Term vars -> List (Term vars) -> Error
      AmbiguityTooDeep : FC -> Name -> List Name -> Error
@@ -259,7 +259,7 @@ Show Error where
       = show fc ++ ":" ++ show t ++ " borrows, so must return a concrete type"
 
   show (AmbiguousName fc ns) = show fc ++ ":Ambiguous name " ++ show ns
-  show (AmbiguousElab fc env ts) = show fc ++ ":Ambiguous elaboration " ++ show ts
+  show (AmbiguousElab fc env ts) = show fc ++ ":Ambiguous elaboration " ++ show (map snd ts)
   show (AmbiguousSearch fc env tgt ts) = show fc ++ ":Ambiguous search " ++ show ts
   show (AmbiguityTooDeep fc n ns)
       = show fc ++ ":Ambiguity too deep in " ++ show n ++ " " ++ show ns
@@ -704,7 +704,7 @@ mapTermM f = goTerm where
     goTerm (TForce fc la t) = f =<< TForce fc la <$> goTerm t
     goTerm tm@(PrimVal _ _) = f tm
     goTerm tm@(Erased _ _) = f tm
-    goTerm tm@(TType _) = f tm
+    goTerm tm@(TType _ _) = f tm
 
 
 export
@@ -791,3 +791,23 @@ readFile fname =
   coreLift (readFile fname) >>= \case
     Right content => pure content
     Left err => throw $ FileErr fname err
+
+namespace Functor
+
+  export
+  [CORE] Functor Core where
+    map = Core.map
+
+namespace Applicative
+
+  export
+  [CORE] Applicative Core using Functor.CORE where
+    pure = Core.pure
+    (<*>) = Core.(<*>)
+
+namespace Monad
+
+  export
+  [CORE] Monad Core using Applicative.CORE where
+    (>>=) = Core.(>>=)
+    join mma = Core.(>>=) mma id

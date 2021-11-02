@@ -343,6 +343,7 @@ startRacket racket appdir target = unlines
     , "fi"
     , ""
     , "export LD_LIBRARY_PATH=\"$DIR/" ++ appdir ++ ":$LD_LIBRARY_PATH\""
+    , "export DYLD_LIBRARY_PATH=\"$DIR/" ++ appdir ++ ":$DYLD_LIBRARY_PATH\""
     , racket ++ "\"$DIR/" ++ target ++ "\" \"$@\""
     ]
 
@@ -379,7 +380,7 @@ compileToRKT c appdir tm outfile
          s <- newRef {t = List String} Structs []
          fgndefs <- traverse (getFgnCall appdir) ndefs
          compdefs <- traverse (getScheme racketPrim racketString) ndefs
-         let code = fastAppend (map snd fgndefs ++ compdefs)
+         let code = fastConcat (map snd fgndefs ++ compdefs)
          main <- schExp racketPrim racketString 0 ctm
          support <- readDataFile "racket/support.rkt"
          ds <- getDirectives Racket

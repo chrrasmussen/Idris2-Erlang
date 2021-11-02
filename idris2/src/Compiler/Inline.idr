@@ -168,7 +168,10 @@ mutual
                 let Just def = compexpr gdef
                   | Nothing => pure (unload stk (CRef fc n))
                 let arity = getArity def
-                if (Inline `elem` flags gdef) && (not (n `elem` rec))
+                let gdefFlags = flags gdef
+                if (Inline `elem` gdefFlags)
+                    && (not (n `elem` rec))
+                    && (not (NoInline `elem` gdefFlags))
                    then do ap <- tryApply (n :: rec) stk env def
                            pure $ fromMaybe (unloadApp arity stk (CRef fc n)) ap
                    else pure $ unloadApp arity stk (CRef fc n)
@@ -411,9 +414,12 @@ mergeLambdas args (CLam fc x sc)
           (_ ** expLocs)
 mergeLambdas args exp = (args ** exp)
 
+||| Inline all inlinable functions into the given expression.
+||| @ n the function name
+||| @ exp the body of the function
 doEval : {args : _} ->
          {auto c : Ref Ctxt Defs} ->
-         Name -> CExp args -> Core (CExp args)
+         (n : Name) -> (exp : CExp args) -> Core (CExp args)
 doEval n exp
     = do l <- newRef LVar (the Int 0)
          log "compiler.inline.eval" 10 (show n ++ ": " ++ show exp)
