@@ -269,3 +269,17 @@ chmodRaw filePath p = do
 export
 chmod : HasIO io => String -> Permissions -> io (Either FileError ())
 chmod fname p = chmodRaw fname (mkMode p)
+
+||| Copy the file at the specified source to the given destination.
+|||
+||| @ src  the file to copy
+||| @ dest the place to copy the file to
+export
+copyFile : HasIO io => (src : String) -> (dest : String) -> io (Either FileError ())
+copyFile src dest = do
+  result <- pure $ erlUnsafeCall ErlTerm "file" "copy" [src, dest]
+  pure $ erlDecodeDef
+    (Left unknownError)
+    ((tuple2 (exact (MkAtom "ok")) integer *> pure (Right ()))
+      <|> map Left error)
+    result

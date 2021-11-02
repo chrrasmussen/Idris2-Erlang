@@ -14,7 +14,7 @@ idrisReadFile file = do
       closeFile h
       pure (Left err)
   closeFile h
-  pure (Right (fastAppend content))
+  pure (Right (fastConcat content))
   where
     read : List String -> File -> io (Either FileError (List String))
     read acc h = do

@@ -92,7 +92,7 @@ writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespa
   let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
   let outfile = outputDir </> modName ++ "." ++ extension
   let decls = genErlModule defLine module_
-  let content = fastAppend (flatten (Nested (map declToCS decls)))
+  let content = fastConcat (flatten (Nested (map declToCS decls)))
   Right () <- coreLift $ writeFile outfile content
     | Left err => throw (FileErr outfile err)
   pure outfile
