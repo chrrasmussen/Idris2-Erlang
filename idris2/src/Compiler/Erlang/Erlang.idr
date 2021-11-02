@@ -127,7 +127,7 @@ compileMainEntrypointToModules globalOpts tm modName = do
   mainBody <- genNmExp namespaceInfo empty (forget (mainExpr compileData))
   argsVar <- newLocalVar
   let erlMainFunDecl = MkFunDecl defLine Public "start" [] !(genErlMain defLine mainBody)
-  let escriptMainFunDecl = MkFunDecl defLine Public "main" [argsVar] (genEscriptMain defLine mainBody)
+  let escriptMainFunDecl = MkFunDecl defLine Public "main" [argsVar] !(genEscriptMain defLine mainBody)
   let validCompdefs = (namespaceInfo, erlMainFunDecl) :: (namespaceInfo, escriptMainFunDecl) :: mapMaybe id compdefs
   pure $ defsPerModule validCompdefs
 

@@ -194,31 +194,6 @@ genUncurry l arity transform curriedFun = do
   vars <- newLocalVars arity
   pure $ ELam l vars (transform (genAppCurriedFun l curriedFun (genArgsToLocals l vars)))
 
-export
-genEscriptMain : Line -> (body : ErlExpr) -> ErlExpr
-genEscriptMain l body =
-  let setEncodingCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
-  in ESequence l
-      [ setEncodingCall
-      , body
-      ]
-
-export
-genErlMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
-genErlMain l body = do
-  let processFlagCall = genFunCall l "erlang" "process_flag" [EAtom l "trap_exit", EAtom l "false"]
-  okVar <- newLocalVar
-  errorVar <- newLocalVar
-  let mainProgram = ESequence l
-        [ processFlagCall
-        , genEscriptMain l body
-        , genHalt l 0
-        ]
-  pure $ ETryCatch l mainProgram okVar (ELocal l okVar) errorVar (ESequence l [genFunCall l "erlang" "display" [ELocal l errorVar], genHalt l 127])
-  where
-    genHalt : Line -> (errorCode : Integer) -> ErlExpr
-    genHalt l errorCode = genFunCall l "erlang" "halt" [EInteger l errorCode]
-
 
 -- OS
 
@@ -515,3 +490,68 @@ export
 genProcessDictWriteIORef : Line -> (mutableRef : ErlExpr) -> (newVal : ErlExpr) -> ErlExpr
 genProcessDictWriteIORef l mutableRef newVal =
   genFunCall l "erlang" "put" [mutableRef, newVal]
+
+
+-- MAIN PROGRAMS
+
+genDisplay : Line -> ErlExpr -> ErlExpr
+genDisplay l expr =
+  genFunCall l "erlang" "display" [expr]
+
+genHalt : Line -> (errorCode : Integer) -> ErlExpr
+genHalt l errorCode =
+  genFunCall l "erlang" "halt" [EInteger l errorCode]
+
+genAppendNewline : Line -> ErlExpr -> ErlExpr
+genAppendNewline l str =
+  EBinaryConcat l str (EBinary l "\n")
+
+export
+genEscriptMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
+genEscriptMain l body = do
+  let setOptsCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
+  let mainProgram = ESequence l
+        [ setOptsCall
+        , body
+        ]
+  okVar <- newLocalVar
+  errorVar <- newLocalVar
+  errorProgram <- genErrorProgram errorVar
+  pure $ ETryCatch l mainProgram
+    okVar (ELocal l okVar)
+    errorVar errorProgram
+  where
+    genErrorProgram : LocalVar -> Core ErlExpr
+    genErrorProgram errorVar = do
+      classVar <- newLocalVar
+      reasonVar <- newLocalVar
+      stacktraceVar <- newLocalVar
+      tagVar <- newLocalVar
+      msgVar <- newLocalVar
+      pure $ ESequence l
+        [ EMatcherCase l (ELocal l errorVar)
+          [ MTuple
+              [ (classVar, MExact (EAtom l "throw")),
+                (reasonVar, MTuple
+                  [ (tagVar, MExact (EAtom l runTimeErrorTag))
+                  , (msgVar, MBinary)
+                  ]
+                  (ELocal l msgVar)
+                ),
+                (stacktraceVar, MAny)
+              ]
+              (genUnicodePutStr l (genAppendNewline l (ELocal l reasonVar)))
+          ]
+          (genDisplay l (ELocal l errorVar))
+        , genHalt l 127
+        ]
+
+export
+genErlMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
+genErlMain l body = do
+  let processFlagCall = genFunCall l "erlang" "process_flag" [EAtom l "trap_exit", EAtom l "false"]
+  pure $ ESequence l
+    [ processFlagCall
+    , !(genEscriptMain l body)
+    , genHalt l 0
+    ]
