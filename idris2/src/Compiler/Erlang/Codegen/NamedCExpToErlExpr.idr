@@ -531,7 +531,7 @@ genForeign : {auto lv : Ref LV LocalVars} -> NamespaceInfo -> Line -> Name -> Li
 genForeign namespaceInfo l (NS _ (UN (Basic "prim__putStr"))) [arg, world] = do
   let putStrCall = genUnicodePutStr l arg
   let retVal = genMkIORes l (genMkUnit l)
-  pure $ ESequence l [putStrCall, retVal]
+  pure $ ESequence l (putStrCall ::: [retVal])
 genForeign namespaceInfo l (NS _ (UN (Basic "prim__getStr"))) [world] = do
   let getStrCall = genUnicodeGetStr l (ECharlist l "")
   pure $ genMkIORes l getStrCall

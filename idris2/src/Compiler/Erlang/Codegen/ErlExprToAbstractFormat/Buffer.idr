@@ -17,22 +17,21 @@ export
 resize : Line -> (buf : Expr) -> (newSize : Expr) -> Expr
 resize l buf newSize =
   let extendedBody =
-        [ AETuple l [AEVar l "Bin", AEVar l "NewSize"]
-        ]
+        singleton $ AETuple l [AEVar l "Bin", AEVar l "NewSize"]
       shrinkedBinary = genFunCall l "binary" "part" [AEVar l "Bin", AELiteral (ALInteger l 0), AEVar l "NewSize"]
       shrinkedBody =
-        [ AETuple l [shrinkedBinary, AEVar l "NewSize"]
-        ]
+        singleton $ AETuple l [shrinkedBinary, AEVar l "NewSize"]
       funExpr = AEFun l 2
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "NewSize"]
-            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "NewSize")]]
-            extendedBody
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "NewSize"]
-            []
-            shrinkedBody
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "NewSize"))]
+            extendedBody :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "NewSize"]
+              []
+              shrinkedBody
+          ]
+        )
   in AEFunCall l funExpr [buf, newSize]
 
 export
@@ -44,23 +43,24 @@ flatten l buf maxbytes =
         , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
-        , AETuple l [paddedBinaryValue, AEVar l "BufSize"]
-        ]
+        ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize) :::
+          [ AETuple l [paddedBinaryValue, AEVar l "BufSize"]
+          ]
+        )
       shrinkedBinary = genFunCall l "binary" "part" [AEVar l "Bin", AELiteral (ALInteger l 0), AEVar l "BufSize"]
       shrinkedBody =
-        [ AETuple l [shrinkedBinary, AEVar l "BufSize"]
-        ]
+        singleton $ AETuple l [shrinkedBinary, AEVar l "BufSize"]
       funExpr = AEFun l 2
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "MaxBytes"]
-            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "MaxBytes")]]
-            extendedBody
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "MaxBytes"]
-            []
-            shrinkedBody
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "MaxBytes"))]
+            extendedBody :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "MaxBytes"]
+              []
+              shrinkedBody
+          ]
+        )
   in AEFunCall l funExpr [buf, maxbytes]
 
 -- Similar to the following Erlang code:
@@ -91,10 +91,11 @@ setGeneric targetTSL targetSize l buf loc value =
         ]
       targetSizeInBytes = AEOp l "div" (AELiteral (ALInteger l (cast targetSize))) (AELiteral (ALInteger l 8))
       mutatedBody =
-        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l targetSizeInBytes)
-        , AEMatch l mutatedBinaryPattern binaryWithExtraPadding
-        , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
-        ]
+        ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l targetSizeInBytes) :::
+          [ AEMatch l mutatedBinaryPattern binaryWithExtraPadding
+          , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
+          ]
+        )
       paddingSize = AEOp l "-" (AEVar l "Loc") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       extendedBinaryValue =
         AEBitstring l
@@ -103,19 +104,21 @@ setGeneric targetTSL targetSize l buf loc value =
           , MkBitSegment l (AEVar l "Value")   (ABSInteger l (cast targetSize)) targetTSL
           ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
-        , AETuple l [extendedBinaryValue, AEVar l "BufSize"]
-        ]
+        ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize) :::
+          [ AETuple l [extendedBinaryValue, AEVar l "BufSize"]
+          ]
+        )
       funExpr = AEFun l 3
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
-            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "Loc")]]
-            extendedBody
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
-            []
-            mutatedBody
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "Loc"))]
+            extendedBody :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
+              []
+              mutatedBody
+          ]
+        )
   in AEFunCall l funExpr [buf, loc, value]
 
 -- Similar to the following Erlang code:
@@ -134,20 +137,22 @@ getGeneric targetTSL targetSize defaultValue l buf loc =
         , MkBitSegment l (ABPUniversal l)   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       body =
-        [ AEMatch l binaryPattern (AEVar l "Bin")
-        , AEVar l "Value"
-        ]
+        ( AEMatch l binaryPattern (AEVar l "Bin") :::
+          [ AEVar l "Value"
+          ]
+        )
       targetSizeInBytes = AGOp l "div" (AGLiteral (ALInteger l (cast targetSize))) (AGLiteral (ALInteger l 8))
       funExpr = AEFun l 2
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc"]
-            [MkGuardAlt [AGOp l "=<" (AGOp l "+" (AGVar l "Loc") targetSizeInBytes) (AGFunCall l "byte_size" [AGVar l "Bin"])]]
-            body
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc"]
-            []
-            [defaultValue]
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGOp l "+" (AGVar l "Loc") targetSizeInBytes) (AGFunCall l "byte_size" [AGVar l "Bin"]))]
+            body :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc"]
+              []
+              (singleton defaultValue)
+          ]
+        )
   in AEFunCall l funExpr [buf, loc]
 
 export
@@ -203,11 +208,12 @@ setString l buf loc value =
         , MkBitSegment l (AEVar l "End")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       mutatedBody =
-        [ AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "Value"])
-        , AEMatch l (APVar l "Padding") (Binary.zeroPadded l (AEVar l "Size"))
-        , AEMatch l mutatedBinaryPattern binaryWithExtraPadding
-        , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
-        ]
+        ( AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "Value"]) :::
+          [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l (AEVar l "Size"))
+          , AEMatch l mutatedBinaryPattern binaryWithExtraPadding
+          , AETuple l [mutatedBinaryValue, AEVar l "BufSize"]
+          ]
+        )
       paddingSize = AEOp l "-" (AEVar l "Loc") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       extendedBinaryValue =
         AEBitstring l
@@ -216,19 +222,21 @@ setString l buf loc value =
           , MkBitSegment l (AEVar l "Value")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
           ]
       extendedBody =
-        [ AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize)
-        , AETuple l [extendedBinaryValue, AEVar l "BufSize"]
-        ]
+        ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize) :::
+          [ AETuple l [extendedBinaryValue, AEVar l "BufSize"]
+          ]
+        )
       funExpr = AEFun l 3
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
-            [MkGuardAlt [AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "Loc")]]
-            extendedBody
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
-            []
-            mutatedBody
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGFunCall l "byte_size" [AGVar l "Bin"]) (AGVar l "Loc"))]
+            extendedBody :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Value"]
+              []
+              mutatedBody
+          ]
+        )
   in AEFunCall l funExpr [buf, loc, value]
 
 -- Similar to the following Erlang code:
@@ -248,20 +256,21 @@ getString l buf loc len =
         , MkBitSegment l (ABPUniversal l)   ABSDefault       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
         ]
       body =
-        [ AEMatch l binaryPattern (AEVar l "Bin")
-        , AEVar l "Value"
-        ]
+        ( AEMatch l binaryPattern (AEVar l "Bin") :::
+          [ AEVar l "Value"
+          ]
+        )
       defaultBody =
-        [ Binary.zeroPadded l (AEVar l "Len")
-        ]
+        singleton $ Binary.zeroPadded l (AEVar l "Len")
       funExpr = AEFun l 3
-        [ MkFunClause l
+        ( MkFunClause l
             [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Len"]
-            [MkGuardAlt [AGOp l "=<" (AGOp l "+" (AGVar l "Loc") (AGVar l "Len")) (AGFunCall l "byte_size" [AGVar l "Bin"])]]
-            body
-        , MkFunClause l
-            [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Len"]
-            []
-            defaultBody
-        ]
+            [MkGuardAlt (singleton $ AGOp l "=<" (AGOp l "+" (AGVar l "Loc") (AGVar l "Len")) (AGFunCall l "byte_size" [AGVar l "Bin"]))]
+            body :::
+          [ MkFunClause l
+              [APTuple l [APVar l "Bin", APVar l "BufSize"], APVar l "Loc", APVar l "Len"]
+              []
+              defaultBody
+          ]
+        )
   in AEFunCall l funExpr [buf, loc, len]

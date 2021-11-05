@@ -479,7 +479,7 @@ genProcessDictNewIORef : Line -> (refVar : LocalVar) -> (val : ErlExpr) -> ErlEx
 genProcessDictNewIORef l refVar val =
   let makeRefCall = genFunCall l "erlang" "make_ref" []
       putCall = genFunCall l "erlang" "put" [ELocal l refVar, val]
-  in ELet l refVar makeRefCall (ESequence l [putCall, ELocal l refVar])
+  in ELet l refVar makeRefCall (ESequence l (putCall ::: [ELocal l refVar]))
 
 export
 genProcessDictReadIORef : Line -> (mutableRef : ErlExpr) -> ErlExpr
@@ -510,10 +510,7 @@ export
 genEscriptMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
 genEscriptMain l body = do
   let setOptsCall = genFunCall l "io" "setopts" [genList l [ETuple l [EAtom l "encoding", EAtom l "unicode"]]]
-  let mainProgram = ESequence l
-        [ setOptsCall
-        , body
-        ]
+  let mainProgram = ESequence l (setOptsCall ::: [body])
   okVar <- newLocalVar
   errorVar <- newLocalVar
   errorProgram <- genErrorProgram errorVar
@@ -529,29 +526,31 @@ genEscriptMain l body = do
       tagVar <- newLocalVar
       msgVar <- newLocalVar
       pure $ ESequence l
-        [ EMatcherCase l (ELocal l errorVar)
-          [ MTuple
-              [ (classVar, MExact (EAtom l "throw")),
-                (reasonVar, MTuple
-                  [ (tagVar, MExact (EAtom l runTimeErrorTag))
-                  , (msgVar, MBinary)
-                  ]
-                  (ELocal l msgVar)
-                ),
-                (stacktraceVar, MAny)
-              ]
-              (genUnicodePutStr l (genAppendNewline l (ELocal l reasonVar)))
+        ( EMatcherCase l (ELocal l errorVar)
+            [ MTuple
+                [ (classVar, MExact (EAtom l "throw")),
+                  (reasonVar, MTuple
+                    [ (tagVar, MExact (EAtom l runTimeErrorTag))
+                    , (msgVar, MBinary)
+                    ]
+                    (ELocal l msgVar)
+                  ),
+                  (stacktraceVar, MAny)
+                ]
+                (genUnicodePutStr l (genAppendNewline l (ELocal l reasonVar)))
+            ]
+            (genDisplay l (ELocal l errorVar)) :::
+          [ genHalt l 127
           ]
-          (genDisplay l (ELocal l errorVar))
-        , genHalt l 127
-        ]
+        )
 
 export
 genErlMain : {auto lv : Ref LV LocalVars} -> Line -> (body : ErlExpr) -> Core ErlExpr
 genErlMain l body = do
   let processFlagCall = genFunCall l "erlang" "process_flag" [EAtom l "trap_exit", EAtom l "false"]
   pure $ ESequence l
-    [ processFlagCall
-    , !(genEscriptMain l body)
-    , genHalt l 0
-    ]
+    ( processFlagCall :::
+      [ !(genEscriptMain l body)
+      , genHalt l 0
+      ]
+    )

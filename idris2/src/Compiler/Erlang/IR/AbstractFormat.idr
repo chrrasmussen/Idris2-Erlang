@@ -1,6 +1,7 @@
 module Compiler.Erlang.IR.AbstractFormat
 
 import public Data.Vect
+import public Data.List1
 
 import public Compiler.Erlang.Utils.PrimTerm
 
@@ -113,7 +114,7 @@ data Guard : Type where
 -- * Each `GuardAlt` needs to have at least one `Guard` expression.
 public export
 data GuardAlt : Type where
-  MkGuardAlt : (guards : Vect (S k) Guard) -> GuardAlt
+  MkGuardAlt : (guards : List1 Guard) -> GuardAlt
 
 mutual
   public export
@@ -121,12 +122,12 @@ mutual
     AELiteral : Literal -> Expr
     AEBitstring : Line -> List (BitSegment Expr) -> Expr
     -- Bitstring comprehension
-    AEBlock : Line -> (body : Vect (S k) Expr) -> Expr
-    AECase : Line -> Expr -> (clauses : Vect (S k) CaseClause) -> Expr
+    AEBlock : Line -> (body : List1 Expr) -> Expr
+    AECase : Line -> Expr -> (clauses : List1 CaseClause) -> Expr
     -- Catch expression
     AECons : Line -> Expr -> Expr -> Expr
     -- Function reference
-    AEFun : Line -> (arity : Nat) -> (clauses : Vect (S k) (FunClause arity)) -> Expr
+    AEFun : Line -> (arity : Nat) -> (clauses : List1 (FunClause arity)) -> Expr
     AEFunCall : Line -> (fn : Expr) -> (args : List Expr) -> Expr
     AERemoteRef : Line -> (modName : Expr) -> (fnName : Expr) -> Expr
     -- If expression
@@ -141,25 +142,25 @@ mutual
     -- Record creation expression
     -- Record update expression
     AETuple : Line -> List Expr -> Expr
-    AETry : Line -> (sc : Vect (S k) Expr) -> List CaseClause -> List CatchClause -> (afterBody : List Expr) -> Expr
+    AETry : Line -> (statements : List1 Expr) -> List CaseClause -> List CatchClause -> (afterBody : List Expr) -> Expr
     AEVar : Line -> (name : String) -> Expr
 
   public export
   data FunClause : Nat -> Type where
-    MkFunClause : Line -> Vect arity Pattern -> List GuardAlt -> (body : Vect (S k) Expr) -> FunClause arity
+    MkFunClause : Line -> Vect arity Pattern -> List GuardAlt -> (body : List1 Expr) -> FunClause arity
 
   public export
   data CaseClause : Type where
-    MkCaseClause : Line -> Pattern -> List GuardAlt -> (body : Vect (S k) Expr) -> CaseClause
+    MkCaseClause : Line -> Pattern -> List GuardAlt -> (body : List1 Expr) -> CaseClause
 
   public export
   data CatchClause : Type where
-    MkCatchClause : Line -> (class : Pattern) -> (reason : Pattern) -> (stacktrace : Pattern) -> List GuardAlt -> (body : Vect (S k) Expr) -> CatchClause
+    MkCatchClause : Line -> (class : Pattern) -> (reason : Pattern) -> (stacktrace : Pattern) -> List GuardAlt -> (body : List1 Expr) -> CatchClause
 
   public export
   data ReceiveTimeout : Type where
     NoTimeout : ReceiveTimeout
-    TimeoutAfter : (ms : Expr) -> (body : Vect (S k) Expr) -> ReceiveTimeout
+    TimeoutAfter : (ms : Expr) -> (body : List1 Expr) -> ReceiveTimeout
 
 public export
 data Decl : Type where
@@ -167,7 +168,7 @@ data Decl : Type where
   -- ADImport
   ADModule : Line -> (name : String) -> Decl
   -- ADFile
-  ADFunDef : Line -> (name : String) -> (arity : Nat) -> (clauses : Vect (S k) (FunClause arity)) -> Decl
+  ADFunDef : Line -> (name : String) -> (arity : Nat) -> (clauses : List1 (FunClause arity)) -> Decl
   -- ADFunSpec
   -- ADRecord
   -- ADType

@@ -139,8 +139,8 @@ mutual
     PTuple [PAtom "receive", genLine l, PList (assert_total (map genCaseClause clauses)), genExpr ms, PList (assert_total (map genExpr (toList afterBody)))]
   genExpr (AETuple l exprs) =
     PTuple [PAtom "tuple", genLine l, PList (assert_total (map genExpr exprs))]
-  genExpr (AETry l sc caseClauses catchClauses afterBody) =
-    PTuple [PAtom "try", genLine l, PList (assert_total (map genExpr (toList sc))), PList (assert_total (map genCaseClause caseClauses)), PList (assert_total (map genCatchClause catchClauses)), PList (assert_total (map genExpr afterBody))]
+  genExpr (AETry l statements caseClauses catchClauses afterBody) =
+    PTuple [PAtom "try", genLine l, PList (assert_total (map genExpr (toList statements))), PList (assert_total (map genCaseClause caseClauses)), PList (assert_total (map genCatchClause catchClauses)), PList (assert_total (map genExpr afterBody))]
   genExpr (AEVar l x) =
     PTuple [PAtom "var", genLine l, PAtom x]
 

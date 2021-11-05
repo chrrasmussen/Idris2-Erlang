@@ -25,7 +25,7 @@ guardAnd (Just x) (Just y) = Just (AGOp (getGuardLine x) "andalso" x y)
 
 guardToGuardAlts : Maybe Guard -> List GuardAlt
 guardToGuardAlts Nothing = []
-guardToGuardAlts (Just x) = [MkGuardAlt [x]]
+guardToGuardAlts (Just x) = [MkGuardAlt (singleton x)]
 
 
 -- HELPER FUNCTIONS
@@ -33,10 +33,6 @@ guardToGuardAlts (Just x) = [MkGuardAlt [x]]
 varsToVarNames : (vars : List LocalVar) -> Vect (length vars) String
 varsToVarNames [] = []
 varsToVarNames (x :: xs) = show x :: varsToVarNames xs
-
-toNonEmptyClauses : (clauses : List a) -> (def : a) -> Vect (S (length clauses)) a
-toNonEmptyClauses [] def = [def]
-toNonEmptyClauses (x :: xs) def = x :: toNonEmptyClauses xs def
 
 record MatcherClause where
   constructor MkMatcherClause
@@ -46,10 +42,10 @@ record MatcherClause where
   preComputedValues : List (LocalVar, Expr)
 
 wrapPreComputedValues : Line -> List (LocalVar, Expr) -> Expr -> Expr
-wrapPreComputedValues l [] body = body
+wrapPreComputedValues l [] body =
+  body -- Do not wrap in AEBlock unnecessarily
 wrapPreComputedValues l preComputedValues@(_ :: _) body =
-  let letBindings = map toLet preComputedValues
-  in AEBlock {k=length letBindings} l (rewrite sym (plusCommutative (length letBindings) 1) in fromList letBindings ++ [body])
+  AEBlock l (map toLet preComputedValues `lappend` singleton body)
   where
     toLet : (LocalVar, Expr) -> Expr
     toLet (var, value) = AEMatch l (APVar l (show var)) value
@@ -155,15 +151,12 @@ mutual
   genErlExpr (ELam l args body) = do
     let varNames = varsToVarNames args
     body' <- genErlExpr body
-    pure $ AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [body']]
+    pure $ AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton body'))
   genErlExpr (ELet l newVar value body) = do
     let varName = show newVar
     value' <- genErlExpr value
     body' <- genErlExpr body
-    pure $ AEBlock l
-      [ AEMatch l (APVar l varName) value'
-      , body'
-      ]
+    pure $ AEBlock l (AEMatch l (APVar l varName) value' ::: [body'])
   genErlExpr (ESequence l statements) = do
     statements' <- assert_total $ traverse genErlExpr statements
     pure $ AEBlock l statements'
@@ -177,13 +170,13 @@ mutual
     exprs' <- assert_total $ traverse genErlExpr exprs
     pure $ AETuple l (AELiteral (ALAtom l name) :: exprs')
   genErlExpr (EConstCase l sc clauses def) = do
-    let defClause = MkCaseClause l (APUniversal l) [] [!(genErlExpr def)]
+    let defClause = MkCaseClause l (APUniversal l) [] (singleton !(genErlExpr def))
     generatedClauses <- assert_total $ traverse (genErlConstAlt l) clauses
-    pure $ AECase l !(genErlExpr sc) (toNonEmptyClauses generatedClauses defClause)
+    pure $ AECase l !(genErlExpr sc) (generatedClauses `lappend` singleton defClause)
   genErlExpr (EMatcherCase l sc matchers def) = do
-    let defClause = MkCaseClause l (APUniversal l) [] [!(genErlExpr def)]
+    let defClause = MkCaseClause l (APUniversal l) [] (singleton !(genErlExpr def))
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
-    let caseExpr = AECase l !(genErlExpr sc) (toNonEmptyClauses (map fst generatedClauses) defClause)
+    let caseExpr = AECase l !(genErlExpr sc) (map fst generatedClauses `lappend` singleton defClause)
     pure $ wrapPreComputedValues l (concatMap snd generatedClauses) caseExpr
   -- EReceive generates the following code.
   --
@@ -199,7 +192,7 @@ mutual
   -- end
   -- ```
   genErlExpr (EReceive l matchers timeout def) = do
-    let defClause = TimeoutAfter !(genErlExpr timeout) [!(genErlExpr def)]
+    let defClause = TimeoutAfter !(genErlExpr timeout) (singleton !(genErlExpr def))
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
     let receiveExpr = AEReceive l (map fst generatedClauses) defClause
     pure $ wrapPreComputedValues l (concatMap snd generatedClauses) receiveExpr
@@ -220,12 +213,13 @@ mutual
     exReasonVar <- newLocalVar
     exStacktraceVar <- newLocalVar
     let exceptionValue = AETuple l [AEVar l (show exClassVar), AEVar l (show exReasonVar), AEVar l (show exStacktraceVar)]
-    let tryCaseClause = MkCaseClause l (APVar l (show okVar)) [] [!(genErlExpr okExpr)]
+    let tryCaseClause = MkCaseClause l (APVar l (show okVar)) [] (singleton !(genErlExpr okExpr))
     let tryCatchClause = MkCatchClause l (APVar l (show exClassVar)) (APVar l (show exReasonVar)) (APVar l (show exStacktraceVar)) []
-          [ AEMatch l (APVar l (show errorVar)) exceptionValue
-          , !(genErlExpr errorExpr)
-          ]
-    pure $ AETry l [!(genErlExpr tryExpr)] [tryCaseClause] [tryCatchClause] []
+          ( AEMatch l (APVar l (show errorVar)) exceptionValue :::
+            [ !(genErlExpr errorExpr)
+            ]
+          )
+    pure $ AETry l (singleton !(genErlExpr tryExpr)) [tryCaseClause] [tryCatchClause] []
   genErlExpr (EBinaryConcat l bin1 bin2) =
     pure $ Binary.concat l !(genErlExpr bin1) !(genErlExpr bin2)
   genErlExpr (EIdrisConstant l x) =
@@ -294,12 +288,15 @@ mutual
   genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do
     let pattern = genIdrisConstant l (genBinaryPattern l) APLiteral constant
-    pure $ MkCaseClause l pattern [] [!(genErlExpr body)]
+    pure $ MkCaseClause l pattern [] (singleton !(genErlExpr body))
 
   genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
   genErlMatcher l matcher = do
     clause <- readErlMatcher l matcher
-    pure (MkCaseClause l (pattern clause) (guardToGuardAlts (guard clause)) [body clause], preComputedValues clause)
+    pure
+      ( MkCaseClause l (pattern clause) (guardToGuardAlts (guard clause)) (singleton $ body clause)
+      , preComputedValues clause
+      )
 
   readErlMatcher : Line -> ErlMatcher -> State LocalVars MatcherClause
   readErlMatcher l (MExact expr) =
@@ -356,7 +353,7 @@ mutual
     xClause <- readErlMatcher l x
     yClause <- readErlMatcher l y
     let varNames = varsToVarNames [hdVar, tlVar]
-    let wrappedFun = AEFun l 2 [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let wrappedFun = AEFun l 2 (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
     let pattern = APCons l (pattern xClause) (pattern yClause)
     let guard = guard xClause `guardAnd` guard yClause
     let body = AEFunCall l wrappedFun [body xClause, body yClause]
@@ -366,7 +363,7 @@ mutual
     let args = map fst erlMatchers
     let clauses = map snd erlMatchers
     let varNames = varsToVarNames args
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let wrappedFun = AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
     let pattern = foldr (\clause, acc => APCons l (pattern clause) acc) (APNil l) clauses
     let guard = foldl (\acc, clause => guard clause `guardAnd` acc) Nothing clauses
     let body = AEFunCall l wrappedFun (map body clauses)
@@ -376,7 +373,7 @@ mutual
     let args = map fst erlMatchers
     let clauses = map snd erlMatchers
     let varNames = varsToVarNames args
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let wrappedFun = AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
     let pattern = APTuple l (map pattern clauses)
     let guard = foldl (\acc, clause => guard clause `guardAnd` acc) Nothing clauses
     let body = AEFunCall l wrappedFun (map body clauses)
@@ -386,7 +383,7 @@ mutual
     let args = map fst erlMatchers
     let clauses = map snd erlMatchers
     let varNames = varsToVarNames args
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let wrappedFun = AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
     let pattern = APTuple l (APLiteral (ALAtom l tag) :: map pattern clauses)
     let guard = foldl (\acc, clause => guard clause `guardAnd` acc) Nothing clauses
     let body = AEFunCall l wrappedFun (map body clauses)
@@ -396,7 +393,7 @@ mutual
     let args = map fst erlMatchers
     let clauses = map snd erlMatchers
     let varNames = varsToVarNames args
-    let wrappedFun = AEFun l (length args) [MkFunClause l (map (APVar l) varNames) [] [!(genErlExpr fun)]]
+    let wrappedFun = AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
     let pattern = APMap l (map (\(keyVar, clause) => MkExact l (APVar l (show keyVar)) (pattern clause)) erlMatchers)
     let guard = foldl (\acc, (keyVar, clause) => guard clause `guardAnd` acc) Nothing erlMatchers
     let body = AEFunCall l wrappedFun (map (\(keyVar, clause) => body clause) erlMatchers)
@@ -411,8 +408,8 @@ mutual
     xClause <- readErlMatcher l x
     let pattern = pattern xClause
     let guard = guard xClause
-    let funClause = MkFunClause l [APVar l (show xVar)] [] [!(genErlExpr fun)]
-    let body = AEFunCall l (AEFun l 1 [funClause]) [body xClause]
+    let funClause = MkFunClause l [APVar l (show xVar)] [] (singleton !(genErlExpr fun))
+    let body = AEFunCall l (AEFun l 1 (singleton funClause)) [body xClause]
     pure $ MkMatcherClause pattern guard body (preComputedValues xClause)
   readErlMatcher l (MConst x body) = do
     xClause <- readErlMatcher l x
@@ -470,4 +467,4 @@ genErlModule exportsLine mod =
     genFunDef (MkFunDecl l visibility name args body) =
       let varNames = varsToVarNames args
           expr = evalState (initLocalVars "E") (genErlExpr body)
-      in ADFunDef l name (length args) [MkFunClause l (map (APVar l) varNames) [] [expr]]
+      in ADFunDef l name (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton expr))

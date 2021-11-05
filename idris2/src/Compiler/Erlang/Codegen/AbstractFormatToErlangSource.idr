@@ -19,7 +19,7 @@ sepBy sep xs =
 
 -- CODE GENERATION
 
-genAtom : String -> String 
+genAtom : String -> String
 genAtom x = "'" ++ escapeString (unpack x) "" ++  "'"
 
 genCharlist : String -> String
@@ -175,8 +175,8 @@ mutual
   genExpr (AETuple l exprs) =
     let exprs' = sepBy ", " $ assert_total $ map genExpr exprs
     in Nested [Str "{", exprs', Str "}"]
-  genExpr (AETry l sc caseClauses catchClauses afterBody) =
-    let sc' = sepBy ", " $ assert_total $ map genExpr (toList sc)
+  genExpr (AETry l statements caseClauses catchClauses afterBody) =
+    let sc' = sepBy ", " $ assert_total $ map genExpr (toList statements)
         caseClauses' = case caseClauses of
           [] => Str ""
           xs => Nested [Str " of ", sepBy "; " $ assert_total $ map genCaseClause xs]

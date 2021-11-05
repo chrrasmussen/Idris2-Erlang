@@ -25,12 +25,11 @@ concat l bin1 bin2 =
           , MkBitSegment l (AEVar l "Bin2") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
           ]
       funExpr = AEFun l 2
-        [ MkFunClause l
+        ( singleton $ MkFunClause l
             [ APVar l "Bin1"
             , APVar l "Bin2"
             ]
             []
-            [ binaryValue
-            ]
-        ]
+            (singleton binaryValue)
+        )
   in AEFunCall l funExpr [bin1, bin2]
