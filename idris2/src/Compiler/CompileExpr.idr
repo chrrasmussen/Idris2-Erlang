@@ -737,9 +737,7 @@ toCDef n ty _ (ExternDef arity)
     getVars NoArgs = []
     getVars (ConsArg a rest) = MkVar First :: map weakenVar (getVars rest)
 toCDef n ty _ (ForeignDef arity cs)
-    = do defs <- get Ctxt
-         (atys, retty) <- getCFTypes [] !(nf defs [] ty)
-         pure $ MkForeign cs atys retty
+    = pure $ MkForeign cs (replicate arity CFUnit) CFUnit
 toCDef n ty _ (Builtin {arity} op)
     = let (ns ** args) = mkArgList 0 arity in
           pure $ MkFun _ (COp emptyFC op (map toArgExp (getVars args)))

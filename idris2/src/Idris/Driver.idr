@@ -12,7 +12,6 @@ import Core.Unify
 
 import Idris.CommandLine
 import Idris.Env
-import Idris.IDEMode.REPL
 import Idris.Package
 import Idris.ProcessIdr
 import Idris.REPL
@@ -204,24 +203,8 @@ stMain cgs opts
                  doRepl <- catch (postOptions result opts)
                                  (\err => emitError err *> pure False)
                  if doRepl then
-                   if ide || ideSocket then
-                     if not ideSocket
-                      then do
-                       setOutput (IDEMode 0 stdin stdout)
-                       replIDE {c} {u} {m}
-                     else do
-                       let (host, port) = ideSocketModeAddress opts
-                       f <- coreLift $ initIDESocketFile host port
-                       case f of
-                         Left err => do
-                           coreLift $ putStrLn err
-                           coreLift $ softExitWith (ExitFailure 1)
-                         Right file => do
-                           setOutput (IDEMode 0 file file)
-                           replIDE {c} {u} {m}
-                   else do
-                       repl {c} {u} {m}
-                       showTimeRecord
+                   do repl {c} {u} {m}
+                      showTimeRecord
                   else
                       -- exit with an error code if there was an error, otherwise
                       -- just exit
