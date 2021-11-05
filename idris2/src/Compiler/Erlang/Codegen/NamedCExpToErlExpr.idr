@@ -366,9 +366,8 @@ genDecode l term matcher = do
   tempVar <- newLocalVar
   pure $ EMatcherCase l
     term
-    [ MTransform matcher tempVar (genJust l (ELocal l tempVar))
-    ]
-    (genNothing l)
+    (singleton $ MTransform matcher tempVar (genJust l (ELocal l tempVar)))
+    (Just $ genNothing l)
 
 genDecodeTuple : {auto lv : Ref LV LocalVars} -> Line -> ErlExpr -> (arity : Nat) -> Core ErlExpr
 genDecodeTuple l term arity = do
@@ -593,21 +592,21 @@ mutual
   genNmExp namespaceInfo vs (NmDelay fc lr t) = do
     let l = genFC fc
     pure $ ELam l [] !(genNmExp namespaceInfo vs t)
-  genNmExp namespaceInfo vs (NmConCase fc sc alts def) = do
+  genNmExp namespaceInfo vs (NmConCase fc sc [] def) =
+    throw $ InternalError "ConCase has no clauses"
+  genNmExp namespaceInfo vs (NmConCase fc sc (x :: xs) def) = do
     let l = genFC fc
     sc' <- genNmExp namespaceInfo vs sc
-    alts' <- assert_total $ traverse (genConAlt namespaceInfo vs l) alts
-    def' <- case def of
-          Just defExpr => genNmExp namespaceInfo vs defExpr
-          Nothing => pure $ genThrowMsg l "Error: Unreachable branch"
+    alts' <- assert_total $ traverseList1 (genConAlt namespaceInfo vs l) (x ::: xs)
+    def' <- assert_total $ traverseOpt (genNmExp namespaceInfo vs) def
     pure $ EMatcherCase l sc' alts' def'
-  genNmExp namespaceInfo vs (NmConstCase fc sc alts def) = do
+  genNmExp namespaceInfo vs (NmConstCase fc sc [] def) =
+    throw $ InternalError "ConstCase has no clauses"
+  genNmExp namespaceInfo vs (NmConstCase fc sc (x :: xs) def) = do
     let l = genFC fc
     sc' <- genNmExp namespaceInfo vs sc
-    alts' <- assert_total $ traverse (genConstAlt namespaceInfo vs) alts
-    def' <- case def of
-          Just defExpr => genNmExp namespaceInfo vs defExpr
-          Nothing => pure $ genThrowMsg l "Error: Unreachable branch"
+    alts' <- assert_total $ traverseList1 (genConstAlt namespaceInfo vs) (x ::: xs)
+    def' <- assert_total $ traverseOpt (genNmExp namespaceInfo vs) def
     pure $ EConstCase l sc' alts' def'
   genNmExp namespaceInfo vs (NmPrimVal fc c) = do
     let l = genFC fc

@@ -1,6 +1,7 @@
 module Compiler.Erlang.IR.ErlExpr
 
 import public Data.List1
+import public Data.These
 import Control.Monad.State
 
 
@@ -94,8 +95,8 @@ mutual
     EApp : Line -> ErlExpr -> List ErlExpr -> ErlExpr
     EOp : Line -> (op : String) -> (lhs : ErlExpr) -> (rhs : ErlExpr) -> ErlExpr
     ECon : Line -> (name : String) -> List ErlExpr -> ErlExpr
-    EConstCase : Line -> (sc : ErlExpr) -> List ErlConstAlt -> (def : ErlExpr) -> ErlExpr
-    EMatcherCase : Line -> (sc : ErlExpr) -> List ErlMatcher -> (def : ErlExpr) -> ErlExpr
+    EConstCase : Line -> (sc : ErlExpr) -> (clauses : List1 ErlConstAlt) -> (def : Maybe ErlExpr) -> ErlExpr
+    EMatcherCase : Line -> (sc : ErlExpr) -> (clauses : List1 ErlMatcher) -> (def : Maybe ErlExpr) -> ErlExpr
     EReceive : Line -> List ErlMatcher -> (timeout : ErlExpr) -> (def : ErlExpr) -> ErlExpr
     ETryCatch : Line -> (tryExpr : ErlExpr) -> (okVar : LocalVar) -> (okExpr : ErlExpr) -> (errorVar : LocalVar) -> (errorExpr : ErlExpr) -> ErlExpr
     EBinaryConcat : Line -> (bin1 : ErlExpr) -> (bin2 : ErlExpr) -> ErlExpr

@@ -207,15 +207,15 @@ genOsType l = do
   let osTypeCall = genFunCall l "os" "type" []
   let unixOsName = EMatcherCase l
         (ELocal l unixOsNameVar)
-        [ MConst (MExact (EAtom l "darwin")) (EBinary l "darwin")
-        ]
-        (EBinary l "unix")
+        (singleton $ MConst (MExact (EAtom l "darwin")) (EBinary l "darwin"))
+        (Just $ EBinary l "unix")
   pure $ EMatcherCase l
     osTypeCall
-    [ MTuple [(unixOsFamilyVar, MExact (EAtom l "unix")), (unixOsNameVar, MAny)] unixOsName
-    , MTuple [(winOsFamilyVar, MExact (EAtom l "win32")), (winOsNameVar, MAny)] (EBinary l "windows")
-    ]
-    (EBinary l "unknown")
+    ( MTuple [(unixOsFamilyVar, MExact (EAtom l "unix")), (unixOsNameVar, MAny)] unixOsName :::
+      [ MTuple [(winOsFamilyVar, MExact (EAtom l "win32")), (winOsNameVar, MAny)] (EBinary l "windows")
+      ]
+    )
+    (Just $ EBinary l "unknown")
 
 
 -- BOOLEANS
@@ -225,9 +225,8 @@ genBoolToInt : Line -> ErlExpr -> ErlExpr
 genBoolToInt l expr =
   EMatcherCase l
     expr
-    [ MConst (MExact (EAtom l "false")) (EInteger l 0)
-    ]
-    (EInteger l 1)
+    (singleton $ MConst (MExact (EAtom l "false")) (EInteger l 0))
+    (Just $ EInteger l 1)
 
 
 -- ARITHMETIC
@@ -251,9 +250,8 @@ genMod l dividendExpr divisorExpr = do
       ELet l remainderVar ((ELocal l dividendVar) `rem` (ELocal l divisorVar)) $
         EMatcherCase l
           (((ELocal l remainderVar) `mult` (ELocal l divisorVar)) `lt` EInteger l 0)
-          [ MConst (MExact (EAtom l "true")) ((ELocal l remainderVar) `plus` (ELocal l divisorVar))
-          ]
-          (ELocal l remainderVar)
+          (singleton $ MConst (MExact (EAtom l "true")) ((ELocal l remainderVar) `plus` (ELocal l divisorVar)))
+          (Just $ ELocal l remainderVar)
 
 export
 genToBoundedUnsignedInt : {auto lv : Ref LV LocalVars} -> Line -> (bits : Nat) -> ErlExpr -> Core ErlExpr
@@ -272,9 +270,8 @@ genToBoundedSignedInt l bits x =
   in
     EMatcherCase l
       isMostSignificantBitSet
-      [ MConst (MExact (EAtom l "true")) (x `bor` EInteger l (-bitsValue))
-      ]
-      (EOp l "band" x (EInteger l (bitsValue - 1)))
+      (singleton $ MConst (MExact (EAtom l "true")) (x `bor` EInteger l (-bitsValue)))
+      (Just $ EOp l "band" x (EInteger l (bitsValue - 1)))
 
 
 -- STRINGS
@@ -333,9 +330,8 @@ genUnicodeStringTail l str = do
   let nextGraphemeCall = genFunCall l "string" "next_grapheme" [str]
   pure $ EMatcherCase l
       nextGraphemeCall
-      [ MCons MAny MBinary headVar tailVar (ELocal l tailVar)
-      ]
-      (EBinary l "")
+      (singleton $ MCons MAny MBinary headVar tailVar (ELocal l tailVar))
+      (Just $ EBinary l "")
 
 -- NOTE: Is allowed to be partial
 export
@@ -379,7 +375,7 @@ genUnicodeStringSubstr l start len str =
 -- https://en.wikipedia.org/wiki/Specials_(Unicode_block)
 genValidChar : Line -> ErlExpr -> ErlExpr
 genValidChar l x =
-  EMatcherCase l x [MCodepoint] (EInteger l 65533)
+  EMatcherCase l x (singleton MCodepoint) (Just $ EInteger l 65533)
 
 
 -- CAST: Int -> *
@@ -423,14 +419,13 @@ genStringToInteger l str = do
   let toIntegerCall = genFunCall l "string" "to_integer" [str]
   pure $ EMatcherCase l
       toIntegerCall
-      [ MTuple [(integerVar, MInteger), (restVar, MAny)]
+      (singleton $ MTuple [(integerVar, MInteger), (restVar, MAny)]
           (EMatcherCase l
             (genFunCall l "string" "is_empty" [ELocal l restVar])
-            [ MConst (MExact (EAtom l "true")) (ELocal l integerVar)
-            ]
-            (EInteger l 0))
-      ]
-      (EInteger l 0)
+            (singleton $ MConst (MExact (EAtom l "true")) (ELocal l integerVar))
+            (Just $ EInteger l 0))
+      )
+      (Just $ EInteger l 0)
 
 -- Try to convert String to Double
 -- If it fails; try to convert String to Integer to Double
@@ -444,16 +439,16 @@ genStringToDouble l str = do
   let toFloatCall = genFunCall l "string" "to_float" [str]
   pure $ EMatcherCase l
       toFloatCall
-      [ MTuple [(errorAtomVar, MExact (EAtom l "error")), (noFloatAtomVar, MExact (EAtom l "no_float"))]
-          (genFunCall l "erlang" "float" [!(genStringToInteger l str)])
-      , MTuple [(floatVar, MFloat), (restVar, MAny)]
-          (EMatcherCase l
-            (genFunCall l "string" "is_empty" [ELocal l restVar])
-            [ MConst (MExact (EAtom l "true")) (ELocal l floatVar)
-            ]
-            (EFloat l 0))
-      ]
-      (EFloat l 0)
+      ( MTuple [(errorAtomVar, MExact (EAtom l "error")), (noFloatAtomVar, MExact (EAtom l "no_float"))]
+          (genFunCall l "erlang" "float" [!(genStringToInteger l str)]) :::
+        [ MTuple [(floatVar, MFloat), (restVar, MAny)]
+            (EMatcherCase l
+              (genFunCall l "string" "is_empty" [ELocal l restVar])
+              (singleton $ MConst (MExact (EAtom l "true")) (ELocal l floatVar))
+              (Just $ EFloat l 0))
+        ]
+      )
+      (Just $ EFloat l 0)
 
 
 -- IO
@@ -527,7 +522,7 @@ genEscriptMain l body = do
       msgVar <- newLocalVar
       pure $ ESequence l
         ( EMatcherCase l (ELocal l errorVar)
-            [ MTuple
+            (singleton $ MTuple
                 [ (classVar, MExact (EAtom l "throw")),
                   (reasonVar, MTuple
                     [ (tagVar, MExact (EAtom l runTimeErrorTag))
@@ -538,8 +533,8 @@ genEscriptMain l body = do
                   (stacktraceVar, MAny)
                 ]
                 (genUnicodePutStr l (genAppendNewline l (ELocal l reasonVar)))
-            ]
-            (genDisplay l (ELocal l errorVar)) :::
+            )
+            (Just $ genDisplay l (ELocal l errorVar)) :::
           [ genHalt l 127
           ]
         )

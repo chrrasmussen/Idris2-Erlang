@@ -170,14 +170,16 @@ mutual
     exprs' <- assert_total $ traverse genErlExpr exprs
     pure $ AETuple l (AELiteral (ALAtom l name) :: exprs')
   genErlExpr (EConstCase l sc clauses def) = do
-    let defClause = MkCaseClause l (APUniversal l) [] (singleton !(genErlExpr def))
+    def' <- assert_total $ traverse genErlExpr def
+    let defClause = map (\x => MkCaseClause l (APUniversal l) [] (singleton x)) def'
     generatedClauses <- assert_total $ traverse (genErlConstAlt l) clauses
-    pure $ AECase l !(genErlExpr sc) (generatedClauses `lappend` singleton defClause)
+    pure $ AECase l !(genErlExpr sc) (generatedClauses `appendl` toList defClause)
   genErlExpr (EMatcherCase l sc matchers def) = do
-    let defClause = MkCaseClause l (APUniversal l) [] (singleton !(genErlExpr def))
+    def' <- assert_total $ traverse genErlExpr def
+    let defClause = map (\x => MkCaseClause l (APUniversal l) [] (singleton x)) def'
     generatedClauses <- assert_total (traverse (genErlMatcher l) matchers)
-    let caseExpr = AECase l !(genErlExpr sc) (map fst generatedClauses `lappend` singleton defClause)
-    pure $ wrapPreComputedValues l (concatMap snd generatedClauses) caseExpr
+    let caseExpr = AECase l !(genErlExpr sc) (map fst generatedClauses `appendl` toList defClause)
+    pure $ wrapPreComputedValues l (concatMap snd (toList generatedClauses)) caseExpr
   -- EReceive generates the following code.
   --
   -- If matchers contain `MExact` or `MMapSubset`, the values will be pre-computed to allow
