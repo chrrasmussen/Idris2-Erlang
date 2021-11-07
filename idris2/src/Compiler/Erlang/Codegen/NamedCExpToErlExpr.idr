@@ -397,6 +397,9 @@ genExtPrim {cgOpts} namespaceInfo l (NS _ (UN (Basic "prim__writeIORef"))) [_, m
         then genFunCall l "mutable_storage" "term_set" [mutableRef, newVal]
         else genProcessDictWriteIORef l mutableRef newVal
   pure $ genMkIORes l expr
+genExtPrim {cgOpts} namespaceInfo l (NS _ (UN (Basic "prim__freeIORef"))) [_, mutableRef, world] = do
+  let expr = genProcessDictFreeIORef l mutableRef
+  pure $ genMkIORes l expr
 genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlUnsafeCall"))) [_, ret, modName, fnName, args] = do
   pure $ genFunCall l "erlang" "apply" [genUnsafeStringToAtom l modName, genUnsafeStringToAtom l fnName, args]
 genExtPrim namespaceInfo l (NS _ (UN (Basic "prim__erlTryCatch"))) [_, action, world] = do

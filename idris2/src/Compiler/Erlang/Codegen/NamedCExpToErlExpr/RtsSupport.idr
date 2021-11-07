@@ -486,6 +486,11 @@ genProcessDictWriteIORef : Line -> (mutableRef : ErlExpr) -> (newVal : ErlExpr) 
 genProcessDictWriteIORef l mutableRef newVal =
   genFunCall l "erlang" "put" [mutableRef, newVal]
 
+export
+genProcessDictFreeIORef : Line -> (mutableRef : ErlExpr) -> ErlExpr
+genProcessDictFreeIORef l mutableRef =
+  genFunCall l "erlang" "erase" [mutableRef]
+
 
 -- MAIN PROGRAMS
 

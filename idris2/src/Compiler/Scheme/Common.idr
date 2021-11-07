@@ -196,7 +196,7 @@ schOp Crash [_,msg] = pure $ "(blodwen-error-quit (string-append \"ERROR: \" " +
 
 ||| Extended primitives for the scheme backend, outside the standard set of primFn
 public export
-data ExtPrim = NewIORef | ReadIORef | WriteIORef
+data ExtPrim = NewIORef | ReadIORef | WriteIORef | FreeIORef
              | NewArray | ArrayGet | ArraySet
              | GetField | SetField
              | VoidElim
@@ -211,6 +211,7 @@ Show ExtPrim where
   show NewIORef = "NewIORef"
   show ReadIORef = "ReadIORef"
   show WriteIORef = "WriteIORef"
+  show FreeIORef = "FreeIORef"
   show NewArray = "NewArray"
   show ArrayGet = "ArrayGet"
   show ArraySet = "ArraySet"
@@ -230,6 +231,7 @@ toPrim pn@(NS _ n)
     = cond [(n == UN (Basic "prim__newIORef"), NewIORef),
             (n == UN (Basic "prim__readIORef"), ReadIORef),
             (n == UN (Basic "prim__writeIORef"), WriteIORef),
+            (n == UN (Basic "prim__freeIORef"), FreeIORef),
             (n == UN (Basic "prim__newArray"), NewArray),
             (n == UN (Basic "prim__arrayGet"), ArrayGet),
             (n == UN (Basic "prim__arraySet"), ArraySet),
@@ -641,6 +643,8 @@ parameters (schExtPrim : Int -> ExtPrim -> List NamedCExp -> Core String,
       = pure $ mkWorld $ "(set-box! "
                            ++ !(schExp i ref) ++ " "
                            ++ !(schExp i val) ++ ")"
+  schExtCommon i FreeIORef [_, ref, world]
+      = pure $ mkWorld $ "(void)"
   schExtCommon i NewArray [_, size, val, world]
       = pure $ mkWorld $ "(make-vector " ++ !(schExp i size) ++ " "
                                          ++ !(schExp i val) ++ ")"

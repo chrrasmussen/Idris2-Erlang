@@ -67,7 +67,8 @@ newBuffer size = do
 -- might be needed if we do this in C...
 export
 freeBuffer : HasIO io => Buffer -> io ()
-freeBuffer buf = pure ()
+freeBuffer (MkBuffer ref) =
+  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "erase" [ref]
 
 export
 rawSize : HasIO io => Buffer -> io Int
