@@ -35,9 +35,6 @@ data MapFieldExact : Type -> Type where
   MkExact : Line -> (key : a) -> (value : a) -> MapFieldExact a
 
 public export
-data BitType = ABInteger | ABFloat | ABBinary | ABBytes | ABBitstring | ABBits | ABUtf8 | ABUtf16 | ABUtf32
-
-public export
 data BitSignedness = ABUnsigned | ABSigned
 
 public export
@@ -60,19 +57,24 @@ fromInteger : (x : Integer) -> {auto prf : So (fromInteger x >= 1 && fromInteger
 fromInteger x =
   fromMaybe (MkBitUnit 0) (natToBitUnit (integerToNat x))
 
+-- SOURCE: https://www.erlang.org/doc/reference_manual/expressions.html#bit-syntax-expressions
+public export
+data TypeSpecifierList : Type where
+  ABInteger   : {default ABUnsigned signedness : BitSignedness} -> {default ABBig endianness : BitEndianness} -> {default 1 unit : BitUnit} -> TypeSpecifierList
+  ABFloat     : {default ABBig endianness : BitEndianness} -> {default 1 unit : BitUnit} -> TypeSpecifierList
+  ABBinary    : {default 8 unit : BitUnit} -> TypeSpecifierList
+  -- `bytes` is shorthand for `binary`
+  ABBitstring : {default 1 unit : BitUnit} -> TypeSpecifierList
+  -- `bits` is shorthand for `bitstring`
+  ABUtf8      : TypeSpecifierList
+  ABUtf16     : {default ABBig endianness : BitEndianness} -> TypeSpecifierList
+  ABUtf32     : {default ABBig endianness : BitEndianness} -> TypeSpecifierList
+
 public export
 data BitSize : Type where
   ABSDefault : BitSize
   ABSInteger : Line -> Integer -> BitSize
   ABSVar : Line -> String -> BitSize
-
-public export
-record TypeSpecifierList where
-  constructor MkTSL
-  signedness : Maybe BitSignedness
-  endianness : Maybe BitEndianness
-  type : Maybe BitType
-  unit : Maybe BitUnit
 
 public export
 data BitSegment : Type -> Type where
@@ -207,3 +209,27 @@ getGuardLine (AGNil l) = l
 getGuardLine (AGOp l _ _ _) = l
 getGuardLine (AGTuple l _) = l
 getGuardLine (AGVar l _) = l
+
+
+-- TYPE SPECIFIER LIST HELPERS
+
+export
+getBitSignedness : TypeSpecifierList -> Maybe BitSignedness
+getBitSignedness (ABInteger {signedness}) = Just signedness
+getBitSignedness _ = Nothing
+
+export
+getBitEndianness : TypeSpecifierList -> Maybe BitEndianness
+getBitEndianness (ABInteger {endianness}) = Just endianness
+getBitEndianness (ABFloat {endianness}) = Just endianness
+getBitEndianness (ABUtf16 {endianness}) = Just endianness
+getBitEndianness (ABUtf32 {endianness}) = Just endianness
+getBitEndianness _ = Nothing
+
+export
+getBitUnit : TypeSpecifierList -> Maybe BitUnit
+getBitUnit (ABInteger {unit}) = Just unit
+getBitUnit (ABFloat {unit}) = Just unit
+getBitUnit (ABBinary {unit}) = Just unit
+getBitUnit (ABBitstring {unit}) = Just unit
+getBitUnit _ = Nothing

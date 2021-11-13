@@ -30,15 +30,13 @@ genMapFieldExact : (a -> PrimTerm) -> MapFieldExact a -> PrimTerm
 genMapFieldExact toPrimTerm (MkExact l key value) =
   PTuple [PAtom "map_field_exact", genLine l, toPrimTerm key, toPrimTerm value]
 
-genBitType : BitType -> PrimTerm
-genBitType type =
-  PAtom $ case type of
+genBitType : TypeSpecifierList -> PrimTerm
+genBitType tsl =
+  PAtom $ case tsl of
     ABInteger => "integer"
     ABFloat => "float"
     ABBinary => "binary"
-    ABBytes => "bytes"
     ABBitstring => "bitstring"
-    ABBits => "bits"
     ABUtf8 => "utf8"
     ABUtf16 => "utf16"
     ABUtf32 => "utf32"
@@ -57,24 +55,29 @@ genBitEndianness endianness =
     ABNative => "native"
 
 genBitUnit : BitUnit -> PrimTerm
-genBitUnit bitUnit =
-  PTuple [PAtom "unit", PInteger (cast (bitUnitToNat bitUnit))]
+genBitUnit unit =
+  PTuple [PAtom "unit", PInteger (cast (bitUnitToNat unit))]
 
 genBitSize : BitSize -> PrimTerm
 genBitSize ABSDefault = PAtom "default"
 genBitSize (ABSInteger l x) = PTuple [PAtom "integer", genLine l, PInteger x]
 genBitSize (ABSVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
 
-genTypeSpecifierList : TypeSpecifierList -> PrimTerm
-genTypeSpecifierList (MkTSL signedness endianness type unit) =
-  PList $ toList (map genBitSignedness signedness) ++
-    toList (map genBitEndianness endianness) ++
-    toList (map genBitType type) ++
-    toList (map genBitUnit unit)
+genTypeSpecifierList : BitSize -> TypeSpecifierList -> PrimTerm
+genTypeSpecifierList size tsl =
+  PList $ genBitType tsl ::
+    toList (genBitSignedness <$> getBitSignedness tsl) ++
+    toList (genBitEndianness <$> getBitEndianness tsl) ++
+    toList (genBitUnit <$> join (toMaybe (isAllowedToSpecifyBitUnit size) (getBitUnit tsl)))
+  where
+    isAllowedToSpecifyBitUnit : BitSize -> Bool
+    isAllowedToSpecifyBitUnit ABSDefault = False
+    isAllowedToSpecifyBitUnit (ABSInteger _ _) = True
+    isAllowedToSpecifyBitUnit (ABSVar _ _) = True
 
 genBitSegment : (a -> PrimTerm) -> BitSegment a -> PrimTerm
 genBitSegment genValue (MkBitSegment l value size tsl) =
-  PTuple [PAtom "bin_element", genLine l, genValue value, genBitSize size, genTypeSpecifierList tsl]
+  PTuple [PAtom "bin_element", genLine l, genValue value, genBitSize size, genTypeSpecifierList size tsl]
 
 genBitPattern : BitPattern -> PrimTerm
 genBitPattern (ABPInteger l x) = PTuple [PAtom "integer", genLine l, PInteger x]

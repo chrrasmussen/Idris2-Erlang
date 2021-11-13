@@ -13,7 +13,7 @@ empty l = AEBitstring l []
 export
 zeroPadded : Line -> (size : Expr) -> Expr
 zeroPadded l size =
-  let zero = AEBitstring l [MkBitSegment l (AELiteral (ALInteger l 0)) ABSDefault (MkTSL Nothing Nothing Nothing Nothing)]
+  let zero = AEBitstring l [MkBitSegment l (AELiteral (ALInteger l 0)) ABSDefault ABInteger]
   in genFunCall l "binary" "copy" [zero, size]
 
 export
@@ -21,8 +21,8 @@ concat : Line -> Expr -> Expr -> Expr
 concat l bin1 bin2 =
   let binaryValue =
         AEBitstring l
-          [ MkBitSegment l (AEVar l "Bin1") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          , MkBitSegment l (AEVar l "Bin2") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+          [ MkBitSegment l (AEVar l "Bin1") ABSDefault ABBinary
+          , MkBitSegment l (AEVar l "Bin2") ABSDefault ABBinary
           ]
       funExpr = AEFun l 2
         ( singleton $ MkFunClause l

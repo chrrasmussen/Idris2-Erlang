@@ -40,15 +40,13 @@ genMapFieldExact : (a -> CompositeString) -> MapFieldExact a -> CompositeString
 genMapFieldExact genValue (MkExact l key value) =
   Nested [genValue key, Str " := ", genValue value]
 
-genBitType : BitType -> String
-genBitType type =
-  case type of
+genBitType : TypeSpecifierList -> String
+genBitType tsl =
+  case tsl of
     ABInteger => "integer"
     ABFloat => "float"
     ABBinary => "binary"
-    ABBytes => "bytes"
     ABBitstring => "bitstring"
-    ABBits => "bits"
     ABUtf8 => "utf8"
     ABUtf16 => "utf16"
     ABUtf32 => "utf32"
@@ -67,25 +65,30 @@ genBitEndianness endianness =
     ABNative => "native"
 
 genBitUnit : BitUnit -> String
-genBitUnit bitUnit =
-  "unit:" ++ show (bitUnitToNat bitUnit)
+genBitUnit unit =
+  "unit:" ++ show (bitUnitToNat unit)
 
 genBitSize : BitSize -> Maybe String
 genBitSize ABSDefault = Nothing
 genBitSize (ABSInteger l x) = Just $ show x
 genBitSize (ABSVar l x) = Just x
 
-genTypeSpecifierList : TypeSpecifierList -> List String
-genTypeSpecifierList (MkTSL signedness endianness type unit) =
-  toList (map genBitSignedness signedness) ++
-    toList (map genBitEndianness endianness) ++
-    toList (map genBitType type) ++
-    toList (map genBitUnit unit)
+genTypeSpecifierList : BitSize -> TypeSpecifierList -> List String
+genTypeSpecifierList size tsl =
+  genBitType tsl ::
+    toList (genBitSignedness <$> getBitSignedness tsl) ++
+    toList (genBitEndianness <$> getBitEndianness tsl) ++
+    toList (genBitUnit <$> join (toMaybe (isAllowedToSpecifyBitUnit size) (getBitUnit tsl)))
+  where
+    isAllowedToSpecifyBitUnit : BitSize -> Bool
+    isAllowedToSpecifyBitUnit ABSDefault = False
+    isAllowedToSpecifyBitUnit (ABSInteger _ _) = True
+    isAllowedToSpecifyBitUnit (ABSVar _ _) = True
 
 genBitSegment : (a -> CompositeString) -> BitSegment a -> CompositeString
 genBitSegment genValue (MkBitSegment l value size tsl) =
   let bitSizeStr = maybe "" (":" ++) (genBitSize size)
-      tslStr = case genTypeSpecifierList tsl of
+      tslStr = case genTypeSpecifierList size tsl of
         [] => ""
         xs => "/" ++ showSep "-" xs
   in Nested [genValue value, Str bitSizeStr, Str tslStr]

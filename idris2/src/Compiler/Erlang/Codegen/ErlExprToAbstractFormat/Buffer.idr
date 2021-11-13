@@ -39,8 +39,8 @@ flatten : Line -> (buf : Expr) -> (maxbytes : Expr) -> Expr
 flatten l buf maxbytes =
   let paddingSize = AEOp l "-" (AEVar l "MaxBytes") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       paddedBinaryValue = AEBitstring l
-        [ MkBitSegment l (AEVar l "Bin")     ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Bin")     ABSDefault ABBinary
+        , MkBitSegment l (AEVar l "Padding") ABSDefault ABBinary
         ]
       extendedBody =
         ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize) :::
@@ -76,18 +76,18 @@ flatten l buf maxbytes =
 setGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
 setGeneric targetTSL targetSize l buf loc value =
   let binaryWithExtraPadding = AEBitstring l
-        [ MkBitSegment l (AEVar l "Bin")     ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Bin")     ABSDefault ABBinary
+        , MkBitSegment l (AEVar l "Padding") ABSDefault ABBinary
         ]
       mutatedBinaryPattern = APBitstring l
-        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")                 ABBinary
         , MkBitSegment l (ABPUniversal l)   (ABSInteger l (cast targetSize)) targetTSL
-        , MkBitSegment l (ABPVar l "End")   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (ABPVar l "End")   ABSDefault                       ABBinary
         ]
       mutatedBinaryValue = AEBitstring l
-        [ MkBitSegment l (AEVar l "Start") ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Start") ABSDefault                       ABBinary
         , MkBitSegment l (AEVar l "Value") (ABSInteger l (cast targetSize)) targetTSL
-        , MkBitSegment l (AEVar l "End")   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (AEVar l "End")   ABSDefault                       ABBinary
         ]
       targetSizeInBytes = AEOp l "div" (AELiteral (ALInteger l (cast targetSize))) (AELiteral (ALInteger l 8))
       mutatedBody =
@@ -99,8 +99,8 @@ setGeneric targetTSL targetSize l buf loc value =
       paddingSize = AEOp l "-" (AEVar l "Loc") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       extendedBinaryValue =
         AEBitstring l
-          [ MkBitSegment l (AEVar l "Bin")     ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          , MkBitSegment l (AEVar l "Padding") ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+          [ MkBitSegment l (AEVar l "Bin")     ABSDefault ABBinary
+          , MkBitSegment l (AEVar l "Padding") ABSDefault ABBinary
           , MkBitSegment l (AEVar l "Value")   (ABSInteger l (cast targetSize)) targetTSL
           ]
       extendedBody =
@@ -132,9 +132,9 @@ setGeneric targetTSL targetSize l buf loc value =
 getGeneric : (targetTSL : TypeSpecifierList) -> (targetSize : Int) -> (defaultValue : Expr) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
 getGeneric targetTSL targetSize defaultValue l buf loc =
   let binaryPattern = APBitstring l
-        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc")                 (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc")                 ABBinary
         , MkBitSegment l (ABPVar l "Value") (ABSInteger l (cast targetSize)) targetTSL
-        , MkBitSegment l (ABPUniversal l)   ABSDefault                       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        , MkBitSegment l (ABPUniversal l)   ABSDefault                       ABBinary
         ]
       body =
         ( AEMatch l binaryPattern (AEVar l "Bin") :::
@@ -157,27 +157,27 @@ getGeneric targetTSL targetSize defaultValue l buf loc =
 
 export
 setUnsignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-setUnsignedInt = setGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing)
+setUnsignedInt = setGeneric (ABInteger {signedness=ABUnsigned, endianness=ABNative})
 
 export
 getUnsignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
-getUnsignedInt size l = getGeneric (MkTSL (Just ABUnsigned) (Just ABNative) (Just ABInteger) Nothing) size (AELiteral (ALInteger l 0)) l
+getUnsignedInt size l = getGeneric (ABInteger {signedness=ABUnsigned, endianness=ABNative}) size (AELiteral (ALInteger l 0)) l
 
 export
 setSignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-setSignedInt = setGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing)
+setSignedInt = setGeneric (ABInteger {signedness=ABSigned, endianness=ABNative})
 
 export
 getSignedInt : (size : Int) -> Line -> (buf : Expr) -> (loc : Expr) -> Expr
-getSignedInt size l = getGeneric (MkTSL (Just ABSigned) (Just ABNative) (Just ABInteger) Nothing) size (AELiteral (ALInteger l 0)) l
+getSignedInt size l = getGeneric (ABInteger {signedness=ABSigned, endianness=ABNative}) size (AELiteral (ALInteger l 0)) l
 
 export
 setDouble : Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
-setDouble = setGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64
+setDouble = setGeneric (ABFloat {endianness=ABNative}) 64
 
 export
 getDouble : Line -> (buf : Expr) -> (loc : Expr) -> Expr
-getDouble l = getGeneric (MkTSL Nothing (Just ABNative) (Just ABFloat) Nothing) 64 (AELiteral (ALFloat l 0)) l
+getDouble l = getGeneric (ABFloat {endianness=ABNative}) 64 (AELiteral (ALFloat l 0)) l
 
 -- Similar to the following Erlang code:
 -- ```
@@ -194,18 +194,18 @@ export
 setString : Line -> (buf : Expr) -> (loc : Expr) -> (value : Expr) -> Expr
 setString l buf loc value =
   let binaryWithExtraPadding = AEBitstring l
-        [ MkBitSegment l (AEVar l "Bin")     ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Bin")     ABSDefault ABBinary
+        , MkBitSegment l (AEVar l "Padding") ABSDefault ABBinary
         ]
       mutatedBinaryPattern = APBitstring l
-        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")  (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPUniversal l)   (ABSVar l "Size") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPVar l "End")   ABSDefault        (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPVar l "Start") (ABSVar l "Loc")  ABBinary
+        , MkBitSegment l (ABPUniversal l)   (ABSVar l "Size") ABBinary
+        , MkBitSegment l (ABPVar l "End")   ABSDefault        ABBinary
         ]
       mutatedBinaryValue = AEBitstring l
-        [ MkBitSegment l (AEVar l "Start") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "Value") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (AEVar l "End")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (AEVar l "Start") ABSDefault ABBinary
+        , MkBitSegment l (AEVar l "Value") ABSDefault ABBinary
+        , MkBitSegment l (AEVar l "End")   ABSDefault ABBinary
         ]
       mutatedBody =
         ( AEMatch l (APVar l "Size") (genFunCall l "erlang" "byte_size" [AEVar l "Value"]) :::
@@ -217,9 +217,9 @@ setString l buf loc value =
       paddingSize = AEOp l "-" (AEVar l "Loc") (genFunCall l "erlang" "byte_size" [AEVar l "Bin"])
       extendedBinaryValue =
         AEBitstring l
-          [ MkBitSegment l (AEVar l "Bin")     ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          , MkBitSegment l (AEVar l "Padding") ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-          , MkBitSegment l (AEVar l "Value")   ABSDefault (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+          [ MkBitSegment l (AEVar l "Bin")     ABSDefault ABBinary
+          , MkBitSegment l (AEVar l "Padding") ABSDefault ABBinary
+          , MkBitSegment l (AEVar l "Value")   ABSDefault ABBinary
           ]
       extendedBody =
         ( AEMatch l (APVar l "Padding") (Binary.zeroPadded l paddingSize) :::
@@ -251,9 +251,9 @@ export
 getString : Line -> (buf : Expr) -> (loc : Expr) -> (len : Expr) -> Expr
 getString l buf loc len =
   let binaryPattern = APBitstring l
-        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPVar l "Value") (ABSVar l "Len") (MkTSL Nothing Nothing (Just ABBinary) Nothing)
-        , MkBitSegment l (ABPUniversal l)   ABSDefault       (MkTSL Nothing Nothing (Just ABBinary) Nothing)
+        [ MkBitSegment l (ABPUniversal l)   (ABSVar l "Loc") ABBinary
+        , MkBitSegment l (ABPVar l "Value") (ABSVar l "Len") ABBinary
+        , MkBitSegment l (ABPUniversal l)   ABSDefault       ABBinary
         ]
       body =
         ( AEMatch l binaryPattern (AEVar l "Bin") :::

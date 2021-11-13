@@ -53,11 +53,11 @@ wrapPreComputedValues l preComputedValues@(_ :: _) body =
 
 genBinaryExpr : Line -> String -> Expr
 genBinaryExpr l str =
-  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault ABUtf8]
 
 genBinaryPattern : Line -> String -> Pattern
 genBinaryPattern l str =
-  APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault (MkTSL Nothing Nothing (Just ABUtf8) Nothing)]
+  APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault ABUtf8]
 
 
 -- CODE GENERATION
