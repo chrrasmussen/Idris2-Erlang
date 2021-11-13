@@ -182,7 +182,10 @@ compileExpr c tmpDir outputDir tm outfile = do
 
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
-  let globalOpts = defaultGlobalOpts
+  ds <- getDirectives (Other "erlang")
+  let groupedDirectives = groupBy fst snd ds
+  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
+  let globalOpts = parseOpts globalDirectives
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
   ignore $ build globalOpts [] tmpDir tmpDir modules
