@@ -330,7 +330,7 @@ mutual
     let lowRangeGuard =
           AGOp l "andalso"
             (AGOp l ">=" guardVar (AGLiteral (ALInteger l 0)))
-            (AGOp l "=<" guardVar (AGLiteral (ALInteger l 0xD7ff)))
+            (AGOp l "=<" guardVar (AGLiteral (ALInteger l 0xD7FF)))
     let highRangeGuard =
           AGOp l "andalso"
             (AGOp l ">=" guardVar (AGLiteral (ALInteger l 0xE000)))
