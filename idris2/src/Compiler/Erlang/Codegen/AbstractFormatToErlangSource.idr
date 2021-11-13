@@ -1,10 +1,13 @@
 module Compiler.Erlang.Codegen.AbstractFormatToErlangSource
 
 import public Compiler.Erlang.IR.AbstractFormat
-import Compiler.Erlang.Utils.CompositeString
-import Compiler.Erlang.Utils.String
+
 import Data.Fin
 import Data.List
+
+import Compiler.Erlang.Codegen.AbstractFormat.Helpers
+import Compiler.Erlang.Utils.CompositeString
+import Compiler.Erlang.Utils.String
 
 
 %default total
@@ -40,30 +43,6 @@ genMapFieldExact : (a -> CompositeString) -> MapFieldExact a -> CompositeString
 genMapFieldExact genValue (MkExact l key value) =
   Nested [genValue key, Str " := ", genValue value]
 
-genBitType : TypeSpecifierList -> String
-genBitType tsl =
-  case tsl of
-    ABInteger => "integer"
-    ABFloat => "float"
-    ABBinary => "binary"
-    ABBitstring => "bitstring"
-    ABUtf8 => "utf8"
-    ABUtf16 => "utf16"
-    ABUtf32 => "utf32"
-
-genBitSignedness : BitSignedness -> String
-genBitSignedness signedness =
-  case signedness of
-    ABUnsigned => "unsigned"
-    ABSigned => "signed"
-
-genBitEndianness : BitEndianness -> String
-genBitEndianness endianness =
-  case endianness of
-    ABBig => "big"
-    ABLittle => "little"
-    ABNative => "native"
-
 genBitUnit : BitUnit -> String
 genBitUnit unit =
   "unit:" ++ show (bitUnitToNat unit)
@@ -75,15 +54,10 @@ genBitSize (ABSVar l x) = Just x
 
 genTypeSpecifierList : BitSize -> TypeSpecifierList -> List String
 genTypeSpecifierList size tsl =
-  genBitType tsl ::
-    toList (genBitSignedness <$> getBitSignedness tsl) ++
-    toList (genBitEndianness <$> getBitEndianness tsl) ++
+  showBitType tsl ::
+    toList (showBitSignedness <$> getBitSignedness tsl) ++
+    toList (showBitEndianness <$> getBitEndianness tsl) ++
     toList (genBitUnit <$> join (toMaybe (isAllowedToSpecifyBitUnit size) (getBitUnit tsl)))
-  where
-    isAllowedToSpecifyBitUnit : BitSize -> Bool
-    isAllowedToSpecifyBitUnit ABSDefault = False
-    isAllowedToSpecifyBitUnit (ABSInteger _ _) = True
-    isAllowedToSpecifyBitUnit (ABSVar _ _) = True
 
 genBitSegment : (a -> CompositeString) -> BitSegment a -> CompositeString
 genBitSegment genValue (MkBitSegment l value size tsl) =

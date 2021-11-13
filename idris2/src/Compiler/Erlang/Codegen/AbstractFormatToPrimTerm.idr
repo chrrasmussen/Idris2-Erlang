@@ -1,10 +1,12 @@
 module Compiler.Erlang.Codegen.AbstractFormatToPrimTerm
 
+import public Compiler.Erlang.IR.AbstractFormat
+import public Compiler.Erlang.Utils.PrimTerm
+
 import Data.Fin
 import Data.List
 
-import public Compiler.Erlang.IR.AbstractFormat
-import public Compiler.Erlang.Utils.PrimTerm
+import Compiler.Erlang.Codegen.AbstractFormat.Helpers
 
 
 %default total
@@ -30,30 +32,6 @@ genMapFieldExact : (a -> PrimTerm) -> MapFieldExact a -> PrimTerm
 genMapFieldExact toPrimTerm (MkExact l key value) =
   PTuple [PAtom "map_field_exact", genLine l, toPrimTerm key, toPrimTerm value]
 
-genBitType : TypeSpecifierList -> PrimTerm
-genBitType tsl =
-  PAtom $ case tsl of
-    ABInteger => "integer"
-    ABFloat => "float"
-    ABBinary => "binary"
-    ABBitstring => "bitstring"
-    ABUtf8 => "utf8"
-    ABUtf16 => "utf16"
-    ABUtf32 => "utf32"
-
-genBitSignedness : BitSignedness -> PrimTerm
-genBitSignedness signedness =
-  PAtom $ case signedness of
-    ABUnsigned => "unsigned"
-    ABSigned => "signed"
-
-genBitEndianness : BitEndianness -> PrimTerm
-genBitEndianness endianness =
-  PAtom $ case endianness of
-    ABBig => "big"
-    ABLittle => "little"
-    ABNative => "native"
-
 genBitUnit : BitUnit -> PrimTerm
 genBitUnit unit =
   PTuple [PAtom "unit", PInteger (cast (bitUnitToNat unit))]
@@ -65,15 +43,10 @@ genBitSize (ABSVar l x) = PTuple [PAtom "var", genLine l, PAtom x]
 
 genTypeSpecifierList : BitSize -> TypeSpecifierList -> PrimTerm
 genTypeSpecifierList size tsl =
-  PList $ genBitType tsl ::
-    toList (genBitSignedness <$> getBitSignedness tsl) ++
-    toList (genBitEndianness <$> getBitEndianness tsl) ++
+  PList $ PAtom (showBitType tsl) ::
+    toList (PAtom . showBitSignedness <$> getBitSignedness tsl) ++
+    toList (PAtom . showBitEndianness <$> getBitEndianness tsl) ++
     toList (genBitUnit <$> join (toMaybe (isAllowedToSpecifyBitUnit size) (getBitUnit tsl)))
-  where
-    isAllowedToSpecifyBitUnit : BitSize -> Bool
-    isAllowedToSpecifyBitUnit ABSDefault = False
-    isAllowedToSpecifyBitUnit (ABSInteger _ _) = True
-    isAllowedToSpecifyBitUnit (ABSVar _ _) = True
 
 genBitSegment : (a -> PrimTerm) -> BitSegment a -> PrimTerm
 genBitSegment genValue (MkBitSegment l value size tsl) =
