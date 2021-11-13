@@ -51,14 +51,6 @@ wrapPreComputedValues l preComputedValues@(_ :: _) body =
     toLet : (LocalVar, Expr) -> Expr
     toLet (var, value) = AEMatch l (APVar l (show var)) value
 
-genBinaryExpr : Line -> String -> Expr
-genBinaryExpr l str =
-  AEBitstring l [MkBitSegment l (AELiteral (ALCharlist l str)) ABSDefault ABUtf8]
-
-genBinaryPattern : Line -> String -> Pattern
-genBinaryPattern l str =
-  APBitstring l [MkBitSegment l (ABPCharlist l str) ABSDefault ABUtf8]
-
 
 -- CODE GENERATION
 
@@ -110,13 +102,13 @@ constExprToPattern (EMatcherCase l sc xs def) = Nothing
 constExprToPattern (EReceive l xs timeout def) = Nothing
 constExprToPattern (ETryCatch l tryExpr okVar okExpr errorVar errorExpr) = Nothing
 constExprToPattern (EBinaryConcat l bin1 bin2) = Nothing
-constExprToPattern (EIdrisConstant l x) = pure $ genIdrisConstant l (genBinaryPattern l) APLiteral x
+constExprToPattern (EIdrisConstant l x) = pure $ genIdrisConstant l (genStringLiteralPattern l) APLiteral x
 constExprToPattern (EAtom l x) = pure $ APLiteral (ALAtom l x)
 constExprToPattern (EChar l x) = pure $ APLiteral (ALChar l x)
 constExprToPattern (EFloat l x) = pure $ APLiteral (ALFloat l x)
 constExprToPattern (EInteger l x) = pure $ APLiteral (ALInteger l x)
 constExprToPattern (ECharlist l x) = pure $ APLiteral (ALCharlist l x)
-constExprToPattern (EBinary l x) = pure $ genBinaryPattern l x
+constExprToPattern (EBinary l x) = pure $ genStringLiteralPattern l x
 constExprToPattern (ENil l) = pure $ APNil l
 constExprToPattern (ECons l x y) = pure $ APCons l !(constExprToPattern x) !(constExprToPattern y)
 constExprToPattern (ETuple l xs) = do
@@ -226,7 +218,7 @@ mutual
   genErlExpr (EBinaryConcat l bin1 bin2) =
     pure $ Binary.concat l !(genErlExpr bin1) !(genErlExpr bin2)
   genErlExpr (EIdrisConstant l x) =
-    pure $ genIdrisConstant l (genBinaryExpr l) AELiteral x
+    pure $ genIdrisConstant l (genStringLiteralExpr l) AELiteral x
   genErlExpr (EAtom l x) =
     pure $ AELiteral (ALAtom l x)
   genErlExpr (EChar l x) =
@@ -238,7 +230,7 @@ mutual
   genErlExpr (ECharlist l x) =
     pure $ AELiteral (ALCharlist l x)
   genErlExpr (EBinary l x) =
-    pure $ genBinaryExpr l x
+    pure $ genStringLiteralExpr l x
   genErlExpr (ENil l) =
     pure $ AENil l
   genErlExpr (ECons l x y) =
@@ -290,7 +282,7 @@ mutual
 
   genErlConstAlt : Line -> ErlConstAlt -> State LocalVars CaseClause
   genErlConstAlt l (MkConstAlt constant body) = do
-    let pattern = genIdrisConstant l (genBinaryPattern l) APLiteral constant
+    let pattern = genIdrisConstant l (genStringLiteralPattern l) APLiteral constant
     pure $ MkCaseClause l pattern [] (singleton !(genErlExpr body))
 
   genErlMatcher : Line -> ErlMatcher -> State LocalVars (CaseClause, List (LocalVar, Expr))
