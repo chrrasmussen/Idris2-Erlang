@@ -169,12 +169,22 @@ build globalOpts allModuleOpts tmpDir outputDir modules = do
 
 -- CODEGEN
 
+getGlobalOpts : List (Namespace, String) -> GlobalOpts
+getGlobalOpts ds =
+  let groupedDirectives = groupBy fst snd ds
+      globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
+  in parseOpts globalDirectives
+
+getAllModuleOpts : List (Namespace, String) -> List ModuleOpts
+getAllModuleOpts ds =
+  let groupedDirectives = groupBy fst snd ds
+      moduleDirectives = SortedMap.toList (delete emptyNS groupedDirectives) -- TODO: Fix emptyNS
+  in map (uncurry parseModuleOpts) moduleDirectives
+
 compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
-  let groupedDirectives = groupBy fst snd ds
-  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
-  let globalOpts = parseOpts globalDirectives
+  let globalOpts = getGlobalOpts ds
   let modName = outfile
   modules <- compileMainEntrypointToModules globalOpts tm modName
   ignore $ build globalOpts [] tmpDir outputDir modules
@@ -183,9 +193,7 @@ compileExpr c tmpDir outputDir tm outfile = do
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c tmpDir tm = do
   ds <- getDirectives (Other "erlang")
-  let groupedDirectives = groupBy fst snd ds
-  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
-  let globalOpts = parseOpts globalDirectives
+  let globalOpts = getGlobalOpts ds
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
   ignore $ build globalOpts [] tmpDir tmpDir modules
@@ -195,11 +203,8 @@ executeExpr c tmpDir tm = do
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do
   ds <- getDirectives (Other "erlang")
-  let groupedDirectives = groupBy fst snd ds
-  let globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
-  let moduleDirectives = SortedMap.toList (delete emptyNS groupedDirectives) -- TODO: Fix emptyNS
-  let allModuleOpts = map (uncurry parseModuleOpts) moduleDirectives
-  let globalOpts = parseOpts globalDirectives
+  let globalOpts = getGlobalOpts ds
+  let allModuleOpts = getAllModuleOpts ds
   modules <- compileLibraryToModules globalOpts allModuleOpts changedModules
   generatedModules <- build globalOpts allModuleOpts tmpDir outputDir modules
   pure (Just (libName, generatedModules))
