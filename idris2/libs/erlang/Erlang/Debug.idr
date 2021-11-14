@@ -20,3 +20,8 @@ erlInspect : a -> a
 erlInspect x = unsafePerformIO $ do
   erlPrintLn x
   pure x
+
+export
+erlPrintMemory : HasIO io => io ()
+erlPrintMemory =
+  erlPrintLn (erlUnsafeCall ErlTerm "erlang" "memory" [])
