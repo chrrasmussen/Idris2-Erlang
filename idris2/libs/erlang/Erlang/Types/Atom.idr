@@ -34,12 +34,12 @@ generateAtomHelpers atoms =
   where
     atomToDecls : String -> List Decl
     atomToDecls atom =
-      let fnName = "A_" ++ atom
+      let fnName = UN (Basic ("A_" ++ atom))
       in
-        [ IClaim EmptyFC MW Private [Inline] (MkTy EmptyFC EmptyFC (UN (Basic fnName)) `(ErlAtom))
-        , IDef EmptyFC (UN (Basic fnName))
+        [ IClaim EmptyFC MW Private [Inline] (MkTy EmptyFC EmptyFC fnName `(ErlAtom))
+        , IDef EmptyFC fnName
             [ PatClause EmptyFC
-                (IVar EmptyFC (UN (Basic fnName)))
+                (IVar EmptyFC fnName)
                 `(MkAtom ~(IPrimVal EmptyFC (Str atom)))
             ]
         ]
