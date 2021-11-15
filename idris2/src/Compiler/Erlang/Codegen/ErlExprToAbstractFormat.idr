@@ -373,16 +373,11 @@ mutual
     let guard = foldl (\acc, clause => guard clause `guardAnd` acc) Nothing clauses
     let body = AEFunCall l wrappedFun (map body clauses)
     pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
-  readErlMatcher l (MTaggedTuple tag matchers fun) = do
-    erlMatchers <- readErlMatchers l matchers
-    let args = map fst erlMatchers
-    let clauses = map snd erlMatchers
-    let varNames = varsToVarNames args
-    let wrappedFun = AEFun l (length args) (singleton $ MkFunClause l (map (APVar l) varNames) [] (singleton !(genErlExpr fun)))
-    let pattern = APTuple l (APLiteral (ALAtom l tag) :: map pattern clauses)
-    let guard = foldl (\acc, clause => guard clause `guardAnd` acc) Nothing clauses
-    let body = AEFunCall l wrappedFun (map body clauses)
-    pure $ MkMatcherClause pattern guard body (concatMap preComputedValues clauses)
+  readErlMatcher l (MTaggedTuple tag args fun) = do
+    let pattern = APTuple l (APLiteral (ALAtom l tag) :: map (APVar l . show) args)
+    let guard = neutral
+    body <- genErlExpr fun
+    pure $ MkMatcherClause pattern guard body []
   readErlMatcher l (MMapSubset matchers fun) = do
     erlMatchers <- readErlMapEntryMatchers l matchers
     let args = map fst erlMatchers

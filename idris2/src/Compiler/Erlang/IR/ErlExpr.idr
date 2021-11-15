@@ -155,7 +155,7 @@ mutual
     MCons         : ErlMatcher -> ErlMatcher -> (hdVar : LocalVar) -> (tlVar : LocalVar) -> ErlExpr -> ErlMatcher
     MList         : List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
     MTuple        : List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
-    MTaggedTuple  : String -> List (LocalVar, ErlMatcher) -> ErlExpr -> ErlMatcher
+    MTaggedTuple  : String -> List LocalVar -> ErlExpr -> ErlMatcher
     MMapSubset    : List (LocalVar, ErlExpr, ErlMatcher) -> ErlExpr -> ErlMatcher
     MFun          : (arity : Nat) -> ErlMatcher
     MTransform    : ErlMatcher -> (newVar : LocalVar) -> ErlExpr -> ErlMatcher
