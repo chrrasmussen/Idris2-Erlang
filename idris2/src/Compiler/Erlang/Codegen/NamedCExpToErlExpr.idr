@@ -257,10 +257,13 @@ readConAltFun l arity funVar body transform = do
   let curriedFunMatcher = MTransform MAny tempVar !(genCurry l arity transform (ELocal l tempVar))
   pure $ MTransform curriedFunMatcher funVar body
 
+defaultReadConAlt : Name -> (args : List LocalVar) -> ErlExpr -> ErlMatcher
+defaultReadConAlt name args body = MTaggedTuple (constructorName name) (argsToErlMatchers args) body
+
 readConAlt : {auto lv : Ref LV LocalVars} -> {auto cgOpts : CGOpts} -> NamespaceInfo -> Line -> Name -> (args : List LocalVar) -> ErlExpr -> Core ErlMatcher
 readConAlt namespaceInfo l name args body = do
   let NS ns (UN (Basic n)) = name
-    | _ => pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
+    | _ => pure $ defaultReadConAlt name args body
   case (unsafeUnfoldNamespace ns, n, args) of
     -- List
     (["Basics", "Prelude"], "Nil", []) =>
@@ -354,9 +357,8 @@ readConAlt namespaceInfo l name args body = do
     (["Types", "Erlang"], "MkIOFun8", [funVar]) => do
       worldVal <- newLocalVar
       readConAltFun l 8 funVar body (genMkIO l worldVal)
-    -- Default
     _ =>
-      pure $ MTaggedTuple (constructorName name) (argsToErlMatchers args) body
+      pure $ defaultReadConAlt name args body
 
 
 -- EXTERNAL PRIMITIVES
