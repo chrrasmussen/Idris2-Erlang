@@ -19,17 +19,7 @@ zeroPadded l size =
 export
 concat : Line -> Expr -> Expr -> Expr
 concat l bin1 bin2 =
-  let binaryValue =
-        AEBitstring l
-          [ MkBitSegment l (AEVar l "Bin1") ABSDefault ABBinary
-          , MkBitSegment l (AEVar l "Bin2") ABSDefault ABBinary
-          ]
-      funExpr = AEFun l 2
-        ( singleton $ MkFunClause l
-            [ APVar l "Bin1"
-            , APVar l "Bin2"
-            ]
-            []
-            (singleton binaryValue)
-        )
-  in AEFunCall l funExpr [bin1, bin2]
+  AEBitstring l
+    [ MkBitSegment l bin1 ABSDefault ABBinary
+    , MkBitSegment l bin2 ABSDefault ABBinary
+    ]
