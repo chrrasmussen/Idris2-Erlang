@@ -93,7 +93,7 @@ moduleNameFunctionName namespaceInfo name =
 export
 constructorName : Name -> String
 constructorName name =
-  let ns = mkNamespace "Idris" <.> getNamespace name
+  let ns = getNamespace name
       ctorName = case dropNS name of
         (UN (Basic dataCtor)) => dataCtor
         n => genName n
