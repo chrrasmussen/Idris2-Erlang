@@ -1,13 +1,11 @@
 module Idris.Error
 
-import Core.Case.CaseTree
 import Core.Core
 import Core.Context
 import Core.Env
-import Core.Metadata
 import Core.Options
-import Core.Value
 
+import Idris.Doc.String
 import Idris.REPL.Opts
 import Idris.Resugar
 import Idris.Syntax
@@ -17,16 +15,11 @@ import Parser.Source
 
 import Data.List
 import Data.List1
-import Data.Maybe
-import Data.Stream
 import Data.String
 
 import Libraries.Data.List.Extra
 import Libraries.Data.List1 as Lib
-import Libraries.Data.String.Extra
-import Libraries.Text.PrettyPrint.Prettyprinter
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
-import Libraries.Utils.String
 import Libraries.Data.String.Extra
 
 import System.File
@@ -179,8 +172,11 @@ pwarning (ShadowingGlobalDefs fc ns)
                         :: reflow "is shadowing"
                         :: punctuate comma (map pretty (forget ns))
 
-pwarning (Deprecated s)
-    = pure $ pretty "Deprecation warning:" <++> pretty s
+pwarning (Deprecated s fcAndName)
+    = do docs <- traverseOpt (\(fc, name) => getDocsForName fc name justUserDoc) fcAndName
+         pure . vsep $ catMaybes [ Just $ pretty "Deprecation warning:" <++> pretty s
+                                 , map (const UserDocString) <$> docs
+                                 ]
 pwarning (GenericWarn s)
     = pure $ pretty s
 
@@ -358,6 +354,11 @@ perror (AllFailed ts)
     allUndefined _ = Nothing
 perror (RecordTypeNeeded fc _)
     = pure $ errorDesc (reflow "Can't infer type for this record update.") <+> line <+> !(ploc fc)
+perror (DuplicatedRecordUpdatePath fc ps)
+    = pure $ vcat $
+      errorDesc (reflow "Duplicated record update paths:")
+      :: map (indent 2 . concatWith (surround (pretty "->")) . map pretty) ps
+      ++ [line <+> !(ploc fc)]
 perror (NotRecordField fc fld Nothing)
     = pure $ errorDesc (code (pretty fld) <++> reflow "is not part of a record type.") <+> line <+> !(ploc fc)
 perror (NotRecordField fc fld (Just ty))

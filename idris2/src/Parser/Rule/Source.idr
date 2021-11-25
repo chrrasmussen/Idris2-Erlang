@@ -19,8 +19,23 @@ import Libraries.Data.String.Extra
 %default total
 
 public export
+record State where
+  constructor MkState
+  decorations : SemanticDecorations
+  holeNames : List String
+
+export
+Semigroup State where
+  MkState decs1 hs1 <+> MkState decs2 hs2
+    = MkState (decs1 ++ decs2) (hs1 ++ hs2)
+
+export
+Monoid State where
+  neutral = MkState [] []
+
+public export
 BRule : Bool -> Type -> Type
-BRule = Grammar SemanticDecorations Token
+BRule = Grammar State Token
 
 public export
 Rule : Type -> Type
@@ -29,6 +44,14 @@ Rule = BRule True
 public export
 EmptyRule : Type -> Type
 EmptyRule = BRule False
+
+export
+actD : ASemanticDecoration -> EmptyRule ()
+actD s = act (MkState [s] [])
+
+export
+actH : String -> EmptyRule ()
+actH s = act (MkState [] [s])
 
 export
 eoi : EmptyRule ()
@@ -57,8 +80,19 @@ documentation' = terminal "Expected documentation comment" $
                             _ => Nothing
 
 export
-documentation : Rule String
-documentation = (unlines . forget) <$> some documentation'
+decorationFromBounded : OriginDesc -> Decoration -> WithBounds a -> ASemanticDecoration
+decorationFromBounded fname decor bnds
+   = ((fname, start bnds, end bnds), decor, Nothing)
+
+documentation : OriginDesc -> Rule String
+documentation fname
+  = do b <- bounds (some documentation')
+       actD (decorationFromBounded fname Comment b)
+       pure (unlines $ forget b.val)
+
+export
+optDocumentation : OriginDesc -> EmptyRule String
+optDocumentation fname = option "" (documentation fname)
 
 export
 intLit : Rule Integer
@@ -151,7 +185,15 @@ symbol : String -> Rule ()
 symbol req
     = terminal ("Expected '" ++ req ++ "'") $
                \case
-                 Symbol s => if s == req then Just () else Nothing
+                 Symbol s => guard (s == req)
+                 _ => Nothing
+
+export
+anyReservedSymbol : Rule String
+anyReservedSymbol
+  = terminal ("Expected a reserved symbol") $
+               \case
+                 Symbol s => s <$ guard (s `elem` reservedSymbols)
                  _ => Nothing
 
 export
@@ -167,7 +209,7 @@ keyword : String -> Rule ()
 keyword req
     = terminal ("Expected '" ++ req ++ "'") $
                \case
-                 Keyword s => if s == req then Just () else Nothing
+                 Keyword s => guard (s == req)
                  _ => Nothing
 
 export
@@ -175,7 +217,7 @@ exactIdent : String -> Rule ()
 exactIdent req
     = terminal ("Expected " ++ req) $
                \case
-                 Ident s => if s == req then Just () else Nothing
+                 Ident s => guard (s == req)
                  _ => Nothing
 
 export
@@ -272,15 +314,13 @@ reservedNames
 
 isNotReservedName : WithBounds String -> EmptyRule ()
 isNotReservedName x
-    = if x.val `elem` reservedNames
-      then failLoc x.bounds $ "Can't use reserved name \{x.val}"
-      else pure ()
+    = when (x.val `elem` reservedNames) $
+        failLoc x.bounds $ "Can't use reserved name \{x.val}"
 
 isNotReservedSymbol : WithBounds String -> EmptyRule ()
 isNotReservedSymbol x
-    = if x.val `elem` reservedSymbols
-      then failLoc x.bounds $ "Can't use reserved symbol \{x.val}"
-      else pure ()
+    = when (x.val `elem` reservedSymbols) $
+        failLoc x.bounds $ "Can't use reserved symbol \{x.val}"
 
 export
 opNonNS : Rule Name
@@ -294,7 +334,7 @@ opNonNS = do
 
 identWithCapital : (capitalised : Bool) -> WithBounds String ->
                    EmptyRule ()
-identWithCapital b x = if b then isCapitalisedIdent x else pure ()
+identWithCapital b x = when b (isCapitalisedIdent x)
 
 nameWithCapital : (capitalised : Bool) -> Rule Name
 nameWithCapital b = opNonNS <|> do
@@ -389,12 +429,8 @@ Show ValidIndent where
 
 checkValid : ValidIndent -> Int -> EmptyRule ()
 checkValid AnyIndent c = pure ()
-checkValid (AtPos x) c = if c == x
-                            then pure ()
-                            else fail "Invalid indentation"
-checkValid (AfterPos x) c = if c >= x
-                               then pure ()
-                               else fail "Invalid indentation"
+checkValid (AtPos x) c = unless (c == x) $ fail "Invalid indentation"
+checkValid (AfterPos x) c = unless (c >= x) $ fail "Invalid indentation"
 checkValid EndOfBlock c = fail "End of block"
 
 ||| Any token which indicates the end of a statement/block/expression

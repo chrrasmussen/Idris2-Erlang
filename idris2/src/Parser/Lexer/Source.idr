@@ -3,7 +3,6 @@ module Parser.Lexer.Source
 import public Parser.Lexer.Common
 
 import Data.Either
-import Data.List1
 import Data.List
 import Data.Maybe
 import Data.String
@@ -225,7 +224,7 @@ keywords = ["data", "module", "where", "let", "in", "do", "record",
 special : List String
 special = ["%lam", "%pi", "%imppi", "%let"]
 
-export
+public export
 symbols : List String
 symbols = [",", ";", "_", "`"]
 
@@ -272,7 +271,7 @@ validSymbol : Lexer
 validSymbol = some (pred isOpChar)
 
 -- Valid symbols which have a special meaning so can't be operators
-export
+public export
 reservedSymbols : List String
 reservedSymbols
     = symbols ++ groupSymbols ++ (groupClose <$> groupSymbols) ++

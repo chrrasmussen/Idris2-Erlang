@@ -4,12 +4,10 @@ import Core.Context
 import Core.Context.Log
 import Core.Core
 import Core.Env
-import Core.Metadata
 import Core.TT
 import Core.TT.Traversals
 
 import Idris.Pretty
-import Idris.Pretty.Render
 import Idris.REPL.Opts
 import Idris.Resugar
 import Idris.Syntax
@@ -30,7 +28,6 @@ import Libraries.Data.SortedMap
 import Libraries.Data.StringMap as S
 import Libraries.Data.String.Extra
 
-import Libraries.Control.ANSI.SGR
 import public Libraries.Text.PrettyPrint.Prettyprinter
 import public Libraries.Text.PrettyPrint.Prettyprinter.Util
 
@@ -168,20 +165,20 @@ getDocsForPrimitive constant = do
 
   where
   primDoc : Constant -> Doc IdrisDocAnn
-  primDoc (I i) = "Primitive value"
-  primDoc (I8 i) = "Primitive value"
-  primDoc (I16 i) = "Primitive value"
-  primDoc (I32 i) = "Primitive value"
-  primDoc (I64 i) = "Primitive value"
-  primDoc (BI i) = "Primitive value"
-  primDoc (B8 i) = "Primitive value"
-  primDoc (B16 i) = "Primitive value"
-  primDoc (B32 i) = "Primitive value"
-  primDoc (B64 i) = "Primitive value"
-  primDoc (Str s) = "Primitive value"
-  primDoc (Ch c) = "Primitive value"
-  primDoc (Db d) = "Primitive value"
-  primDoc WorldVal = "Primitive value"
+  primDoc (I i) = "Primitive signed int value (backend-dependent precision)"
+  primDoc (I8 i) = "Primitive signed 8 bits value"
+  primDoc (I16 i) = "Primitive signed 16 bits value"
+  primDoc (I32 i) = "Primitive signed 32 bits value"
+  primDoc (I64 i) = "Primitive signed 64 bits value"
+  primDoc (BI i) = "Primitive unsigned int value (backend-dependent precision)"
+  primDoc (B8 i) = "Primitive unsigned 8 bits value"
+  primDoc (B16 i) = "Primitive unsigned 16 bits value"
+  primDoc (B32 i) = "Primitive unsigned 32 bits value"
+  primDoc (B64 i) = "Primitive unsigned 64 bits value"
+  primDoc (Str s) = "Primitive string value"
+  primDoc (Ch c) = "Primitive character value"
+  primDoc (Db d) = "Primitive double value"
+  primDoc WorldVal = "Primitive token for IO actions"
 
   primDoc IntType = "Primitive type of bounded signed integers (backend dependent size)"
   primDoc Int8Type = "Primitive type of 8 bits signed integers"
@@ -196,15 +193,17 @@ getDocsForPrimitive constant = do
   primDoc StringType = "Primitive type of strings"
   primDoc CharType = "Primitive type of characters"
   primDoc DoubleType = "Primitive type of double-precision floating-points"
-  primDoc WorldType = "Primitive token for IO actions"
+  primDoc WorldType = "Primitive type of tokens for IO actions"
 
 public export
 data Config : Type where
   ||| Configuration of the printer for a name
+  ||| @ showType    Do we show the type?
   ||| @ longNames   Do we print qualified names?
   ||| @ dropFirst   Do we drop the first argument in the type?
   ||| @ getTotality Do we print the totality status of the function?
-  MkConfig : {default True  longNames   : Bool} ->
+  MkConfig : {default True  showType    : Bool} ->
+             {default True  longNames   : Bool} ->
              {default False dropFirst   : Bool} ->
              {default True  getTotality : Bool} ->
              Config
@@ -219,16 +218,26 @@ data Config : Type where
 export
 methodsConfig : Config
 methodsConfig
-  = MkConfig {longNames = False}
+  = MkConfig {showType = True}
+             {longNames = False}
              {dropFirst = True}
              {getTotality = False}
 
 export
 shortNamesConfig : Config
 shortNamesConfig
-  = MkConfig {longNames = False}
+  = MkConfig {showType = True}
+             {longNames = False}
              {dropFirst = False}
              {getTotality = True}
+
+export
+justUserDoc : Config
+justUserDoc
+  = MkConfig {showType = False}
+             {longNames = False}
+             {dropFirst = True}
+             {getTotality = False}
 
 export
 getDocsForName : {auto o : Ref ROpts REPLOpts} ->
@@ -418,7 +427,7 @@ getDocsForName fc n config
                 pure (map (\ cons => tot ++ cons ++ idoc) cdoc)
            _ => pure (Nothing, [])
 
-    showDoc (MkConfig {longNames, dropFirst, getTotality}) (n, str)
+    showDoc (MkConfig {showType, longNames, dropFirst, getTotality}) (n, str)
         = do defs <- get Ctxt
              Just def <- lookupCtxtExact n (gamma defs)
                   | Nothing => undefinedName fc n
@@ -441,7 +450,9 @@ getDocsForName fc n config
              let cat = showCategory Syntax def
              let nm = prettyKindedName typ $ cat
                     $ ifThenElse longNames (pretty (show nm)) (prettyName nm)
-             let docDecl = annotate (Decl n) (hsep [nm, colon, prettyTerm ty])
+             let deprecated = if Deprecate `elem` def.flags
+                                 then annotate Deprecation "=DEPRECATED=" <+> line else emptyDoc
+             let docDecl = deprecated <+> annotate (Decl n) (hsep [nm, colon, prettyTerm ty])
 
              -- Finally add the user-provided docstring
              let docText = let docs = reflowDoc str in
@@ -454,7 +465,8 @@ getDocsForName fc n config
                   in annotate DocStringBody
                      (concatWith (\l, r => l <+> hardline <+> r) docs)
                      <$ guard (not (null docs))
-             pure (vcat (docDecl :: docBody))
+             let maybeDocDecl = [docDecl | showType]
+             pure . vcat . catMaybes $ maybeDocDecl :: (map Just $ docBody)
 
 export
 getDocsForPTerm : {auto o : Ref ROpts REPLOpts} ->
@@ -477,7 +489,7 @@ getDocsForPTerm (PList _ _ _) = pure $ vcat
   ]
 getDocsForPTerm (PSnocList _ _ _) = pure $ vcat
   [ "SnocList Literal"
-  , indent 2 "Desugars to (:<) and Empty"
+  , indent 2 "Desugars to (:<) and Lin"
   ]
 getDocsForPTerm (PPair _ _ _) = pure $ vcat
   [ "Pair Literal"
@@ -500,6 +512,7 @@ getDocs : {auto o : Ref ROpts REPLOpts} ->
           {auto s : Ref Syn SyntaxInfo} ->
           DocDirective -> Core (Doc IdrisDocAnn)
 getDocs (APTerm ptm) = getDocsForPTerm ptm
+getDocs (Symbol k) = pure $ getDocsForSymbol k
 getDocs (Keyword k) = pure $ getDocsForKeyword k
 
 

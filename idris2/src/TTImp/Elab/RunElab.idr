@@ -4,7 +4,6 @@ import Core.Context
 import Core.Context.Log
 import Core.Core
 import Core.Env
-import Core.GetType
 import Core.Metadata
 import Core.Normalise
 import Core.Options
@@ -22,9 +21,29 @@ import TTImp.Reflect
 import TTImp.TTImp
 import TTImp.TTImp.Functor
 import TTImp.Unelab
-import TTImp.Utils
 
 %default covering
+
+record NameInfo where
+  constructor MkNameInfo
+  nametype : NameType
+
+lookupNameInfo : Name -> Context -> Core (List (Name, NameInfo))
+lookupNameInfo n ctxt
+    = do res <- lookupCtxtName n ctxt
+         pure (map (\ (n, i, gd) =>
+                      (n, MkNameInfo { nametype = getNameType (definition gd) } ))
+                   res)
+  where
+    getNameType : Def -> NameType
+    getNameType (DCon t a _) = DataCon t a
+    getNameType (TCon t a _ _ _ _ _ _) = TyCon t a
+    getNameType _ = Func
+
+Reflect NameInfo where
+  reflect fc defs lhs env inf
+      = do nt <- reflect fc defs lhs env (nametype inf)
+           appCon fc defs (reflectiontt "MkNameInfo") [nt]
 
 export
 elabScript : {vars : _} ->
@@ -163,6 +182,10 @@ elabScript fc nest env script@(NDCon nfc nm t ar args) exp
         unelabType : (Name, Int, ClosedTerm) -> Core (Name, RawImp)
         unelabType (n, _, ty)
             = pure (n, map rawName !(unelabUniqueBinders [] ty))
+    elabCon defs "GetInfo" [n]
+        = do n' <- evalClosure defs n
+             res <- lookupNameInfo !(reify defs n') (gamma defs)
+             scriptRet res
     elabCon defs "GetLocalType" [n]
         = do n' <- evalClosure defs n
              n <- reify defs n'

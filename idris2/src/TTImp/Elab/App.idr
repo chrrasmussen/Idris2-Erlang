@@ -1,6 +1,5 @@
 module TTImp.Elab.App
 
-import Core.Case.CaseTree
 import Core.Context
 import Core.Context.Log
 import Core.Core
@@ -18,7 +17,6 @@ import TTImp.Elab.Dot
 import TTImp.TTImp
 
 import Data.List
-import Data.List1
 import Data.Maybe
 
 %default covering
@@ -34,16 +32,21 @@ checkVisibleNS fc (NS ns x) vis
          else throw $ InvisibleName fc (NS ns x) (Just ns)
 checkVisibleNS _ _ _ = pure ()
 
+onLHS : ElabMode -> Bool
+onLHS (InLHS _) = True
+onLHS _ = False
+
 -- Get the type of a variable, assuming we haven't found it in the nested
 -- names. Look in the Env first, then the global context.
 getNameType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto e : Ref EST (EState vars)} ->
+              ElabMode ->
               RigCount -> Env Term vars ->
               FC -> Name ->
               Core (Term vars, Glued vars)
-getNameType rigc env fc x
+getNameType elabMode rigc env fc x
     = case defined x env of
            Just (MkIsDefined rigb lv) =>
               do rigSafe rigb rigc
@@ -71,6 +74,8 @@ getNameType rigc env fc x
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | ns => ambiguousName fc x (map fst ns)
                  checkVisibleNS fc (fullname def) (visibility def)
+                 when (not $ onLHS elabMode) $
+                   checkDeprecation fc def
                  rigSafe (multiplicity def) rigc
                  let nt = fromMaybe Func (defNameType $ definition def)
 
@@ -91,17 +96,26 @@ getNameType rigc env fc x
     rigSafe lhs rhs = when (lhs < rhs)
                            (throw (LinearMisuse fc !(getFullName x) lhs rhs))
 
+    checkDeprecation : FC -> GlobalDef -> Core ()
+    checkDeprecation fc gdef =
+      do when (Deprecate `elem` gdef.flags) $
+           recordWarning $
+             Deprecated
+               "\{show gdef.fullname} is deprecated and will be removed in a future version."
+               (Just (fc, gdef.fullname))
+
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
              {auto e : Ref EST (EState vars)} ->
+             ElabMode ->
              RigCount -> NestedNames vars -> Env Term vars ->
              FC -> Name ->
              Core (Term vars, Nat, Glued vars)
-getVarType rigc nest env fc x
+getVarType elabMode rigc nest env fc x
     = case lookup x (names nest) of
-           Nothing => do (tm, ty) <- getNameType rigc env fc x
+           Nothing => do (tm, ty) <- getNameType elabMode rigc env fc x
                          pure (tm, 0, ty)
            Just (nestn, argns, tmf) =>
               do defs <- get Ctxt
@@ -212,9 +226,14 @@ mutual
                                 fntm fnty (n, 1 + argpos) expargs autoargs namedargs kr expty
            else do defs <- get Ctxt
                    nm <- genMVName x
-                   -- We need the full normal form to check determining arguments
-                   -- so we might as well calculate the whole thing now
-                   metaty <- quote defs env aty
+                   empty <- clearDefs defs
+                   -- Normalise fully, but only if it's cheap enough.
+                   -- We have to get the normal form eventually anyway, but
+                   -- it might be too early to do it now if something is
+                   -- blocking it and we're not yet ready to search.
+                   metaty <- catch (quoteOpts (MkQuoteOpts False False (Just 10))
+                                              defs env aty)
+                                   (\err => quote empty env aty)
                    est <- get EST
                    lim <- getAutoImplicitLimit
                    metaval <- searchVar fc argRig lim (Resolved (defining est))
@@ -314,10 +333,6 @@ mutual
   needsDelayLHS (IType _) = pure True
   needsDelayLHS (IWithUnambigNames _ _ t) = needsDelayLHS t
   needsDelayLHS _ = pure False
-
-  onLHS : ElabMode -> Bool
-  onLHS (InLHS _) = True
-  onLHS _ = False
 
   needsDelay : {auto c : Ref Ctxt Defs} ->
                ElabMode ->
@@ -778,10 +793,10 @@ checkApp rig elabinfo nest env fc (IAutoApp fc' fn arg) expargs autoargs namedar
 checkApp rig elabinfo nest env fc (INamedApp fc' fn nm arg) expargs autoargs namedargs exp
    = checkApp rig elabinfo nest env fc' fn expargs autoargs ((nm, arg) :: namedargs) exp
 checkApp rig elabinfo nest env fc (IVar fc' n) expargs autoargs namedargs exp
-   = do (ntm, arglen, nty_in) <- getVarType rig nest env fc' n
+   = do (ntm, arglen, nty_in) <- getVarType elabinfo.elabMode rig nest env fc' n
         nty <- getNF nty_in
         prims <- getPrimitiveNames
-        elabinfo <- updateElabInfo prims (elabMode elabinfo) n expargs elabinfo
+        elabinfo <- updateElabInfo prims elabinfo.elabMode n expargs elabinfo
 
         addNameLoc fc' n
 

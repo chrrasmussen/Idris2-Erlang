@@ -32,7 +32,6 @@ import TTImp.TTImp.Functor
 import TTImp.Unelab
 import TTImp.Utils
 
-import Data.Either
 import Data.List
 
 %default covering
@@ -365,7 +364,7 @@ getSuccessful {vars} fc rig opts mkHole env ty topty all
                            let base = maybe "arg"
                                             (\r => nameRoot (recname r) ++ "_rhs")
                                             (recData opts)
-                           hn <- uniqueName defs (map nameRoot vars) base
+                           hn <- uniqueBasicName defs (map nameRoot vars) base
                            (idx, tm) <- newMeta fc rig env (UN $ Basic hn) ty
                                                 (Hole (length env) (holeInit False))
                                                 False

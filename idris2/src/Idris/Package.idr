@@ -6,7 +6,6 @@ import Core.Context
 import Core.Context.Log
 import Core.Core
 import Core.Directory
-import Core.Env
 import Core.Metadata
 import Core.Name.Namespace
 import Core.Options
@@ -28,8 +27,6 @@ import Libraries.Data.SortedMap
 import Libraries.Data.StringMap
 import Libraries.Data.StringTrie
 import Libraries.Text.Parser
-import Libraries.Text.PrettyPrint.Prettyprinter
-import Libraries.Utils.String
 import Libraries.Utils.Path
 
 import Idris.CommandLine
@@ -43,7 +40,6 @@ import Idris.REPL.Opts
 import Idris.SetOptions
 import Idris.Syntax
 import Idris.Version
-import IdrisPaths
 
 import public Idris.Package.Types
 import Idris.Package.Init
@@ -216,7 +212,7 @@ addField : {auto c : Ref Ctxt Defs} ->
            DescField -> PkgDesc -> Core PkgDesc
 addField (PVersion fc n)     pkg = pure $ record { version = Just n } pkg
 addField (PVersionDep fc n)  pkg
-    = do emitWarning (Deprecated "version numbers must now be of the form x.y.z")
+    = do emitWarning (Deprecated "version numbers must now be of the form x.y.z" Nothing)
          pure pkg
 addField (PAuthors fc a)     pkg = pure $ record { authors = Just a } pkg
 addField (PMaintainers fc a) pkg = pure $ record { maintainers = Just a } pkg

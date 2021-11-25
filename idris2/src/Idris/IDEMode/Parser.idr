@@ -9,16 +9,13 @@ import Core.Name
 import Core.Metadata
 import Core.FC
 
-import Data.Maybe
 import Data.List
-import Data.String
 import Parser.Lexer.Source
 import Parser.Source
 import Parser.Support
 import Libraries.Text.Lexer
 import Libraries.Text.Lexer.Tokenizer
 import Libraries.Text.Parser
-import Libraries.Utils.String
 
 %default total
 
@@ -78,7 +75,7 @@ sexp
          pure (SExpList xs)
 
 ideParser : {e : _} ->
-            String -> Grammar SemanticDecorations Token e ty -> Either Error ty
+            String -> Grammar State Token e ty -> Either Error ty
 ideParser str p
     = do toks   <- mapFst (fromLexError (Virtual Interactive)) $ idelex str
          (_, _, (parsed, _)) <- mapFst (fromParsingErrors (Virtual Interactive)) $ parseWith p toks

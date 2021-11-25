@@ -28,7 +28,6 @@ import TTImp.TTImp
 import TTImp.TTImp.Functor
 import TTImp.ProcessType
 import TTImp.Unelab
-import TTImp.Utils
 import TTImp.WithClause
 
 import Data.Either
@@ -1140,7 +1139,7 @@ processDef opts nest env fc n_in cs_in
              -- Filter out the ones which are actually matched (perhaps having
              -- come up due to some overlapping patterns)
              missMatch <- traverse (checkMatched covcs) (mapMaybe id missImp)
-             let miss = mapMaybe id missMatch
+             let miss = catMaybes missMatch
              if isNil miss
                 then do [] <- getNonCoveringRefs fc (Resolved n)
                            | ns => toFullNames (NonCoveringCall ns)

@@ -41,7 +41,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", -- "basic055", -- TODO: basic055 is currently executed using Erlang (the default codegen), but only works on Chez
        "basic056", "basic057", "basic058", "basic059", "basic060",
-       "basic061", "basic062", "basic063",
+       "basic061", "basic062", "basic063", "basic064", "basic065",
        "interpolation001", "interpolation002", "interpolation003",
        "interpolation004"]
 
@@ -61,7 +61,7 @@ idrisTestsCasetree = MkTestPool "Case tree building" [] Nothing
 
 idrisTestsWarning : TestPool
 idrisTestsWarning = MkTestPool "Warnings" [] Nothing
-     ["warning001"]
+     ["warning001", "warning002"]
 
 idrisTestsError : TestPool
 idrisTestsError = MkTestPool "Error messages" [] Nothing
@@ -88,7 +88,8 @@ idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
        "interactive025", "interactive026", "interactive027", -- "interactive028", -- Disabled due to Atom IDE fix
        "interactive029", "interactive030", "interactive031", "interactive032",
        "interactive033", "interactive034", "interactive035", "interactive036",
-       "interactive037", "interactive038", "interactive039", "interactive040"]
+       "interactive037", "interactive038", "interactive039", "interactive040",
+       "interactive041"]
 
 idrisTestsInterface : TestPool
 idrisTestsInterface = MkTestPool "Interface" [] Nothing
@@ -107,7 +108,7 @@ idrisTestsLinear = MkTestPool "Quantities" [] Nothing
        ["linear001", "linear002", "linear003", -- "linear004" -- disabled due to requiring linearity subtyping
         "linear005", "linear006", "linear007", "linear008",
         "linear009", "linear010", "linear011", "linear012",
-        "linear013", "linear014"]
+        "linear013", "linear014", "linear015"]
 
 idrisTestsLiterate : TestPool
 idrisTestsLiterate = MkTestPool "Literate programming" [] Nothing
@@ -142,7 +143,8 @@ idrisTestsData = MkTestPool "Data and record types" [] Nothing
        "data001",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006", "record007", "record008", "record009", "record010"]
+       "record006", "record007", "record008", "record009", "record010",
+       "record011"]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" [] Nothing
@@ -187,7 +189,7 @@ idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
 idrisTestsSchemeEval : TestPool
 idrisTestsSchemeEval = MkTestPool "Scheme Evaluator" [] Nothing
      ["schemeeval001", "schemeeval002", "schemeeval003", "schemeeval004",
-      "schemeeval005"]
+      "schemeeval005", "schemeeval006"]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -206,14 +208,15 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "params001", "params002", "params003",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
-       "pkg008", "pkg009", "pkg010",
+       "pkg008", "pkg009", "pkg010", "pkg011",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
        -- Quotation and reflection
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
-       "reflection009", "reflection010", "reflection011",
+       "reflection009", "reflection010", "reflection011", "reflection012",
+       "reflection013",
        -- The 'with' rule
        "with001", "with002", "with004", "with005", "with006",
        -- with-disambiguation
@@ -285,6 +288,7 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     , "integers"
     , "fix1839"
     , "tailrec_libs"
+    , "nomangle001", "nomangle002"
     ]
 
 vmcodeInterpTests : IO TestPool

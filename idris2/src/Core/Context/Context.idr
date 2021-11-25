@@ -3,17 +3,11 @@ module Core.Context.Context
 import        Core.Case.CaseTree
 import        Core.CompileExpr
 import        Core.Env
-import        Core.Hash
 import public Core.Name
 import public Core.Options.Log
 import public Core.TT
 
-import Data.Fin
 import Data.IORef
-import Data.List
-import Data.List1
-import Data.Maybe
-import Data.Nat
 
 import Libraries.Data.IntMap
 import Libraries.Data.IOArray
@@ -192,9 +186,16 @@ Show Clause where
       = show vars ++ ": " ++ show lhs ++ " = " ++ show rhs
 
 public export
+data NoMangleDirective : Type where
+    CommonName : String -> NoMangleDirective
+    BackendNames : List (String, String) -> NoMangleDirective
+
+public export
 data DefFlag
     = Inline
     | NoInline
+    | ||| A definition has been marked as deprecated
+      Deprecate
     | Invertible -- assume safe to cancel arguments in unification
     | Overloadable -- allow ad-hoc overloads
     | TCInline -- always inline before totality checking
@@ -222,11 +223,14 @@ data DefFlag
     | Identity Nat
          -- Is it the identity function at runtime?
          -- The nat represents which argument the function evaluates to
+    | NoMangle NoMangleDirective
+         -- use the user provided name directly (backend, name)
 
 export
 Eq DefFlag where
     (==) Inline Inline = True
     (==) NoInline NoInline = True
+    (==) Deprecate Deprecate = True
     (==) Invertible Invertible = True
     (==) Overloadable Overloadable = True
     (==) TCInline TCInline = True
@@ -237,12 +241,14 @@ Eq DefFlag where
     (==) AllGuarded AllGuarded = True
     (==) (ConType x) (ConType y) = x == y
     (==) (Identity x) (Identity y) = x == y
+    (==) (NoMangle _) (NoMangle _) = True
     (==) _ _ = False
 
 export
 Show DefFlag where
   show Inline = "inline"
   show NoInline = "noinline"
+  show Deprecate = "deprecate"
   show Invertible = "invertible"
   show Overloadable = "overloadable"
   show TCInline = "tcinline"
@@ -253,6 +259,7 @@ Show DefFlag where
   show AllGuarded = "allguarded"
   show (ConType ci) = "contype " ++ show ci
   show (Identity x) = "identity " ++ show x
+  show (NoMangle _) = "nomangle"
 
 public export
 data SizeChange = Smaller | Same | Unknown

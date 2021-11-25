@@ -3,7 +3,6 @@ module Idris.SetOptions
 import Compiler.Common
 
 import Core.Context
-import Core.Directory
 import Core.Metadata
 import Core.Options
 import Core.Unify
@@ -18,11 +17,8 @@ import Idris.REPL
 import Idris.Syntax
 import Idris.Version
 
-import IdrisPaths
-
 import Data.List
 import Data.List1
-import Data.So
 import Data.String
 
 import Libraries.Data.List1 as Lib
@@ -248,16 +244,15 @@ opts x _ = pure $ if (x `elem` optionFlags)
 
 -- bash autocompletion script using the given function name
 completionScript : (fun : String) -> String
-completionScript fun =
-  let fun' = "_" ++ fun
-   in unlines [ fun' ++ "()"
-              , "{"
-              , "  ED=$([ -z $2 ] && echo \"--\" || echo $2)"
-              , "  COMPREPLY=($(idris2 --bash-completion $ED $3))"
-              , "}"
-              , ""
-              , "complete -F " ++ fun' ++ " -o default idris2"
-              ]
+completionScript fun = let fun' = "_" ++ fun in """
+  \{ fun' }()
+  {
+    ED=$([ -z $2 ] && echo "--" || echo $2)
+    COMPREPLY=($(idris2 --bash-completion $ED $3))
+  }
+
+  complete -F \{ fun' } -o default idris2
+  """
 
 --------------------------------------------------------------------------------
 --          Processing Options

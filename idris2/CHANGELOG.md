@@ -37,11 +37,17 @@
 
 * Removes deprecated support for `void` primitive. Now `void` is supported via
   `prim__void`.
+* Adds `%deprecate` pragma that can be used to warn when deprecated functions are used.
 
 ### Library changes
 
 #### Base
 
+* Adds `System.run`, which runs a shell command, and returns the stdout and
+  return code of that run.
+* Adds escaped versions of `System.system`, `Systen.File.popen`, and
+  `System.run`, which take a list of arguments, and escapes them.
+* Changes `System.pclose` to return the return code of the closed process.
 * Deprecates `base`'s `Data.Nat.Order.decideLTE` in favor of `Data.Nat.isLTE`.
 * Removes `base`'s deprecated `System.Directory.dirEntry`. Use `nextDirEntry` instead.
 * Removes `base`'s deprecated `Data.String.fastAppend`. Use `fastConcat` instead.

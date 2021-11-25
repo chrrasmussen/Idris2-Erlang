@@ -4,17 +4,13 @@ import Core.Context
 import Core.Context.Log
 import Core.Core
 import Core.FC
-import Core.Name
 import Core.Options
 import Libraries.Utils.Path
 
 import Data.List
-import Data.String
 import Data.Maybe
 
 import System.Directory
-import System.File
-import System.Info
 
 %default total
 
@@ -148,11 +144,15 @@ export
 mbPathToNS : String -> Maybe String -> String -> Maybe ModuleIdent
 mbPathToNS wdir sdir fname =
   let
+    cleanPath : String -> String
+      := show
+       . the (Path -> Path) { hasTrailSep := False, body $= filter (/= CurDir) }
+       . parse
     sdir = fromMaybe "" sdir
     base = if isAbsolute fname then wdir </> sdir else sdir
   in
     unsafeFoldModuleIdent . reverse . splitPath . Path.dropExtension
-      <$> Path.dropBase base fname
+      <$> (Path.dropBase `on` cleanPath) base fname
 
 export
 corePathToNS : String -> Maybe String -> String -> Core ModuleIdent

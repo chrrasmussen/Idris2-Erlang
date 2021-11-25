@@ -12,7 +12,6 @@ import Core.Options
 import Core.TT
 
 import Libraries.Data.NameMap
-import Libraries.Data.PosMap
 
 import Libraries.Data.IOArray
 import Data.Vect
@@ -1016,9 +1015,20 @@ TTC TotalReq where
              2 => pure PartialOK
              _ => corrupt "TotalReq"
 
+TTC NoMangleDirective where
+  toBuf b (CommonName n) = do tag 0; toBuf b n
+  toBuf b (BackendNames ns) = do tag 1; toBuf b ns
+
+  fromBuf b
+      = case !getTag of
+             0 => do n <- fromBuf b; pure (CommonName n)
+             1 => do ns <- fromBuf b; pure (BackendNames ns)
+             _ => corrupt "NoMangleDirective"
+
 TTC DefFlag where
   toBuf b Inline = tag 2
   toBuf b NoInline = tag 13
+  toBuf b Deprecate = tag 15
   toBuf b Invertible = tag 3
   toBuf b Overloadable = tag 4
   toBuf b TCInline = tag 5
@@ -1029,6 +1039,7 @@ TTC DefFlag where
   toBuf b AllGuarded = tag 10
   toBuf b (ConType ci) = do tag 11; toBuf b ci
   toBuf b (Identity x) = do tag 12; toBuf b x
+  toBuf b (NoMangle x) = do tag 14; toBuf b x
 
   fromBuf b
       = case !getTag of
@@ -1044,6 +1055,8 @@ TTC DefFlag where
              11 => do ci <- fromBuf b; pure (ConType ci)
              12 => do x <- fromBuf b; pure (Identity x)
              13 => pure NoInline
+             14 => do x <- fromBuf b; pure (NoMangle x)
+             15 => pure Deprecate
              _ => corrupt "DefFlag"
 
 export
