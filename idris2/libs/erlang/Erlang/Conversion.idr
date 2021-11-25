@@ -19,7 +19,7 @@ import Erlang.Types
 ||| In the common case, you should probably use the functions from `Erlang.Decode`.
 export %inline
 erlUnsafeCast : IsErlType from => (0 to : Type) -> IsErlType to => from -> to
-erlUnsafeCast _ = prim__believe_me _ _
+erlUnsafeCast _ = believe_me
 
 
 -- CONVERSION TO `ErlTerm`
@@ -33,7 +33,7 @@ interface ToErlTerm a where
 -- Values that conform to `IsErlType` are already proper Erlang values.
 export %inline
 IsErlType a => ToErlTerm a where
-  toErlTerm = prim__believe_me _ _
+  toErlTerm = believe_me
 
 export
 ToErlTerm Bool where

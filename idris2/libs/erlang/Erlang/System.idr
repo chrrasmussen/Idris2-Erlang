@@ -1,5 +1,6 @@
 module Erlang.System
 
+import public System.Escape
 import public Data.So
 import Data.Maybe
 import Data.String
