@@ -61,11 +61,12 @@ ToErlTerm AnalyzeOpts where
     in toErlTerm (filterOpt :: toList sortOpt)
 
 export
-erlRunTimeProfiler : HasIO io => AnalyzeOpts -> IO () -> io ()
+erlRunTimeProfiler : HasIO io => AnalyzeOpts -> IO a -> io a
 erlRunTimeProfiler opts prog = do
   ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "start" []
   ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "start_profiling" [the (ErlList _) [!erlSelf]]
-  liftIO prog
+  result <- liftIO prog
   ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "stop_profiling" []
   ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "analyze" [MkAtom "total", toErlTerm opts]
   ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "stop" []
+  pure result
