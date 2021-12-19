@@ -42,8 +42,8 @@ record AnalyzeOpts where
   sort : Maybe AnalyzeSort
 
 export
-erlDefaultAnalyzeOpts : AnalyzeOpts
-erlDefaultAnalyzeOpts = MkAnalyzeOpts [] Nothing
+defaultAnalyzeOpts : AnalyzeOpts
+defaultAnalyzeOpts = MkAnalyzeOpts [] Nothing
 
 ToErlTerm AnalyzeFilter where
   toErlTerm (FilterByCalls limit) = toErlTerm $ MkTuple2 (MkAtom "calls") limit
