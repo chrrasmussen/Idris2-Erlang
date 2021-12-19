@@ -41,12 +41,12 @@ data Buffer : Type where
 %inline
 getBufferPayload : HasIO io => Buffer -> io BufferPayload
 getBufferPayload (MkBuffer ref) =
-  pure $ erlUnsafeCall BufferPayload "erlang" "get" [ref]
+  erlUnsafeCall BufferPayload "erlang" "get" [ref]
 
 %inline
 setBufferPayload : HasIO io => Buffer -> BufferPayload -> io ()
 setBufferPayload (MkBuffer ref) content = do
-  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
+  ignore $ erlUnsafeCall ErlTerm "erlang" "put" [ref, content]
 
 %inline
 updateBufferPayload : HasIO io => Buffer -> (BufferPayload -> BufferPayload) -> io ()
@@ -58,7 +58,7 @@ updateBufferPayload buf updateFn = do
 export
 newBuffer : HasIO io => Int -> io (Maybe Buffer)
 newBuffer size = do
-  ref <- pure $ erlUnsafeCall ErlReference "erlang" "make_ref" []
+  ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
   let payload = prim__erlBufferNew size
   let buf = MkBuffer ref
   setBufferPayload buf payload
@@ -68,7 +68,7 @@ newBuffer size = do
 export
 freeBuffer : HasIO io => Buffer -> io ()
 freeBuffer (MkBuffer ref) =
-  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "erase" [ref]
+  ignore $ erlUnsafeCall ErlTerm "erlang" "erase" [ref]
 
 export
 rawSize : HasIO io => Buffer -> io Int
@@ -172,7 +172,7 @@ getDouble buf loc = do
 export
 stringByteLength : String -> Int
 stringByteLength str =
-  erlUnsafeCall Int "erlang" "byte_size" [str]
+  erlUnsafeCallPure Int "erlang" "byte_size" [str]
 
 export
 setString : HasIO io => Buffer -> (loc : Int) -> (val : String) -> io ()
@@ -209,12 +209,12 @@ copyData src start len dest loc = do
 export
 createBufferFromFile : HasIO io => (filePath : String) -> io (Either FileError Buffer)
 createBufferFromFile filePath = do
-  result <- pure $ erlUnsafeCall ErlTerm "file" "read_file" [filePath]
+  result <- erlUnsafeCall ErlTerm "file" "read_file" [filePath]
   let Right str = erlDecode (okTuple string) result
     | _ => pure (Left FileReadError)
-  let strSize = erlUnsafeCall Int "erlang" "byte_size" [str]
-  ref <- pure $ erlUnsafeCall ErlReference "erlang" "make_ref" []
-  ignore $ pure $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
+  let strSize = erlUnsafeCallPure Int "erlang" "byte_size" [str]
+  ref <- erlUnsafeCall ErlReference "erlang" "make_ref" []
+  ignore $ erlUnsafeCall ErlTerm "erlang" "put" [ref, MkTuple2 str strSize]
   pure (Right (MkBuffer ref))
 
 -- TODO: `maxbytes` is unused
@@ -223,7 +223,7 @@ writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int
 writeBufferToFile filePath buf maxbytes = do
   flatten buf maxbytes
   MkTuple2 binary _ <- getBufferPayload buf
-  result <- pure $ erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
+  result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
   pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export

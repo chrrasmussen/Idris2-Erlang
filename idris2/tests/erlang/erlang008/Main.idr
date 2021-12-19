@@ -6,37 +6,37 @@ import Erlang
 -- Wrappers around Erlang functions
 
 mapEmpty : ErlAnyMap
-mapEmpty = erlUnsafeCall ErlAnyMap "test_support" "get_map_empty" []
+mapEmpty = erlUnsafeCallPure ErlAnyMap "test_support" "get_map_empty" []
 
 mapEx1 : ErlAnyMap
-mapEx1 = erlUnsafeCall ErlAnyMap "test_support" "get_map_ex1" []
+mapEx1 = erlUnsafeCallPure ErlAnyMap "test_support" "get_map_ex1" []
 
 mapEx2 : ErlAnyMap
-mapEx2 = erlUnsafeCall ErlAnyMap "test_support" "get_map_ex2" []
+mapEx2 = erlUnsafeCallPure ErlAnyMap "test_support" "get_map_ex2" []
 
 pidEx : ErlPid
-pidEx = erlUnsafeCall ErlPid "test_support" "get_pid" []
+pidEx = erlUnsafeCallPure ErlPid "test_support" "get_pid" []
 
 refEx : ErlReference
-refEx = erlUnsafeCall ErlReference "test_support" "get_ref" []
+refEx = erlUnsafeCallPure ErlReference "test_support" "get_ref" []
 
 portEx : ErlPort
-portEx = erlUnsafeCall ErlPort "test_support" "get_port" []
+portEx = erlUnsafeCallPure ErlPort "test_support" "get_port" []
 
 binaryEx : String
-binaryEx = erlUnsafeCall String "test_support" "get_binary" []
+binaryEx = erlUnsafeCallPure String "test_support" "get_binary" []
 
 fun0Ex : ErlTerm
-fun0Ex = erlUnsafeCall ErlTerm "test_support" "get_fun0" []
+fun0Ex = erlUnsafeCallPure ErlTerm "test_support" "get_fun0" []
 
 fun1Ex : ErlTerm
-fun1Ex = erlUnsafeCall ErlTerm "test_support" "get_fun1" []
+fun1Ex = erlUnsafeCallPure ErlTerm "test_support" "get_fun1" []
 
 fun2Ex : ErlTerm
-fun2Ex = erlUnsafeCall ErlTerm "test_support" "get_fun2" []
+fun2Ex = erlUnsafeCallPure ErlTerm "test_support" "get_fun2" []
 
 funDivEx : ErlTerm
-funDivEx = erlUnsafeCall ErlTerm "test_support" "get_fun_div" []
+funDivEx = erlUnsafeCallPure ErlTerm "test_support" "get_fun_div" []
 
 
 -- Tests

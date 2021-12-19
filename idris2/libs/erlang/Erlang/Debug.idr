@@ -10,7 +10,7 @@ import Erlang
 export
 erlPrintLn : HasIO io => a -> io ()
 erlPrintLn x = do
-  ignore $ pure $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (ErlList _) [MkRaw x]]
+  ignore $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (ErlList _) [MkRaw x]]
 
 ||| Print the underlying value using `io:format/2`, and return the given value.
 |||
@@ -23,8 +23,9 @@ erlInspect x = unsafePerformIO $ do
 
 export
 erlPrintMemory : HasIO io => io ()
-erlPrintMemory =
-  erlPrintLn (erlUnsafeCall ErlTerm "erlang" "memory" [])
+erlPrintMemory = do
+  memoryUsage <- erlUnsafeCall ErlTerm "erlang" "memory" []
+  erlPrintLn memoryUsage
 
 
 -- TIME PROFILER
@@ -63,10 +64,10 @@ ToErlTerm AnalyzeOpts where
 export
 erlRunTimeProfiler : HasIO io => AnalyzeOpts -> IO a -> io a
 erlRunTimeProfiler opts prog = do
-  ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "start" []
-  ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "start_profiling" [the (ErlList _) [!erlSelf]]
+  ignore $ erlUnsafeCall ErlTerm "eprof" "start" []
+  ignore $ erlUnsafeCall ErlTerm "eprof" "start_profiling" [the (ErlList _) [!erlSelf]]
   result <- liftIO prog
-  ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "stop_profiling" []
-  ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "analyze" [MkAtom "total", toErlTerm opts]
-  ignore $ pure $ erlUnsafeCall ErlTerm "eprof" "stop" []
+  ignore $ erlUnsafeCall ErlTerm "eprof" "stop_profiling" []
+  ignore $ erlUnsafeCall ErlTerm "eprof" "analyze" [MkAtom "total", toErlTerm opts]
+  ignore $ erlUnsafeCall ErlTerm "eprof" "stop" []
   pure result

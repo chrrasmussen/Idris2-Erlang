@@ -18,20 +18,20 @@ data ArrayData : Type -> Type where
 
 prim__newArray : HasIO io => Int -> a -> io (ArrayData a)
 prim__newArray size value = do
-  arr <- pure $ erlUnsafeCall ErlTerm "array" "new" [size, MkTuple2 (MkAtom "default") (MkRaw value)]
+  arr <- erlUnsafeCall ErlTerm "array" "new" [size, MkTuple2 (MkAtom "default") (MkRaw value)]
   ref <- newIORef arr
   pure (MkArrayData ref)
 
 prim__arrayGet : HasIO io => ArrayData a -> Int -> io a
 prim__arrayGet (MkArrayData ref) pos = do
   arr <- readIORef ref
-  MkRaw value <- pure $ erlUnsafeCall (Raw a) "array" "get" [pos, arr]
+  MkRaw value <- erlUnsafeCall (Raw a) "array" "get" [pos, arr]
   pure value
 
 prim__arraySet : HasIO io => ArrayData a -> Int -> a -> io ()
 prim__arraySet (MkArrayData ref) pos value = do
   arr <- readIORef ref
-  newArr <- pure $ erlUnsafeCall ErlTerm "array" "set" [pos, MkRaw value, arr]
+  newArr <- erlUnsafeCall ErlTerm "array" "set" [pos, MkRaw value, arr]
   writeIORef ref newArr
 
 

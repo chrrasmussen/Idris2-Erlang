@@ -34,17 +34,17 @@ toAnyMap = believe_me
 ||| Create an empty Erlang map.
 export
 empty : ErlAnyMap
-empty = erlUnsafeCall ErlAnyMap "maps" "new" []
+empty = erlUnsafeCallPure ErlAnyMap "maps" "new" []
 
 ||| Insert a key/value into an Erlang map.
 export
 insert : (IsErlType key, IsErlType value) => key -> value -> ErlAnyMap -> ErlAnyMap
-insert key value m = erlUnsafeCall ErlAnyMap "maps" "put" [key, value, m]
+insert key value m = erlUnsafeCallPure ErlAnyMap "maps" "put" [key, value, m]
 
 ||| Delete a key from an Erlang map.
 export
 delete : IsErlType key => key -> ErlAnyMap -> ErlAnyMap
-delete key m = erlUnsafeCall ErlAnyMap "maps" "remove" [key, m]
+delete key m = erlUnsafeCallPure ErlAnyMap "maps" "remove" [key, m]
 
 
 -- QUERY MAPS
@@ -53,24 +53,24 @@ delete key m = erlUnsafeCall ErlAnyMap "maps" "remove" [key, m]
 export
 size : ErlMapSubset xs -> Nat
 size m =
-  let size = erlUnsafeCall Integer "maps" "size" [toAnyMap m]
+  let size = erlUnsafeCallPure Integer "maps" "size" [toAnyMap m]
   in integerToNat size
 
 ||| Get all keys in an Erlang map.
 export
 keys : ErlMapSubset xs -> List ErlTerm
-keys m = erlUnsafeCall (List ErlTerm) "maps" "keys" [toAnyMap m]
+keys m = erlUnsafeCallPure (List ErlTerm) "maps" "keys" [toAnyMap m]
 
 ||| Get all values in an Erlang map.
 export
 values : ErlMapSubset xs -> List ErlTerm
-values m = erlUnsafeCall (List ErlTerm) "maps" "values" [toAnyMap m]
+values m = erlUnsafeCallPure (List ErlTerm) "maps" "values" [toAnyMap m]
 
 ||| Get all entries in an Erlang map.
 export
 entries : ErlMapSubset xs -> List (ErlTerm, ErlTerm)
 entries m =
-  let xs = erlUnsafeCall (List (ErlTuple2 ErlTerm ErlTerm)) "maps" "to_list" [toAnyMap m]
+  let xs = erlUnsafeCallPure (List (ErlTuple2 ErlTerm ErlTerm)) "maps" "to_list" [toAnyMap m]
   in map (\(MkTuple2 x1 x2) => (x1, x2)) xs
 
 ||| Look for a key in an Erlang map. The value for the key must match the
@@ -87,5 +87,5 @@ lookup key decoder m = erlDecodeMay (mapEntry key decoder) (toAnyMap m)
 export
 get : (key : a) -> ErlMapSubset xs -> ErlMapElem key b xs => b
 get key m =
-  let MkRaw res = erlUnsafeCall (Raw b) "maps" "get" [MkRaw key, toAnyMap m]
+  let MkRaw res = erlUnsafeCallPure (Raw b) "maps" "get" [MkRaw key, toAnyMap m]
   in res

@@ -9,8 +9,8 @@ import Erlang.Types
 
 -- This module contains functions to turn an untyped Erlang value into a
 -- typed Idris value.
--- The decoding functions are commonly used together with `erlCall` and
--- `erlUnsafeCall`.
+-- The decoding functions are commonly used together with `erlCall`,
+-- `erlUnsafeCall` and `erlUnsafeCallPure`.
 
 
 ||| The possible errors that can happen when decoding an Erlang value.
@@ -411,7 +411,7 @@ mapEntry key (MkDecoder valueDecoder) =
   MkDecoder (\term => do
     let Just m = prim__erlDecodeAnyMap term
       | Nothing => Left (Error "Expected a map")
-    let lookupResult = erlUnsafeCall ErlTerm "maps" "find" [MkRaw key, m]
+    let lookupResult = erlUnsafeCallPure ErlTerm "maps" "find" [MkRaw key, m]
     let Just (MkTuple2 ok value) = prim__erlDecodeTuple2 lookupResult
       | Nothing => Left (Error "Could not find key in map")
     valueDecoder value)

@@ -14,6 +14,12 @@
 - Added casts between `Bits8`, `Bits16`, `Bits32`, `Bits64`, `Int` and `Integer`.
 - Renamed the `:=` operator to `.=`, used for Erlang maps, in `Erlang.Types` and
   `Erlang.Decode`.
+- Rename `Erlang.IO.erlUnsafeCall` to `erlUnsafeCallPure`, and add a new version called
+  `erlUnsafeCall` that is allowed to call Erlang functions that may perform side-effects.
+  There are now 3 ways to call Erlang functions:
+  1. `erlUnsafeCallPure` – Intended for calling pure Erlang functions.
+  2. `erlUnsafeCall` – Intended for calling Erlang functions that may perform side-effects.
+  3. `erlCall` – Intended for calling Erlang functions that may perform side-effects and that may not be total.
 
 
 ## v0.2.1-alpha.1 (2020-09-28)

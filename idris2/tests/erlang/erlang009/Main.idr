@@ -7,26 +7,26 @@ import Erlang
 
 validCharlists : List ErlTerm
 validCharlists =
-  erlUnsafeCall (List ErlTerm) "test_support" "get_valid_charlists" []
+  erlUnsafeCallPure (List ErlTerm) "test_support" "get_valid_charlists" []
 
 invalidCharlists : List ErlTerm
 invalidCharlists =
-  erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_charlists" []
+  erlUnsafeCallPure (List ErlTerm) "test_support" "get_invalid_charlists" []
 
 validIOLists : List ErlTerm
 validIOLists =
-  erlUnsafeCall (List ErlTerm) "test_support" "get_valid_io_lists" []
+  erlUnsafeCallPure (List ErlTerm) "test_support" "get_valid_io_lists" []
 
 invalidIOLists : List ErlTerm
 invalidIOLists =
-  erlUnsafeCall (List ErlTerm) "test_support" "get_invalid_io_lists" []
+  erlUnsafeCallPure (List ErlTerm) "test_support" "get_invalid_io_lists" []
 
 
 -- Helper functions
 
 ioDataToString : ErlTerm -> String
 ioDataToString x =
-  erlUnsafeCall String "unicode" "characters_to_binary" [x]
+  erlUnsafeCallPure String "unicode" "characters_to_binary" [x]
 
 
 -- Tests

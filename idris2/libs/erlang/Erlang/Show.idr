@@ -20,19 +20,19 @@ Show ErlTerm where
 export
 Show ErlPid where
   show x =
-    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "pid_to_list" [x]
+    let MkCharlist str = erlUnsafeCallPure ErlCharlist "erlang" "pid_to_list" [x]
     in "#Pid" ++ str
 
 export
 Show ErlReference where
   show x =
-    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "ref_to_list" [x]
+    let MkCharlist str = erlUnsafeCallPure ErlCharlist "erlang" "ref_to_list" [x]
     in str
 
 export
 Show ErlPort where
   show x =
-    let MkCharlist str = erlUnsafeCall ErlCharlist "erlang" "port_to_list" [x]
+    let MkCharlist str = erlUnsafeCallPure ErlCharlist "erlang" "port_to_list" [x]
     in str
 
 export

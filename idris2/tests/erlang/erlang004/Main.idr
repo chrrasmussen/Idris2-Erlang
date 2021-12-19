@@ -4,7 +4,7 @@ import Erlang
 
 erlPrintLn : IsErlType a => a -> IO ()
 erlPrintLn x = do
-  ignore $ pure $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (List _) [x]]
+  ignore $ erlUnsafeCall ErlTerm "io" "format" ["~p~n", the (List _) [x]]
 
 
 intTest : IO ()

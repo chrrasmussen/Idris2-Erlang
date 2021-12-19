@@ -7,12 +7,12 @@ import Erlang
 
 curriedFun1 : Int -> Int
 curriedFun1 =
-  let MkFun1 f = erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_curried_fun1" []
+  let MkFun1 f = erlUnsafeCallPure (ErlFun1 Int Int) "test_support" "create_curried_fun1" []
   in f
 
 curriedFun2 : Int -> Int -> Int
 curriedFun2 =
-  let MkFun1 f = erlUnsafeCall (ErlFun1 Int (ErlFun1 Int Int)) "test_support" "create_curried_fun2" []
+  let MkFun1 f = erlUnsafeCallPure (ErlFun1 Int (ErlFun1 Int Int)) "test_support" "create_curried_fun2" []
   in (\x => let MkFun1 f' = f x in f')
 
 
@@ -20,17 +20,17 @@ curriedFun2 =
 
 callFun0 : Int
 callFun0 =
-  let MkFun0 fun = erlUnsafeCall (ErlFun0 Int) "test_support" "create_fun0" []
+  let MkFun0 fun = erlUnsafeCallPure (ErlFun0 Int) "test_support" "create_fun0" []
   in fun
 
 callFun1 : Int -> Int
 callFun1 =
-  let MkFun1 fun = erlUnsafeCall (ErlFun1 Int Int) "test_support" "create_fun1" []
+  let MkFun1 fun = erlUnsafeCallPure (ErlFun1 Int Int) "test_support" "create_fun1" []
   in fun
 
 callFun2 : Int -> Int -> Int
 callFun2 =
-  let MkFun2 fun = erlUnsafeCall (ErlFun2 Int Int Int) "test_support" "create_fun2" []
+  let MkFun2 fun = erlUnsafeCallPure (ErlFun2 Int Int Int) "test_support" "create_fun2" []
   in fun
 
 
@@ -38,17 +38,17 @@ callFun2 =
 
 callIOFun0 : IO Int
 callIOFun0 =
-  let MkIOFun0 action = erlUnsafeCall (ErlIOFun0 Int) "test_support" "create_io0" []
+  let MkIOFun0 action = erlUnsafeCallPure (ErlIOFun0 Int) "test_support" "create_io0" []
   in action
 
 callIOFun1 : Int -> IO Int
 callIOFun1 =
-  let MkIOFun1 action = erlUnsafeCall (ErlIOFun1 Int Int) "test_support" "create_io1" []
+  let MkIOFun1 action = erlUnsafeCallPure (ErlIOFun1 Int Int) "test_support" "create_io1" []
   in action
 
 callIOFun2 : Int -> Int -> IO Int
 callIOFun2 =
-  let MkIOFun2 action = erlUnsafeCall (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
+  let MkIOFun2 action = erlUnsafeCallPure (ErlIOFun2 Int Int Int) "test_support" "create_io2" []
   in action
 
 
