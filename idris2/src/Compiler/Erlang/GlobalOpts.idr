@@ -32,10 +32,10 @@ data Flag
   | SetUseMutableStorage Bool
 
 flagToOpts : Flag -> GlobalOpts -> GlobalOpts
-flagToOpts (SetOutputFormat outputFormat) opts = record { outputFormat = outputFormat } opts
-flagToOpts (SetPrefix prefixStr) opts = record { prefixStr = prefixStr } opts
-flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = inlineSize } opts
-flagToOpts (SetUseMutableStorage useMutableStorage) opts = record { useMutableStorage = useMutableStorage } opts
+flagToOpts (SetOutputFormat outputFormat) opts = { outputFormat := outputFormat } opts
+flagToOpts (SetPrefix prefixStr) opts = { prefixStr := prefixStr } opts
+flagToOpts (SetInlineSize inlineSize) opts = { inlineSize := inlineSize } opts
+flagToOpts (SetUseMutableStorage useMutableStorage) opts = { useMutableStorage := useMutableStorage } opts
 
 flagsToOpts : List Flag -> GlobalOpts
 flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts

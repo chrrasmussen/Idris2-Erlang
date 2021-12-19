@@ -369,7 +369,7 @@ preOptions (IgnoreMissingIPKG :: opts)
     = do setSession ({ ignoreMissingPkg := True } !getSession)
          preOptions opts
 preOptions (ChangedModules ns :: opts)
-    = do setSession (record { changedModules = ns } !getSession)
+    = do setSession ({ changedModules := ns } !getSession)
          preOptions opts
 preOptions (DumpCases f :: opts)
     = do setSession ({ dumpcases := Just f } !getSession)

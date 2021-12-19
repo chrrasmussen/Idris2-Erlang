@@ -460,7 +460,7 @@ mutual
     keyVar <- newLocalVar
     keyValue <- genErlExpr key
     xClause <- readErlMatcher l matcher
-    let xClause' = record { preComputedValues $= ((keyVar, keyValue) ::) } xClause
+    let xClause' = { preComputedValues $= ((keyVar, keyValue) ::) } xClause
     xsClauses <- readErlMapEntryMatchers l xs
     pure ((matcherVar, xClause') :: xsClauses)
 

@@ -25,8 +25,8 @@ data Flag
   | SetInlineSize Nat
 
 flagToOpts : Flag -> ModuleOpts -> ModuleOpts
-flagToOpts (SetExportFunName exportFunName) opts = record { exportFunName = Just (NS (ns opts) (UN (Basic exportFunName))) } opts
-flagToOpts (SetInlineSize inlineSize) opts = record { inlineSize = Just inlineSize } opts
+flagToOpts (SetExportFunName exportFunName) opts = { exportFunName := Just (NS (ns opts) (UN (Basic exportFunName))) } opts
+flagToOpts (SetInlineSize inlineSize) opts = { inlineSize := Just inlineSize } opts
 
 flagsToOpts : Namespace -> List Flag -> ModuleOpts
 flagsToOpts ns flags = flagsToOpts' flags (defaultModuleOpts ns)

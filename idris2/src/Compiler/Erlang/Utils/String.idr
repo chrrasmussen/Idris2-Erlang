@@ -1,6 +1,6 @@
 module Compiler.Erlang.Utils.String
 
-import Libraries.Utils.Hex
+import Protocol.Hex
 
 
 %default total

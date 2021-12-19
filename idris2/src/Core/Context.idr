@@ -1905,7 +1905,7 @@ addPkg : {auto c : Ref Ctxt Defs} ->
          String -> Core ()
 addPkg p
     = do defs <- get Ctxt
-         put Ctxt (record { options->session->packages $= (++ [p]) } defs)
+         put Ctxt ({ options->session->packages $= (++ [p]) } defs)
 
 export
 getDirs : {auto c : Ref Ctxt Defs} -> Core Dirs
