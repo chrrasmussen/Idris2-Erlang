@@ -82,12 +82,12 @@ extendSyn newsyn
            , "New (" ++ unwords (map show $ saveMod newsyn) ++ "): "
               ++ show (modDocstrings newsyn)
            ]
-         put Syn (record { infixes $= mergeLeft (infixes newsyn),
-                           prefixes $= mergeLeft (prefixes newsyn),
-                           ifaces $= merge (ifaces newsyn),
-                           modDocstrings $= mergeLeft (modDocstrings newsyn),
-                           defDocstrings $= merge (defDocstrings newsyn),
-                           bracketholes $= ((bracketholes newsyn) ++) }
+         put Syn ({ infixes $= mergeLeft (infixes newsyn),
+                    prefixes $= mergeLeft (prefixes newsyn),
+                    ifaces $= merge (ifaces newsyn),
+                    modDocstrings $= mergeLeft (modDocstrings newsyn),
+                    defDocstrings $= merge (defDocstrings newsyn),
+                    bracketholes $= ((bracketholes newsyn) ++) }
                   syn)
 
 mkPrec : Fixity -> Nat -> OpPrec
@@ -323,7 +323,7 @@ mutual
   desugarB side ps (PHole fc br holename)
       = do when br $
               do syn <- get Syn
-                 put Syn (record { bracketholes $= ((UN (Basic holename)) ::) } syn)
+                 put Syn ({ bracketholes $= ((UN (Basic holename)) ::) } syn)
            pure $ IHole fc holename
   desugarB side ps (PType fc) = pure $ IType fc
   desugarB side ps (PAs fc nameFC vname pattern)
@@ -355,9 +355,9 @@ mutual
       = do itm <- desugarB side ps term
            bs <- get Bang
            let bn = MN "bind" (nextName bs)
-           put Bang (record { nextName $= (+1),
-                              bangNames $= ((bn, fc, itm) ::)
-                            } bs)
+           put Bang ({ nextName $= (+1),
+                       bangNames $= ((bn, fc, itm) ::)
+                     } bs)
            pure (IVar EmptyFC bn)
   desugarB side ps (PIdiom fc term)
       = do itm <- desugarB side ps term
@@ -368,7 +368,7 @@ mutual
   desugarB side ps (PList fc nilFC args)
       = expandList side ps nilFC args
   desugarB side ps (PSnocList fc nilFC args)
-      = expandSnocList side ps nilFC (reverse args)
+      = expandSnocList side ps nilFC args
   desugarB side ps (PPair fc l r)
       = do l' <- desugarB side ps l
            r' <- desugarB side ps r
@@ -472,9 +472,10 @@ mutual
                {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
                {auto m : Ref MD Metadata} ->
-               Side -> List Name -> (nilFC : FC) -> List (FC, PTerm) -> Core RawImp
-  expandSnocList side ps nilFC [] = pure (IVar nilFC (UN $ Basic "Lin"))
-  expandSnocList side ps nilFC ((consFC, x) :: xs)
+               Side -> List Name -> (nilFC : FC) ->
+               SnocList (FC, PTerm) -> Core RawImp
+  expandSnocList side ps nilFC [<] = pure (IVar nilFC (UN $ Basic "Lin"))
+  expandSnocList side ps nilFC (xs :< (consFC, x))
       = pure $ apply (IVar consFC (UN $ Basic ":<"))
                 [!(expandSnocList side ps nilFC xs) , !(desugarB side ps x)]
 
@@ -856,8 +857,9 @@ mutual
       toIDef nm (ImpossibleClause fc lhs)
           = pure $ IDef fc nm [ImpossibleClause fc lhs]
 
-  desugarDecl ps (PData fc doc vis ddecl)
-      = pure [IData fc vis !(desugarData ps doc ddecl)]
+  desugarDecl ps (PData fc doc vis mbtot ddecl)
+      = pure [IData fc vis mbtot !(desugarData ps doc ddecl)]
+
   desugarDecl ps (PParameters fc params pds)
       = do pds' <- traverse (desugarDecl (ps ++ map fst params)) pds
            params' <- traverse (\(n, rig, i, ntm) => do tm' <- desugar AnyExpr ps ntm
@@ -878,10 +880,10 @@ mutual
            uimpls' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
                                             btm <- bindTypeNames fc oldu ps tm'
                                             pure (fst ntm, btm)) uimpls
-           put Syn (record { usingImpl = uimpls' ++ oldu } syn)
+           put Syn ({ usingImpl := uimpls' ++ oldu } syn)
            uds' <- traverse (desugarDecl ps) uds
            syn <- get Syn
-           put Syn (record { usingImpl = oldu } syn)
+           put Syn ({ usingImpl := oldu } syn)
            pure (concat uds')
   desugarDecl ps (PReflect fc tm)
       = throw (GenericMsg fc "Reflection not implemented yet")
@@ -970,7 +972,7 @@ mutual
       isNamed Nothing = False
       isNamed (Just _) = True
 
-  desugarDecl ps (PRecord fc doc vis tn params conname_in fields)
+  desugarDecl ps (PRecord fc doc vis mbtot tn params conname_in fields)
       = do addDocString tn doc
            params' <- traverse (\ (n,c,p,tm) =>
                           do tm' <- desugar AnyExpr ps tm
@@ -999,7 +1001,7 @@ mutual
            let conname = maybe (mkConName tn) id conname_in
            let _ = the Name conname
            pure [IRecord fc (Just recName)
-                         vis (MkImpRecord fc tn paramsb conname fields')]
+                         vis mbtot (MkImpRecord fc tn paramsb conname fields')]
     where
       fname : PField -> Name
       fname (MkField _ _ _ _ n _) = n
@@ -1015,11 +1017,11 @@ mutual
 
   desugarDecl ps (PFixity fc Prefix prec (UN (Basic n)))
       = do syn <- get Syn
-           put Syn (record { prefixes $= insert n prec } syn)
+           put Syn ({ prefixes $= insert n prec } syn)
            pure []
   desugarDecl ps (PFixity fc fix prec (UN (Basic n)))
       = do syn <- get Syn
-           put Syn (record { infixes $= insert n (fix, prec) } syn)
+           put Syn ({ infixes $= insert n (fix, prec) } syn)
            pure []
   desugarDecl ps (PFixity fc _ _ _)
       = throw (GenericMsg fc "Fixity declarations must be for unqualified names")
@@ -1041,6 +1043,7 @@ mutual
   desugarDecl ps (PDirective fc d)
       = case d of
              Hide n => pure [IPragma [] (\nest, env => hide fc n)]
+             Unhide n => pure [IPragma [] (\nest, env => unhide fc n)]
              Logging i => pure [ILog ((\ i => (topics i, verbosity i)) <$> i)]
              LazyOn a => pure [IPragma [] (\nest, env => lazyActive a)]
              UnboundImplicits a => do

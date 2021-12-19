@@ -1,5 +1,6 @@
 module Data.Fin
 
+import Control.Function
 import Data.List1
 import public Data.Maybe
 import public Data.Nat
@@ -23,7 +24,7 @@ public export
 coerce : {n : Nat} -> (0 eq : m = n) -> Fin m -> Fin n -- TODO: make linear
 coerce {n = S _} eq FZ = FZ
 coerce {n = Z} eq FZ impossible
-coerce {n = S _} eq (FS k) = FS (coerce (succInjective _ _ eq) k)
+coerce {n = S _} eq (FS k) = FS (coerce (injective eq) k)
 coerce {n = Z} eq (FS k) impossible
 
 %transform "coerce-identity" coerce eq k = replace {p = Fin} eq k
@@ -46,8 +47,8 @@ Uninhabited (n = m) => Uninhabited (FS n = FS m) where
   uninhabited Refl @{nm} = uninhabited Refl @{nm}
 
 export
-fsInjective : FS m = FS n -> m = n
-fsInjective Refl = Refl
+Injective FS where
+  injective Refl = Refl
 
 export
 Eq (Fin n) where
@@ -61,14 +62,17 @@ finToNat : Fin n -> Nat
 finToNat FZ = Z
 finToNat (FS k) = S $ finToNat k
 
-||| `finToNat` is injective
-export
 finToNatInjective : (fm : Fin k) -> (fn : Fin k) -> (finToNat fm) = (finToNat fn) -> fm = fn
 finToNatInjective FZ     FZ     _    = Refl
 finToNatInjective (FS _) FZ     Refl impossible
 finToNatInjective FZ     (FS _) Refl impossible
 finToNatInjective (FS m) (FS n) prf  =
-  cong FS $ finToNatInjective m n $ succInjective (finToNat m) (finToNat n) prf
+  cong FS $ finToNatInjective m n $ injective prf
+
+||| `finToNat` is injective
+export
+Injective Fin.finToNat where
+ injective = (finToNatInjective _ _)
 
 export
 Cast (Fin n) Nat where
@@ -184,14 +188,35 @@ public export
 maybeLT : (x : Nat) -> (y : Nat) -> Maybe (x `LT` y)
 maybeLT x y = maybeLTE (S x) y
 
+public export
+finFromInteger : (x : Integer) -> {n : Nat} ->
+                 {auto 0 prf : So (fromInteger x < n)} ->
+                 Fin n
+finFromInteger x = natToFinLt (fromInteger x)
+
+-- Direct comparison between `Integer` and `Nat`.
+-- We cannot convert the `Nat` to `Integer`, because that will not work with open terms;
+-- but we cannot convert the `Integer` to `Nat` either, because that slows down typechecking
+-- even when the function is unused (issue #2032)
+public export
+integerLessThanNat : Integer -> Nat -> Bool
+integerLessThanNat x n with (x < the Integer 0)
+  integerLessThanNat _ _     | True  = True                            -- if `x < 0` then `x < n` for any `n : Nat`
+  integerLessThanNat x (S m) | False = integerLessThanNat (x-1) m      -- recursive case
+  integerLessThanNat x Z     | False = False                           -- `x >= 0` contradicts `x < Z`
+
 ||| Allow overloading of Integer literals for Fin.
 ||| @ x the Integer that the user typed
 ||| @ prf an automatically-constructed proof that `x` is in bounds
 public export
 fromInteger : (x : Integer) -> {n : Nat} ->
-              {auto 0 prf : So (fromInteger x < n)} ->
+              {auto 0 prf : So (integerLessThanNat x n)} ->
               Fin n
-fromInteger x = natToFinLt (fromInteger x)
+fromInteger x = finFromInteger x {prf = lemma prf} where
+  -- to be minimally invasive, we just call the previous implementation.
+  -- however, having a different proof obligation resolves #2032
+  0 lemma : {x : Integer} -> {n : Nat} -> So (integerLessThanNat x n) -> So (fromInteger {ty=Nat} x < n)
+  lemma oh = believe_me oh
 
 -- %builtin IntegerToNatural Data.Fin.fromInteger
 
@@ -218,7 +243,7 @@ DecEq (Fin n) where
   decEq (FS f) (FS f')
       = case decEq f f' of
              Yes p => Yes $ cong FS p
-             No p => No $ p . fsInjective
+             No p => No $ p . injective
 
 namespace Equality
 
