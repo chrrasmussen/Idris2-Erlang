@@ -68,7 +68,7 @@ precToNat = integerToNat . cast
 
 genBoundedInt : {auto lv : Ref LV LocalVars} -> Line -> IntKind -> ErlExpr -> Core ErlExpr
 genBoundedInt l (Signed Unlimited) x = pure x
-genBoundedInt l (Signed $ P n)     x = pure $ genToBoundedSignedInt l (precToNat n) x
+genBoundedInt l (Signed $ P n)     x = genToBoundedSignedInt l (precToNat n) x
 genBoundedInt l (Unsigned n)       x = genToBoundedUnsignedInt l (precToNat n) x
 
 genAdd : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> ErlExpr -> Core ErlExpr
@@ -109,14 +109,14 @@ constPrimitives l = MkConstantPrimitives {
     intToInt (Signed m) (Signed $ P n) x =
       if P n >= m
         then pure x
-        else pure $ genToBoundedSignedInt l (precToNat n) x
+        else genToBoundedSignedInt l (precToNat n) x
 
     -- Only if the precision of the target is greater
     -- than the one of the source, there is no need to cast.
     intToInt (Unsigned m) (Signed $ P n) x =
       if n > m
         then pure $ x
-        else pure $ genToBoundedSignedInt l (precToNat n) x
+        else genToBoundedSignedInt l (precToNat n) x
 
     intToInt (Signed _) (Unsigned n) x = genToBoundedUnsignedInt l (precToNat n) x
 

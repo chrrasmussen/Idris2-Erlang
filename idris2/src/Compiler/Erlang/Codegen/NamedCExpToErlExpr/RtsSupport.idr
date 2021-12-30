@@ -259,19 +259,19 @@ genToBoundedUnsignedInt l bits x =
   genMod l x (EInteger l (integerPower 2 bits))
 
 export
-genToBoundedSignedInt : Line -> (bits : Nat) -> ErlExpr -> ErlExpr
-genToBoundedSignedInt l bits x =
-  let
-    isNotEq = EOp l "=/="
-    band = EOp l "band"
-    bor = EOp l "bor"
-    bitsValue = integerPower 2 (bits `minus` 1)
-    isMostSignificantBitSet = (x `band` (EInteger l bitsValue)) `isNotEq` EInteger l 0
-  in
+genToBoundedSignedInt : {auto lv : Ref LV LocalVars} -> Line -> (bits : Nat) -> ErlExpr -> Core ErlExpr
+genToBoundedSignedInt l bits intExpr = do
+  let isNotEq = EOp l "=/="
+  let band = EOp l "band"
+  let bor = EOp l "bor"
+  let bitsValue = integerPower 2 (bits `minus` 1)
+  intVar <- newLocalVar
+  let isMostSignificantBitSet = ((ELocal l intVar) `band` (EInteger l bitsValue)) `isNotEq` EInteger l 0
+  pure $ ELet l intVar intExpr $
     EMatcherCase l
       isMostSignificantBitSet
-      (singleton $ MConst (MExact (EAtom l "true")) (x `bor` EInteger l (-bitsValue)))
-      (Just $ EOp l "band" x (EInteger l (bitsValue - 1)))
+      (singleton $ MConst (MExact (EAtom l "true")) ((ELocal l intVar) `bor` EInteger l (-bitsValue)))
+      (Just $ (ELocal l intVar) `band` (EInteger l (bitsValue - 1)))
 
 
 -- STRINGS
