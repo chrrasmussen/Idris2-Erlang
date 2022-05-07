@@ -12,6 +12,7 @@ import Core.Normalise
 import Core.UnifyState
 import Core.Value
 
+import Idris.REPL.Opts
 import Idris.Syntax
 
 import TTImp.BindImplicits
@@ -88,6 +89,7 @@ checkCon : {vars : _} ->
            {auto m : Ref MD Metadata} ->
            {auto u : Ref UST UState} ->
            {auto s : Ref Syn SyntaxInfo} ->
+           {auto o : Ref ROpts REPLOpts} ->
            List ElabOpt -> NestedNames vars ->
            Env Term vars -> Visibility -> (orig : Name) -> (resolved : Name) ->
            ImpTy -> Core Constructor
@@ -120,6 +122,7 @@ checkCon {vars} opts nest env vis tn_in tn (MkImpTy fc _ cn_in ty_raw)
          case vis of
               Public => do addHashWithNames cn
                            addHashWithNames fullty
+                           log "module.hash" 15 "Adding hash for data constructor: \{show cn}"
               _ => pure ()
          pure (MkCon fc cn !(getArity defs [] fullty) fullty)
 
@@ -216,7 +219,7 @@ getRelevantArg defs i rel world (NBind fc _ (Pi _ rig _ val) sc)
                        -- %World is never inspected, so might as well be deleted from data types,
                        -- although it needs care when compiling to ensure that the function that
                        -- returns the IO/%World type isn't erased
-                       (NPrimVal _ WorldType) =>
+                       (NPrimVal _ $ PrT WorldType) =>
                            getRelevantArg defs (1 + i) rel False
                                !(sc defs (toClosure defaultOpts [] (Erased fc False)))
                        _ =>
@@ -396,6 +399,7 @@ processData : {vars : _} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
+              {auto o : Ref ROpts REPLOpts} ->
               List ElabOpt -> NestedNames vars ->
               Env Term vars -> FC ->
               Visibility -> Maybe TotalReq ->
@@ -436,6 +440,7 @@ processData {vars} eopts nest env fc vis mbtot (MkImpLater dfc n_in ty_raw)
               Private => pure ()
               _ => do addHashWithNames n
                       addHashWithNames fullty
+                      log "module.hash" 15 "Adding hash for data declaration with name \{show n}"
 
 processData {vars} eopts nest env fc vis mbtot (MkImpData dfc n_in ty_raw opts cons_raw)
     = do n <- inCurrentNS n_in
@@ -481,6 +486,7 @@ processData {vars} eopts nest env fc vis mbtot (MkImpData dfc n_in ty_raw opts c
               Private => pure ()
               _ => do addHashWithNames n
                       addHashWithNames fullty
+                      log "module.hash" 15 "Adding hash for data declaration with name \{show n}"
 
          -- Constructors are private if the data type as a whole is
          -- export

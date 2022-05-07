@@ -33,6 +33,7 @@ import Idris.CommandLine
 import Idris.Doc.HTML
 import Idris.Doc.String
 import Idris.ModTree
+import Idris.Pretty
 import Idris.ProcessIdr
 import Idris.REPL
 import Idris.REPL.Common
@@ -44,11 +45,6 @@ import Idris.Version
 import public Idris.Package.Types
 import Idris.Package.Init
 
-%hide Data.String.lines
-%hide Data.String.lines'
-%hide Data.String.unlines
-%hide Data.String.unlines'
-
 %default covering
 
 installDir : PkgDesc -> String
@@ -56,32 +52,33 @@ installDir p = name p
             ++ "-"
             ++ show (fromMaybe (MkPkgVersion (0 ::: [])) (version p))
 
-data DescField : Type where
-  PVersion     : FC -> PkgVersion -> DescField
-  PVersionDep  : FC -> String -> DescField
-  PAuthors     : FC -> String -> DescField
-  PMaintainers : FC -> String -> DescField
-  PLicense     : FC -> String -> DescField
-  PBrief       : FC -> String -> DescField
-  PReadMe      : FC -> String -> DescField
-  PHomePage    : FC -> String -> DescField
-  PSourceLoc   : FC -> String -> DescField
-  PBugTracker  : FC -> String -> DescField
-  PDepends     : List Depends -> DescField
-  PModules     : List (FC, ModuleIdent) -> DescField
-  PMainMod     : FC -> ModuleIdent -> DescField
-  PExec        : String -> DescField
-  PLibrary     : String -> DescField
-  POpts        : FC -> String -> DescField
-  PSourceDir   : FC -> String -> DescField
-  PBuildDir    : FC -> String -> DescField
-  POutputDir   : FC -> String -> DescField
-  PPrebuild    : FC -> String -> DescField
-  PPostbuild   : FC -> String -> DescField
-  PPreinstall  : FC -> String -> DescField
-  PPostinstall : FC -> String -> DescField
-  PPreclean    : FC -> String -> DescField
-  PPostclean   : FC -> String -> DescField
+data DescField  : Type where
+  PVersion      : FC -> PkgVersion -> DescField
+  PLangVersions : FC -> PkgVersionBounds -> DescField
+  PVersionDep   : FC -> String -> DescField
+  PAuthors      : FC -> String -> DescField
+  PMaintainers  : FC -> String -> DescField
+  PLicense      : FC -> String -> DescField
+  PBrief        : FC -> String -> DescField
+  PReadMe       : FC -> String -> DescField
+  PHomePage     : FC -> String -> DescField
+  PSourceLoc    : FC -> String -> DescField
+  PBugTracker   : FC -> String -> DescField
+  PDepends      : List Depends -> DescField
+  PModules      : List (FC, ModuleIdent) -> DescField
+  PMainMod      : FC -> ModuleIdent -> DescField
+  PExec         : String -> DescField
+  PLibrary      : String -> DescField
+  POpts         : FC -> String -> DescField
+  PSourceDir    : FC -> String -> DescField
+  PBuildDir     : FC -> String -> DescField
+  POutputDir    : FC -> String -> DescField
+  PPrebuild     : FC -> String -> DescField
+  PPostbuild    : FC -> String -> DescField
+  PPreinstall   : FC -> String -> DescField
+  PPostinstall  : FC -> String -> DescField
+  PPreclean     : FC -> String -> DescField
+  PPostclean    : FC -> String -> DescField
 
 field : String -> Rule DescField
 field fname
@@ -111,6 +108,11 @@ field fname
            end <- location
            pure (PVersion (MkFC (PhysicalPkgSrc fname) start end)
                           (MkPkgVersion (fromInteger <$> vs)))
+    <|> do start <- location
+           ignore $ exactProperty "langversion"
+           lvs <- langversions
+           end <- location
+           pure (PLangVersions (MkFC (PhysicalPkgSrc fname) start end) lvs)
     <|> do start <- location
            ignore $ exactProperty "version"
            equals
@@ -177,6 +179,10 @@ field fname
                 pkgbs.lowerBound
     mkBound [] pkgbs = pure pkgbs
 
+    langversions : EmptyRule PkgVersionBounds
+    langversions
+        = do bs <- sepBy andop bound
+             mkBound (concat bs) anyBounds
 
     depends : Rule Depends
     depends
@@ -210,8 +216,9 @@ addField : {auto c : Ref Ctxt Defs} ->
            {auto p : Ref ParsedMods (List (FC, ModuleIdent))} ->
            {auto m : Ref MainMod (Maybe (FC, ModuleIdent))} ->
            DescField -> PkgDesc -> Core PkgDesc
-addField (PVersion fc n)     pkg = pure $ { version := Just n } pkg
-addField (PVersionDep fc n)  pkg
+addField (PVersion fc n)       pkg = pure $ { version := Just n } pkg
+addField (PLangVersions fc bs) pkg = pure $ { langversion := Just bs } pkg
+addField (PVersionDep fc n)   pkg
     = do emitWarning (Deprecated "version numbers must now be of the form x.y.z" Nothing)
          pure pkg
 addField (PAuthors fc a)     pkg = pure $ { authors := Just a } pkg
@@ -271,11 +278,8 @@ runScript (Just (fc, s))
          when (res /= 0) $
             throw (GenericMsg fc "Script failed")
 
-addDeps : {auto c : Ref Ctxt Defs} ->
-          PkgDesc -> Core ()
-addDeps pkg
-    = do defs <- get Ctxt
-         traverse_ (\p => addPkgDir p.pkgname p.pkgbounds) (depends pkg)
+addDeps : {auto c : Ref Ctxt Defs} -> PkgDesc -> Core ()
+addDeps pkg = traverse_ (\p => addPkgDir p.pkgname p.pkgbounds) (depends pkg)
 
 processOptions : {auto c : Ref Ctxt Defs} ->
                  {auto o : Ref ROpts REPLOpts} ->
@@ -327,8 +331,6 @@ prepareCompilation : {auto c : Ref Ctxt Defs} ->
                      Core (List Error, Maybe (List ModuleIdent))
 prepareCompilation pkg opts =
   do
-    defs <- get Ctxt
-
     processOptions (options pkg)
     addDeps pkg
 
@@ -350,6 +352,13 @@ prepareCompilation pkg opts =
         errs <- buildAll allMods
         pure (errs, Nothing)
 
+assertIdrisCompatibility : PkgDesc -> Core ()
+assertIdrisCompatibility pkg
+    = do let Just requiredBounds = pkg.langversion
+           | Nothing => pure ()
+         unless (inBounds version requiredBounds) $
+           throw (GenericMsg emptyFC "\{pkg.name} requires Idris2 \{show requiredBounds} but the installed version of Idris2 is \{show Version.version}.")
+
 build : {auto c : Ref Ctxt Defs} ->
         {auto s : Ref Syn SyntaxInfo} ->
         {auto o : Ref ROpts REPLOpts} ->
@@ -357,8 +366,9 @@ build : {auto c : Ref Ctxt Defs} ->
         List CLOpt ->
         Core (List Error)
 build pkg opts
-    = do ([], changedModules) <- prepareCompilation pkg opts
-            | (errs, _) => pure errs
+    = do assertIdrisCompatibility pkg
+         ([], changedModules) <- prepareCompilation pkg opts
+           | (errs, _) => pure errs
 
          case executable pkg of
               Nothing => pure ()
@@ -502,12 +512,12 @@ check : {auto c : Ref Ctxt Defs} ->
         List CLOpt ->
         Core (List Error)
 check pkg opts =
-  do
-    ([], changedModules) <- prepareCompilation pkg opts
-      | (errs, _) => pure errs
+  do assertIdrisCompatibility pkg
+     ([], changedModules) <- prepareCompilation pkg opts
+       | (errs, _) => pure errs
 
-    runScript (postbuild pkg)
-    pure []
+     runScript (postbuild pkg)
+     pure []
 
 makeDoc : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->
@@ -526,7 +536,7 @@ makeDoc pkg opts =
        Right () <- coreLift $ mkdirAll docDir
          | Left err => fileError docDir err
        u <- newRef UST initUState
-       setPPrint (MkPPOpts False False False)
+       setPPrint (MkPPOpts False True False False)
 
        [] <- concat <$> for (modules pkg) (\(mod, filename) => do
            -- load dependencies
@@ -535,13 +545,35 @@ makeDoc pkg opts =
 
            -- generate docs for all visible names
            defs <- get Ctxt
-           names <- allNames (gamma defs)
-           let allInNamespace = filter (inNS ns) names
-           visibleNames <- filterM (visible defs) allInNamespace
+           let ctxt = gamma defs
+           visibleDefs <- map catMaybes $ for [1..nextEntry ctxt - 1] $ \ i =>
+             do -- Select the entries that are from `mod` and visible
+                Just gdef <- lookupCtxtExact (Resolved i) ctxt
+                  | _ => pure Nothing
+                let Just nfc = isNonEmptyFC $ location gdef
+                  | _ => do log "doc.module.definitions" 70 $ unwords
+                              [ show mod ++ ":"
+                              , show (fullname gdef)
+                              , "has an empty FC"
+                              ]
+                            pure Nothing
+                let PhysicalIdrSrc mod' = origin nfc
+                  | _ => pure Nothing
+                let True = mod == mod'
+                  | _ => do log "doc.module.definitions" 60 $ unwords
+                              [ show mod ++ ":"
+                              , show (fullname gdef)
+                              , "was defined in"
+                              , show mod'
+                              ]
+                            pure Nothing
+                let True = visible gdef
+                  | _ => pure Nothing
+                pure (Just gdef)
 
            let outputFilePath = docDir </> (show mod ++ ".html")
-           allDocs <- for (sort visibleNames) $ \ nm =>
-                        getDocsForName emptyFC nm shortNamesConfig
+           allDocs <- for (sortBy (compare `on` startPos . toNonEmptyFC . location) visibleDefs) $ \ def =>
+                        getDocsForName emptyFC (fullname def) shortNamesConfig
            let allDecls = annotate Declarations $ vcat allDocs
 
            -- grab module header doc
@@ -553,9 +585,20 @@ makeDoc pkg opts =
              , "and got:"
              , show modDoc
              ]
-           log "doc.module" 15 $ "from: " ++ show (modDocstrings syn)
+           log "doc.module" 100 $ "from: " ++ show (modDocstrings syn)
 
-           Right () <- do doc <- renderModuleDoc mod modDoc allDecls
+           -- grab publically re-exported modules
+           let mreexports = do docs <- lookup mod $ modDocexports syn
+                               guard (not $ null docs)
+                               pure docs
+           whenJust mreexports $ \ reexports =>
+             log "doc.module" 15 $ unwords
+               [ "All imported:", show reexports]
+
+           let modExports = map (map (reAnnotate Syntax . prettyImport)) mreexports
+
+           Right () <- do doc <- renderModuleDoc mod modDoc modExports
+                                   (allDecls <$ guard (not $ null allDocs))
                           coreLift $ writeFile outputFilePath doc
              | Left err => fileError (docBase </> "index.html") err
 
@@ -579,19 +622,10 @@ makeDoc pkg opts =
        runScript (postbuild pkg)
        pure []
   where
-    visible : Defs -> Name -> Core Bool
-    visible defs n
-        = do Just def <- lookupCtxtExact n (gamma defs)
-                  | Nothing => pure False
-             -- TODO: if we can find out, whether a def has been declared as
-             -- part of an interface, hide it here
-             pure $ case definition def of
-                         (DCon _ _ _) => False
-                         _ => (visibility def /= Private)
-
-    inNS : Namespace -> Name -> Bool
-    inNS ns (NS xns (UN _)) = ns == xns
-    inNS _ _ = False
+    visible : GlobalDef -> Bool
+    visible def = case definition def of
+      (DCon _ _ _) => False
+      _ => (visibility def /= Private)
 
     fileError : String -> FileError -> Core (List Error)
     fileError filename err = pure [FileErr filename err]
@@ -731,7 +765,7 @@ processPackage opts (cmd, mfile)
              let fp = fromMaybe (pkg.name ++ ".ipkg") mfile
              False <- coreLift (exists fp)
                | _ => throw (GenericMsg emptyFC ("File " ++ fp ++ " already exists"))
-             Right () <- coreLift $ writeFile fp (show $ the (Doc ()) $ pretty pkg)
+             Right () <- coreLift $ writeFile fp (show $ pretty pkg)
                | Left err => throw (FileErr fp err)
              pure ()
         _ =>
@@ -790,7 +824,7 @@ partitionOpts opts = foldr pOptUpdate (MkPFR [] [] False) opts
     optType (Package cmd f)        = PPackage cmd f
     optType Quiet                  = POpt
     optType Verbose                = POpt
-    optType Timing                 = POpt
+    optType (Timing l)             = POpt
     optType (Logging l)            = POpt
     optType CaseTreeHeuristics     = POpt
     optType (DumpCases f)          = POpt
@@ -848,7 +882,7 @@ processPackageOpts opts
     = do (MkPFR cmds@(_::_) opts' err) <- pure $ partitionOpts opts
              | (MkPFR Nil opts' _) => pure False
          if err
-           then coreLift $ putStrLn (errorMsg ++ "\n")
+           then coreLift $ putStrLn errorMsg
            else traverse_ (processPackage opts') cmds
          pure True
 
@@ -881,8 +915,7 @@ findIpkg fname
              Just srcpath  =>
                 do let src' = up </> srcpath
                    setSource src'
-                   opts <- get ROpts
-                   put ROpts ({ mainfile := Just src' } opts)
+                   update ROpts { mainfile := Just src' }
                    pure (Just src')
   where
     dropHead : String -> List String -> List String

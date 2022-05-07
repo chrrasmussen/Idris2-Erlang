@@ -81,8 +81,8 @@ mutual
   Functor ImpClause' where
     map f (PatClause fc lhs rhs)
       = PatClause fc (map f lhs) (map f rhs)
-    map f (WithClause fc lhs wval prf flags xs)
-      = WithClause fc (map f lhs) (map f wval) prf flags (map (map f) xs)
+    map f (WithClause fc lhs rig wval prf flags xs)
+      = WithClause fc (map f lhs) rig (map f wval) prf flags (map (map f) xs)
     map f (ImpossibleClause fc lhs)
       = ImpossibleClause fc (map f lhs)
 
@@ -98,6 +98,8 @@ mutual
       = IParameters fc (map (map  {f = ImpParameter'} f) ps) (map (map f) ds)
     map f (IRecord fc cs vis mbtot rec)
       = IRecord fc cs vis mbtot (map f rec)
+    map f (IFail fc msg ds)
+      = IFail fc msg (map (map f) ds)
     map f (INamespace fc ns ds)
       = INamespace fc ns (map (map f) ds)
     map f (ITransform fc n lhs rhs)
@@ -118,6 +120,7 @@ mutual
     map f (GlobalHint b) = GlobalHint b
     map f ExternFn = ExternFn
     map f (ForeignFn ts) = ForeignFn (map (map f) ts)
+    map f (ForeignExport ts) = ForeignExport (map (map f) ts)
     map f Invertible = Invertible
     map f (Totality tot) = Totality tot
     map f Macro = Macro

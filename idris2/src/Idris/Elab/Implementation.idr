@@ -8,6 +8,7 @@ import Core.Metadata
 import Core.TT
 import Core.Unify
 
+import Idris.REPL.Opts
 import Idris.Syntax
 
 import TTImp.BindImplicits
@@ -45,10 +46,10 @@ bindConstraints fc p [] ty = ty
 bindConstraints fc p ((n, ty) :: rest) sc
     = IPi fc top p n ty (bindConstraints fc p rest sc)
 
-bindImpls : FC -> List (Name, RigCount, RawImp) -> RawImp -> RawImp
-bindImpls fc [] ty = ty
-bindImpls fc ((n, r, ty) :: rest) sc
-    = IPi fc r Implicit (Just n) ty (bindImpls fc rest sc)
+bindImpls : List (FC, RigCount, Name, RawImp) -> RawImp -> RawImp
+bindImpls [] ty = ty
+bindImpls ((fc, r, n, ty) :: rest) sc
+    = IPi fc r Implicit (Just n) ty (bindImpls rest sc)
 
 addDefaults : FC -> Name ->
               (params : List (Name, RawImp)) -> -- parameters have been specialised, use them!
@@ -110,9 +111,10 @@ elabImplementation : {vars : _} ->
                      {auto u : Ref UST UState} ->
                      {auto s : Ref Syn SyntaxInfo} ->
                      {auto m : Ref MD Metadata} ->
+                     {auto o : Ref ROpts REPLOpts} ->
                      FC -> Visibility -> List FnOpt -> Pass ->
                      Env Term vars -> NestedNames vars ->
-                     (implicits : List (Name, RigCount, RawImp)) ->
+                     (implicits : List (FC, RigCount, Name, RawImp)) ->
                      (constraints : List (Maybe Name, RawImp)) ->
                      Name ->
                      (ps : List RawImp) ->
@@ -168,7 +170,7 @@ elabImplementation {vars} ifc vis opts_in pass env nest is cons iname ps named i
                        then [Inline]
                        else [Inline, Hint True]
 
-         let initTy = bindImpls vfc is $ bindConstraints vfc AutoImplicit cons
+         let initTy = bindImpls is $ bindConstraints vfc AutoImplicit cons
                          (apply (IVar vfc iname) ps)
          let paramBinds = if !isUnboundImplicits
                           then findBindableNames True vars [] initTy
@@ -479,10 +481,10 @@ elabImplementation {vars} ifc vis opts_in pass env nest is cons iname ps named i
     updateClause ns (PatClause fc lhs rhs)
         = do lhs' <- updateApp ns lhs
              pure (PatClause fc lhs' rhs)
-    updateClause ns (WithClause fc lhs wval prf flags cs)
+    updateClause ns (WithClause fc lhs rig wval prf flags cs)
         = do lhs' <- updateApp ns lhs
              cs' <- traverse (updateClause ns) cs
-             pure (WithClause fc lhs' wval prf flags cs')
+             pure (WithClause fc lhs' rig wval prf flags cs')
     updateClause ns (ImpossibleClause fc lhs)
         = do lhs' <- updateApp ns lhs
              pure (ImpossibleClause fc lhs')

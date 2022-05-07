@@ -5,8 +5,10 @@ import Compiler.Inline
 
 import Core.Case.CaseTree
 import Core.CompileExpr
+import Core.CompileExpr.Pretty
 import Core.Context
 import Core.Context.Log
+import Core.Context.Pretty
 import Core.Directory
 import Core.Env
 import Core.FC
@@ -24,6 +26,7 @@ import Core.SchemeEval
 import Parser.Unlit
 
 import Idris.Desugar
+import Idris.Doc.Display
 import Idris.Doc.String
 import Idris.Error
 import Idris.IDEMode.CaseSplit
@@ -60,8 +63,9 @@ import Libraries.Data.NameMap
 import Libraries.Data.PosMap
 import Data.Stream
 import Data.String
-import Libraries.Data.String.Extra
 import Libraries.Data.List.Extra
+import Libraries.Data.String.Extra
+import Libraries.Data.Tap
 import Libraries.Text.PrettyPrint.Prettyprinter.Util
 import Libraries.Utils.Path
 import Libraries.System.Directory.Tree
@@ -69,13 +73,10 @@ import Libraries.System.Directory.Tree
 import System
 import System.File
 
-%hide Data.String.lines
-%hide Data.String.lines'
-%hide Data.String.unlines
-%hide Data.String.unlines'
-
 %default covering
 
+-- Do NOT remove: it can be used instead of prettyInfo in case the prettier output
+-- happens to be buggy
 showInfo : {auto c : Ref Ctxt Defs} ->
            (Name, Int, GlobalDef) -> Core ()
 showInfo (n, idx, d)
@@ -99,20 +100,46 @@ showInfo (n, idx, d)
                 coreLift_ $ putStrLn $
                         "Size change: " ++ showSep ", " scinfo
 
-prettyTerm : IPTerm -> Doc IdrisAnn
-prettyTerm = reAnnotate Syntax . Idris.Pretty.prettyTerm
+prettyInfo : {auto c : Ref Ctxt Defs} ->
+             {auto s : Ref Syn SyntaxInfo} ->
+             (Name, Int, GlobalDef) -> Core (Doc IdrisDocAnn)
+prettyInfo (n, idx, d)
+    = do let nm = fullname d
+         def <- toFullNames (definition d)
+         referCT <- traverse getFullName (keys (refersTo d))
+         referRT <- traverse getFullName (keys (refersToRuntime d))
+         schanges <- traverse toFullNames $ sizeChange d
+         pp <- getPPrint
+         setPPrint ({ showMachineNames := True } pp)
+         def <- Resugared.prettyDef def
+         setPPrint ({ showMachineNames := showMachineNames pp } pp)
+         pure $ vcat $
+           [ reAnnotate Syntax (prettyRig $ multiplicity d) <+> showCategory Syntax d (pretty0 nm)
+           , def
+           ] ++
+           catMaybes
+           [ (\ args => header "Erasable args" <++> byShow args) <$> ifNotNull (eraseArgs d)
+           , (\ args => header "Detaggable arg types" <++> byShow args) <$> ifNotNull (safeErase d)
+           , (\ args => header "Specialise args" <++> byShow args) <$> ifNotNull (specArgs d)
+           , (\ args => header "Inferrable args" <++> byShow args) <$> ifNotNull (inferrable d)
+           , (\ expr => header "Compiled" <++> pretty expr) <$> compexpr d
+           , (\ nms  => header "Refers to" <++> enum pretty0 nms) <$> ifNotNull referCT
+           , (\ nms  => header "Refers to (runtime)" <++> enum pretty0 nms) <$> ifNotNull referRT
+           , (\ flgs => header "Flags" <++> enum byShow flgs) <$> ifNotNull (flags d)
+           , (\ sz   => header "Size change" <++> displayChg sz) <$> ifNotNull schanges
+           ]
 
-displayType : {auto c : Ref Ctxt Defs} ->
-              {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> (Name, Int, GlobalDef) ->
-              Core (Doc IdrisAnn)
-displayType defs (n, i, gdef)
-    = maybe (do tm <- resugar [] !(normaliseHoles defs [] (type gdef))
-                nm <- aliasName (fullname gdef)
-                let ann = showCategory Syntax gdef
-                pure (ann (pretty nm) <++> colon <++> prettyTerm tm))
-            (\num => reAnnotate Syntax <$> prettyHole defs [] n num (type gdef))
-            (isHole gdef)
+  where
+    ifNotNull : List a -> Maybe (List a)
+    ifNotNull xs = xs <$ guard (not $ null xs)
+
+    enum : (a -> Doc IdrisDocAnn) -> List a -> Doc IdrisDocAnn
+    enum p xs = hsep $ punctuate "," $ p <$> xs
+
+    displayChg : List SCCall -> Doc IdrisDocAnn
+    displayChg sz =
+      let scinfo = \s => pretty0 (fnCall s) <+> ":" <++> pretty0 (show $ fnArgs s) in
+      enum scinfo sz
 
 getEnvTerm : {vars : _} ->
              List Name -> Env Term vars -> Term vars ->
@@ -123,14 +150,6 @@ getEnvTerm (n :: ns) env (Bind fc x b sc)
          else (_ ** (env, Bind fc x b sc))
 getEnvTerm _ env tm = (_ ** (env, tm))
 
-displayTerm : {auto c : Ref Ctxt Defs} ->
-              {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> ClosedTerm ->
-              Core (Doc IdrisAnn)
-displayTerm defs tm
-    = do ptm <- resugar [] !(normaliseHoles defs [] tm)
-         pure (prettyTerm ptm)
-
 displayPatTerm : {auto c : Ref Ctxt Defs} ->
                  {auto s : Ref Syn SyntaxInfo} ->
                  Defs -> ClosedTerm ->
@@ -138,27 +157,6 @@ displayPatTerm : {auto c : Ref Ctxt Defs} ->
 displayPatTerm defs tm
     = do ptm <- resugarNoPatvars [] !(normaliseHoles defs [] tm)
          pure (show ptm)
-
-displayClause : {auto c : Ref Ctxt Defs} ->
-                {auto s : Ref Syn SyntaxInfo} ->
-                Defs -> (vs ** (Env Term vs, Term vs, Term vs)) ->
-                Core (Doc IdrisAnn)
-displayClause defs (vs ** (env, lhs, rhs))
-    = do lhstm <- resugar env !(normaliseHoles defs env lhs)
-         rhstm <- resugar env !(normaliseHoles defs env rhs)
-         pure (prettyTerm lhstm <++> equals <++> prettyTerm rhstm)
-
-displayPats : {auto c : Ref Ctxt Defs} ->
-              {auto s : Ref Syn SyntaxInfo} ->
-              Defs -> (Name, Int, GlobalDef) ->
-              Core (Doc IdrisAnn)
-displayPats defs (n, idx, gdef)
-    = case definition gdef of
-           PMDef _ _ _ _ pats
-               => do ty <- displayType defs (n, idx, gdef)
-                     ps <- traverse (displayClause defs) pats
-                     pure (vsep (ty :: ps))
-           _ => pure (pretty n <++> reflow "is not a pattern matching definition")
 
 setOpt : {auto c : Ref Ctxt Defs} ->
          {auto o : Ref ROpts REPLOpts} ->
@@ -169,15 +167,15 @@ setOpt (ShowImplicits t)
 setOpt (ShowNamespace t)
     = do pp <- getPPrint
          setPPrint ({ fullNamespace := t } pp)
+setOpt (ShowMachineNames t)
+    = do pp <- getPPrint
+         setPPrint ({ showMachineNames := t } pp)
 setOpt (ShowTypes t)
-    = do opts <- get ROpts
-         put ROpts ({ showTypes := t } opts)
+    = update ROpts { showTypes := t }
 setOpt (EvalMode m)
-    = do opts <- get ROpts
-         put ROpts ({ evalMode := m } opts)
+    = update ROpts { evalMode := m }
 setOpt (Editor e)
-    = do opts <- get ROpts
-         put ROpts ({ editor := e } opts)
+    = update ROpts { editor := e }
 setOpt (CG e)
     = do defs <- get Ctxt
          case getCG (options defs) e of
@@ -211,13 +209,13 @@ printClause l i (PatClause _ lhsraw rhsraw)
     = do lhs <- pterm $ map defaultKindedName lhsraw -- hack
          rhs <- pterm $ map defaultKindedName rhsraw -- hack
          pure (relit l (pack (replicate i ' ') ++ show lhs ++ " = " ++ show rhs))
-printClause l i (WithClause _ lhsraw wvraw prf flags csraw)
+printClause l i (WithClause _ lhsraw rig wvraw prf flags csraw)
     = do lhs <- pterm $ map defaultKindedName lhsraw -- hack
          wval <- pterm $ map defaultKindedName wvraw -- hack
          cs <- traverse (printClause l (i + 2)) csraw
          pure (relit l ((pack (replicate i ' ')
                 ++ show lhs
-                ++ " with (" ++ show wval ++ ")"
+                ++ " with " ++ elimSemi "0 " "1 " (const "") rig ++ "(" ++ show wval ++ ")"
                 ++ maybe "" (\ nm => " proof " ++ show nm) prf
                 ++ "\n"))
                ++ showSep "\n" cs)
@@ -239,7 +237,7 @@ updateFile update
          Right content <- coreLift $ readFile f
                | Left err => throw (FileErr f err)
          coreLift_ $ writeFile (f ++ "~") content
-         coreLift_ $ writeFile f (unlines (update (forget $ lines content)))
+         coreLift_ $ writeFile f (unlines (update (lines content)))
          pure (DisplayEdit emptyDoc)
 
 rtrim : String -> String
@@ -399,8 +397,8 @@ processEdit (TypeAt line col name)
          -- Get the Doc for the result
          globalResult <- case globals of
            [] => pure Nothing
-           ts => do tys <- traverse (displayType defs) ts
-                    pure $ Just (vsep tys)
+           ts => do tys <- traverse (displayType False defs) ts
+                    pure $ Just (vsep $ map (reAnnotate Pretty.Syntax) tys)
 
          -- Lookup the name locally (The name at the specified position)
          localResult <- findTypeAt $ anyAt $ within (line-1, col)
@@ -408,7 +406,7 @@ processEdit (TypeAt line col name)
          case (globalResult, localResult) of
               -- Give precedence to the local name, as it shadows the others
               (_, Just (n, _, type)) => pure $ DisplayEdit $
-                prettyLocalName n <++> colon <++> !(displayTerm defs type)
+                prettyLocalName n <++> colon <++> !(reAnnotate Syntax <$> displayTerm defs type)
               (Just globalDoc, Nothing) => pure $ DisplayEdit $ globalDoc
               (Nothing, Nothing) => undefinedName replFC name
 
@@ -416,31 +414,31 @@ processEdit (TypeAt line col name)
 
     prettyLocalName : Name -> Doc IdrisAnn
     -- already looks good
-    prettyLocalName nm@(UN _) = pretty nm
-    prettyLocalName nm@(NS _ (UN _)) = pretty nm
+    prettyLocalName nm@(UN _) = pretty0 nm
+    prettyLocalName nm@(NS _ (UN _)) = pretty0 nm
     -- otherwise
     prettyLocalName nm = case userNameRoot nm of
       -- got rid of `Nested` or `PV`
-      Just nm => pretty nm
+      Just nm => pretty0 nm
       -- really bad case e.g. case block name
-      Nothing => pretty (nameRoot nm)
+      Nothing => pretty0 (nameRoot nm)
 
 processEdit (CaseSplit upd line col name)
     = do let find = if col > 0
                        then within (line-1, col-1)
                        else onLine (line-1)
          OK splits <- getSplits (anyAt find) name
-             | SplitFail err => pure (EditError (pretty $ show err))
+             | SplitFail err => pure (EditError (pretty0 $ show err))
          lines <- updateCase splits (line-1) (col-1)
          if upd
             then updateFile (caseSplit (unlines lines) (integerToNat (cast (line - 1))))
-            else pure $ DisplayEdit (vsep $ pretty <$> lines)
+            else pure $ DisplayEdit (vsep $ pretty0 <$> lines)
 processEdit (AddClause upd line name)
     = do Just c <- getClause line name
-             | Nothing => pure (EditError (pretty name <++> reflow "not defined here"))
+             | Nothing => pure (EditError (pretty0 name <++> reflow "not defined here"))
          if upd
             then updateFile (addClause c (integerToNat (cast line)))
-            else pure $ DisplayEdit (pretty c)
+            else pure $ DisplayEdit (pretty0 c)
 processEdit (ExprSearch upd line name hints)
     = do defs <- get Ctxt
          syn <- get Syn
@@ -448,9 +446,7 @@ processEdit (ExprSearch upd line name hints)
          case !(lookupDefName name (gamma defs)) of
               [(n, nidx, Hole locs _)] =>
                   do let searchtm = exprSearch replFC name hints
-                     ropts <- get ROpts
-                     put ROpts ({ psResult := Just (name, searchtm) } ropts)
-                     defs <- get Ctxt
+                     update ROpts { psResult := Just (name, searchtm) }
                      Just (_, restm) <- nextProofSearch
                           | Nothing => pure $ EditError "No search results"
                      let tm' = dropLams locs restm
@@ -458,7 +454,7 @@ processEdit (ExprSearch upd line name hints)
                      let itm'  = ifThenElse brack (addBracket replFC itm) itm
                      if upd
                         then updateFile (proofSearch name (show itm') (integerToNat (cast (line - 1))))
-                        else pure $ DisplayEdit (prettyTerm itm')
+                        else pure $ DisplayEdit (prettyBy Syntax itm')
               [(n, nidx, PMDef pi [] (STerm _ tm) _ _)] =>
                   case holeInfo pi of
                        NotHole => pure $ EditError "Not a searchable hole"
@@ -468,8 +464,8 @@ processEdit (ExprSearch upd line name hints)
                              let itm'= ifThenElse brack (addBracket replFC itm) itm
                              if upd
                                 then updateFile (proofSearch name (show itm') (integerToNat (cast (line - 1))))
-                                else pure $ DisplayEdit (prettyTerm itm')
-              [] => pure $ EditError $ "Unknown name" <++> pretty name
+                                else pure $ DisplayEdit (prettyBy Syntax itm')
+              [] => pure $ EditError $ "Unknown name" <++> pretty0 name
               _ => pure $ EditError "Not a searchable hole"
 processEdit ExprSearchNext
     = do defs <- get Ctxt
@@ -482,18 +478,18 @@ processEdit ExprSearchNext
          let tm' = dropLams locs restm
          itm <- pterm $ map defaultKindedName tm'
          let itm' = ifThenElse brack (addBracket replFC itm) itm
-         pure $ DisplayEdit (prettyTerm itm')
+         pure $ DisplayEdit (prettyBy Syntax itm')
 
 processEdit (GenerateDef upd line name rej)
     = do defs <- get Ctxt
          Just (_, n', _, _) <- findTyDeclAt (\p, n => onLine (line - 1) p)
-             | Nothing => pure (EditError ("Can't find declaration for" <++> pretty name <++> "on line" <++> pretty line))
+             | Nothing => pure (EditError ("Can't find declaration for" <++> pretty0 name
+                                          <++> "on line" <++> byShow line))
          case !(lookupDefExact n' (gamma defs)) of
               Just None =>
                  do let searchdef = makeDefSort (\p, n => onLine (line - 1) p)
                                                 16 mostUsed n'
-                    ropts <- get ROpts
-                    put ROpts ({ gdResult := Just (line, searchdef) } ropts)
+                    update ROpts { gdResult := Just (line, searchdef) }
                     Just (_, (fc, cs)) <- nextGenDef rej
                          | Nothing => pure (EditError "No search results")
 
@@ -505,9 +501,9 @@ processEdit (GenerateDef upd line name rej)
                     ls <- traverse (printClause markM l) cs
                     if upd
                        then updateFile (addClause (unlines ls) (integerToNat (cast line)))
-                       else pure $ DisplayEdit (vsep $ pretty <$> ls)
+                       else pure $ DisplayEdit (vsep $ pretty0 <$> ls)
               Just _ => pure $ EditError "Already defined"
-              Nothing => pure $ EditError $ "Can't find declaration for" <++> pretty name
+              Nothing => pure $ EditError $ "Can't find declaration for" <++> pretty0 name
 processEdit GenerateDefNext
     = do Just (line, (fc, cs)) <- nextGenDef 0
               | Nothing => pure (EditError "No more results")
@@ -516,7 +512,7 @@ processEdit GenerateDefNext
             | Nothing => pure (EditError "Source line not found")
          let (markM, srcLineUnlit) = isLitLine srcLine
          ls <- traverse (printClause markM l) cs
-         pure $ DisplayEdit (vsep $ pretty <$> ls)
+         pure $ DisplayEdit (vsep $ pretty0 <$> ls)
 processEdit (MakeLemma upd line name)
     = do defs <- get Ctxt
          syn <- get Syn
@@ -526,7 +522,6 @@ processEdit (MakeLemma upd line name)
                   do (lty, lapp) <- makeLemma replFC name locs ty
                      pty <- pterm $ map defaultKindedName lty -- hack
                      papp <- pterm $ map defaultKindedName lapp -- hack
-                     opts <- get ROpts
                      let pappstr = show (ifThenElse brack
                                             (addBracket replFC papp)
                                             papp)
@@ -547,7 +542,7 @@ processEdit (MakeCase upd line name)
          let Right l = unlit litStyle src
               | Left err => pure (EditError "Invalid literate Idris")
          let (markM, _) = isLitLine src
-         let c = forget $ lines $ makeCase brack name l
+         let c = lines $ makeCase brack name l
          if upd
             then updateFile (addMadeCase markM c (max 0 (integerToNat (cast (line - 1)))))
             else pure $ MadeCase markM c
@@ -558,7 +553,7 @@ processEdit (MakeWith upd line name)
          let Right l = unlit litStyle src
               | Left err => pure (EditError "Invalid literate Idris")
          let (markM, _) = isLitLine src
-         let w = forget $ lines $ makeWith name l
+         let w = lines $ makeWith name l
          if upd
             then updateFile (addMadeCase markM w (max 0 (integerToNat (cast (line - 1)))))
             else pure $ MadeWith markM w
@@ -598,6 +593,7 @@ processLocal : {vars : _} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              {auto s : Ref Syn SyntaxInfo} ->
+             {auto o : Ref ROpts REPLOpts} ->
              List ElabOpt ->
              NestedNames vars -> Env Term vars ->
              List ImpDecl -> (scope : List ImpDecl) ->
@@ -618,7 +614,7 @@ execExp ctm
               do iputStrLn (reflow "No such code generator available")
                  pure CompilationFailed
          tm_erased <- prepareExp ctm
-         logTimeWhen !getEvalTiming "Execution" $
+         logTimeWhen !getEvalTiming 0 "Execution" $
            cgExecuteExpr cg tm_erased
          pure $ Executed ctm
 
@@ -682,14 +678,13 @@ loadMainFile : {auto c : Ref Ctxt Defs} ->
                {auto o : Ref ROpts REPLOpts} ->
                String -> Core REPLResult
 loadMainFile f
-    = do opts <- get ROpts
-         put ROpts ({ evalResultName := Nothing } opts)
+    = do update ROpts { evalResultName := Nothing }
          modIdent <- ctxtPathToNS f
          resetContext (PhysicalIdrSrc modIdent)
          Right res <- coreLift (readFile f)
             | Left err => do setSource ""
                              pure (ErrorLoadingFile f err)
-         errs <- logTime "+ Build deps" $ buildDeps f
+         errs <- logTime 1 "Build deps" $ buildDeps f
          updateErrorLine errs
          setSource res
          resetProofState
@@ -777,15 +772,14 @@ process (Eval itm)
          case emode of
             Execute => do ignore (execExp itm); pure (Executed itm)
             Scheme =>
-              do defs <- get Ctxt
-                 (tm `WithType` ty) <- inferAndElab InExpr itm
-                 qtm <- logTimeWhen !getEvalTiming "Evaluation" $
+              do (tm `WithType` ty) <- inferAndElab InExpr itm
+                 qtm <- logTimeWhen !getEvalTiming 0 "Evaluation" $
                            (do nf <- snfAll [] tm
                                quote [] nf)
-                 itm <- logTimeWhen False "resugar" $ resugar [] qtm
+                 itm <- logTimeWhen False 0 "Resugar" $ resugar [] qtm
                  pure (Evaluated itm Nothing)
             _ =>
-              do (ntm `WithType` ty) <- logTimeWhen !getEvalTiming "Evaluation" $
+              do (ntm `WithType` ty) <- logTimeWhen !getEvalTiming 0 "Evaluation" $
                                            inferAndNormalize emode itm
                  itm <- resugar [] ntm
                  defs <- get Ctxt
@@ -810,8 +804,8 @@ process (Check (PRef fc fn))
     = do defs <- get Ctxt
          case !(lookupCtxtName fn (gamma defs)) of
               [] => undefinedName fc fn
-              ts => do tys <- traverse (displayType defs) ts
-                       pure (Printed $ vsep tys)
+              ts => do tys <- traverse (displayType False defs) ts
+                       pure (Printed $ vsep $ map (reAnnotate Syntax) tys)
 process (Check itm)
     = do (tm `WithType` ty) <- inferAndElab InExpr itm
          defs <- get Ctxt
@@ -825,20 +819,23 @@ process (CheckWithImplicits itm)
          result <- process (Check itm)
          setOpt (ShowImplicits showImplicits)
          pure result
-process (PrintDef fn)
+process (PrintDef (PRef fc fn))
     = do defs <- get Ctxt
          case !(lookupCtxtName fn (gamma defs)) of
-              [] => undefinedName replFC fn
-              ts => do defs <- traverse (displayPats defs) ts
-                       pure (Printed $ vsep defs)
+              [] => undefinedName fc fn
+              ts => do defs <- traverse (displayPats False defs) ts
+                       pure (Printed $ vsep $ map (reAnnotate Syntax) defs)
+process (PrintDef t)
+    = case !(getDocsForImplementation t) of
+        Just d => pure (Printed $ reAnnotate Syntax d)
+        Nothing => pure (Printed $ pretty0 "Error: could not find definition of \{show t}")
 process Reload
     = do opts <- get ROpts
          case mainfile opts of
               Nothing => pure NoFileLoaded
               Just f => loadMainFile f
 process (Load f)
-    = do opts <- get ROpts
-         put ROpts ({ mainfile := Just f } opts)
+    = do update ROpts { mainfile := Just f }
          -- Clear the context and load again
          loadMainFile f
 process (ImportMod m)
@@ -920,8 +917,8 @@ process (Browse ns)
          pure $ PrintedDoc doc
 process (DebugInfo n)
     = do defs <- get Ctxt
-         traverse_ showInfo !(lookupCtxtName n (gamma defs))
-         pure Done
+         ds <- traverse prettyInfo !(lookupCtxtName n (gamma defs))
+         pure $ PrintedDoc $ vcat $ punctuate hardline ds
 process (SetOpt opt)
     = do setOpt opt
          pure Done
@@ -968,7 +965,7 @@ process (ImportPackage package) = do
   let Just packageDir = find
         (\d => isInfixOf package (fromMaybe d (fileName d)))
         searchDirs
-    | _ => pure (REPLError (pretty "Package not found in the known search directories"))
+    | _ => pure (REPLError "Package not found in the known search directories")
   let packageDirPath = parse packageDir
   tree <- coreLift $ explore packageDirPath
   fentries <- coreLift $ toPaths (toRelative tree)
@@ -981,7 +978,7 @@ process (ImportPackage package) = do
           (\err => pure (Just err))
   let errs' = catMaybes errs
   res <- case errs' of
-    [] => pure (pretty "Done")
+    [] => pure "Done"
     onePlus => pure $ vsep !(traverse display onePlus)
   pure (Printed res)
  where
@@ -1086,7 +1083,7 @@ mutual
              then do
                -- start a new line in REPL mode (not relevant in IDE mode)
                coreLift_ $ putStrLn ""
-               iputStrLn $ pretty "Bye for now!"
+               iputStrLn "Bye for now!"
               else do res <- interpret inp
                       handleResult res
 
@@ -1108,13 +1105,13 @@ mutual
 
   export
   handleMissing : MissedResult -> Doc IdrisAnn
-  handleMissing (CasesMissing x xs) = pretty x <+> colon <++> vsep (code . pretty <$> xs)
+  handleMissing (CasesMissing x xs) = pretty0 x <+> colon <++> vsep (code . pretty0 <$> xs)
   handleMissing (CallsNonCovering fn ns) =
-    pretty fn <+> colon <++> reflow "Calls non covering"
+    pretty0 fn <+> colon <++> reflow "Calls non covering"
       <++> (case ns of
-                 [f] => "function" <++> code (pretty f)
-                 _ => "functions:" <++> concatWith (surround (comma <+> space)) (code . pretty <$> ns))
-  handleMissing (AllCasesCovered fn) = pretty fn <+> colon <++> reflow "All cases covered"
+                 [f] => "function" <++> code (pretty0 f)
+                 _ => "functions:" <++> concatWith (surround (comma <+> space)) (code . pretty0 <$> ns))
+  handleMissing (AllCasesCovered fn) = pretty0 fn <+> colon <++> reflow "All cases covered"
 
   export
   handleResult : {auto c : Ref Ctxt Defs} ->
@@ -1132,39 +1129,44 @@ mutual
          {auto m : Ref MD Metadata} ->
          {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
   displayResult (REPLError err) = printResult err
-  displayResult (Evaluated x Nothing) = printResult $ prettyTerm x
-  displayResult (Evaluated x (Just y)) = printResult (prettyTerm x <++> colon <++> prettyTerm y)
+  displayResult (Evaluated x Nothing) = printResult $ prettyBy Syntax x
+  displayResult (Evaluated x (Just y)) = printResult (prettyBy Syntax x <++> colon <++> prettyBy Syntax y)
   displayResult (Printed xs) = printResult xs
   displayResult (PrintedDoc xs) = printDocResult xs
-  displayResult (TermChecked x y) = printResult (prettyTerm x <++> colon <++> prettyTerm y)
-  displayResult (FileLoaded x) = printResult (reflow "Loaded file" <++> pretty x)
-  displayResult (ModuleLoaded x) = printResult (reflow "Imported module" <++> pretty x)
-  displayResult (ErrorLoadingModule x err) = printResult (reflow "Error loading module" <++> pretty x <+> colon <++> !(perror err))
-  displayResult (ErrorLoadingFile x err) = printResult (reflow "Error loading file" <++> pretty x <+> colon <++> pretty (show err))
-  displayResult (ErrorsBuildingFile x errs) = printResult (reflow "Error(s) building file" <++> pretty x) -- messages already displayed while building
+  displayResult (TermChecked x y) = printResult (prettyBy Syntax x <++> colon <++> prettyBy Syntax y)
+  displayResult (FileLoaded x) = printResult (reflow "Loaded file" <++> pretty0 x)
+  displayResult (ModuleLoaded x) = printResult (reflow "Imported module" <++> pretty0 x)
+  displayResult (ErrorLoadingModule x err)
+    = printResult (reflow "Error loading module" <++> pretty0 x <+> colon <++> !(perror err))
+  displayResult (ErrorLoadingFile x err)
+    = printResult (reflow "Error loading file" <++> pretty0 x <+> colon <++> pretty0 (show err))
+  displayResult (ErrorsBuildingFile x errs)
+    = printResult (reflow "Error(s) building file" <++> pretty0 x) -- messages already displayed while building
   displayResult NoFileLoaded = printResult (reflow "No file can be reloaded")
-  displayResult (CurrentDirectory dir) = printResult (reflow "Current working directory is" <++> dquotes (pretty dir))
+  displayResult (CurrentDirectory dir)
+    = printResult (reflow "Current working directory is" <++> dquotes (pretty0 dir))
   displayResult CompilationFailed = printResult (reflow "Compilation failed")
-  displayResult (Compiled f) = printResult (pretty "File" <++> pretty f <++> pretty "written")
-  displayResult (CompiledLibrary (libName, files)) = printResult (pretty "Compiled" <++> pretty libName)
-  displayResult (ProofFound x) = printResult (prettyTerm x)
+  displayResult (Compiled f) = printResult ("File" <++> pretty0 f <++> "written")
+  displayResult (CompiledLibrary (libName, files)) = printResult ("Compiled" <++> pretty0 libName)
+  displayResult (ProofFound x) = printResult (prettyBy Syntax x)
   displayResult (Missed cases) = printResult $ vsep (handleMissing <$> cases)
-  displayResult (CheckedTotal xs) = printResult (vsep (map (\(fn, tot) => pretty fn <++> pretty "is" <++> pretty tot) xs))
+  displayResult (CheckedTotal xs)
+    = printResult (vsep (map (\(fn, tot) => pretty0 fn <++> "is" <++> pretty0 tot) xs))
   displayResult (LogLevelSet Nothing) = printResult (reflow "Logging turned off")
-  displayResult (LogLevelSet (Just k)) = printResult (reflow "Set log level to" <++> pretty k)
-  displayResult (ConsoleWidthSet (Just k)) = printResult (reflow "Set consolewidth to" <++> pretty k)
+  displayResult (LogLevelSet (Just k)) = printResult (reflow "Set log level to" <++> byShow k)
+  displayResult (ConsoleWidthSet (Just k)) = printResult (reflow "Set consolewidth to" <++> byShow k)
   displayResult (ConsoleWidthSet Nothing) = printResult (reflow "Set consolewidth to auto")
   displayResult (ColorSet b) = printResult (reflow (if b then "Set color on" else "Set color off"))
-  displayResult (VersionIs x) = printResult (pretty (showVersion True x))
-  displayResult (RequestedHelp) = printResult (pretty displayHelp)
+  displayResult (VersionIs x) = printResult (pretty0 (showVersion True x))
+  displayResult (RequestedHelp) = printResult (pretty0 displayHelp)
   displayResult (Edited (DisplayEdit Empty)) = pure ()
   displayResult (Edited (DisplayEdit xs)) = printResult xs
   displayResult (Edited (EditError x)) = printResult x
   displayResult (Edited (MadeLemma lit name pty pappstr))
-    = printResult $ pretty (relit lit (show name ++ " : " ++ show pty ++ "\n") ++ pappstr)
-  displayResult (Edited (MadeWith lit wapp)) = printResult $ pretty $ showSep "\n" (map (relit lit) wapp)
-  displayResult (Edited (MadeCase lit cstr)) = printResult $ pretty $ showSep "\n" (map (relit lit) cstr)
-  displayResult (OptionsSet opts) = printResult (vsep (pretty <$> opts))
+    = printResult $ pretty0 (relit lit (show name ++ " : " ++ show pty ++ "\n") ++ pappstr)
+  displayResult (Edited (MadeWith lit wapp)) = printResult $ pretty0 $ showSep "\n" (map (relit lit) wapp)
+  displayResult (Edited (MadeCase lit cstr)) = printResult $ pretty0 $ showSep "\n" (map (relit lit) cstr)
+  displayResult (OptionsSet opts) = printResult (vsep (pretty0 <$> opts))
 
   -- do not use a catchall so that we are warned when a new constructor is added
   displayResult Done = pure ()
@@ -1186,7 +1188,7 @@ mutual
         m ++ (makeSpace $ c2 `minus` length m) ++ r
 
       cmdInfo : (List String, CmdArg, String) -> String
-      cmdInfo (cmds, args, text) = " " ++ col 18 20 (showSep " " cmds) (show args) text
+      cmdInfo (cmds, args, text) = " " ++ col 18 36 (showSep " " cmds) (show args) text
 
   export
   displayErrors : {auto c : Ref Ctxt Defs} ->
@@ -1194,5 +1196,6 @@ mutual
          {auto s : Ref Syn SyntaxInfo} ->
          {auto m : Ref MD Metadata} ->
          {auto o : Ref ROpts REPLOpts} -> REPLResult -> Core ()
-  displayErrors (ErrorLoadingFile x err) = printError (reflow "File error in" <++> pretty x <+> colon <++> pretty (show err))
+  displayErrors (ErrorLoadingFile x err)
+    = printError (reflow "File error in" <++> pretty0 x <+> colon <++> pretty0 (show err))
   displayErrors _ = pure ()

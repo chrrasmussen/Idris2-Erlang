@@ -12,6 +12,7 @@ import Core.TTC
 import Core.Value
 
 import Data.List
+import Data.List1
 import Data.Maybe
 
 %default covering
@@ -122,7 +123,7 @@ mutual
        Implicit : FC -> (bindIfUnsolved : Bool) -> RawImp' nm
 
        -- with-disambiguation
-       IWithUnambigNames : FC -> List Name -> RawImp' nm -> RawImp' nm
+       IWithUnambigNames : FC -> List (FC, Name) -> RawImp' nm -> RawImp' nm
 
   public export
   IFieldUpdate : Type
@@ -227,6 +228,8 @@ mutual
        ExternFn : FnOpt' nm
        -- Defined externally, list calling conventions
        ForeignFn : List (RawImp' nm) -> FnOpt' nm
+       -- Mark for export to a foreign language, list calling conventions
+       ForeignExport : List (RawImp' nm) -> FnOpt' nm
        -- assume safe to cancel arguments in unification
        Invertible : FnOpt' nm
        Totality : TotalReq -> FnOpt' nm
@@ -255,6 +258,7 @@ mutual
     show (GlobalHint t) = "%globalhint " ++ show t
     show ExternFn = "%extern"
     show (ForeignFn cs) = "%foreign " ++ showSep " " (map show cs)
+    show (ForeignExport cs) = "%export " ++ showSep " " (map show cs)
     show Invertible = "%invertible"
     show (Totality Total) = "total"
     show (Totality CoveringOnly) = "covering"
@@ -280,6 +284,7 @@ mutual
     (GlobalHint x) == (GlobalHint y) = x == y
     ExternFn == ExternFn = True
     (ForeignFn xs) == (ForeignFn ys) = True -- xs == ys
+    (ForeignExport xs) == (ForeignExport ys) = True -- xs == ys
     Invertible == Invertible = True
     (Totality tot_lhs) == (Totality tot_rhs) = tot_lhs == tot_rhs
     Macro == Macro = True
@@ -348,6 +353,10 @@ mutual
        MkIField : FC -> RigCount -> PiInfo (RawImp' nm) -> Name -> RawImp' nm ->
                   IField' nm
 
+  public export
+  ImpParameter : Type
+  ImpParameter = ImpParameter' Name
+
   -- TODO: turn into a proper datatype
   public export
   ImpParameter' : Type -> Type
@@ -399,7 +408,8 @@ mutual
   data ImpClause' : Type -> Type where
        PatClause : FC -> (lhs : RawImp' nm) -> (rhs : RawImp' nm) -> ImpClause' nm
        WithClause : FC -> (lhs : RawImp' nm) ->
-                    (wval : RawImp' nm) -> (prf : Maybe Name) ->
+                    (rig : RigCount) -> (wval : RawImp' nm) -> -- with'd expression (& quantity)
+                    (prf : Maybe Name) -> -- optional name for the proof
                     (flags : List WithFlag) ->
                     List (ImpClause' nm) -> ImpClause' nm
        ImpossibleClause : FC -> (lhs : RawImp' nm) -> ImpClause' nm
@@ -409,9 +419,9 @@ mutual
   Show nm => Show (ImpClause' nm) where
     show (PatClause fc lhs rhs)
        = show lhs ++ " = " ++ show rhs
-    show (WithClause fc lhs wval prf flags block)
+    show (WithClause fc lhs rig wval prf flags block)
        = show lhs
-       ++ " with " ++ show wval
+       ++ " with (" ++ show rig ++ " " ++ show wval ++ ")"
        ++ maybe "" (\ nm => " proof " ++ show nm) prf
        ++ "\n\t" ++ show block
     show (ImpossibleClause fc lhs)
@@ -434,6 +444,7 @@ mutual
                  Maybe String -> -- nested namespace
                  Visibility -> Maybe TotalReq ->
                  ImpRecord' nm -> ImpDecl' nm
+       IFail : FC -> Maybe String -> List (ImpDecl' nm) -> ImpDecl' nm
        INamespace : FC -> Namespace -> List (ImpDecl' nm) -> ImpDecl' nm
        ITransform : FC -> Name -> RawImp' nm -> RawImp' nm -> ImpDecl' nm
        IRunElabDecl : FC -> RawImp' nm -> ImpDecl' nm
@@ -456,6 +467,9 @@ mutual
         = "parameters " ++ show ps ++ "\n\t" ++
           showSep "\n\t" (assert_total $ map show ds)
     show (IRecord _ _ _ _ d) = show d
+    show (IFail _ msg decls)
+        = "fail" ++ maybe "" ((" " ++) . show) msg ++ "\n" ++
+          showSep "\n" (assert_total $ map (("  " ++) . show) decls)
     show (INamespace _ ns decls)
         = "namespace " ++ show ns ++
           showSep "\n" (assert_total $ map show decls)
@@ -470,6 +484,16 @@ mutual
       _  => concat (intersperse "." topic) ++ " " ++ show lvl
     show (IBuiltin _ type name) = "%builtin " ++ show type ++ " " ++ show name
 
+
+export
+mkWithClause : FC -> RawImp' nm -> List1 (RigCount, RawImp' nm, Maybe Name) ->
+               List WithFlag -> List (ImpClause' nm) -> ImpClause' nm
+mkWithClause fc lhs ((rig, wval, prf) ::: []) flags cls
+  = WithClause fc lhs rig wval prf flags cls
+mkWithClause fc lhs ((rig, wval, prf) ::: wp :: wps) flags cls
+  = let vfc = virtualiseFC fc in
+    WithClause fc lhs rig wval prf flags
+      [mkWithClause fc (IApp vfc lhs (IBindVar vfc "arg")) (wp ::: wps) flags cls]
 
 -- Extract the RawImp term from a FieldUpdate.
 export
@@ -734,6 +758,8 @@ implicitsAs n defs ns tm
         impAs loc' (_ :: ns) tm = impAs loc' ns tm
     setAs is es tm = pure tm
 
+||| `definedInBlock` is used to figure out which definitions should
+||| receive the additional arguments introduced by a Parameters directive
 export
 definedInBlock : Namespace -> -- namespace to resolve names
                  List ImpDecl -> List Name
@@ -760,6 +786,7 @@ definedInBlock ns decls =
         = expandNS ns n :: map (expandNS ns) (map getName cons)
     defName ns (IData _ _ _ (MkImpLater _ n _)) = [expandNS ns n]
     defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
+    defName ns (IFail _ _ nds) = concatMap (defName ns) nds
     defName ns (INamespace _ n nds) = concatMap (defName (ns <.> n)) nds
     defName ns (IRecord _ fldns _ _ (MkImpRecord _ n _ con flds))
         = expandNS ns con :: all
@@ -846,6 +873,7 @@ namespace ImpDecl
   getFC (IDef fc _ _) = fc
   getFC (IParameters fc _ _) = fc
   getFC (IRecord fc _ _ _ _) = fc
+  getFC (IFail fc _ _) = fc
   getFC (INamespace fc _ _) = fc
   getFC (ITransform fc _ _ _) = fc
   getFC (IRunElabDecl fc _) = fc
@@ -1175,10 +1203,11 @@ mutual
         = do tag 0; toBuf b fc; toBuf b lhs; toBuf b rhs
     toBuf b (ImpossibleClause fc lhs)
         = do tag 1; toBuf b fc; toBuf b lhs
-    toBuf b (WithClause fc lhs wval prf flags cs)
+    toBuf b (WithClause fc lhs rig wval prf flags cs)
         = do tag 2
              toBuf b fc
              toBuf b lhs
+             toBuf b rig
              toBuf b wval
              toBuf b prf
              toBuf b cs
@@ -1191,9 +1220,10 @@ mutual
                1 => do fc <- fromBuf b; lhs <- fromBuf b;
                        pure (ImpossibleClause fc lhs)
                2 => do fc <- fromBuf b; lhs <- fromBuf b;
-                       wval <- fromBuf b; prf <- fromBuf b;
+                       rig <- fromBuf b; wval <- fromBuf b;
+                       prf <- fromBuf b;
                        cs <- fromBuf b
-                       pure (WithClause fc lhs wval prf [] cs)
+                       pure (WithClause fc lhs rig wval prf [] cs)
                _ => corrupt "ImpClause"
 
   export
@@ -1279,6 +1309,7 @@ mutual
     toBuf b (GlobalHint t) = do tag 2; toBuf b t
     toBuf b ExternFn = tag 3
     toBuf b (ForeignFn cs) = do tag 4; toBuf b cs
+    toBuf b (ForeignExport cs) = do tag 15; toBuf b cs
     toBuf b Invertible = tag 5
     toBuf b (Totality Total) = tag 6
     toBuf b (Totality CoveringOnly) = tag 7
@@ -1304,6 +1335,7 @@ mutual
                12 => pure NoInline
                13 => do name <- fromBuf b; pure (NoMangle name)
                14 => pure Deprecate
+               15 => do cs <- fromBuf b; pure (ForeignExport cs)
                _ => corrupt "FnOpt"
 
   export
@@ -1329,6 +1361,8 @@ mutual
         = do tag 8; toBuf b n
     toBuf b (IBuiltin fc type name)
         = do tag 9; toBuf b fc; toBuf b type; toBuf b name
+    toBuf b (IFail _ _ _)
+        = pure ()
 
     fromBuf b
         = case !getTag of

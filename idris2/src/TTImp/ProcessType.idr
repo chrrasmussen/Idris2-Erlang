@@ -11,6 +11,7 @@ import Core.TT
 import Core.UnifyState
 import Core.Value
 
+import Idris.REPL.Opts
 import Idris.Syntax
 
 import TTImp.Elab.Check
@@ -19,6 +20,7 @@ import TTImp.Elab
 import TTImp.TTImp
 
 import Data.List
+import Data.List1
 import Data.String
 import Libraries.Data.NameMap
 
@@ -67,6 +69,8 @@ processFnOpt fc _ ndef ExternFn
     = setFlag fc ndef Inline -- if externally defined, inline when compiling
 processFnOpt fc _ ndef (ForeignFn _)
     = setFlag fc ndef Inline -- if externally defined, inline when compiling
+processFnOpt fc _ ndef (ForeignExport _)
+    = pure ()
 processFnOpt fc _ ndef Invertible
     = setFlag fc ndef Invertible
 processFnOpt fc _ ndef (Totality tot)
@@ -205,12 +209,13 @@ getFnString : {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
-              RawImp -> Core String
+              {auto o : Ref ROpts REPLOpts} ->
+               RawImp -> Core String
 getFnString (IPrimVal _ (Str st)) = pure st
 getFnString tm
     = do inidx <- resolveName (UN $ Basic "[foreign]")
          let fc = getFC tm
-         let gstr = gnf [] (PrimVal fc StringType)
+         let gstr = gnf [] (PrimVal fc $ PrT StringType)
          etm <- checkTerm inidx InExpr [] (MkNested []) [] tm gstr
          defs <- get Ctxt
          case !(nf defs [] etm) of
@@ -226,20 +231,37 @@ initDef : {vars : _} ->
           {auto m : Ref MD Metadata} ->
           {auto u : Ref UST UState} ->
           {auto s : Ref Syn SyntaxInfo} ->
-          Name -> Env Term vars -> Term vars -> List FnOpt -> Core Def
-initDef n env ty []
+          {auto o : Ref ROpts REPLOpts} ->
+          FC -> Name -> Env Term vars -> Term vars -> List FnOpt -> Core Def
+initDef fc n env ty []
     = do addUserHole False n
          pure None
-initDef n env ty (ExternFn :: opts)
+initDef fc n env ty (ExternFn :: opts)
     = do defs <- get Ctxt
          a <- getArity defs env ty
          pure (ExternDef a)
-initDef n env ty (ForeignFn cs :: opts)
+initDef fc n env ty (ForeignFn cs :: opts)
     = do defs <- get Ctxt
          a <- getArity defs env ty
          cs' <- traverse getFnString cs
          pure (ForeignDef a cs')
-initDef n env ty (_ :: opts) = initDef n env ty opts
+-- In this case, nothing to initialise to, but we do need to process the
+-- calling conventions then process the rest of the options.
+-- This means, for example, we can technically re-export something foreign!
+-- I suppose that may be useful one day...
+initDef fc n env ty (ForeignExport cs :: opts)
+    = do cs' <- traverse getFnString cs
+         conv <- traverse getConvention cs'
+         defs <- get Ctxt
+         put Ctxt ({ foreignExports $= insert n conv } defs)
+         initDef fc n env ty opts
+  where
+    getConvention : String -> Core (String, String)
+    getConvention c
+        = do let (lang ::: fname :: []) = split (== ':') c
+                 | _ => throw (GenericMsg fc "Invalid calling convention")
+             pure (trim lang, trim fname)
+initDef fc n env ty (_ :: opts) = initDef fc n env ty opts
 
 -- Find the inferrable argument positions in a type. This is useful for
 -- generalising partially evaluated definitions and (potentially) in interactive
@@ -285,6 +307,7 @@ processType : {vars : _} ->
               {auto m : Ref MD Metadata} ->
               {auto u : Ref UST UState} ->
               {auto s : Ref Syn SyntaxInfo} ->
+              {auto o : Ref ROpts REPLOpts} ->
               List ElabOpt -> NestedNames vars -> Env Term vars ->
               FC -> RigCount -> Visibility ->
               List FnOpt -> ImpTy -> Core ()
@@ -310,7 +333,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc nameFC n_in ty_ra
                              (gType fc u)
          logTermNF "declare.type" 3 ("Type of " ++ show n) [] (abstractFullEnvType tfc env ty)
 
-         def <- initDef n env ty opts
+         def <- initDef fc n env ty opts
          let fullty = abstractFullEnvType tfc env ty
 
          (erased, dterased) <- findErased fullty
@@ -354,3 +377,4 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc nameFC n_in ty_ra
          when (vis /= Private) $
               do addHashWithNames n
                  addHashWithNames ty
+                 log "module.hash" 15 "Adding hash for type with name \{show n}"

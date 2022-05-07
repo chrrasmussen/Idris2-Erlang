@@ -281,6 +281,9 @@ truncateUnsigned isBigInt bits =
    let add = if isBigInt then "BigInt" else "Int"
     in callFun1 (esName "truncU" ++ add ++ show bits)
 
+integerOp : (op : String) -> (lhs : Doc) -> (rhs : Doc) -> Doc
+integerOp op x y = callFun (fastConcat ["_", op, "BigInt"]) [x,y]
+
 -- invokes an arithmetic operation for a bounded integral value.
 -- this is used to implement `boundedIntOp` and `boundedUIntOp`
 -- where the suffix is set to "s" or "u", respectively.
@@ -304,6 +307,9 @@ boundedUIntOp = boundedOp "u"
 boolOp : (op : String) -> (lhs : Doc) -> (rhs : Doc) -> Doc
 boolOp o lhs rhs = "(" <+> binOp o lhs rhs <+> "?1:0)"
 
+jsPrimType : PrimType -> String
+jsPrimType _ = "#t"
+
 -- convert an Idris constant to its JS representation
 jsConstant : Constant -> String
 jsConstant (I i)    = show i
@@ -312,28 +318,15 @@ jsConstant (I16 i)  = show i
 jsConstant (I32 i)  = show i
 jsConstant (I64 i)  = show i ++ "n"
 jsConstant (BI i)   = show i ++ "n"
-jsConstant (Str s)  = jsString s
-jsConstant (Ch c)   = jsString $ singleton c
-jsConstant (Db f)   = show f
-jsConstant WorldVal = esName "idrisworld"
 jsConstant (B8 i)   = show i
 jsConstant (B16 i)  = show i
 jsConstant (B32 i)  = show i
 jsConstant (B64 i)  = show i ++ "n"
-jsConstant IntType = "#t"
-jsConstant Int8Type = "#t"
-jsConstant Int16Type = "#t"
-jsConstant Int32Type = "#t"
-jsConstant Int64Type = "#t"
-jsConstant IntegerType = "#t"
-jsConstant Bits8Type = "#t"
-jsConstant Bits16Type = "#t"
-jsConstant Bits32Type = "#t"
-jsConstant Bits64Type = "#t"
-jsConstant StringType = "#t"
-jsConstant CharType = "#t"
-jsConstant DoubleType = "#t"
-jsConstant WorldType = "#t"
+jsConstant (Str s)  = jsString s
+jsConstant (Ch c)   = jsString $ singleton c
+jsConstant (Db f)   = show f
+jsConstant (PrT t)  = jsPrimType t
+jsConstant WorldVal = esName "idrisworld"
 
 -- Creates the definition of a binary arithmetic operation.
 -- Rounding / truncation behavior is determined from the
@@ -344,18 +337,28 @@ arithOp :  Maybe IntKind
         -> (lhs : Doc)
         -> (rhs : Doc)
         -> Doc
-arithOp (Just $ Signed $ P n) _   op = boundedIntOp n op
-arithOp (Just $ Unsigned n)   _   op = boundedUIntOp n op
-arithOp _                     sym _  = binOp sym
+arithOp (Just $ Signed $ P n)     _   op = boundedIntOp n op -- IntXY
+arithOp (Just $ Unsigned n)       _   op = boundedUIntOp n op -- BitsXY
+arithOp (Just $ Signed Unlimited) ""  op = integerOp op -- Integer
+arithOp _                         sym _  = binOp sym
 
 -- use 32bit signed integer for `Int`.
-jsIntKind : Constant -> Maybe IntKind
-jsIntKind IntType = Just . Signed   $ P 32
+jsIntKind : PrimType -> Maybe IntKind
+jsIntKind IntType = Just . Signed $ P 32
 jsIntKind x       = intKind x
+
+jsMod : PrimType -> Doc -> Doc -> Doc
+jsMod ty x y = case jsIntKind ty of
+  (Just $ Signed $ P n) => case useBigInt' n of
+    True  => integerOp "mod" x y
+    False => callFun "_mod" [x,y]
+  (Just $ Unsigned n)   => binOp "%" x y
+  _                     => integerOp "mod" x y
+
 
 -- implementation of all kinds of cast from and / or to integral
 -- values.
-castInt : Constant -> Constant -> Doc -> Core Doc
+castInt : PrimType -> PrimType -> Doc -> Core Doc
 castInt from to x =
   case ((from, jsIntKind from), (to, jsIntKind to)) of
     ((CharType,_),  (_,Just k)) => truncInt (useBigInt k) k $ jsIntOfChar k x
@@ -413,8 +416,9 @@ jsOp : {0 arity : Nat} ->
 jsOp (Add ty) [x, y] = pure $ arithOp (jsIntKind ty) "+" "add" x y
 jsOp (Sub ty) [x, y] = pure $ arithOp (jsIntKind ty) "-" "sub" x y
 jsOp (Mul ty) [x, y] = pure $ arithOp (jsIntKind ty) "*" "mul" x y
-jsOp (Div ty) [x, y] = pure $ arithOp (jsIntKind ty) "/" "div" x y
-jsOp (Mod ty) [x, y] = pure $ binOp "%" x y
+jsOp (Div DoubleType) [x, y] = pure $ binOp "/" x y
+jsOp (Div ty) [x, y] = pure $ arithOp (jsIntKind ty) ""  "div" x y
+jsOp (Mod ty) [x, y] = pure $ jsMod ty x y
 jsOp (Neg ty) [x] = pure $ "(-(" <+> x <+> "))"
 jsOp (ShiftL Int32Type) [x, y] = pure $ binOp "<<" x y
 jsOp (ShiftL IntType) [x, y] = pure $ binOp "<<" x y
@@ -672,7 +676,7 @@ mutual
     as <- traverse (map (insertBreak r) . alt) alts
     d  <- traverseOpt stmt def
     nm <- get NoMangleMap
-    pure $  switch (minimal nm sc <+> ".h") as d
+    pure $ switch (minimal nm sc <+> ".h") as d
     where
         alt : {r : _} -> EConAlt r -> Core (Doc,Doc)
         alt (MkEConAlt _ RECORD b)  = ("undefined",) <$> stmt b

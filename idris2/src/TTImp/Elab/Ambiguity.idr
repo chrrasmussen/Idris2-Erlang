@@ -11,6 +11,7 @@ import Core.Unify
 import Core.TT
 import Core.Value
 
+import Idris.REPL.Opts
 import Idris.Syntax
 
 import TTImp.Elab.Check
@@ -128,7 +129,7 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
     mkTerm prim est n def
         = let tm = wrapDot prim est mode n (map (snd . snd) args)
                        (definition def) (buildAlt (IVar fc n) args) in
-              if Macro `elem` flags def
+              if Context.Macro `elem` flags def
                  then case mode of
                            InLHS _ => tm
                            _ => IRunElab fc (ICoerced fc tm)
@@ -338,6 +339,7 @@ checkAlternative : {vars : _} ->
                    {auto u : Ref UST UState} ->
                    {auto e : Ref EST (EState vars)} ->
                    {auto s : Ref Syn SyntaxInfo} ->
+                   {auto o : Ref ROpts REPLOpts} ->
                    RigCount -> ElabInfo ->
                    NestedNames vars -> Env Term vars ->
                    FC -> AltType -> List RawImp -> Maybe (Glued vars) ->
@@ -355,7 +357,6 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
          delayOnFailure fc rig env (Just expected) ambiguous Ambiguity $
              \delayed =>
                do solveConstraints solvemode Normal
-                  defs <- get Ctxt
                   exp <- getTerm expected
 
                   -- We can't just use the old NF on the second attempt,
@@ -366,7 +367,7 @@ checkAlternative rig elabinfo nest env fc (UniqueDefault def) alts mexpected
 
                   logGlueNF "elab.ambiguous" 5 (fastConcat
                     [ "Ambiguous elaboration at ", show fc, ":\n"
-                    , unlines (map show alts)
+                    , unlines (map (("  " ++) . show) alts)
                     , "With default. Target type "
                     ]) env exp'
                   alts' <- pruneByType env !(getNF exp') alts
@@ -408,8 +409,7 @@ checkAlternative rig elabinfo nest env fc uniq alts mexpected
                                       _ => inTerm
                 delayOnFailure fc rig env (Just expected) ambiguous Ambiguity $
                      \delayed =>
-                       do defs <- get Ctxt
-                          exp <- getTerm expected
+                       do exp <- getTerm expected
 
                           -- We can't just use the old NF on the second attempt,
                           -- because we might know more now, so recalculate it

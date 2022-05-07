@@ -7,6 +7,7 @@ import Core.Env
 import Core.Metadata
 import Core.UnifyState
 
+import Idris.REPL.Opts
 import Idris.Syntax
 
 import TTImp.BindImplicits
@@ -35,6 +36,7 @@ elabRecord : {vars : _} ->
              {auto m : Ref MD Metadata} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
+             {auto o : Ref ROpts REPLOpts} ->
              List ElabOpt -> FC -> Env Term vars ->
              NestedNames vars -> Maybe String ->
              Visibility -> Maybe TotalReq -> Name ->
@@ -64,11 +66,10 @@ elabRecord {vars} eopts fc env nest newns vis mbtot tn_in params conName_in fiel
                       extendNS (mkNamespace ns)
                       newns <- getNS
                       elabGetters tn conName 0 [] [] conty
-                      defs <- get Ctxt
                       -- Record that the current namespace is allowed to look
                       -- at private names in the nested namespace
-                      put Ctxt ({ currentNS := cns,
-                                  nestedNS := newns :: nns } defs)
+                      update Ctxt { currentNS := cns,
+                                    nestedNS := newns :: nns }
 
   where
     paramTelescope : List (FC, Maybe Name, RigCount, PiInfo RawImp, RawImp)
@@ -234,6 +235,7 @@ processRecord : {vars : _} ->
                 {auto m : Ref MD Metadata} ->
                 {auto u : Ref UST UState} ->
                 {auto s : Ref Syn SyntaxInfo} ->
+                {auto o : Ref ROpts REPLOpts} ->
                 List ElabOpt -> NestedNames vars ->
                 Env Term vars -> Maybe String ->
                 Visibility -> Maybe TotalReq ->

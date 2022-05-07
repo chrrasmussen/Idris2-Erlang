@@ -28,8 +28,6 @@ import System.Directory
 
 %default covering
 
-%hide Libraries.Data.String.Extra.unlines
-
 ||| Dissected information about a package directory
 record PkgDir where
   constructor MkPkgDir
@@ -130,7 +128,7 @@ visiblePackages dir = filter viable <$> getPackageDirs dir
         notHidden = not . isPrefixOf "." . pkgName
 
         notDenylisted : PkgDir -> Bool
-        notDenylisted = not . flip elem ["include", "lib", "support", "refc"] . pkgName
+        notDenylisted = not . flip elem (the (List String) ["include", "lib", "support", "refc"]) . pkgName
 
         viable : PkgDir -> Bool
         viable p = notHidden p && notDenylisted p
@@ -155,7 +153,7 @@ listPackages
          traverse_ (iputStrLn . pkgDesc) pkgs
   where
     pkgDesc : PkgDir -> Doc IdrisAnn
-    pkgDesc (MkPkgDir _ pkgName version) = pretty pkgName <++> parens (pretty version)
+    pkgDesc (MkPkgDir _ pkgName version) = pretty0 pkgName <++> parens (byShow version)
 
 dirOption : {auto c : Ref Ctxt Defs} ->
             {auto o : Ref ROpts REPLOpts} ->
@@ -164,7 +162,7 @@ dirOption dirs LibDir
     = coreLift $ putStrLn
          (prefix_dir dirs </> "idris2-" ++ showVersion False version)
 dirOption dirs BlodwenPaths
-    = iputStrLn $ pretty (toString dirs)
+    = iputStrLn $ pretty0 (toString dirs)
 dirOption dirs Prefix
     = coreLift $ putStrLn (prefix_dir dirs)
 
@@ -349,8 +347,8 @@ preOptions (Directory d :: opts)
 preOptions (ListPackages :: opts)
     = do listPackages
          pure False
-preOptions (Timing :: opts)
-    = do setLogTimings True
+preOptions (Timing tm :: opts)
+    = do setLogTimings (fromMaybe 10 tm)
          preOptions opts
 preOptions (DebugElabCheck :: opts)
     = do setDebugElabCheck True
@@ -389,6 +387,14 @@ preOptions (Logging n :: opts)
          preOptions opts
 preOptions (ConsoleWidth n :: opts)
     = do setConsoleWidth n
+         preOptions opts
+preOptions (ShowMachineNames :: opts)
+    = do pp <- getPPrint
+         setPPrint ({ showMachineNames := True } pp)
+         preOptions opts
+preOptions (ShowNamespaces :: opts)
+    = do pp <- getPPrint
+         setPPrint ({ fullNamespace := True } pp)
          preOptions opts
 preOptions (Color b :: opts)
     = do setColor b

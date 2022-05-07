@@ -66,10 +66,15 @@ public export
 snd : {0 a, b : Type} -> (a, b) -> b
 snd (x, y) = y
 
+||| Swap the elements in a pair
+public export
+swap : (a, b) -> (b, a)
+swap (x, y) = (y, x)
+
 -- This directive tells auto implicit search what to use to look inside pairs
 %pair Pair fst snd
 
-infix 5 #
+infixr 5 #
 
 ||| A pair type where each component is linear
 public export
@@ -162,7 +167,7 @@ replace Refl prf = prf
 ||| Symmetry of propositional equality.
 %inline
 public export
-sym : (0 rule : x = y) -> y = x
+sym : (0 rule : x ~=~ y) -> y ~=~ x
 sym Refl = Refl
 
 ||| Transitivity of propositional equality.

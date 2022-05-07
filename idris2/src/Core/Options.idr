@@ -160,7 +160,7 @@ record Session where
   logEnabled : Bool -- do we check logging flags at all? This is 'False' until
                     -- any logging is enabled.
   logLevel : LogLevels
-  logTimings : Bool
+  logTimings : Maybe Nat -- log level, higher means more details
   debugElabCheck : Bool -- do conversion check to verify results of elaborator
   dumpcases : Maybe String -- file to output compiled case trees
   dumplifted : Maybe String -- file to output lambda lifted definitions
@@ -187,6 +187,7 @@ public export
 record PPrinter where
   constructor MkPPOpts
   showImplicits : Bool
+  showMachineNames : Bool
   showFullEnv : Bool
   fullNamespace : Bool
 
@@ -225,12 +226,12 @@ defaultDirs = MkDirs "." Nothing "build" "depends" Nothing
                      "/usr/local" ["."] [] [] []
 
 defaultPPrint : PPrinter
-defaultPPrint = MkPPOpts False True False
+defaultPPrint = MkPPOpts False False True False
 
 export
 defaultSession : Session
 defaultSession = MkSessionOpts False CoveringOnly False False Chez [] [] Nothing 1000 False False
-                               defaultLogLevel False False Nothing Nothing
+                               defaultLogLevel Nothing False Nothing Nothing
                                Nothing Nothing False 1 False True
                                False [] False False
 
