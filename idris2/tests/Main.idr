@@ -351,7 +351,7 @@ ideModeTests : IO TestPool
 ideModeTests = testsInDir "ideMode" (const True) "IDE mode" [] Nothing
 
 preludeTests : IO TestPool
-preludeTests = testsInDir "prelude" (const True) "Prelude library" [] Nothing
+preludeTests = testsInDir "prelude" (const True) "Prelude library" [] (Just Chez)
 
 templateTests : IO TestPool
 templateTests = testsInDir "templates" (const True) "Test templates" [] Nothing

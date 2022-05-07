@@ -30,6 +30,22 @@ record CGOpts where
 
 -- CONSTANTS
 
+genPrimType : PrimType -> IdrisConstant
+genPrimType IntType = IIntType
+genPrimType Int8Type = IInt8Type
+genPrimType Int16Type = IInt16Type
+genPrimType Int32Type = IInt32Type
+genPrimType Int64Type = IInt64Type
+genPrimType IntegerType = IIntegerType
+genPrimType Bits8Type = IBits8Type
+genPrimType Bits16Type = IBits16Type
+genPrimType Bits32Type = IBits32Type
+genPrimType Bits64Type = IBits64Type
+genPrimType StringType = IStringType
+genPrimType CharType = ICharType
+genPrimType DoubleType = IDoubleType
+genPrimType WorldType = IWorldType
+
 genConstant : Constant -> IdrisConstant
 genConstant (I x) = IInt x
 genConstant (I8 x) = IInt8 x
@@ -45,20 +61,7 @@ genConstant (Str x) = IString x
 genConstant (Ch x) = IChar x
 genConstant (Db x) = IDouble x
 genConstant WorldVal = IWorldVal
-genConstant IntType = IIntType
-genConstant Int8Type = IInt8Type
-genConstant Int16Type = IInt16Type
-genConstant Int32Type = IInt32Type
-genConstant Int64Type = IInt64Type
-genConstant IntegerType = IIntegerType
-genConstant Bits8Type = IBits8Type
-genConstant Bits16Type = IBits16Type
-genConstant Bits32Type = IBits32Type
-genConstant Bits64Type = IBits64Type
-genConstant StringType = IStringType
-genConstant CharType = ICharType
-genConstant DoubleType = IDoubleType
-genConstant WorldType = IWorldType
+genConstant (PrT t) = genPrimType t
 
 
 -- OPERATORS

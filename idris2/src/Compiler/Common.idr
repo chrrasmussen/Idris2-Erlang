@@ -140,7 +140,7 @@ cgCompileLibrary {c} cg libName changedModules
          let outputDir = outputDirWithDefault d
          ensureDirectoryExists tmpDir
          ensureDirectoryExists outputDir
-         logTime "Code generation overall" $
+         logTime 1 "Code generation overall" $
              compileLibrary cg c tmpDir outputDir libName changedModules
 
 export
@@ -572,7 +572,7 @@ record ConstantPrimitives a where
 ||| Implements casts from and to integral types by using
 ||| the implementations from the provided `ConstantPrimitives`.
 export
-castInt :  ConstantPrimitives
+castInt :  ConstantPrimitives a
         -> PrimType
         -> PrimType
         -> a
@@ -621,7 +621,7 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   let visibleCns = mapMaybe exportedName cnsWithGlobalDef
 
   resolvedNames <- traverse toResolvedNames (natHackNames ++ visibleCns ++ extraNames)
-  logTime "++ Get names" $ getAllDesc resolvedNames arr defs
+  logTime 2 "++ Get names" $ getAllDesc resolvedNames arr defs
 
   let entries = catMaybes !(coreLift (toList arr))
   let allNs = map (Resolved . fst) entries
@@ -631,22 +631,22 @@ getExportedCompileData doLazyAnnots phase shouldCompileName extraNames = do
   -- Do a round of merging/arity fixing for any names which were
   -- unknown due to cyclic modules (i.e. declared in one, defined in
   -- another)
-  logTime "++ Merge lambda" $ traverse_ mergeLamDef rcns
-  logTime "++ Fix arity" $ traverse_ fixArityDef rcns
+  logTime 2 "++ Merge lambda" $ traverse_ mergeLamDef rcns
+  logTime 2 "++ Fix arity" $ traverse_ fixArityDef rcns
 
   cseDefs <- catMaybes <$> traverse compDef rcns
 
   namedDefs <- traverse getNamedDef cseDefs
 
   lifted_in <- if phase >= Lifted
-                  then logTime "++ Lambda lift" $
+                  then logTime 2 "++ Lambda lift" $
                       traverse (lambdaLift doLazyAnnots) cseDefs
                   else pure []
   let lifted = concat lifted_in
   anf <- if phase >= ANF
-            then logTime "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
+            then logTime 2 "++ Get ANF" $ traverse (\ (n, d) => pure (n, !(toANF d))) lifted
             else pure []
   vmcode <- if phase >= VMCode
-              then logTime "++ Get VM Code" $ pure (allDefs anf)
+              then logTime 2 "++ Get VM Code" $ pure (allDefs anf)
               else pure []
-  pure (MkCompileData (CErased emptyFC) namedDefs lifted anf vmcode)
+  pure (MkCompileData (CErased emptyFC) [] namedDefs lifted anf vmcode)

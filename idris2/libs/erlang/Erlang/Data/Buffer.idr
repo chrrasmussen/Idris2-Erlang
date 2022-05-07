@@ -219,12 +219,12 @@ createBufferFromFile filePath = do
 
 -- TODO: `maxbytes` is unused
 export
-writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int) -> io (Either FileError ())
+writeBufferToFile : HasIO io => (filePath : String) -> Buffer -> (maxbytes : Int) -> io (Either (FileError, Int) ())
 writeBufferToFile filePath buf maxbytes = do
   flatten buf maxbytes
   MkTuple2 binary _ <- getBufferPayload buf
   result <- erlUnsafeCall ErlTerm "file" "write_file" [filePath, binary]
-  pure $ erlDecodeDef (Left FileWriteError) (exact (MkAtom "ok") *> pure (Right ())) result
+  pure $ erlDecodeDef (Left (FileWriteError, 0)) (exact (MkAtom "ok") *> pure (Right ())) result
 
 export
 resizeBuffer : HasIO io => Buffer -> Int -> io (Maybe Buffer)

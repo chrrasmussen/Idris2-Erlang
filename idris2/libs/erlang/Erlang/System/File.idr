@@ -275,11 +275,11 @@ chmod fname p = chmodRaw fname (mkMode p)
 ||| @ src  the file to copy
 ||| @ dest the place to copy the file to
 export
-copyFile : HasIO io => (src : String) -> (dest : String) -> io (Either FileError ())
+copyFile : HasIO io => (src : String) -> (dest : String) -> io (Either (FileError, Int) ())
 copyFile src dest = do
   result <- erlUnsafeCall ErlTerm "file" "copy" [src, dest]
   pure $ erlDecodeDef
-    (Left unknownError)
+    (Left (unknownError, 0))
     ((tuple2 (exact (MkAtom "ok")) integer *> pure (Right ()))
-      <|> map Left error)
+      <|> map (\e => Left (e, 0)) error)
     result
