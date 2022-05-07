@@ -8,7 +8,7 @@ import Erlang
 ||| Get the length of a string.
 ||| Implemented using the Erlang function `string:length/1`.
 stringLength : String -> Integer
-stringLength str = erlUnsafeCall Integer "string" "length" [str]
+stringLength str = erlUnsafeCallPure Integer "string" "length" [str]
 
 
 ||| Get the length of string and print the result.
@@ -25,14 +25,14 @@ main = do
 
 
 
--- `erlUnsafeCall` requires that the passed arguments and the return type are
+-- `erlUnsafeCallPure` requires that the passed arguments and the return type are
 -- members of `IsErlType`. One way to create a generic function is to forward
 -- this constraint to the caller of `reverseList`.
 
 ||| Reverse a list of values that conform to `IsErlType`.
 ||| Implemented using the Erlang function `lists:reverse/1`.
 reverseList : IsErlType a => List a -> List a
-reverseList xs = erlUnsafeCall (List a) "lists" "reverse" [xs]
+reverseList xs = erlUnsafeCallPure (List a) "lists" "reverse" [xs]
 
 
 ||| Reverse a list of strings and print the result.
@@ -60,7 +60,7 @@ main2 = do
 ||| Implemented using the Erlang function `lists:reverse/1`.
 reverseListGeneric : List a -> List a
 reverseListGeneric xs =
-  let MkRaw val = erlUnsafeCall (Raw (List a)) "lists" "reverse" [MkRaw xs]
+  let MkRaw val = erlUnsafeCallPure (Raw (List a)) "lists" "reverse" [MkRaw xs]
   in val
 
 ||| A data type that has no meaning to Erlang.
@@ -105,7 +105,7 @@ main3 = do
 ||| Implemented using the Erlang function `lists:foldl/3`.
 pureFoldl : (IsErlType a, IsErlType b) => (a -> b -> b) -> b -> List a -> b
 pureFoldl func acc xs =
-  erlUnsafeCall b "lists" "foldl" [MkFun2 func, acc, xs]
+  erlUnsafeCallPure b "lists" "foldl" [MkFun2 func, acc, xs]
 
 ||| Calculate the sum of integer values and print the result.
 |||
@@ -132,7 +132,7 @@ main4 = do
 ||| Implemented using the Erlang function `lists:foldl/3`.
 impureFoldl : (IsErlType a, IsErlType b) => (a -> b -> IO b) -> b -> List a -> IO b
 impureFoldl func acc xs =
-  pure $ erlUnsafeCall b "lists" "foldl" [MkIOFun2 func, acc, xs]
+  erlUnsafeCall b "lists" "foldl" [MkIOFun2 func, acc, xs]
 
 
 ||| Calculate the sum of integer values and print the result. Also print
