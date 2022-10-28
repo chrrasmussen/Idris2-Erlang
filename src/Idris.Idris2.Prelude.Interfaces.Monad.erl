@@ -1,0 +1,12 @@
+-module('Idris.Idris2.Prelude.Interfaces.Monad').
+-compile('no_auto_import').
+-compile('inline').
+-compile({'inline_size',24}).
+-export([
+  'dn--un--join_Monad_Compose((. $m) $t)'/4,
+  'dn--un-->>=_Monad_Compose((. $m) $t)'/5,
+  'un--Compose'/3
+]).
+'dn--un--join_Monad_Compose((. $m) $t)'(V0, V1, V2, V3) -> ('dn--un-->>=_Monad_Compose((. $m) $t)'(V0, V1, V2, V3, fun (V4) -> V4 end)).
+'dn--un-->>=_Monad_Compose((. $m) $t)'(V0, V1, V2, V3, V4) -> case V0 of {'Prelude.Interfaces.MkMonad', V5, V6, V7} -> ((((V6('erased'))('erased'))(V3))(fun (V8) -> ((begin (V25 = case V0 of {'Prelude.Interfaces.MkMonad', V19, V20, V21} -> case V19 of {'Prelude.Interfaces.MkApplicative', V22, V23, V24} -> V22 end end), fun (V26) -> fun (V27) -> ((((V25('erased'))('erased'))(V26))(V27)) end end end(fun (V15) -> case V1 of {'Prelude.Interfaces.MkMonad', V16, V17, V18} -> ((V18('erased'))(V15)) end end))(case V2 of {'Prelude.Interfaces.MkTraversable', V9, V10, V11} -> ((((((V11('erased'))('erased'))('erased'))(case V0 of {'Prelude.Interfaces.MkMonad', V12, V13, V14} -> V12 end))(V4))(V8)) end)) end)) end.
+'un--Compose'(V0, V1, V2) -> {'Prelude.Interfaces.MkMonad', {'Prelude.Interfaces.MkApplicative', fun (V3) -> fun (V4) -> fun (V5) -> fun (V6) -> (('Idris.Idris2.Prelude.Interfaces.Functor':'dn--un--map_Functor_Compose((. $f) $g)'(case V0 of {'Prelude.Interfaces.MkMonad', V7, V8, V9} -> case V7 of {'Prelude.Interfaces.MkApplicative', V10, V11, V12} -> V10 end end, case V1 of {'Prelude.Interfaces.MkMonad', V13, V14, V15} -> case V13 of {'Prelude.Interfaces.MkApplicative', V16, V17, V18} -> V16 end end, V5))(V6)) end end end end, fun (V19) -> fun (V20) -> ('Idris.Idris2.Prelude.Interfaces.Applicative':'dn--un--pure_Applicative_Compose((. $f) $g)'(case V0 of {'Prelude.Interfaces.MkMonad', V21, V22, V23} -> V21 end, case V1 of {'Prelude.Interfaces.MkMonad', V24, V25, V26} -> V24 end, V20)) end end, fun (V27) -> fun (V28) -> fun (V29) -> fun (V30) -> ('Idris.Idris2.Prelude.Interfaces.Applicative':'dn--un--<*>_Applicative_Compose((. $f) $g)'(case V0 of {'Prelude.Interfaces.MkMonad', V31, V32, V33} -> V31 end, case V1 of {'Prelude.Interfaces.MkMonad', V34, V35, V36} -> V34 end, V29, V30)) end end end end}, fun (V37) -> fun (V38) -> fun (V39) -> fun (V40) -> ('dn--un-->>=_Monad_Compose((. $m) $t)'(V0, V1, V2, V39, V40)) end end end end, fun (V41) -> fun (V42) -> ('dn--un--join_Monad_Compose((. $m) $t)'(V0, V1, V2, V42)) end end}.
