@@ -1,5 +1,5 @@
 package erlang
-version = 0.5.1
+version = 0.6.0
 
 modules = Erlang,
           Erlang.Conversion,
