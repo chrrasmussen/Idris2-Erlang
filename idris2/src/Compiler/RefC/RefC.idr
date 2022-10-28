@@ -11,6 +11,8 @@ import Core.Context
 import Core.Context.Log
 import Core.Directory
 
+import Idris.Syntax
+
 import Data.List
 import Libraries.Data.DList
 import Data.Nat
@@ -26,31 +28,38 @@ import Libraries.Utils.Path
 %default covering
 
 showcCleanStringChar : Char -> String -> String
-showcCleanStringChar '+' = ("_plus" ++)
-showcCleanStringChar '-' = ("__" ++)
-showcCleanStringChar '*' = ("_star" ++)
-showcCleanStringChar '/' = ("_slash" ++)
-showcCleanStringChar '\\' = ("_backslash" ++)
-showcCleanStringChar '<' = ("_lt" ++)
-showcCleanStringChar '>' = ("_gt" ++)
-showcCleanStringChar '=' = ("_eq" ++)
-showcCleanStringChar '&' = ("_and" ++)
-showcCleanStringChar '|' = ("_or" ++)
-showcCleanStringChar '\'' = ("_tick" ++)
+showcCleanStringChar ' ' = ("_" ++)
+showcCleanStringChar '!' = ("_bang" ++)
 showcCleanStringChar '"' = ("_quotation" ++)
+showcCleanStringChar '#' = ("_number" ++)
+showcCleanStringChar '$' = ("_dollar" ++)
+showcCleanStringChar '%' = ("_percent" ++)
+showcCleanStringChar '&' = ("_and" ++)
+showcCleanStringChar '\'' = ("_tick" ++)
 showcCleanStringChar '(' = ("_parenOpen" ++)
 showcCleanStringChar ')' = ("_parenClose" ++)
-showcCleanStringChar '{' = ("_braceOpen" ++)
-showcCleanStringChar '}' = ("_braceClose" ++)
-showcCleanStringChar '[' = ("_bracketOpen" ++)
-showcCleanStringChar ']' = ("_bracketClose" ++)
-showcCleanStringChar ' ' = ("_" ++)
-showcCleanStringChar ':' = ("_colon" ++)
-showcCleanStringChar '.' = ("_dot" ++)
-showcCleanStringChar '$' = ("_dollar" ++)
+showcCleanStringChar '*' = ("_star" ++)
+showcCleanStringChar '+' = ("_plus" ++)
 showcCleanStringChar ',' = ("_comma" ++)
-showcCleanStringChar '#' = ("_number" ++)
-showcCleanStringChar '%' = ("_percent" ++)
+showcCleanStringChar '-' = ("__" ++)
+showcCleanStringChar '.' = ("_dot" ++)
+showcCleanStringChar '/' = ("_slash" ++)
+showcCleanStringChar ':' = ("_colon" ++)
+showcCleanStringChar ';' = ("_semicolon" ++)
+showcCleanStringChar '<' = ("_lt" ++)
+showcCleanStringChar '=' = ("_eq" ++)
+showcCleanStringChar '>' = ("_gt" ++)
+showcCleanStringChar '?' = ("_question" ++)
+showcCleanStringChar '@' = ("_at" ++)
+showcCleanStringChar '[' = ("_bracketOpen" ++)
+showcCleanStringChar '\\' = ("_backslash" ++)
+showcCleanStringChar ']' = ("_bracketClose" ++)
+showcCleanStringChar '^' = ("_hat" ++)
+showcCleanStringChar '_' = ("_" ++)
+showcCleanStringChar '`' = ("_backquote" ++)
+showcCleanStringChar '{' = ("_braceOpen" ++)
+showcCleanStringChar '|' = ("_or" ++)
+showcCleanStringChar '}' = ("_braceClose" ++)
 showcCleanStringChar '~' = ("_tilde" ++)
 showcCleanStringChar c
    = if c < chr 32 || c > chr 126
@@ -1038,12 +1047,6 @@ footer = do
       """
 
 export
-executeExpr : Ref Ctxt Defs -> (execDir : String) -> ClosedTerm -> Core ()
-executeExpr c _ tm
-    = do coreLift_ $ putStrLn "Execute expression not yet implemented for refc"
-         coreLift_ $ system "false"
-
-export
 generateCSourceFile : {auto c : Ref Ctxt Defs}
                    -> {default [] additionalFFILangs : List String}
                    -> List (Name, ANFDef)
@@ -1068,12 +1071,13 @@ generateCSourceFile defs outn =
 export
 compileExpr : UsePhase
            -> Ref Ctxt Defs
+           -> Ref Syn SyntaxInfo
            -> (tmpDir : String)
            -> (outputDir : String)
            -> ClosedTerm
            -> (outfile : String)
            -> Core (Maybe String)
-compileExpr ANF c _ outputDir tm outfile =
+compileExpr ANF c s _ outputDir tm outfile =
   do let outn = outputDir </> outfile ++ ".c"
      let outobj = outputDir </> outfile ++ ".o"
      let outexec = outputDir </> outfile
@@ -1087,7 +1091,18 @@ compileExpr ANF c _ outputDir tm outfile =
        | Nothing => pure Nothing
      compileCFile outobj outexec
 
-compileExpr _ _ _ _ _ _ = pure Nothing
+compileExpr _ _ _ _ _ _ _ = pure Nothing
+
+
+
+export
+executeExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo ->
+              (execDir : String) -> ClosedTerm -> Core ()
+executeExpr c s tmpDir tm = do
+  do let outfile = "_tmp_refc"
+     Just _ <- compileExpr ANF c s tmpDir tmpDir tm outfile
+       | Nothing => do coreLift_ $ putStrLn "Error: failed to compile"
+     coreLift_ $ system (tmpDir </> outfile)
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do

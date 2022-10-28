@@ -5,6 +5,7 @@ import Core.Env
 import Core.TT
 
 import Data.List1
+import Data.SnocList -- until 0.6.0
 import Data.Vect
 
 import Libraries.Data.IMaybe
@@ -65,6 +66,11 @@ data Warning : Type where
      UnreachableClause : {vars : _} ->
                          FC -> Env Term vars -> Term vars -> Warning
      ShadowingGlobalDefs : FC -> List1 (String, List1 Name) -> Warning
+     ||| First FC is type
+     ||| @ shadowed list of names which are shadowed,
+     |||   where they originally appear
+     |||   and where they are shadowed
+     ShadowingLocalBindings : FC -> (shadowed : List1 (String, FC, FC)) -> Warning
      ||| A warning about a deprecated definition. Supply an FC and Name to
      ||| have the documentation for the definition printed with the warning.
      Deprecated : String -> Maybe (FC, Name) -> Warning
@@ -150,6 +156,7 @@ data Error : Type where
      BadImplicit : FC -> String -> Error
      BadRunElab : {vars : _} ->
                   FC -> Env Term vars -> Term vars -> (description : String) -> Error
+     RunElabFail : Error -> Error
      GenericMsg : FC -> String -> Error
      TTCError : TTCErrorMsg -> Error
      FileErr : String -> FileError -> Error
@@ -195,6 +202,7 @@ Show Warning where
     show (ParserWarning _ msg) = msg
     show (UnreachableClause _ _ _) = ":Unreachable clause"
     show (ShadowingGlobalDefs _ _) = ":Shadowing names"
+    show (ShadowingLocalBindings _ _) = ":Shadowing names"
     show (Deprecated name _) = ":Deprecated " ++ name
     show (GenericWarn msg) = msg
 
@@ -250,14 +258,14 @@ Show Error where
      where
        showRig : RigCount -> String
        showRig = elimSemi
-         "linear"
          "irrelevant"
+         "linear"
          (const "unrestricted")
 
        showRel : RigCount -> String
        showRel = elimSemi
-         "relevant"
          "irrelevant"
+         "relevant"
          (const "non-linear")
   show (BorrowPartial fc env t arg)
       = show fc ++ ":" ++ show t ++ " borrows argument " ++ show arg ++
@@ -333,6 +341,7 @@ Show Error where
            " - it elaborates to " ++ show y
   show (BadImplicit fc str) = show fc ++ ":" ++ str ++ " can't be bound here"
   show (BadRunElab fc env script desc) = show fc ++ ":Bad elaborator script " ++ show script ++ " (" ++ desc ++ ")"
+  show (RunElabFail e) = "Error during reflection: " ++ show e
   show (GenericMsg fc str) = show fc ++ ":" ++ str
   show (TTCError msg) = "Error in TTC file: " ++ show msg
   show (FileErr fname err) = "File error (" ++ fname ++ "): " ++ show err
@@ -382,6 +391,7 @@ getWarningLoc : Warning -> Maybe FC
 getWarningLoc (ParserWarning fc _) = Just fc
 getWarningLoc (UnreachableClause fc _ _) = Just fc
 getWarningLoc (ShadowingGlobalDefs fc _) = Just fc
+getWarningLoc (ShadowingLocalBindings fc _) = Just fc
 getWarningLoc (Deprecated _ fcAndName) = fst <$> fcAndName
 getWarningLoc (GenericWarn _) = Nothing
 
@@ -437,6 +447,7 @@ getErrorLoc (MatchTooSpecific loc _ _) = Just loc
 getErrorLoc (BadDotPattern loc _ _ _ _) = Just loc
 getErrorLoc (BadImplicit loc _) = Just loc
 getErrorLoc (BadRunElab loc _ _ _) = Just loc
+getErrorLoc (RunElabFail e) = getErrorLoc e
 getErrorLoc (GenericMsg loc _) = Just loc
 getErrorLoc (TTCError _) = Nothing
 getErrorLoc (FileErr _ _) = Nothing
@@ -466,6 +477,8 @@ killWarningLoc : Warning -> Warning
 killWarningLoc (ParserWarning fc x) = ParserWarning emptyFC x
 killWarningLoc (UnreachableClause fc x y) = UnreachableClause emptyFC x y
 killWarningLoc (ShadowingGlobalDefs fc xs) = ShadowingGlobalDefs emptyFC xs
+killWarningLoc (ShadowingLocalBindings fc xs) =
+    ShadowingLocalBindings emptyFC $ (\(n, _, _) => (n, emptyFC, emptyFC)) <$> xs
 killWarningLoc (Deprecated x y) = Deprecated x (map ((emptyFC,) . snd) y)
 killWarningLoc (GenericWarn x) = GenericWarn x
 
@@ -519,6 +532,7 @@ killErrorLoc (MatchTooSpecific fc x y) = MatchTooSpecific emptyFC x y
 killErrorLoc (BadDotPattern fc x y z w) = BadDotPattern emptyFC x y z w
 killErrorLoc (BadImplicit fc x) = BadImplicit emptyFC x
 killErrorLoc (BadRunElab fc x y description) = BadRunElab emptyFC x y description
+killErrorLoc (RunElabFail e) = RunElabFail $ killErrorLoc e
 killErrorLoc (GenericMsg fc x) = GenericMsg emptyFC x
 killErrorLoc (TTCError x) = TTCError x
 killErrorLoc (FileErr x y) = FileErr x y
@@ -713,6 +727,15 @@ traverse' f (x :: xs) acc
 export
 traverse : (a -> Core b) -> List a -> Core (List b)
 traverse f xs = traverse' f xs []
+
+export
+mapMaybeM : (a -> Core (Maybe b)) -> List a -> Core (List b)
+mapMaybeM f = go [<] where
+  go : SnocList b -> List a -> Core (List b)
+  go acc [] = pure (acc <>> [])
+  go acc (a::as) = do
+    mb <- f a
+    go (maybe id (flip (:<)) mb acc) as
 
 %inline
 export

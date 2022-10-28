@@ -129,7 +129,7 @@
 
 (define cast-string-double
   (lambda (x)
-    (cast-num (string->number (destroy-prefix x)))))
+    (exact->inexact (cast-num (string->number (destroy-prefix x))))))
 (define (string-concat xs) (apply string-append xs))
 (define (string-unpack s) (string->list s))
 (define (string-pack xs) (list->string xs))
@@ -307,13 +307,13 @@
 ;; Channels
 
 (define (blodwen-make-channel ty)
-  (make-channel))
+  (make-async-channel 1))
 
 (define (blodwen-channel-get ty chan)
-  (channel-get chan))
+  (async-channel-get chan))
 
 (define (blodwen-channel-put ty chan val)
-  (channel-put chan val))
+  (async-channel-put chan val))
 
 ;; Mutex
 

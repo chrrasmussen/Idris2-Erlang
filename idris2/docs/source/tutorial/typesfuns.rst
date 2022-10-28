@@ -580,7 +580,7 @@ to rely on the behaviour of a mutually defined function for something to typeche
 
   data Even : Nat -> Type where
     ZIsEven : Even Z
-    SOddisEven : Odd n -> Even (S k)
+    SOddIsEven : Odd n -> Even (S k)
 
   data Odd : Nat -> Type where
     SEvenIsOdd : Even n -> Odd (S k)
@@ -1008,7 +1008,7 @@ intermediate values:
 
 .. code-block:: idris
 
-    filter : (a -> Bool) -> Vect n a -> (p ** Vect p a)
+    filter : (a -> Bool) -> Vect n a -> (n' ** Vect n' a)
     filter p Nil = (_ ** [])
     filter p (x :: xs)
         = case filter p xs of

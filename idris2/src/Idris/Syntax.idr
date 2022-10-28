@@ -1,13 +1,11 @@
 module Idris.Syntax
 
-import public Core.Binary
 import public Core.Context
 import public Core.Context.Log
 import public Core.Core
 import public Core.FC
 import public Core.Normalise
 import public Core.Options
-import public Core.TTC
 import public Core.TT
 
 import TTImp.TTImp
@@ -16,6 +14,8 @@ import Data.List
 import Data.Maybe
 import Data.SnocList
 import Data.String
+
+import public Idris.Syntax.Pragmas
 
 import Libraries.Data.ANameMap
 import Libraries.Data.NameMap
@@ -271,6 +271,18 @@ mutual
                  (datacons : List (PTypeDecl' nm)) -> PDataDecl' nm
        MkPLater : FC -> (tyname : Name) -> (tycon : PTerm' nm) -> PDataDecl' nm
 
+  public export
+  data PRecordDecl' : Type -> Type where
+       MkPRecord : (tyname : Name) ->
+                   (params : List (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm)) ->
+                   (opts : List DataOpt) ->
+                   (conName : Maybe Name) ->
+                   List (PField' nm) ->
+                   PRecordDecl' nm
+       MkPRecordLater : (tyname : Name) ->
+                        (params : List (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm)) ->
+                        PRecordDecl' nm
+
   export
   getPDataDeclLoc : PDataDecl' nm -> FC
   getPDataDeclLoc (MkPData fc _ _ _ _) = fc
@@ -330,62 +342,6 @@ mutual
        AutoImplicitDepth : Nat -> Directive
        NFMetavarThreshold : Nat -> Directive
        SearchTimeout : Integer -> Directive
-
-  directiveList : List Directive
-  directiveList =
-      [ (Hide ph), (Unhide ph), (Logging Nothing), (LazyOn False)
-      , (UnboundImplicits False), (AmbigDepth 0)
-      , (PairNames ph ph ph), (RewriteName ph ph)
-      , (PrimInteger ph), (PrimString ph), (PrimChar ph)
-      , (PrimDouble ph), (CGAction "" ""), (Names ph [])
-      , (StartExpr (PRef EmptyFC ph)), (Overloadable ph)
-      , (Extension ElabReflection), (DefaultTotality PartialOK)
-      , (PrefixRecordProjections True), (AutoImplicitDepth 0)
-      , (NFMetavarThreshold 0), (SearchTimeout 0)
-      ]
-
-      where
-        -- placeholder
-        ph : Name
-        ph = UN $ Basic ""
-
-  isPragma : Directive -> Bool
-  isPragma (CGAction _ _) = False
-  isPragma _              = True
-
-  export
-  pragmaTopics : String
-  pragmaTopics =
-    show $ vsep $ map (((<++>) "+") . pretty . showDirective) $ filter isPragma directiveList
-    where
-      showDirective : Directive -> String
-      showDirective (Hide _)             = "%hide name"
-      showDirective (Unhide _)           = "%unhide name"
-      showDirective (Logging _)          = "%logging [topic] lvl"
-      showDirective (LazyOn _)           = "%auto_lazy on|off"
-      showDirective (UnboundImplicits _) = "%unbound_implicits"
-      showDirective (AmbigDepth _)       = "%ambiguity_depth n"
-      showDirective (PairNames _ _ _)    = "%pair ty f s"
-      showDirective (RewriteName _ _)    = "%rewrite eq rw"
-      showDirective (PrimInteger _)      = "%integerLit n"
-      showDirective (PrimString _)       = "%stringLit n"
-      showDirective (PrimChar _)         = "%charLit n"
-      showDirective (PrimDouble _)       = "%doubleLit n"
-      showDirective (CGAction _ _)       = "--directive d"
-      showDirective (Names _ _)          = "%name ty ns"
-      showDirective (StartExpr _)        = "%start expr"
-      showDirective (Overloadable _)     = "%allow_overloads"
-      showDirective (Extension _)        = "%language"
-      showDirective (DefaultTotality _)  =
-        "%default partial|total|covering"
-      showDirective (PrefixRecordProjections _) =
-        "%prefix_record_projections on|off"
-      showDirective (AutoImplicitDepth _) =
-        "%auto_implicit_depth n"
-      showDirective (NFMetavarThreshold _) =
-        "%nf_metavar_threshold n"
-      showDirective (SearchTimeout _) =
-        "%search_timeout ms"
 
   public export
   PField : Type
@@ -464,10 +420,7 @@ mutual
        PRecord : FC ->
                  (doc : String) ->
                  Visibility -> Maybe TotalReq ->
-                 Name ->
-                 (params : List (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm)) ->
-                 (conName : Maybe Name) ->
-                 List (PField' nm) ->
+                 PRecordDecl' nm ->
                  PDecl' nm
 
        -- TODO: PPostulate
@@ -494,7 +447,7 @@ mutual
   getPDeclLoc (PReflect fc _) = fc
   getPDeclLoc (PInterface fc _ _ _ _ _ _ _ _) = fc
   getPDeclLoc (PImplementation fc _ _ _ _ _ _ _ _ _ _) = fc
-  getPDeclLoc (PRecord fc _ _ _ _ _ _ _) = fc
+  getPDeclLoc (PRecord fc _ _ _ _) = fc
   getPDeclLoc (PMutual fc _) = fc
   getPDeclLoc (PFail fc _ _) = fc
   getPDeclLoc (PFixity fc _ _ _) = fc
@@ -599,6 +552,8 @@ data EditCmd : Type where
      TypeAt : Int -> Int -> Name -> EditCmd
      CaseSplit : Bool -> Int -> Int -> Name -> EditCmd
      AddClause : Bool -> Int -> Name -> EditCmd
+     Refine : Bool -> Int -> (hole : Name) -> (expr : PTerm) -> EditCmd
+     Intro : Bool -> Int -> (hole : Name) -> EditCmd
      ExprSearch : Bool -> Int -> Name -> List Name -> EditCmd
      ExprSearchNext : EditCmd
      GenerateDef : Bool -> Int -> Name -> Nat -> EditCmd
@@ -628,6 +583,11 @@ data DocDirective : Type where
   AModule : ModuleIdent -> DocDirective
 
 public export
+data HelpType : Type where
+  GenericHelp : HelpType
+  DetailedHelp : (details : String) -> HelpType
+
+public export
 data REPLCmd : Type where
      NewDefn : List PDecl -> REPLCmd
      Eval : PTerm -> REPLCmd
@@ -640,7 +600,7 @@ data REPLCmd : Type where
      Edit : REPLCmd
      Compile : PTerm -> String -> REPLCmd
      Exec : PTerm -> REPLCmd
-     Help : REPLCmd
+     Help : HelpType -> REPLCmd
      TypeSearch : PTerm -> REPLCmd
      FuzzyTypeSearch : PTerm -> REPLCmd
      DebugInfo : Name -> REPLCmd
@@ -902,41 +862,6 @@ record IFaceInfo where
      -- ^ name, whether a data method, and desugared type (without constraint)
   defaults : List (Name, List ImpClause)
 
-export
-TTC Method where
-  toBuf b (MkMethod nm c treq ty)
-      = do toBuf b nm
-           toBuf b c
-           toBuf b treq
-           toBuf b ty
-
-  fromBuf b
-      = do nm <- fromBuf b
-           c <- fromBuf b
-           treq <- fromBuf b
-           ty <- fromBuf b
-           pure (MkMethod nm c treq ty)
-
-
-export
-TTC IFaceInfo where
-  toBuf b (MkIFaceInfo ic impps ps cs ms ds)
-      = do toBuf b ic
-           toBuf b impps
-           toBuf b ps
-           toBuf b cs
-           toBuf b ms
-           toBuf b ds
-
-  fromBuf b
-      = do ic <- fromBuf b
-           impps <- fromBuf b
-           ps <- fromBuf b
-           cs <- fromBuf b
-           ms <- fromBuf b
-           ds <- fromBuf b
-           pure (MkIFaceInfo ic impps ps cs ms ds)
-
 -- If you update this, update 'extendSyn' in Desugar to keep it up to date
 -- when reading imports
 public export
@@ -966,71 +891,6 @@ record SyntaxInfo where
   usingImpl : List (Maybe Name, RawImp)
   startExpr : RawImp
   holeNames : List String -- hole names in the file
-
-export
-TTC Fixity where
-  toBuf b InfixL = tag 0
-  toBuf b InfixR = tag 1
-  toBuf b Infix = tag 2
-  toBuf b Prefix = tag 3
-
-  fromBuf b
-      = case !getTag of
-             0 => pure InfixL
-             1 => pure InfixR
-             2 => pure Infix
-             3 => pure Prefix
-             _ => corrupt "Fixity"
-
-export
-TTC Import where
-  toBuf b (MkImport loc reexport path nameAs)
-    = do toBuf b loc
-         toBuf b reexport
-         toBuf b path
-         toBuf b nameAs
-
-  fromBuf b
-    = do loc <- fromBuf b
-         reexport <- fromBuf b
-         path <- fromBuf b
-         nameAs <- fromBuf b
-         pure (MkImport loc reexport path nameAs)
-
-export
-TTC SyntaxInfo where
-  toBuf b syn
-      = do toBuf b (StringMap.toList (infixes syn))
-           toBuf b (StringMap.toList (prefixes syn))
-           toBuf b (filter (\n => elemBy (==) (fst n) (saveMod syn))
-                           (SortedMap.toList $ modDocstrings syn))
-           toBuf b (filter (\n => elemBy (==) (fst n) (saveMod syn))
-                           (SortedMap.toList $ modDocexports syn))
-           toBuf b (filter (\n => fst n `elem` saveIFaces syn)
-                           (ANameMap.toList (ifaces syn)))
-           toBuf b (filter (\n => isJust (lookup (fst n) (saveDocstrings syn)))
-                           (ANameMap.toList (defDocstrings syn)))
-           toBuf b (bracketholes syn)
-           toBuf b (startExpr syn)
-           toBuf b (holeNames syn)
-
-  fromBuf b
-      = do inf <- fromBuf b
-           pre <- fromBuf b
-           moddstr <- fromBuf b
-           modexpts <- fromBuf b
-           ifs <- fromBuf b
-           defdstrs <- fromBuf b
-           bhs <- fromBuf b
-           start <- fromBuf b
-           hnames <- fromBuf b
-           pure $ MkSyntax (fromList inf) (fromList pre)
-                   [] (fromList moddstr) (fromList modexpts)
-                   [] (fromList ifs)
-                   empty (fromList defdstrs)
-                   bhs
-                   [] start
-                   hnames
 
 HasNames IFaceInfo where
   full gam iface

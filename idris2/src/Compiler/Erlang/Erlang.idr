@@ -29,6 +29,8 @@ import Libraries.Utils.Path
 import System
 import System.File
 
+import Idris.Syntax
+
 
 %default covering
 %hide ErlExpr.Line
@@ -181,8 +183,8 @@ getAllModuleOpts ds =
       moduleDirectives = SortedMap.toList (delete emptyNS groupedDirectives) -- TODO: Fix emptyNS
   in map (uncurry parseModuleOpts) moduleDirectives
 
-compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
-compileExpr c tmpDir outputDir tm outfile = do
+compileExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
+compileExpr c s tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
   let globalOpts = getGlobalOpts ds
   let modName = outfile
@@ -190,8 +192,8 @@ compileExpr c tmpDir outputDir tm outfile = do
   ignore $ build globalOpts [] tmpDir outputDir modules
   pure (Just outfile)
 
-executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
-executeExpr c tmpDir tm = do
+executeExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> ClosedTerm -> Core ()
+executeExpr c s tmpDir tm = do
   ds <- getDirectives (Other "erlang")
   let globalOpts = getGlobalOpts ds
   let modName = "main"

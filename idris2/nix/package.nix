@@ -10,6 +10,7 @@
 , gambit
 , nodejs
 , zsh
+, idris2Bootstrap
 }:
 
 # Uses scheme to bootstrap the build of idris2
@@ -20,7 +21,7 @@ stdenv.mkDerivation rec {
   src = ../.;
 
   strictDeps = true;
-  nativeBuildInputs = [ makeWrapper clang chez ]
+  nativeBuildInputs = [ makeWrapper clang chez idris2Bootstrap ]
     ++ lib.optional stdenv.isDarwin [ zsh ];
   buildInputs = [ chez gmp ];
 
@@ -33,7 +34,7 @@ stdenv.mkDerivation rec {
     ++ lib.optional stdenv.isDarwin "OS=";
 
   # The name of the main executable of pkgs.chez is `scheme`
-  buildFlags = [ "bootstrap" "SCHEME=scheme" ];
+  buildFlags = [ ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];

@@ -184,11 +184,10 @@ natToFinLT Z {prf = LTESucc _} = FZ
 natToFinLT (S k) {prf = LTESucc _} = FS $ natToFinLT k
 
 public export
-natToFinLt : (x : Nat) -> {n : Nat} ->
+natToFinLt : (x : Nat) -> {0 n : Nat} ->
              {auto 0 prf : So (x < n)} ->
              Fin n
-natToFinLt Z     {n = S _} = FZ
-natToFinLt (S k) {n = S _} = FS $ natToFinLt k
+natToFinLt x = let 0 p := ltOpReflectsLT x n prf in natToFinLT x
 
 public export
 natToFin : Nat -> (n : Nat) -> Maybe (Fin n)
@@ -283,12 +282,9 @@ public export
 public export
 DecEq (Fin n) where
   decEq FZ FZ = Yes Refl
+  decEq (FS f) (FS f') = decEqCong $ decEq f f'
   decEq FZ (FS f) = No absurd
   decEq (FS f) FZ = No absurd
-  decEq (FS f) (FS f')
-      = case decEq f f' of
-             Yes p => Yes $ cong FS p
-             No p => No $ p . injective
 
 namespace Equality
 
@@ -307,6 +303,16 @@ namespace Equality
   public export
   (~~~) : Fin m -> Fin n -> Type
   (~~~) = Pointwise
+
+  export
+  Uninhabited (FS k ~~~ FZ) where
+    uninhabited FZ impossible
+    uninhabited (FS _) impossible
+
+  export
+  Uninhabited (FZ ~~~ FS k) where
+    uninhabited FZ impossible
+    uninhabited (FS _) impossible
 
   ||| Pointwise equality is reflexive
   export
@@ -376,6 +382,17 @@ namespace Equality
   finToNatQuotient : k ~~~ l -> finToNat k === finToNat l
   finToNatQuotient FZ = Refl
   finToNatQuotient (FS prf) = cong S (finToNatQuotient prf)
+
+  ||| Propositional equality on `finToNat`s implies pointwise equality on the `Fin`s themselves
+  export
+  finToNatEqualityAsPointwise : (k : Fin m) ->
+                                (l : Fin n) ->
+                                finToNat k = finToNat l ->
+                                k ~~~ l
+  finToNatEqualityAsPointwise FZ FZ _ = FZ
+  finToNatEqualityAsPointwise FZ (FS _) prf = absurd prf
+  finToNatEqualityAsPointwise (FS _) FZ prf = absurd prf
+  finToNatEqualityAsPointwise (FS k) (FS l) prf = FS $ finToNatEqualityAsPointwise k l (injective prf)
 
   export
   weakenNeutral : (k : Fin n) -> weaken k ~~~ k

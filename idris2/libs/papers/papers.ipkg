@@ -23,11 +23,17 @@ modules = Data.Container,
 
           Data.Vect.Binary,
 
+          Data.W,
+
           Language.Tagless,
+
+          Search.Auto,
 
           Search.Generator,
           Search.HDecidable,
           Search.Negation,
           Search.Properties,
+          Search.CTL,
+          Search.GCL,
 
           Search.Tychonoff.PartI

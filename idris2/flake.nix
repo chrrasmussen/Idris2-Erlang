@@ -10,7 +10,7 @@
 
   outputs = { self, nixpkgs, flake-utils, idris-emacs-src }:
     let
-      idris2-version = "0.5.1";
+      idris2-version = "0.6.0";
       lib = import ./nix/lib.nix;
       sys-agnostic = rec {
         templates.pkg = {
@@ -30,8 +30,12 @@
           chez = if system == "x86_64-linux"
             then pkgs.chez
             else pkgs.chez-racket; # TODO: Should this always be the default?
-          idris2Pkg = pkgs.callPackage ./nix/package.nix {
+          idris2Bootstrap = pkgs.callPackage ./nix/bootstrap.nix {
             inherit idris2-version chez;
+            srcRev = self.shortRev or "dirty";
+          };
+          idris2Pkg = pkgs.callPackage ./nix/package.nix {
+            inherit idris2-version chez idris2Bootstrap;
             srcRev = self.shortRev or "dirty";
           };
           buildIdris = pkgs.callPackage ./nix/buildIdris.nix { inherit idris2-version; idris2 = idris2Pkg; };

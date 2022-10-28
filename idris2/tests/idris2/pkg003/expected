@@ -14,6 +14,7 @@ Overridable options are:
     --dumpvmcode <file>
     --debug-elab-check
     --codegen <cg>
+    --inc <cg>
     --directive <directive>
     --build-dir <dir>
     --output-dir <dir>

@@ -29,7 +29,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 20220425 * 100 + 0
+ttcVersion = 20220930 * 100 + 0
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -537,6 +537,14 @@ getImportHashes file b
     = do ignore $ getHashes file b
          fromBuf b -- `importHashes`
 
+-- Implements a portion of @readTTCFile@. The fields must be read in order.
+-- This reads everything up to and including `incData`.
+getIncData : String -> Ref Bin Binary ->
+             Core (List (CG, String, List String))
+getIncData file b
+    = do ignore $ getImportHashes file b
+         fromBuf b -- `incData`
+
 export
 readTotalReq : (fileName : String) -> -- file containing the module
                Core (Maybe TotalReq)
@@ -565,5 +573,16 @@ readImportHashes fname
             | Left err => pure []
          b <- newRef Bin buffer
          catch (do res <- getImportHashes fname b
+                   pure res)
+               (\err => pure [])
+
+export
+readIncData : (fname : String) -> -- file containing the module
+              Core (List (CG, String, List String))
+readIncData fname
+    = do Right buffer <- coreLift $ readFromFile fname
+            | Left err => pure []
+         b <- newRef Bin buffer
+         catch (do res <- getIncData fname b
                    pure res)
                (\err => pure [])

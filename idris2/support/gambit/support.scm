@@ -59,7 +59,7 @@
 ; To match Chez
 (define (add1 x) (+ x 1))
 (define (sub1 x) (- x 1))
-(define (fxsub1 x) (fx- x 1))
+(define (fxadd1 x) (fx+ x 1))
 (define (fxsub1 x) (fx- x 1))
 
 (define (integer->bits8 x) (bitwise-and x #xff))
@@ -126,7 +126,8 @@
     (if (number? x) x 0))
   (define (destroy-prefix x)
     (if (or (string=? x "") (char=? (string-ref x 0) #\#)) "" x))
-  (cast-num (string->number (destroy-prefix x))))
+  (exact->inexact (cast-num (string->number (destroy-prefix x)))))
+
 
 (define-macro (cast-string-int x)
   `(exact-truncate (cast-string-double ,x)))

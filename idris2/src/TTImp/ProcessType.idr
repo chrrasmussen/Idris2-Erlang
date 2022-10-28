@@ -23,12 +23,13 @@ import Data.List
 import Data.List1
 import Data.String
 import Libraries.Data.NameMap
+import Libraries.Data.StringMap
 
 %default covering
 
 getRetTy : Defs -> NF [] -> Core Name
 getRetTy defs (NBind fc _ (Pi _ _ _ _) sc)
-    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc False)))
+    = getRetTy defs !(sc defs (toClosure defaultOpts [] (Erased fc Placeholder)))
 getRetTy defs (NTCon _ n _ _ _) = pure n
 getRetTy defs ty
     = throw (GenericMsg (getLoc ty)
@@ -43,7 +44,6 @@ processFnOpt : {auto c : Ref Ctxt Defs} ->
                Name -> FnOpt -> Core ()
 processFnOpt fc _ ndef Inline
     = do throwIfHasFlag fc ndef NoInline "%noinline and %inline are mutually exclusive"
-         throwIfHasFlag fc ndef (NoMangle (CommonName "")) "%nomangle and %inline are mutually exclusive"
          setFlag fc ndef Inline
 processFnOpt fc _ ndef NoInline
     = do throwIfHasFlag fc ndef Inline "%inline and %noinline are mutually exclusive"
@@ -77,18 +77,6 @@ processFnOpt fc _ ndef (Totality tot)
     = setFlag fc ndef (SetTotal tot)
 processFnOpt fc _ ndef Macro
     = setFlag fc ndef Macro
-processFnOpt fc True ndef (NoMangle mname) = do
-    throwIfHasFlag fc ndef Inline "%inline and %nomangle are mutually exclusive"
-    name <- case mname of
-        Nothing => case userNameRoot !(getFullName ndef) of
-            Nothing => throw (GenericMsg fc "Unable to find user name root of \{show ndef}")
-            Just (Basic name) => pure $ CommonName name
-            Just (Field name) => pure $ CommonName name
-            Just Underscore => throw (GenericMsg fc "Unable to set '_' as %nomangle")
-        Just name => pure name
-    setFlag fc ndef (NoMangle name)
-    setFlag fc ndef NoInline
-processFnOpt fc False ndef (NoMangle _) = throw (GenericMsg fc "Unable to set %nomangle for non-global functions")
 processFnOpt fc _ ndef (SpecArgs ns)
     = do defs <- get Ctxt
          Just gdef <- lookupCtxtExact ndef (gamma defs)
@@ -137,12 +125,12 @@ processFnOpt fc _ ndef (SpecArgs ns)
       getDeps inparam (NBind _ x (Pi _ _ _ pty) sc) ns
           = do defs <- get Ctxt
                ns' <- getDeps inparam !(evalClosure defs pty) ns
-               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc Placeholder))
                getDeps inparam sc' ns'
       getDeps inparam (NBind _ x b sc) ns
           = do defs <- get Ctxt
                ns' <- getDeps False !(evalClosure defs (binderType b)) ns
-               sc' <- sc defs (toClosure defaultOpts [] (Erased fc False))
+               sc' <- sc defs (toClosure defaultOpts [] (Erased fc Placeholder))
                getDeps False sc' ns
       getDeps inparam (NApp _ (NRef Bound n) args) ns
           = do defs <- get Ctxt
@@ -201,7 +189,7 @@ processFnOpt fc _ ndef (SpecArgs ns)
     getNamePos : Nat -> NF [] -> Core (List (Name, Nat))
     getNamePos i (NBind tfc x (Pi _ _ _ _) sc)
         = do defs <- get Ctxt
-             ns' <- getNamePos (1 + i) !(sc defs (toClosure defaultOpts [] (Erased tfc False)))
+             ns' <- getNamePos (1 + i) !(sc defs (toClosure defaultOpts [] (Erased tfc Placeholder)))
              pure ((x, i) :: ns')
     getNamePos _ _ = pure []
 
@@ -301,6 +289,15 @@ findInferrable defs ty = fi 0 0 [] [] ty
              pure rest
     fi pos i args acc ret = findInf acc args ret
 
+checkForShadowing : (env : StringMap FC) -> RawImp -> List (String, FC, FC)
+checkForShadowing env (IPi fc _ _ (Just (UN (Basic name))) argTy retTy) =
+    let argShadowing = checkForShadowing empty argTy
+     in (case lookup name env of
+        Just origFc => (name, origFc, fc) :: checkForShadowing env retTy
+        Nothing => checkForShadowing (insert name fc env) retTy)
+        ++ argShadowing
+checkForShadowing env t = []
+
 export
 processType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
@@ -378,3 +375,7 @@ processType {vars} eopts nest env fc rig vis opts (MkImpTy tfc nameFC n_in ty_ra
               do addHashWithNames n
                  addHashWithNames ty
                  log "module.hash" 15 "Adding hash for type with name \{show n}"
+
+         when (showShadowingWarning !getSession) $
+            whenJust (fromList (checkForShadowing StringMap.empty ty_raw))
+                $ recordWarning . ShadowingLocalBindings fc

@@ -1,5 +1,5 @@
 package base
-version = 0.5.1
+version = 0.6.0
 
 opts = "--ignore-missing-ipkg -Wno-shadowing"
 
@@ -61,6 +61,8 @@ modules = Control.App,
           Data.List.Views,
           Data.List.Quantifiers,
           Data.List1,
+          Data.List1.Elem,
+          Data.List1.Quantifiers,
           Data.List1.Properties,
           Data.Maybe,
           Data.Morphisms,
@@ -82,6 +84,11 @@ modules = Control.App,
           Data.Zippable,
 
           Debug.Trace,
+
+          Deriving.Common,
+          Deriving.Foldable,
+          Deriving.Functor,
+          Deriving.Traversable,
 
           Decidable.Decidable,
           Decidable.Equality,

@@ -106,6 +106,7 @@ Eq Error where
   BadDotPattern fc1 rho1 x1 s1 t1 == BadDotPattern fc2 rho2 x2 s2 t2 = fc1 == fc2
   BadImplicit fc1 x1 == BadImplicit fc2 x2 = fc1 == fc2 && x1 == x2
   BadRunElab fc1 rho1 s1 d1 == BadRunElab fc2 rho2 s2 d2 = fc1 == fc2 && d1 == d2
+  RunElabFail e1 == RunElabFail e2 = e1 == e2
   GenericMsg fc1 x1 == GenericMsg fc2 x2 = fc1 == fc2 && x1 == x2
   TTCError x1 == TTCError x2 = x1 == x2
   FileErr x1 y1 == FileErr x2 y2 = x1 == x2 && y1 == y2
@@ -272,6 +273,13 @@ pwarningRaw (ShadowingGlobalDefs fc ns)
                            pretty0 n
                         :: reflow "is shadowing"
                         :: punctuate comma (map pretty0 (forget ns))
+
+pwarningRaw (ShadowingLocalBindings fc ns)
+    = pure $ vcat
+    [ reflow "You may be unintentionally shadowing the following local bindings:"
+    , indent 2 $ hcat $ pretty0 . fst <$> (forget ns)
+    , !(ploc fc)
+    ]
 
 pwarningRaw (Deprecated s fcAndName)
     = do docs <- traverseOpt (\(fc, name) => getDocsForName fc name justUserDoc) fcAndName
@@ -595,6 +603,8 @@ perrorRaw (BadRunElab fc env script desc)
     = pure $ errorDesc (reflow "Bad elaborator script" <++> code !(pshow env script)
        <++> parens (pretty0 desc) <+> dot)
         <+> line <+> !(ploc fc)
+perrorRaw (RunElabFail e)
+    = pure $ reflow "Error during reflection" <+> colon <++> !(perrorRaw e)
 perrorRaw (GenericMsg fc str) = pure $ pretty0 str <+> line <+> !(ploc fc)
 perrorRaw (TTCError msg)
     = pure $ errorDesc (reflow "Error in TTC file" <+> colon <++> byShow msg)

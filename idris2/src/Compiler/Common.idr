@@ -24,6 +24,7 @@ import Data.List1
 import Libraries.Data.NameMap
 import Data.String as String
 
+import Idris.Syntax
 import Idris.Env
 
 import System.Directory
@@ -36,10 +37,12 @@ public export
 record Codegen where
   constructor MkCG
   ||| Compile an Idris 2 expression, saving it to a file.
-  compileExpr : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
+  compileExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo ->
+                (tmpDir : String) -> (outputDir : String) ->
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
   ||| Execute an Idris 2 expression directly.
-  executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
+  executeExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo ->
+                (tmpDir : String) -> ClosedTerm -> Core ()
   ||| Compile modules into a library.
   compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) ->
                    (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
@@ -49,7 +52,7 @@ record Codegen where
   ||| file, if successful, plus any other backend specific data in a list
   ||| of strings. The generated object file should be placed in the same
   ||| directory as the associated TTC.
-  incCompileFile : Maybe (Ref Ctxt Defs ->
+  incCompileFile : Maybe (Ref Ctxt Defs -> Ref Syn SyntaxInfo ->
                           (sourcefile : String) ->
                           Core (Maybe (String, List String)))
   ||| If incremental compilation is supported, get the output file extension
@@ -102,28 +105,30 @@ record CompileData where
 ||| that executes the `compileExpr` method of the Codegen
 export
 cgCompileExpr : {auto c : Ref Ctxt Defs} ->
+                {auto s : Ref Syn SyntaxInfo} ->
                 Codegen ->
                 ClosedTerm -> (outfile : String) -> Core (Maybe String)
-cgCompileExpr {c} cg tm out
+cgCompileExpr {c} {s} cg tm out
     = do d <- getDirs
          let tmpDir = execBuildDir d
          let outputDir = outputDirWithDefault d
          ensureDirectoryExists tmpDir
          ensureDirectoryExists outputDir
          logTime 1 "Code generation overall" $
-             compileExpr cg c tmpDir outputDir tm out
+             compileExpr cg c s tmpDir outputDir tm out
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
 ||| the `executeExpr` method of the given Codegen
 export
 cgExecuteExpr : {auto c : Ref Ctxt Defs} ->
+                {auto s : Ref Syn SyntaxInfo} ->
                 Codegen -> ClosedTerm -> Core ()
-cgExecuteExpr {c} cg tm
+cgExecuteExpr {c} {s} cg tm
     = do d <- getDirs
          let tmpDir = execBuildDir d
          ensureDirectoryExists tmpDir
-         executeExpr cg c tmpDir tm
+         executeExpr cg c s tmpDir tm
 
 ||| Compile library
 ||| Given a value of type Codegen, produce a standalone function
@@ -145,11 +150,12 @@ cgCompileLibrary {c} cg libName changedModules
 
 export
 incCompile : {auto c : Ref Ctxt Defs} ->
+             {auto s : Ref Syn SyntaxInfo} ->
              Codegen -> String -> Core (Maybe (String, List String))
-incCompile {c} cg src
+incCompile {c} {s} cg src
     = do let Just inc = incCompileFile cg
              | Nothing => pure Nothing
-         inc c src
+         inc c s src
 
 -- If an entry isn't already decoded, get the minimal entry we need for
 -- compilation, and record the Binary so that we can put it back when we're
@@ -165,7 +171,7 @@ getMinimalDef (Coded ns bin)
          mul <- fromBuf b
          name <- fromBuf b
          let def
-             = MkGlobalDef fc name (Erased fc False) [] [] [] [] mul
+             = MkGlobalDef fc name (Erased fc Placeholder) [] [] [] [] mul
                            [] Public (MkTotality Unchecked IsCovering)
                            [] Nothing refsR False False True
                            None cdef Nothing [] Nothing
@@ -226,11 +232,11 @@ replaceEntry (i, Just (ns, b))
     = ignore $ addContextEntry ns (Resolved i) b
 
 natHackNames : List Name
-natHackNames
-    = [UN (Basic "prim__add_Integer"),
-       UN (Basic "prim__sub_Integer"),
-       UN (Basic "prim__mul_Integer"),
-       NS typesNS (UN $ Basic "prim__integerToNat")]
+natHackNames =
+    [ UN (Basic "prim__sub_Integer")
+    , NS typesNS (UN $ Basic "prim__integerToNat")
+    , NS eqOrdNS (UN $ Basic "compareInteger")
+    ]
 
 dumpIR : Show def => String -> List (Name, def) -> Core ()
 dumpIR fn lns
@@ -273,7 +279,7 @@ getExported backend all
 -- Return the names, the type tags, and a compiled version of the expression
 export
 getCompileDataWith : {auto c : Ref Ctxt Defs} ->
-                     Maybe String -> -- which FFI, if compiling foreign exports
+                     List String -> -- which FFI(s), if compiling foreign exports
                      (doLazyAnnots : Bool) ->
                      UsePhase -> ClosedTerm -> Core CompileData
 getCompileDataWith exports doLazyAnnots phase_in tm_in
@@ -307,23 +313,22 @@ getCompileDataWith exports doLazyAnnots phase_in tm_in
 
          defs <- get Ctxt
          let refs  = getRefs (Resolved (-1)) tm_in
-         let exported
-                 = maybe []
-                         (\backend => getExported backend (foreignExports defs))
-                         exports
+         exported <- if isNil exports
+                 then pure []
+                 else getExports defs
+         log "compile.export" 25 "exporting: \{show $ map fst exported}"
          let ns = keys (mergeWith const metas refs) ++ map fst exported
          log "compile.execute" 70 $
            "Found names: " ++ concat (intersperse ", " $ map show $ ns)
          tm <- toFullNames tm_in
          natHackNames' <- traverse toResolvedNames natHackNames
-         noMangleNames <- getAllNoMangle
          -- make an array of Bools to hold which names we've found (quicker
          -- to check than a NameMap!)
          asize <- getNextEntry
          arr <- coreLift $ newArray asize
 
          defs <- get Ctxt
-         logTime 2 "Get names" $ getAllDesc (natHackNames' ++ noMangleNames ++ ns) arr defs
+         logTime 2 "Get names" $ getAllDesc (natHackNames' ++ ns) arr defs
 
          let entries = catMaybes !(coreLift (toList arr))
          let allNs = map (Resolved . fst) entries
@@ -387,6 +392,19 @@ getCompileDataWith exports doLazyAnnots phase_in tm_in
          -- it'll have to decode the definitions again.
          traverse_ replaceEntry entries
          pure (MkCompileData csetm exported namedDefs lifted anf vmcode)
+  where
+    lookupBackend :
+        List String ->
+        (Name, List (String, String)) ->
+        Maybe (Name, String)
+    lookupBackend [] _ = Nothing
+    lookupBackend (b :: bs) (n, exps) = case find (\(b', _) => b == b') exps of
+        Just (_, exp) => Just (n, exp)
+        Nothing => lookupBackend bs (n, exps)
+
+    getExports : Defs -> Core (List (Name, String))
+    getExports defs = traverse (\(n, exp) => pure (!(resolved defs.gamma n), exp)) $
+        mapMaybe (lookupBackend exports) (toList defs.foreignExports)
 
 -- Find all the names which need compiling, from a given expression, and compile
 -- them to CExp form (and update that in the Defs).
@@ -395,7 +413,7 @@ export
 getCompileData : {auto c : Ref Ctxt Defs} ->
                  (doLazyAnnots : Bool) ->
                  UsePhase -> ClosedTerm -> Core CompileData
-getCompileData = getCompileDataWith Nothing
+getCompileData = getCompileDataWith []
 
 export
 compileTerm : {auto c : Ref Ctxt Defs} ->

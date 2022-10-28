@@ -1,5 +1,5 @@
 package idris2
-version = 0.5.1
+version = 0.6.0
 
 modules =
     Algebra,
@@ -58,6 +58,7 @@ modules =
     Core.Context.Data,
     Core.Context.Log,
     Core.Context.Pretty,
+    Core.Context.TTC,
     Core.Core,
     Core.Coverage,
     Core.Directory,
@@ -83,6 +84,7 @@ modules =
     Core.Termination,
     Core.Transform,
     Core.TT,
+    Core.TT.Views,
     Core.TT.Traversals,
     Core.TTC,
     Core.Unify,
@@ -126,6 +128,8 @@ modules =
     Idris.SetOptions,
     Idris.Syntax,
     Idris.Syntax.Builtin,
+    Idris.Syntax.Pragmas,
+    Idris.Syntax.TTC,
     Idris.Syntax.Traversals,
     Idris.Syntax.Views,
     Idris.Version,
@@ -253,6 +257,8 @@ modules =
     TTImp.Reflect,
     TTImp.TTImp,
     TTImp.TTImp.Functor,
+    TTImp.TTImp.Traversals,
+    TTImp.TTImp.TTC,
     TTImp.Unelab,
     TTImp.Utils,
     TTImp.WithClause,
@@ -278,8 +284,10 @@ modules =
     TTImp.Elab.Utils,
 
     TTImp.Interactive.CaseSplit,
+    TTImp.Interactive.Completion,
     TTImp.Interactive.ExprSearch,
     TTImp.Interactive.GenerateDef,
+    TTImp.Interactive.Intro,
     TTImp.Interactive.MakeLemma,
 
     Yaffle.Main,

@@ -15,6 +15,8 @@ import Libraries.Utils.Binary
 import Libraries.Utils.Scheme
 import Libraries.Text.PrettyPrint.Prettyprinter
 
+import Idris.Syntax.Pragmas
+
 import Data.Either
 import Data.Fin
 import Libraries.Data.IOArray
@@ -704,6 +706,7 @@ HasNames Warning where
   full gam (UnreachableClause fc rho s) = UnreachableClause fc <$> full gam rho <*> full gam s
   full gam (ShadowingGlobalDefs fc xs)
     = ShadowingGlobalDefs fc <$> traverseList1 (traversePair (traverseList1 (full gam))) xs
+  full gam w@(ShadowingLocalBindings _ _) = pure w
   full gam (Deprecated x y) = Deprecated x <$> traverseOpt (traversePair (full gam)) y
   full gam (GenericWarn x) = pure (GenericWarn x)
 
@@ -711,6 +714,7 @@ HasNames Warning where
   resolved gam (UnreachableClause fc rho s) = UnreachableClause fc <$> resolved gam rho <*> resolved gam s
   resolved gam (ShadowingGlobalDefs fc xs)
     = ShadowingGlobalDefs fc <$> traverseList1 (traversePair (traverseList1 (resolved gam))) xs
+  resolved gam w@(ShadowingLocalBindings _ _) = pure w
   resolved gam (Deprecated x y) = Deprecated x <$> traverseOpt (traversePair (resolved gam)) y
   resolved gam (GenericWarn x) = pure (GenericWarn x)
 
@@ -780,6 +784,7 @@ HasNames Error where
     = BadDotPattern fc <$> full gam rho <*> pure x <*> full gam s <*> full gam t
   full gam (BadImplicit fc x) = pure (BadImplicit fc x)
   full gam (BadRunElab fc rho s desc) = BadRunElab fc <$> full gam rho <*> full gam s <*> pure desc
+  full gam (RunElabFail e) = RunElabFail <$> full gam e
   full gam (GenericMsg fc x) = pure (GenericMsg fc x)
   full gam (TTCError x) = pure (TTCError x)
   full gam (FileErr x y) = pure (FileErr x y)
@@ -868,6 +873,7 @@ HasNames Error where
     = BadDotPattern fc <$> resolved gam rho <*> pure x <*> resolved gam s <*> resolved gam t
   resolved gam (BadImplicit fc x) = pure (BadImplicit fc x)
   resolved gam (BadRunElab fc rho s desc) = BadRunElab fc <$> resolved gam rho <*> resolved gam s <*> pure desc
+  resolved gam (RunElabFail e) = RunElabFail <$> resolved gam e
   resolved gam (GenericMsg fc x) = pure (GenericMsg fc x)
   resolved gam (TTCError x) = pure (TTCError x)
   resolved gam (FileErr x y) = pure (FileErr x y)
@@ -1116,7 +1122,7 @@ getSimilarNames nm = case show <$> userNameRoot nm of
                Just def <- lookupCtxtExact nm (gamma defs)
                    | Nothing => pure Nothing -- should be impossible
                pure (Just (visibility def, dist))
-       kept <- mapMaybeM @{CORE} test (resolvedAs (gamma defs))
+       kept <- NameMap.mapMaybeM @{CORE} test (resolvedAs (gamma defs))
        pure $ Just (str, toList kept)
 
 export
@@ -2482,6 +2488,9 @@ addImportedInc modNS inc
                   do recordWarning (GenericWarn ("No incremental compile data for " ++ show modNS))
                      defs <- get Ctxt
                      put Ctxt ({ allIncData $= drop cg } defs)
+                     -- Tell session that the codegen is no longer incremental
+                     when (show modNS /= "") $
+                        updateSession { incrementalCGs $= (delete cg) }
                 Just (mods, extra) =>
                      put Ctxt ({ allIncData $= addMod cg (mods, extra) }
                                       defs)

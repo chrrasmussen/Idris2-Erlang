@@ -28,6 +28,8 @@ data NameType : Type where
      DataCon : (tag : Int) -> (arity : Nat) -> NameType
      TyCon   : (tag : Int) -> (arity : Nat) -> NameType
 
+%name NameType nt
+
 export
 covering
 Show NameType where
@@ -49,9 +51,15 @@ record KindedName where
   fullName : Name -- fully qualified name
   rawName  : Name
 
+%name KindedName kn
+
 export
 defaultKindedName : Name -> KindedName
 defaultKindedName nm = MkKindedName Nothing nm nm
+
+export
+funKindedName : Name -> KindedName
+funKindedName nm = MkKindedName (Just Func) nm nm
 
 export
 Show KindedName where show = show . rawName
@@ -79,6 +87,8 @@ data PrimType
     | DoubleType
     | WorldType
 
+%name PrimType pty
+
 public export
 data Constant
     = I   Int
@@ -96,6 +106,8 @@ data Constant
     | Db  Double
     | PrT PrimType
     | WorldVal
+
+%name Constant cst
 
 export
 isConstantType : Name -> Maybe PrimType
@@ -300,6 +312,8 @@ primTypeTag Int64Type = 16
 public export
 data Precision = P Int | Unlimited
 
+%name Precision prec
+
 export
 Eq Precision where
   (P m) == (P n)         = m == n
@@ -384,6 +398,8 @@ data PrimFn : Nat -> Type where
      Cast : PrimType -> PrimType -> PrimFn 1
      BelieveMe : PrimFn 3
      Crash : PrimFn 2
+
+%name PrimFn f
 
 export
 Show (PrimFn arity) where
@@ -473,6 +489,8 @@ prettyOp op@Crash [v1,v2] = annotate (Fun $ UN $ Basic $ show op) "crash" <++> v
 public export
 data PiInfo t = Implicit | Explicit | AutoImplicit | DefImplicit t
 
+%name PiInfo pinfo
+
 namespace PiInfo
 
   export
@@ -530,6 +548,8 @@ data Binder : Type -> Type where
      PLet : FC -> RigCount -> (val : type) -> (ty : type) -> Binder type
      -- the type of pattern bound variables
      PVTy : FC -> RigCount -> (ty : type) -> Binder type
+
+%name Binder bd
 
 export
 isLet : Binder t -> Bool
@@ -654,6 +674,8 @@ public export
 data IsVar : Name -> Nat -> List Name -> Type where
      First : IsVar n Z (n :: ns)
      Later : IsVar n i ns -> IsVar n (S i) (m :: ns)
+
+%name IsVar idx
 
 export
 dropLater : IsVar nm (S idx) (v :: vs) -> IsVar nm idx vs
@@ -810,10 +832,39 @@ namespace CList
 public export
 data LazyReason = LInf | LLazy | LUnknown
 
+%name LazyReason lz
+
 -- For as patterns matching linear arguments, select which side is
 -- consumed
 public export
 data UseSide = UseLeft | UseRight
+
+%name UseSide side
+
+public export
+data WhyErased a
+  = Placeholder
+  | Impossible
+  | Dotted a
+
+%name WhyErased why
+
+export
+Functor WhyErased where
+  map f Placeholder = Placeholder
+  map f Impossible = Impossible
+  map f (Dotted x) = Dotted (f x)
+
+export
+Foldable WhyErased where
+  foldr c n (Dotted x) = c x n
+  foldr c n _ = n
+
+export
+Traversable WhyErased where
+  traverse f Placeholder = pure Placeholder
+  traverse f Impossible = pure Impossible
+  traverse f (Dotted x) = Dotted <$> f x
 
 public export
 data Term : List Name -> Type where
@@ -839,12 +890,12 @@ data Term : List Name -> Type where
      TDelay : FC -> LazyReason -> (ty : Term vars) -> (arg : Term vars) -> Term vars
      TForce : FC -> LazyReason -> Term vars -> Term vars
      PrimVal : FC -> (c : Constant) -> Term vars
-     Erased : FC -> (imp : Bool) -> -- True == impossible term, for coverage checker
+     Erased : FC -> WhyErased (Term vars) -> -- True == impossible term, for coverage checker
               Term vars
      TType : FC -> Name -> -- universe variable
              Term vars
 
-%name Term s, t, u
+%name Term t, u
 
 -- Remove/restore the given namespace from all Refs. This is to allow
 -- writing terms and case trees to disk without repeating the same namespace
@@ -954,6 +1005,15 @@ Eq a => Eq (Binder a) where
 
 export
 total
+Eq a => Eq (WhyErased a) where
+  Placeholder == Placeholder = True
+  Impossible == Impossible = True
+  Dotted t == Dotted u = t == u
+  _ == _ = False
+
+
+export
+total
 Eq (Term vars) where
   (==) (Local _ _ idx _) (Local _ _ idx' _) = idx == idx'
   (==) (Ref _ _ n) (Ref _ _ n') = n == n'
@@ -967,11 +1027,13 @@ Eq (Term vars) where
   (==) (TDelay _ _ t x) (TDelay _ _ t' x') = t == t' && x == x'
   (==) (TForce _ _ t) (TForce _ _ t') = t == t'
   (==) (PrimVal _ c) (PrimVal _ c') = c == c'
-  (==) (Erased _ i) (Erased _ i') = i == i'
+  (==) (Erased _ i) (Erased _ i') = assert_total (i == i')
   (==) (TType _ _) (TType _ _) = True
   (==) _ _ = False
 
 -- Check equality, ignoring variable naming and universes
+eqWhyErased : WhyErased (Term vs) -> WhyErased (Term vs') -> Bool
+
 export
 total
 eqTerm : Term vs -> Term vs' -> Bool
@@ -987,9 +1049,14 @@ eqTerm (TDelayed _ _ t) (TDelayed _ _ t') = eqTerm t t'
 eqTerm (TDelay _ _ t x) (TDelay _ _ t' x') = eqTerm t t' && eqTerm x x'
 eqTerm (TForce _ _ t) (TForce _ _ t') = eqTerm t t'
 eqTerm (PrimVal _ c) (PrimVal _ c') = c == c'
-eqTerm (Erased _ i) (Erased _ i') = i == i'
+eqTerm (Erased _ i) (Erased _ i') = eqWhyErased i i'
 eqTerm (TType _ _) (TType _ _) = True
 eqTerm _ _ = False
+
+eqWhyErased Impossible Impossible = True
+eqWhyErased Placeholder Placeholder = True
+eqWhyErased (Dotted t) (Dotted u)  = eqTerm t u
+eqWhyErased _ _ = False
 
 public export
 interface Weaken tm where
@@ -1004,6 +1071,7 @@ interface Weaken tm where
 
 public export
 data Visibility = Private | Export | Public
+%name Visibility vis
 
 export
 Show Visibility where
@@ -1040,6 +1108,7 @@ Ord Visibility where
 
 public export
 data TotalReq = Total | CoveringOnly | PartialOK
+%name TotalReq treq
 
 export
 Eq TotalReq where
@@ -1259,7 +1328,9 @@ insertNames out ns (TDelay fc r ty tm)
     = TDelay fc r (insertNames out ns ty) (insertNames out ns tm)
 insertNames out ns (TForce fc r tm) = TForce fc r (insertNames out ns tm)
 insertNames out ns (PrimVal fc c) = PrimVal fc c
-insertNames out ns (Erased fc i) = Erased fc i
+insertNames out ns (Erased fc Impossible) = Erased fc Impossible
+insertNames out ns (Erased fc Placeholder) = Erased fc Placeholder
+insertNames out ns (Erased fc (Dotted t)) = Erased fc (Dotted (insertNames out ns t))
 insertNames out ns (TType fc u) = TType fc u
 
 export
@@ -1466,7 +1537,9 @@ mutual
   shrinkTerm (TForce fc r x) prf
      = Just (TForce fc r !(shrinkTerm x prf))
   shrinkTerm (PrimVal fc c) prf = Just (PrimVal fc c)
-  shrinkTerm (Erased fc i) prf = Just (Erased fc i)
+  shrinkTerm (Erased fc Placeholder) prf = Just (Erased fc Placeholder)
+  shrinkTerm (Erased fc Impossible) prf = Just (Erased fc Impossible)
+  shrinkTerm (Erased fc (Dotted t)) prf = Erased fc . Dotted <$> shrinkTerm t prf
   shrinkTerm (TType fc u) prf = Just (TType fc u)
 
 varEmbedSub : SubVars small vars ->
@@ -1499,7 +1572,9 @@ embedSub sub (TDelay fc x t y)
     = TDelay fc x (embedSub sub t) (embedSub sub y)
 embedSub sub (TForce fc r x) = TForce fc r (embedSub sub x)
 embedSub sub (PrimVal fc c) = PrimVal fc c
-embedSub sub (Erased fc i) = Erased fc i
+embedSub sub (Erased fc Impossible) = Erased fc Impossible
+embedSub sub (Erased fc Placeholder) = Erased fc Placeholder
+embedSub sub (Erased fc (Dotted t)) = Erased fc (Dotted (embedSub sub t))
 embedSub sub (TType fc u) = TType fc u
 
 namespace Bounds
@@ -1555,7 +1630,9 @@ mkLocals outer bs (TDelay fc x t y)
 mkLocals outer bs (TForce fc r x)
     = TForce fc r (mkLocals outer bs x)
 mkLocals outer bs (PrimVal fc c) = PrimVal fc c
-mkLocals outer bs (Erased fc i) = Erased fc i
+mkLocals outer bs (Erased fc Impossible) = Erased fc Impossible
+mkLocals outer bs (Erased fc Placeholder) = Erased fc Placeholder
+mkLocals outer bs (Erased fc (Dotted t)) = Erased fc (Dotted (mkLocals outer bs t))
 mkLocals outer bs (TType fc u) = TType fc u
 
 export
@@ -1656,7 +1733,9 @@ namespace SubstEnv
       = TDelay fc x (substEnv outer env t) (substEnv outer env y)
   substEnv outer env (TForce fc r x) = TForce fc r (substEnv outer env x)
   substEnv outer env (PrimVal fc c) = PrimVal fc c
-  substEnv outer env (Erased fc i) = Erased fc i
+  substEnv outer env (Erased fc Impossible) = Erased fc Impossible
+  substEnv outer env (Erased fc Placeholder) = Erased fc Placeholder
+  substEnv outer env (Erased fc (Dotted t)) = Erased fc (Dotted (substEnv outer env t))
   substEnv outer env (TType fc u) = TType fc u
 
   export
@@ -1714,7 +1793,7 @@ addMetas res ns (TDelay fc x t y)
     = addMetas res (addMetas res ns t) y
 addMetas res ns (TForce fc r x) = addMetas res ns x
 addMetas res ns (PrimVal fc c) = ns
-addMetas res ns (Erased fc i) = ns
+addMetas res ns (Erased fc i) = foldr (flip $ addMetas res) ns i
 addMetas res ns (TType fc u) = ns
 
 -- Get the metavariable names in a term
@@ -1749,7 +1828,7 @@ addRefs ua at ns (TDelay fc x t y)
     = addRefs ua at (addRefs ua at ns t) y
 addRefs ua at ns (TForce fc r x) = addRefs ua at ns x
 addRefs ua at ns (PrimVal fc c) = ns
-addRefs ua at ns (Erased fc i) = ns
+addRefs ua at ns (Erased fc i) = foldr (flip $ addRefs ua at) ns i
 addRefs ua at ns (TType fc u) = ns
 
 -- As above, but for references. Also flag whether a name is under an
@@ -1793,7 +1872,7 @@ covering
             " = " ++ show val ++ " in " ++ show sc
       showApp (Bind _ x (Pi _ c info ty) sc) []
           = withPiInfo info (showCount c ++ show x ++ " : " ++ show ty) ++
-            " -> " ++ show sc ++ ")"
+            " -> " ++ show sc
       showApp (Bind _ x (PVar _ c info ty) sc) []
           = withPiInfo info ("pat " ++ showCount c ++ show x ++ " : " ++ show ty) ++
             " => " ++ show sc
@@ -1809,6 +1888,7 @@ covering
       showApp (TDelay _ _ _ tm) [] = "%Delay " ++ show tm
       showApp (TForce _ _ tm) [] = "%Force " ++ show tm
       showApp (PrimVal _ c) [] = show c
+      showApp (Erased _ (Dotted t)) [] = ".(" ++ show t ++ ")"
       showApp (Erased _ _) [] = "[__]"
       showApp (TType _ u) [] = "Type"
       showApp _ [] = "???"

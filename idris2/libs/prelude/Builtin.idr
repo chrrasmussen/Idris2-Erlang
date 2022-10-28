@@ -189,7 +189,7 @@ mkDPairInjectiveSnd Refl = Refl
 ||| Subvert the type checker.  This function is abstract, so it will not reduce
 ||| in the type checker.  Use it with care - it can result in segfaults or
 ||| worse!
-public export
+public export %inline
 believe_me : a -> b -- TODO: make linear
 believe_me v = prim__believe_me _ _ v
 
@@ -200,7 +200,6 @@ assert_linear = believe_me id
   where
     id : (1 f : a -> b) -> a -> b
     id f = f
-
 
 export partial
 idris_crash : String -> a
