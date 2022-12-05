@@ -88,12 +88,13 @@ idrisTestsError = MkTestPool "Error messages" [] Nothing
        "error006", "error007", "error008", "error009", "error010",
        "error011", "error012", "error013", "error014", "error015",
        "error016", "error017", "error018", "error019", "error020",
-       "error021", "error022", "error023",
+       "error021", "error022", "error023", "error024", "error025",
        -- Parse errors
        "perror001", "perror002", "perror003", "perror004", "perror005",
        "perror006", "perror007", "perror008", "perror009", "perror010",
        "perror011", "perror012", "perror013", "perror014", "perror015",
-       "perror016", "perror017", "perror018", "perror019"]
+       "perror016", "perror017", "perror018", "perror019", "perror020",
+       "perror021", "perror022"]
 
 idrisTestsInteractive : TestPool
 idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
@@ -251,7 +252,7 @@ idrisTestsIPKG : TestPool
 idrisTestsIPKG = MkTestPool "Package and .ipkg files" [] Nothing
       ["pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
        "pkg008", "pkg009", "pkg010", "pkg011", "pkg012", "pkg013", "pkg014",
-       "pkg015"]
+       "pkg015", "pkg016" ]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -261,7 +262,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "eta001",
        -- Modules and imports
        "import001", "import002", "import003", "import004", "import005", "import006",
-       "import007",
+       "import007", "import008",
        -- Implicit laziness, lazy evaluation
        "lazy001", "lazy002",
        -- Namespace blocks

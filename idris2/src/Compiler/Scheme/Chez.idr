@@ -218,8 +218,9 @@ loadSO : {auto c : Ref Ctxt Defs} ->
 loadSO appdir "" = pure ""
 loadSO appdir mod
     = do d <- getDirs
-         let fs = map (\p => p </> mod)
-                      ((build_dir d </> "ttc") :: extra_dirs d)
+         bdir <- ttcBuildDirectory
+         allDirs <- extraSearchDirectories
+         let fs = map (\p => p </> mod) (bdir :: allDirs)
          Just fname <- firstAvailable fs
             | Nothing => throw (InternalError ("Missing .so:" ++ mod))
          -- Easier to put them all in the same directory, so we don't need
@@ -487,7 +488,7 @@ compileToSO prof chez appDirRel outSsAbs
          Right () <- coreLift $ writeFile tmpFileAbs build
             | Left err => throw (FileErr tmpFileAbs err)
          coreLift_ $ chmodRaw tmpFileAbs 0o755
-         coreLift_ $ system (chez ++ " --script \"" ++ tmpFileAbs ++ "\"")
+         coreLift_ $ system [chez, "--script", tmpFileAbs]
          pure ()
 
 ||| Compile a TT expression to Chez Scheme using incremental module builds
@@ -615,7 +616,7 @@ executeExpr :
 executeExpr c s tmpDir tm
     = do Just sh <- compileExpr False c s tmpDir tmpDir tm "_tmpchez"
             | Nothing => throw (InternalError "compileExpr returned Nothing")
-         coreLift_ $ system sh
+         coreLift_ $ system [sh]
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do
@@ -634,7 +635,7 @@ incCompile c s sourceFile
          cdata <- getIncCompileData False Cases
 
          d <- getDirs
-         let outputDir = build_dir d </> "ttc"
+         outputDir <- ttcBuildDirectory
 
          let ndefs = namedDefs cdata
          if isNil ndefs
@@ -659,7 +660,7 @@ incCompile c s sourceFile
                           show ssFile ++ "))"
                Right () <- coreLift $ writeFile tmpFileAbs build
                   | Left err => throw (FileErr tmpFileAbs err)
-               coreLift_ $ system (chez ++ " --script \"" ++ tmpFileAbs ++ "\"")
+               coreLift_ $ system [chez, "--script", tmpFileAbs]
                pure (Just (soFilename, mapMaybe fst fgndefs))
 
 ||| Codegen wrapper for Chez scheme implementation.

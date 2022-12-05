@@ -243,7 +243,8 @@ mutual
 
       braceArgs : OriginDesc -> IndentInfo -> Rule (List ArgType)
       braceArgs fname indents
-          = do start <- bounds (decoratedSymbol fname "{")
+        = do start <- bounds (decoratedSymbol fname "{")
+             mustWork $ do
                list <- sepBy (decoratedSymbol fname ",")
                         $ do x <- bounds (UN . Basic <$> decoratedSimpleNamedArg fname)
                              let fc = boundToFC fname x
@@ -614,12 +615,6 @@ mutual
             ty <- typeExpr pdef fname indents
             atEnd indents
             pure (map (\n => (rig, n, ty)) ns)
-     <|> forget <$> sepBy1 (decoratedSymbol fname ",")
-                           (do rig <- multiplicity fname
-                               n <- bounds (decorate fname Bound binderName)
-                               decoratedSymbol fname ":"
-                               ty <- typeExpr pdef fname indents
-                               pure (rig, map UN n, ty))
     where
       -- _ gets treated specially here, it means "I don't care about the name"
       binderName : Rule UserName
@@ -1707,7 +1702,7 @@ recordDecl fname indents
                          col         <- column
                          decoratedKeyword fname "record"
                          n       <- mustWork (decoratedDataTypeName fname)
-                         paramss <- many (recordParam fname indents)
+                         paramss <- many (continue indents >> recordParam fname indents)
                          let params = concat paramss
                          recordBody fname indents doc vis mbtot col n params)
          pure (b.val (boundToFC fname b))
@@ -1789,12 +1784,12 @@ topDecl fname indents
          pure [d]
   <|> do ds <- claims fname indents
          pure (forget ds)
+  <|> do d <- implDecl fname indents
+         pure [d]
   <|> do d <- definition fname indents
          pure [d]
   <|> fixDecl fname indents
   <|> do d <- ifaceDecl fname indents
-         pure [d]
-  <|> do d <- implDecl fname indents
          pure [d]
   <|> do d <- recordDecl fname indents
          pure [d]

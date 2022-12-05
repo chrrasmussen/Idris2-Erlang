@@ -93,6 +93,8 @@ data CLOpt
   Profile |
    ||| Display Idris version
   Version |
+   ||| Display the TTC version currently used
+  TTCVersion |
    ||| Display help text
   Help (Maybe HelpTopic) |
    ||| Suppress the banner
@@ -345,6 +347,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            optSeparator,
            MkOpt ["--version", "-v"] [] [Version]
               (Just "Display version string"),
+           MkOpt ["--ttc-version"] [] [TTCVersion]
+              (Just "Display TTC version string"),
            MkOpt ["--help", "-h", "-?"] [Optional "topic"] (\ tp => [Help (tp >>= recogniseHelpTopic)])
               (Just "Display help text"),
 
