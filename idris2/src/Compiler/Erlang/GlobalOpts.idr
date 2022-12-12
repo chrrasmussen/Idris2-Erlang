@@ -10,7 +10,7 @@ import Compiler.Erlang.Name
 
 
 public export
-data OutputFormat = ErlangSource | ErlangSourcePretty | AbstractFormat | BeamFromErlangSource | BeamFromAbstractFormat
+data OutputFormat = ErlangSource | ErlangSourcePretty | AbstractFormat | BeamFromErlangSource | BeamFromAbstractFormat | Escript
 
 public export
 record GlobalOpts where
@@ -22,7 +22,7 @@ record GlobalOpts where
 
 export
 defaultGlobalOpts : GlobalOpts
-defaultGlobalOpts = MkGlobalOpts BeamFromErlangSource "Idris" 0 False
+defaultGlobalOpts = MkGlobalOpts Escript "Idris" 0 False
 
 
 data Flag
@@ -50,6 +50,7 @@ parseOutputFormat "erl-pretty" = Just ErlangSourcePretty
 parseOutputFormat "abstr" = Just AbstractFormat
 parseOutputFormat "beam" = Just BeamFromErlangSource
 parseOutputFormat "beam-abstr" = Just BeamFromAbstractFormat
+parseOutputFormat "escript" = Just Escript
 parseOutputFormat _ = Nothing
 
 stringToFlags : List String -> List Flag

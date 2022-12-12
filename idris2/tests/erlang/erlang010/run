@@ -1,6 +1,6 @@
-rm -rf build *.beam
+rm -rf build main *.beam
 
 $1 --no-color --console-width 0 --no-banner --output-dir . Main.idr < input
-escript foo.beam
-escript foo.beam a b
-escript foo.beam a "b c"
+./main
+./main a b
+./main a "b c"

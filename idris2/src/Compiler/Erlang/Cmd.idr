@@ -59,6 +59,31 @@ erlShowPath = show -- The Show implementation is close enough to Erlang syntax
 erlShowPaths : List String -> String
 erlShowPaths = show -- The Show implementation is close enough to Erlang syntax
 
+-- To make the generated Escript relocatable, make sure to output the
+-- Escript to the current directory or to an absolute path (1st argument to
+-- `escript:create/2`).
+export
+archiveFilesToEscriptCmd : (erl : String) -> (inputDir : String) -> (inputFiles : List String) -> (outputDir : String) -> (mainModule : String) -> String
+archiveFilesToEscriptCmd erl inputDir inputFiles outputDir mainModule =
+  let code =
+        """
+        InputDir = \{erlShowPath inputDir},
+        InputFiles = \{erlShowPaths inputFiles},
+        OutputDir = \{erlShowPath outputDir},
+        MainModule = \{erlShowPath mainModule},
+        GeneratedEscriptFile = filename:join(InputDir, MainModule),
+        OutputFile = filename:join(OutputDir, MainModule),
+        EmuArgs = "-escript main " ++ MainModule,
+        {ok, CurrentDir} = file:get_cwd(),
+        file:set_cwd(InputDir),
+        escript:create(MainModule, [shebang, {emu_args, EmuArgs}, {archive, InputFiles, []}]),
+        file:change_mode(MainModule, 8#00755),
+        file:set_cwd(CurrentDir),
+        file:rename(GeneratedEscriptFile, OutputFile),
+        halt(0)
+        """
+  in evalErlangSourceCmd erl code
+
 export
 compileAbstrToBeamCmd : (erl : String) -> (srcFiles : List String) -> (outputDir : String) -> String
 compileAbstrToBeamCmd erl srcFiles outputDir =

@@ -2,4 +2,4 @@ rm -rf custom_build custom_output
 
 $1 --build dummy.ipkg
 
-escript ./custom_output/check_dir.beam
+./custom_output/check_dir

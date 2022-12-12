@@ -148,8 +148,8 @@ compileLibraryToModules globalOpts allModuleOpts changedModules = do
         let namespaces = map miAsNamespace modulesToCompile
         in any (`isParentOf` getNamespace n) namespaces
 
-build : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
-build globalOpts allModuleOpts tmpDir outputDir modules = do
+build : {auto c : Ref Ctxt Defs} -> GlobalOpts -> List ModuleOpts -> (tmpDir : String) -> (outputDir : String) -> (moduleName : Maybe String) -> (modules : List (NamespaceInfo, List ErlFunDecl)) -> Core (List String)
+build globalOpts allModuleOpts tmpDir outputDir moduleName modules = do
   erl <- coreLift findErlangExecutable
   erlc <- coreLift findErlangCompiler
   case outputFormat globalOpts of
@@ -166,6 +166,13 @@ build globalOpts allModuleOpts tmpDir outputDir modules = do
     BeamFromAbstractFormat => do
       generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
       coreLift_ $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
+    Escript => do
+      let Just mainModule = moduleName
+            | Nothing => throw (InternalError "Expected a main module")
+      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
+      coreLift_ $ system $ compileErlToBeamCmd erlc generatedFiles tmpDir
+      let beamFiles = mapMaybe (\path => fileName (path <.> "beam")) generatedFiles -- Change extension from `.erl` to `.beam`
+      coreLift_ $ system $ archiveFilesToEscriptCmd erl tmpDir beamFiles outputDir mainModule
   pure $ map (currentModuleName . fst) modules
 
 
@@ -187,9 +194,10 @@ compileExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> (outpu
 compileExpr c s tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
   let globalOpts = getGlobalOpts ds
-  let modName = outfile
+  let Just modName = fileName outfile
+        | Nothing => throw (InternalError "Expected a filename")
   modules <- compileMainEntrypointToModules globalOpts tm modName
-  ignore $ build globalOpts [] tmpDir outputDir modules
+  ignore $ build globalOpts [] tmpDir outputDir (Just modName) modules
   pure (Just outfile)
 
 executeExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> ClosedTerm -> Core ()
@@ -198,7 +206,7 @@ executeExpr c s tmpDir tm = do
   let globalOpts = getGlobalOpts ds
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
-  ignore $ build globalOpts [] tmpDir tmpDir modules
+  ignore $ build globalOpts [] tmpDir tmpDir (Just modName) modules
   erl <- coreLift $ findErlangExecutable
   coreLift_ $ system (executeBeamCmd erl tmpDir modName)
 
@@ -208,7 +216,7 @@ compileLibrary c tmpDir outputDir libName changedModules = do
   let globalOpts = getGlobalOpts ds
   let allModuleOpts = getAllModuleOpts ds
   modules <- compileLibraryToModules globalOpts allModuleOpts changedModules
-  generatedModules <- build globalOpts allModuleOpts tmpDir outputDir modules
+  generatedModules <- build globalOpts allModuleOpts tmpDir outputDir Nothing modules
   pure (Just (libName, generatedModules))
 
 export

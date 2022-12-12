@@ -1,5 +1,5 @@
-rm -rf build *.beam
+rm -rf build main *.beam
 
 $1 --no-color --console-width 0 --no-banner --output-dir . Main.idr < input
 erlc -W0 test_support.erl
-escript main.beam
+./main
