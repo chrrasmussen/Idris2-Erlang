@@ -4,6 +4,7 @@ import public Compiler.Erlang.IR.AbstractFormat
 
 import Data.Fin
 import Data.List
+import Data.String
 
 import Compiler.Erlang.Codegen.AbstractFormat.Helpers
 import Compiler.Erlang.Utils.CompositeString
@@ -64,7 +65,7 @@ genBitSegment genValue (MkBitSegment l value size tsl) =
   let bitSizeStr = maybe "" (":" ++) (genBitSize size)
       tslStr = case genTypeSpecifierList size tsl of
         [] => ""
-        xs => "/" ++ showSep "-" xs
+        xs => "/" ++ joinBy "-" xs
   in Nested [genValue value, Str bitSizeStr, Str tslStr]
 
 genBitPattern : BitPattern -> CompositeString
@@ -206,7 +207,7 @@ genExportFun (name, arity) = genAtom name ++ "/" ++ show (natToInteger arity)
 export
 genDecl : Decl -> CompositeString
 genDecl (ADExport l fs) =
-  Str $ "-export([\n  " ++ showSep ",\n  " (map genExportFun fs) ++ "\n])."
+  Str $ "-export([\n  " ++ joinBy ",\n  " (map genExportFun fs) ++ "\n])."
 genDecl (ADModule l name) =
   Str $ "-module(" ++ genAtom name ++ ")."
 genDecl (ADFunDef l name arity clauses) =

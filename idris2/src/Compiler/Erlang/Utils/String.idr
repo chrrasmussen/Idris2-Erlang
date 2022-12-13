@@ -6,13 +6,6 @@ import Protocol.Hex
 %default total
 
 
-export
-showSep : String -> List String -> String
-showSep sep [] = ""
-showSep sep [x] = x
-showSep sep (x :: xs) = x ++ sep ++ showSep sep xs
-
-
 -- TODO: Does not handle multi-codepoint characters
 export
 escapeChar : Char -> String -> String
