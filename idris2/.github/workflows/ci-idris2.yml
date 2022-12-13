@@ -32,6 +32,10 @@ on:
       - '.github/workflows/ci-sphinx.yml'
       - '.github/workflows/ci-super-linter.yml'
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IDRIS2_VERSION: 0.6.0 # For previous-version build
 
@@ -50,9 +54,9 @@ jobs:
         id: get_commit_message
         run: |
           if   [[ '${{ github.event_name }}' == 'push' ]]; then
-            echo "commit_message=$(git log --format=%B -n 1 HEAD)" >> "$GITHUB_OUTPUT"
+            echo "commit_message=$(git log --format=%B -n 1 HEAD | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
           elif [[ '${{ github.event_name }}' == 'pull_request' ]]; then
-            echo "commit_message=$(git log --format=%B -n 1 HEAD^2)" >> "$GITHUB_OUTPUT"
+            echo "commit_message=$(git log --format=%B -n 1 HEAD^2 | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
           fi
 
     outputs:
@@ -231,9 +235,9 @@ jobs:
     needs: quick-check
     runs-on: ubuntu-latest
     if: |
-      !contains(needs.initialise.outputs.commit_message, '[ci:')
+      false && (!contains(needs.initialise.outputs.commit_message, '[ci:')
       || contains(needs.initialise.outputs.commit_message, '[ci: nix]')
-      || contains(needs.initialise.outputs.commit_message, '[ci: chez]')
+      || contains(needs.initialise.outputs.commit_message, '[ci: chez]'))
     steps:
     - uses: actions/checkout@v2
       with:

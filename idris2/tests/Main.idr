@@ -94,7 +94,7 @@ idrisTestsError = MkTestPool "Error messages" [] Nothing
        "perror006", "perror007", "perror008", "perror009", "perror010",
        "perror011", "perror012", "perror013", "perror014", "perror015",
        "perror016", "perror017", "perror018", "perror019", "perror020",
-       "perror021", "perror022"]
+       "perror021", "perror022", "perror023", "perror024", "perror025"]
 
 idrisTestsInteractive : TestPool
 idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
@@ -148,6 +148,7 @@ idrisTestsPerformance = MkTestPool "Performance" [] Nothing
        -- pose interesting challenges for the elaborator
       ["perf001", "perf002", "perf003", "perf004", "perf005",
        "perf007", "perf008", "perf009", "perf010", "perf011",
+       "perf012",
        "perf2202"]
 
 idrisTestsRegression : TestPool
@@ -252,7 +253,7 @@ idrisTestsIPKG : TestPool
 idrisTestsIPKG = MkTestPool "Package and .ipkg files" [] Nothing
       ["pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
        "pkg008", "pkg009", "pkg010", "pkg011", "pkg012", "pkg013", "pkg014",
-       "pkg015", "pkg016" ]
+       "pkg015", "pkg016", "pkg017" ]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -266,7 +267,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- Implicit laziness, lazy evaluation
        "lazy001", "lazy002",
        -- Namespace blocks
-       "namespace001", "namespace002",
+       "namespace001", "namespace002", "namespace003",
        -- Parameters blocks
        "params001", "params002", "params003",
        -- Larger programs arising from real usage. Typically things with
@@ -307,6 +308,7 @@ chezTests = MkTestPool "Chez backend" [] (Just Chez)
     , "newints"
     , "integers"
     , "nat2fin"
+    , "inlineiobind"
     , "semaphores001"
     , "semaphores002"
     , "perf001"
