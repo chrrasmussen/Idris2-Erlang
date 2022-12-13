@@ -92,7 +92,7 @@ writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespa
         then [Inline defLine, InlineSize defLine (inlineSize globalOpts)]
         else []
   let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
-  let outfile = outputDir </> modName ++ "." ++ extension
+  let outfile = outputDir </> modName ++ "." ++ extension -- `modName` may already contain dots, so make sure to append the extension.
   let decls = genErlModule defLine module_
   let content = fastConcat (flatten (Nested (map declToCS decls)))
   Right () <- coreLift $ writeFile outfile content
@@ -117,7 +117,7 @@ splitNamespaceInfo prefixStr x@(name, _) =
 namespaceInfoToModuleNamePath : (outputDir : String) -> (extension : String) -> NamespaceInfo -> (String, String)
 namespaceInfoToModuleNamePath outputDir extension namespaceInfo =
   let modName = currentModuleName namespaceInfo
-  in (modName, outputDir </> modName ++ "." ++ extension)
+  in (modName, outputDir </> modName ++ "." ++ extension) -- `modName` may already contain dots, so make sure to append the extension.
 
 compileMainEntrypointToModules : {auto c : Ref Ctxt Defs} -> GlobalOpts -> ClosedTerm -> (modName : String) -> Core (List (NamespaceInfo, List ErlFunDecl))
 compileMainEntrypointToModules globalOpts tm modName = do
