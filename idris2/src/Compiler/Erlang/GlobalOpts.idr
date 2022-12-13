@@ -31,18 +31,11 @@ data Flag
   | SetInlineSize Nat
   | SetUseMutableStorage Bool
 
-flagToOpts : Flag -> GlobalOpts -> GlobalOpts
-flagToOpts (SetOutputFormat outputFormat) opts = { outputFormat := outputFormat } opts
-flagToOpts (SetPrefix prefixStr) opts = { prefixStr := prefixStr } opts
-flagToOpts (SetInlineSize inlineSize) opts = { inlineSize := inlineSize } opts
-flagToOpts (SetUseMutableStorage useMutableStorage) opts = { useMutableStorage := useMutableStorage } opts
-
-flagsToOpts : List Flag -> GlobalOpts
-flagsToOpts flags = flagsToOpts' flags defaultGlobalOpts
-  where
-    flagsToOpts' : List Flag -> GlobalOpts -> GlobalOpts
-    flagsToOpts' [] opts = opts
-    flagsToOpts' (flag :: flags) opts = flagsToOpts' flags (flagToOpts flag opts)
+flagToOpts : GlobalOpts -> Flag -> GlobalOpts
+flagToOpts opts (SetOutputFormat outputFormat) = { outputFormat := outputFormat } opts
+flagToOpts opts (SetPrefix prefixStr) = { prefixStr := prefixStr } opts
+flagToOpts opts (SetInlineSize inlineSize) = { inlineSize := inlineSize } opts
+flagToOpts opts (SetUseMutableStorage useMutableStorage) = { useMutableStorage := useMutableStorage } opts
 
 parseOutputFormat : String -> Maybe OutputFormat
 parseOutputFormat "erl" = Just ErlangSource
@@ -64,5 +57,5 @@ stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) --
     parseFlag _ = Nothing
 
 export
-parseOpts : List String -> GlobalOpts
-parseOpts str = flagsToOpts (stringToFlags str)
+parseOpts : GlobalOpts -> List String -> GlobalOpts
+parseOpts initialOpts str = foldl flagToOpts initialOpts (stringToFlags str)

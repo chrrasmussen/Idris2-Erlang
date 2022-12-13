@@ -178,11 +178,11 @@ build globalOpts allModuleOpts tmpDir outputDir moduleName modules = do
 
 -- CODEGEN
 
-getGlobalOpts : List (Namespace, String) -> GlobalOpts
-getGlobalOpts ds =
+getGlobalOpts : GlobalOpts -> List (Namespace, String) -> GlobalOpts
+getGlobalOpts opts ds =
   let groupedDirectives = groupBy fst snd ds
       globalDirectives = fromMaybe [] (lookup emptyNS groupedDirectives) -- TODO: Fix emptyNS
-  in parseOpts globalDirectives
+  in parseOpts opts globalDirectives
 
 getAllModuleOpts : List (Namespace, String) -> List ModuleOpts
 getAllModuleOpts ds =
@@ -193,7 +193,7 @@ getAllModuleOpts ds =
 compileExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> (outputDir : String) -> ClosedTerm -> (outfile : String) -> Core (Maybe String)
 compileExpr c s tmpDir outputDir tm outfile = do
   ds <- getDirectives (Other "erlang")
-  let globalOpts = getGlobalOpts ds
+  let globalOpts = getGlobalOpts defaultGlobalOpts ds
   let Just modName = fileName outfile
         | Nothing => throw (InternalError "Expected a filename")
   modules <- compileMainEntrypointToModules globalOpts tm modName
@@ -203,7 +203,7 @@ compileExpr c s tmpDir outputDir tm outfile = do
 executeExpr : Ref Ctxt Defs -> Ref Syn SyntaxInfo -> (tmpDir : String) -> ClosedTerm -> Core ()
 executeExpr c s tmpDir tm = do
   ds <- getDirectives (Other "erlang")
-  let globalOpts = getGlobalOpts ds
+  let globalOpts = getGlobalOpts defaultGlobalOpts ds
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
   ignore $ build globalOpts [] tmpDir tmpDir (Just modName) modules
@@ -213,7 +213,7 @@ executeExpr c s tmpDir tm = do
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do
   ds <- getDirectives (Other "erlang")
-  let globalOpts = getGlobalOpts ds
+  let globalOpts = getGlobalOpts ({ outputFormat := BeamFromErlangSource } defaultGlobalOpts) ds
   let allModuleOpts = getAllModuleOpts ds
   modules <- compileLibraryToModules globalOpts allModuleOpts changedModules
   generatedModules <- build globalOpts allModuleOpts tmpDir outputDir Nothing modules
