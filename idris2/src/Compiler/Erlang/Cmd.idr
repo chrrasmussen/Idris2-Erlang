@@ -59,9 +59,10 @@ erlShowPath = show -- The Show implementation is close enough to Erlang syntax
 erlShowPaths : List String -> String
 erlShowPaths = show -- The Show implementation is close enough to Erlang syntax
 
--- To make the generated Escript relocatable, make sure to output the
--- Escript to the current directory or to an absolute path (1st argument to
--- `escript:create/2`).
+-- Tips to make the generated Escript relocatable:
+-- 1. Output the Escript to the current directory or to an absolute path.
+-- 2. Specify the main module using the `emu_args` option.
+-- 3. Archive `.beam` files instead of `.erl` files.
 export
 archiveFilesToEscriptCmd : (erl : String) -> (inputDir : String) -> (inputFiles : List String) -> (outputDir : String) -> (mainModule : String) -> String
 archiveFilesToEscriptCmd erl inputDir inputFiles outputDir mainModule =
