@@ -153,11 +153,9 @@ genAtomToString : Line -> ErlExpr -> ErlExpr
 genAtomToString l expr =
   genFunCall l "erlang" "atom_to_binary" [expr, EAtom l "utf8"]
 
--- TODO: Replace with `map (ELocal l)`
 export
 genArgsToLocals : Line -> (args : List LocalVar) -> List ErlExpr
-genArgsToLocals l [] = []
-genArgsToLocals l (n :: ns) = ELocal l n :: genArgsToLocals l ns
+genArgsToLocals l xs = map (ELocal l) xs
 
 export
 genAppCurriedFun : Line -> (curriedFun : ErlExpr) -> List ErlExpr -> ErlExpr
