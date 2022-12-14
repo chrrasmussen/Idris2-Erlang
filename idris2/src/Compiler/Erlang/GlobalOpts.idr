@@ -47,7 +47,7 @@ parseOutputFormat "escript" = Just Escript
 parseOutputFormat _ = Nothing
 
 stringToFlags : List String -> List Flag
-stringToFlags ds = mapMaybe parseFlag (map (\d => assert_total (words d)) ds) -- TODO: Remove `assert_total` when `words` is total
+stringToFlags ds = mapMaybe parseFlag (map (\d => words d) ds)
   where
     parseFlag : List String -> Maybe Flag
     parseFlag ["format", format] = SetOutputFormat <$> parseOutputFormat format
