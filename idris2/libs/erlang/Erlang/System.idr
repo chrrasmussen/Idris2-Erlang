@@ -81,6 +81,11 @@ system cmd = do
   putStr output
   pure 0
 
+namespace Escaped
+  export
+  system : HasIO io => List String -> io Int
+  system = system . escapeCmd
+
 ||| Get the number of seconds since Epoch.
 |||
 ||| Epoch is defined as: 00:00:00 GMT, January 1, 1970
@@ -128,3 +133,8 @@ exitFailure = exitWith (ExitFailure 1)
 export partial
 exitSuccess : HasIO io => io a
 exitSuccess = exitWith ExitSuccess
+
+||| Print the error message and call exitFailure
+export
+die : HasIO io => String -> io a
+die str = do putStrLn str; exitFailure
