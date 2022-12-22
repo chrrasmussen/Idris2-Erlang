@@ -92,12 +92,13 @@ writeErlangModule globalOpts allModuleOpts outputDir extension declToCS (namespa
         then [Inline defLine, InlineSize defLine (inlineSize globalOpts)]
         else []
   let module_ = MkModule (MkModuleName defLine modName) (NoAutoImport defLine :: inlineAttrs) (exportFunDecls ++ funDecls)
-  let outfile = outputDir </> modName ++ "." ++ extension -- `modName` may already contain dots, so make sure to append the extension.
+  let outputFilename = modName ++ "." ++ extension -- `modName` may already contain dots, so make sure to append the extension.
+  let outputFile = outputDir </> outputFilename
   let decls = genErlModule defLine module_
   let content = fastConcat (flatten (Nested (map declToCS decls)))
-  Right () <- coreLift $ writeFile outfile content
-    | Left err => throw (FileErr outfile err)
-  pure outfile
+  Right () <- coreLift $ writeFile outputFile content
+    | Left err => throw (FileErr outputFile err)
+  pure outputFilename
 
 genCompdef : {auto cgOpts : CGOpts} -> Line -> (NamespaceInfo, (Name, FC, NamedDef)) -> Core (Maybe (NamespaceInfo, ErlFunDecl))
 genCompdef l (namespaceInfo, (name, fc, def)) = do
@@ -156,23 +157,21 @@ build globalOpts allModuleOpts tmpDir outputDir moduleName modules = do
     ErlangSource => do
       traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "erl" genDeclErl) modules
     ErlangSourcePretty => do
-      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
-      coreLift_ $ system $ compileAbstrToErlCmd False erl generatedFiles outputDir
+      generatedFilenames <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
+      coreLift_ $ system $ compileAbstrToErlCmd False erl (map (tmpDir </>) generatedFilenames) outputDir
     AbstractFormat => do
       traverse_ (writeErlangModule globalOpts allModuleOpts outputDir "abstr" genDeclAbstr) modules
     BeamFromErlangSource => do
-      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
-      coreLift_ $ system $ compileErlToBeamCmd erlc generatedFiles outputDir
+      generatedFilenames <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
+      coreLift_ $ system $ compileErlToBeamCmd erlc (map (tmpDir </>) generatedFilenames) outputDir
     BeamFromAbstractFormat => do
-      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
-      coreLift_ $ system $ compileAbstrToBeamCmd erl generatedFiles outputDir
+      generatedFilenames <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "abstr" genDeclAbstr) modules
+      coreLift_ $ system $ compileAbstrToBeamCmd erl (map (tmpDir </>) generatedFilenames) outputDir
     Escript => do
       let Just mainModule = moduleName
             | Nothing => throw (InternalError "Expected a main module")
-      generatedFiles <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
-      coreLift_ $ system $ compileErlToBeamCmd erlc generatedFiles tmpDir
-      let beamFiles = mapMaybe (\path => fileName (path <.> "beam")) generatedFiles -- Change extension from `.erl` to `.beam`
-      coreLift_ $ system $ archiveFilesToEscriptCmd erl tmpDir beamFiles outputDir mainModule
+      generatedFilenames <- traverse (writeErlangModule globalOpts allModuleOpts tmpDir "erl" genDeclErl) modules
+      coreLift_ $ system $ archiveErlToEscriptCmd erl tmpDir generatedFilenames outputDir mainModule
   pure $ map (currentModuleName . fst) modules
 
 

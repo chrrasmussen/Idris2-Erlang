@@ -62,23 +62,31 @@ erlShowPaths = show -- The Show implementation is close enough to Erlang syntax
 -- 2. Specify the main module using the `emu_args` option.
 -- 3. Archive `.beam` files instead of `.erl` files.
 export
-archiveFilesToEscriptCmd : (erl : String) -> (inputDir : String) -> (inputFiles : List String) -> (outputDir : String) -> (mainModule : String) -> String
-archiveFilesToEscriptCmd erl inputDir inputFiles outputDir mainModule =
+archiveErlToEscriptCmd : (erl : String) -> (inputDir : String) -> (inputFilenames : List String) -> (outputDir : String) -> (mainModule : String) -> String
+archiveErlToEscriptCmd erl inputDir inputFilenames outputDir mainModule =
   let code =
         """
         InputDir = \{erlShowPath inputDir},
-        InputFiles = \{erlShowPaths inputFiles},
+        InputFilenames = \{erlShowPaths inputFilenames},
         OutputDir = \{erlShowPath outputDir},
         MainModule = \{erlShowPath mainModule},
         GeneratedEscriptFile = filename:join(InputDir, MainModule),
-        OutputFile = filename:join(OutputDir, MainModule),
+        OutputEscriptFile = filename:join(OutputDir, MainModule),
         EmuArgs = "-escript main " ++ MainModule,
+        CompileBeam = fun(Filename) ->
+          {ok, ModuleName} = compile:noenv_file(Filename, []),
+          OutputFilename = atom_to_list(ModuleName) ++ ".beam",
+          OutputFilename
+        end,
         {ok, CurrentDir} = file:get_cwd(),
         file:set_cwd(InputDir),
-        escript:create(MainModule, [shebang, {emu_args, EmuArgs}, {archive, InputFiles, []}]),
+        \{pmapErlangCode},
+        CompileResult = Pmap(CompileBeam, InputFilenames),
+        BeamFilenames = lists:map(fun ({ok, Filename}) -> Filename end, CompileResult),
+        escript:create(MainModule, [shebang, {emu_args, EmuArgs}, {archive, BeamFilenames, []}]),
         file:change_mode(MainModule, 8#00755),
         file:set_cwd(CurrentDir),
-        file:rename(GeneratedEscriptFile, OutputFile),
+        file:rename(GeneratedEscriptFile, OutputEscriptFile),
         halt(0)
         """
   in evalErlangSourceCmd erl code
