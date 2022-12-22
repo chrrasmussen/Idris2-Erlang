@@ -42,11 +42,6 @@ pmapErlangCode =
 
 
 export
-executeBeamCmd : (erl : String) -> (outputDir : String) -> (modName : String) -> String
-executeBeamCmd erl outputDir modName =
-  escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-pa", outputDir, "-run", modName]
-
-export
 compileErlToBeamCmd : (erlc : String) -> (srcFiles : List String) -> (outputDir : String) -> String
 compileErlToBeamCmd erlc srcFiles outputDir =
   escapeCmd $ [erlc, "-W0", "-o", outputDir] ++ srcFiles

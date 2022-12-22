@@ -206,8 +206,7 @@ executeExpr c s tmpDir tm = do
   let modName = "main"
   modules <- compileMainEntrypointToModules globalOpts tm modName
   ignore $ build globalOpts [] tmpDir tmpDir (Just modName) modules
-  erl <- coreLift $ findErlangExecutable
-  coreLift_ $ system (executeBeamCmd erl tmpDir modName)
+  coreLift_ $ system (tmpDir </> modName)
 
 compileLibrary : Ref Ctxt Defs -> (tmpDir : String) -> (outputDir : String) -> (libName : String) -> (changedModules : Maybe (List ModuleIdent)) -> Core (Maybe (String, List String))
 compileLibrary c tmpDir outputDir libName changedModules = do
