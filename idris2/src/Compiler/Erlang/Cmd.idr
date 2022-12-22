@@ -19,8 +19,8 @@ evalErlangSourceCmd : (erl : String) -> (code : String) -> String
 evalErlangSourceCmd erl code =
   escapeCmd [erl, "-noshell", "-boot", "no_dot_erlang", "-eval", code]
 
-pmapErlFun : String
-pmapErlFun =
+pmapErlangCode : String
+pmapErlangCode =
   """
   Collect = fun
     Collect([]) -> [];
@@ -32,12 +32,10 @@ pmapErlFun =
         {'DOWN', MRef, process, Pid, Reason} ->
           [{error, Reason} | Collect(Next)]
       end
-    end,
-    Pmap = fun(F, Es) ->
+  end,
+  Pmap = fun(F, Es) ->
     Parent = self(),
-    Running = [
-      spawn_monitor(fun() -> Parent ! {self(), F(E)} end)
-        || E <- Es],
+    Running = [spawn_monitor(fun() -> Parent ! {self(), F(E)} end) || E <- Es],
     Collect(Running)
   end
   """
@@ -90,14 +88,16 @@ compileAbstrToBeamCmd : (erl : String) -> (srcFiles : List String) -> (outputDir
 compileAbstrToBeamCmd erl srcFiles outputDir =
   let code =
         """
-        \{pmapErlFun},
-        CompileAbstr = fun(File, OutputDir) ->
+        SrcFiles = \{erlShowPaths srcFiles},
+        OutputDir = \{erlShowPath outputDir},
+        CompileAbstr = fun(File) ->
           {ok, Forms} = file:consult(File),
           {ok, ModuleName, BinaryOrCode} = compile:noenv_forms(Forms, []),
           OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ ".beam"),
           file:write_file(OutputFile, BinaryOrCode)
         end,
-        Pmap(fun(File) -> CompileAbstr(File, \{erlShowPath outputDir}) end, \{erlShowPaths srcFiles}),
+        \{pmapErlangCode},
+        Pmap(CompileAbstr, SrcFiles),
         halt(0)
         """
   in evalErlangSourceCmd erl code
@@ -109,11 +109,8 @@ compileAbstrToErlCmd isMinified erl srcFiles outputDir =
         if isMinified
           then 10000
           else 120
-      prettyOpts =
-        "[{paper, \{show columnWidth}}, {ribbon, \{show columnWidth}}]"
       code =
         """
-        \{pmapErlFun},
         ModuleNameFromForms = fun(Forms) ->
           lists:foldl(
             fun
@@ -121,14 +118,18 @@ compileAbstrToErlCmd isMinified erl srcFiles outputDir =
               (_, Acc) -> Acc
             end, not_found, Forms)
         end,
-        GenerateErl = fun(File, OutputDir) ->
+        SrcFiles = \{erlShowPaths srcFiles},
+        OutputDir = \{erlShowPath outputDir},
+        PrettyOpts = [{paper, \{show columnWidth}}, {ribbon, \{show columnWidth}}],
+        GenerateErl = fun(File) ->
           {ok, Forms} = file:consult(File),
           {ok, ModuleName} = ModuleNameFromForms(Forms),
           OutputFile = filename:join(OutputDir, atom_to_list(ModuleName) ++ ".erl"),
-          ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms), \{prettyOpts}),
+          ErlangSource = erl_prettypr:format(erl_syntax:form_list(Forms), PrettyOpts),
           file:write_file(OutputFile, ErlangSource)
         end,
-        Pmap(fun(File) -> GenerateErl(File, \{erlShowPath outputDir}) end, \{erlShowPaths srcFiles}),
+        \{pmapErlangCode},
+        Pmap(GenerateErl, SrcFiles),
         halt(0)
         """
   in evalErlangSourceCmd erl code
