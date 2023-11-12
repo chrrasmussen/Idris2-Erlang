@@ -181,7 +181,7 @@ genOp l (Cast from to)                [x] = castInt (constPrimitives l) from to 
 
 genOp l BelieveMe [_, _, x] = pure $ x
 genOp l Crash [_, msg] = do
-  let crashMsg = EBinaryConcat l (EBinary l "Crash: ") msg
+  let crashMsg = EBinaryConcat l (EBinary l "ERROR: ") msg
   pure $ genThrowBinary l crashMsg
 
 

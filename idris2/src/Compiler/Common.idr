@@ -606,10 +606,13 @@ castInt p from to x =
        _ => throw $ InternalError $ "invalid cast: + " ++ show from ++ " + ' -> ' + " ++ show to
 
 
-isExported : Visibility -> Bool
-isExported Public = True
-isExported Export = True
-isExported Private = False
+isExported : WithDefault Visibility Private -> Bool
+isExported = onWithDefault False
+  (\case
+    Public  => True
+    Export  => True
+    Private => False
+  )
 
 exportedName : (Name, Maybe GlobalDef) -> Maybe Name
 exportedName (n, Just gd) = if isExported (visibility gd)

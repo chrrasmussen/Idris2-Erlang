@@ -189,10 +189,11 @@ findLibraryFile : {auto c : Ref Ctxt Defs} ->
 findLibraryFile fname
     = do d <- getDirs
          pkgDirs <- getPkgDirs
-         let packageLibs = libDirs pkgDirs
+         let packageLibs = libDirs (package_dirs d) -- The test scaffolding adds absolute paths that include necessary `lib` folder
+         let libInsidePackages = libDirs pkgDirs
          let extraLibs = libDirs (extra_dirs d)
          let fs = map (\p => cleanPath $ p </> fname)
-                      (lib_dirs d ++ packageLibs ++ extraLibs)
+                      (lib_dirs d ++ packageLibs ++ libInsidePackages ++ extraLibs)
          Just f <- firstAvailable fs
             | Nothing => throw (InternalError ("Can't find library " ++ fname))
          pure f
