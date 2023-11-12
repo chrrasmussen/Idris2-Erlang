@@ -16,8 +16,8 @@ mutual
       = ILam fc rig (map (map f) info) nm (map f a) (map f sc)
     map f (ILet fc lhsFC rig nm ty val sc)
       = ILet fc lhsFC rig nm (map f ty) (map f val) (map f sc)
-    map f (ICase fc sc ty cls)
-      = ICase fc (map f sc) (map f ty) (map (map f) cls)
+    map f (ICase fc opts sc ty cls)
+      = ICase fc (map (map f) opts) (map f sc) (map f ty) (map (map f) cls)
     map f (ILocal fc ds sc)
       = ILocal fc (map (map f) ds) (map f sc)
     map f (ICaseLocal fc userN intN args sc)
@@ -62,8 +62,8 @@ mutual
       = IQuoteDecl fc (map (map f) ds)
     map f (IUnquote fc t)
       = IUnquote fc (map f t)
-    map f (IRunElab fc t)
-      = IRunElab fc (map f t)
+    map f (IRunElab fc re t)
+      = IRunElab fc re (map f t)
     map f (IPrimVal fc c)
       = IPrimVal fc c
     map f (IType fc)
@@ -112,6 +112,7 @@ mutual
 
   export
   Functor FnOpt' where
+    map f Unsafe = Unsafe
     map f Inline = Inline
     map f NoInline = NoInline
     map f Deprecate = Deprecate
@@ -134,7 +135,7 @@ mutual
   export
   Functor ImpData' where
     map f (MkImpData fc n tycon opts datacons)
-      = MkImpData fc n (map f tycon) opts (map (map f) datacons)
+      = MkImpData fc n (map (map f) tycon) opts (map (map f) datacons)
     map f (MkImpLater fc n tycon)
       = MkImpLater fc n (map f tycon)
 

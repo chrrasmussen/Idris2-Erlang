@@ -146,8 +146,8 @@ checkTerm rig elabinfo nest env (ILam fc r p Nothing argTy scope) exp
          checkLambda rig elabinfo nest env fc r p n argTy scope exp
 checkTerm rig elabinfo nest env (ILet fc lhsFC r n nTy nVal scope) exp
     = checkLet rig elabinfo nest env fc lhsFC r n nTy nVal scope exp
-checkTerm rig elabinfo nest env (ICase fc scr scrty alts) exp
-    = checkCase rig elabinfo nest env fc scr scrty alts exp
+checkTerm rig elabinfo nest env (ICase fc opts scr scrty alts) exp
+    = checkCase rig elabinfo nest env fc opts scr scrty alts exp
 checkTerm rig elabinfo nest env (ILocal fc nested scope) exp
     = checkLocal rig elabinfo nest env fc nested scope exp
 checkTerm rig elabinfo nest env (ICaseLocal fc uname iname args scope) exp
@@ -204,8 +204,8 @@ checkTerm rig elabinfo nest env (IQuoteDecl fc ds) exp
     = checkQuoteDecl rig elabinfo nest env fc ds exp
 checkTerm rig elabinfo nest env (IUnquote fc tm) exp
     = throw (GenericMsg fc "Can't escape outside a quoted term")
-checkTerm rig elabinfo nest env (IRunElab fc tm) exp
-    = checkRunElab rig elabinfo nest env fc tm exp
+checkTerm rig elabinfo nest env (IRunElab fc re tm) exp
+    = checkRunElab rig elabinfo nest env fc re tm exp
 checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp

@@ -39,11 +39,26 @@ size_t idris2_writeBufferData(FILE *h, const char *buffer, size_t loc,
                               size_t len);
 
 int idris2_eof(FILE *f);
-int idris2_fileAccessTime(FILE *f);
+
+struct filetime;
+
+struct filetime *idris2_fileTime(FILE *f);
 int idris2_fileModifiedTime(FILE *f);
-int idris2_fileStatusTime(FILE *f);
-int idris2_fileIsTTY(FILE *f);
+
+int idris2_filetimeAccessTimeSec(struct filetime *f);
+int idris2_filetimeAccessTimeNsec(struct filetime *f);
+int idris2_filetimeModifiedTimeSec(struct filetime *f);
+int idris2_filetimeModifiedTimeNsec(struct filetime *f);
+int idris2_filetimeStatusTimeSec(struct filetime *f);
+int idris2_filetimeStatusTimeNsec(struct filetime *f);
 
 FILE *idris2_stdin();
 FILE *idris2_stdout();
 FILE *idris2_stderr();
+
+struct child_process;
+
+struct child_process *idris2_popen2(char *cmd);
+int idris2_popen2ChildPid(struct child_process *ptr);
+FILE *idris2_popen2FileIn(struct child_process *ptr);
+FILE *idris2_popen2FileOut(struct child_process *ptr);

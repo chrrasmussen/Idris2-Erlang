@@ -85,7 +85,6 @@ mkModuleIdentFromString str = nsAsModuleIdent (mkNamespace str)
 -- MANIPULATING NAMESPACES
 -------------------------------------------------------------------------------------
 
-infixl 5 <.>
 ||| Extend an existing namespace with additional name parts to form a more local one.
 ||| e.g. `X.Y.Z <.> S.T.U` to get `X.Y.Z.S.T.U`.
 export
@@ -128,6 +127,11 @@ namespace ModuleIdent
   export
   toPath : ModuleIdent -> String
   toPath = joinPath . reverse . unsafeUnfoldModuleIdent
+
+  export
+  parent : ModuleIdent -> Maybe ModuleIdent
+  parent (MkMI (_::rest)) = Just $ MkMI rest
+  parent _ = Nothing
 
 -------------------------------------------------------------------------------------
 -- HIERARCHICAL STRUCTURE

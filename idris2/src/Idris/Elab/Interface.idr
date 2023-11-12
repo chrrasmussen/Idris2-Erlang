@@ -9,6 +9,7 @@ import Core.Metadata
 import Core.TT
 import Core.Unify
 
+import Idris.Doc.String
 import Idris.REPL.Opts
 import Idris.Syntax
 
@@ -21,6 +22,7 @@ import TTImp.Utils
 import Libraries.Data.ANameMap
 import Libraries.Data.List.Extra
 import Data.List
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -103,11 +105,11 @@ mkDataTy fc ((n, (_, ty)) :: ps)
 
 mkIfaceData : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
-              FC -> Visibility -> Env Term vars ->
+              FC -> WithDefault Visibility Private -> Env Term vars ->
               List (Maybe Name, RigCount, RawImp) ->
               Name -> Name -> List (Name, (RigCount, RawImp)) ->
               List Name -> List (Name, RigCount, RawImp) -> Core ImpDecl
-mkIfaceData {vars} ifc vis env constraints n conName ps dets meths
+mkIfaceData {vars} ifc def_vis env constraints n conName ps dets meths
     = let opts = if isNil dets
                     then [NoHints, UniqueSearch]
                     else [NoHints, UniqueSearch, SearchBy dets]
@@ -115,11 +117,13 @@ mkIfaceData {vars} ifc vis env constraints n conName ps dets meths
           retty = apply (IVar vfc n) (map (IVar EmptyFC) pNames)
           conty = mkTy Implicit (map jname ps) $
                   mkTy AutoImplicit (map bhere constraints) (mkTy Explicit (map bname meths) retty)
-          con = MkImpTy vfc EmptyFC conName !(bindTypeNames ifc [] (pNames ++ map fst meths ++ vars) conty) in
-          pure $ IData vfc vis Nothing {- ?? -} (MkImpData vfc n
-                                  !(bindTypeNames ifc [] (pNames ++ map fst meths ++ vars)
-                                                  (mkDataTy vfc ps))
-                                  opts [con])
+          con = MkImpTy vfc EmptyFC conName !(bindTypeNames ifc [] (pNames ++ map fst meths ++ vars) conty)
+          bound = pNames ++ map fst meths ++ vars in
+
+          pure $ IData vfc def_vis Nothing {- ?? -}
+               $ MkImpData vfc n
+                   (Just !(bindTypeNames ifc [] bound (mkDataTy vfc ps)))
+                   opts [con]
   where
 
     vfc : FC
@@ -330,21 +334,22 @@ elabInterface : {vars : _} ->
                 {auto s : Ref Syn SyntaxInfo} ->
                 {auto m : Ref MD Metadata} ->
                 {auto o : Ref ROpts REPLOpts} ->
-                FC -> Visibility ->
+                FC -> WithDefault Visibility Private ->
                 Env Term vars -> NestedNames vars ->
                 (constraints : List (Maybe Name, RawImp)) ->
                 Name ->
                 (params : List (Name, (RigCount, RawImp))) ->
                 (dets : List Name) ->
-                (conName : Maybe Name) ->
+                (conName : Maybe (String, Name)) ->
                 List ImpDecl ->
                 Core ()
-elabInterface {vars} ifc vis env nest constraints iname params dets mcon body
+elabInterface {vars} ifc def_vis env nest constraints iname params dets mcon body
     = do fullIName <- getFullName iname
          ns_iname <- inCurrentNS fullIName
-         let conName_in = maybe (mkCon vfc fullIName) id mcon
+         let conName_in = maybe (mkCon vfc fullIName) snd mcon
          -- Machine generated names need to be qualified when looking them up
          conName <- inCurrentNS conName_in
+         whenJust (fst <$> mcon) (addDocString conName)
          let meth_sigs = mapMaybe getSig body
          let meth_decls = map sigToDecl meth_sigs
          let meth_names = map name meth_decls
@@ -392,7 +397,7 @@ elabInterface {vars} ifc vis env nest constraints iname params dets mcon body
              consts <- traverse (getMethDecl env nest params meth_names . (top,)) constraints
              log "elab.interface" 5 $ "Constraints: " ++ show consts
 
-             dt <- mkIfaceData vfc vis env consts iname conName params
+             dt <- mkIfaceData vfc def_vis env consts iname conName params
                                   dets meths
              log "elab.interface" 10 $ "Methods: " ++ show meths
              log "elab.interface" 5 $ "Making interface data type " ++ show dt
@@ -403,7 +408,8 @@ elabInterface {vars} ifc vis env nest constraints iname params dets mcon body
                   Core ()
     elabMethods conName meth_names meth_sigs
         = do -- Methods have same visibility as data declaration
-             fnsm <- traverse (getMethToplevel env vis iname conName
+             fnsm <- traverse (getMethToplevel env (collapseDefault def_vis)
+                                               iname conName
                                                (map fst constraints)
                                                meth_names
                                                params) meth_sigs
@@ -448,7 +454,7 @@ elabInterface {vars} ifc vis env nest constraints iname params dets mcon body
              dty_imp <- bindTypeNames dfc [] (map name tydecls ++ vars) dty
              log "elab.interface.default" 5 $ "Default method " ++ show dn ++ " : " ++ show dty_imp
 
-             let dtydecl = IClaim vdfc rig vis [] (MkImpTy EmptyFC EmptyFC dn dty_imp)
+             let dtydecl = IClaim vdfc rig (collapseDefault def_vis) [] (MkImpTy EmptyFC EmptyFC dn dty_imp)
 
              processDecl [] nest env dtydecl
 
@@ -512,7 +518,8 @@ elabInterface {vars} ifc vis env nest constraints iname params dets mcon body
                           Core ()
     elabConstraintHints conName meth_names
         = do let nconstraints = nameCons 0 constraints
-             chints <- traverse (getConstraintHint vfc env vis iname conName
+             chints <- traverse (getConstraintHint vfc env (collapseDefault def_vis)
+                                                 iname conName
                                                  (map fst nconstraints)
                                                  meth_names
                                                  paramNames) nconstraints

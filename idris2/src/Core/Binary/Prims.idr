@@ -12,8 +12,10 @@ import Data.String
 import Data.Vect
 
 import Libraries.Data.PosMap
+import public Libraries.System.File.Meta as L -- Remove after release 0.7.0
 import public Libraries.Utils.Binary
 import public Libraries.Utils.String
+import Libraries.Data.WithDefault
 
 import System.Info
 import System.File
@@ -281,6 +283,21 @@ TTC a => TTC (Maybe a) where
             _ => corrupt "Maybe"
 
 export
+TTC a => TTC (WithDefault a def) where
+  toBuf b def = onWithDefault
+                  (tag 0)
+                  (\v => do tag 1
+                            toBuf b v)
+                  def
+
+  fromBuf b
+     = case !getTag of
+            0 => pure defaulted
+            1 => do val <- fromBuf b
+                    pure (specified val)
+            _ => corrupt "WithDefault"
+
+export
 (TTC a, TTC b) => TTC (Either a b) where
   toBuf b (Left val)
      = do tag 0
@@ -441,15 +458,15 @@ TTC Nat where
 
 ||| Get a file's modified time. If it doesn't exist, return 0 (UNIX Epoch)
 export
-modTime : String -> Core Int
+modTime : String -> Core L.Timestamp
 modTime fname
   = do Right f <- coreLift $ openFile fname Read
-         | Left err => pure 0 -- Beginning of Time :)
-       Right t <- coreLift $ fileModifiedTime f
+         | Left err => pure $ MkTimestamp 0 0 -- Beginning of Time :)
+       Right t <- coreLift $ L.fileTime f
          | Left err => do coreLift $ closeFile f
-                          pure 0
+                          pure $ MkTimestamp 0 0
        coreLift $ closeFile f
-       pure t
+       pure $ t.mtime
 
 export
 hashFileWith : Maybe String -> String -> Core (Maybe String)

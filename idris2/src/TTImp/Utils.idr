@@ -31,7 +31,7 @@ rawImpFromDecl : ImpDecl -> List RawImp
 rawImpFromDecl decl = case decl of
     IClaim fc1 y z ys ty => [getFromTy ty]
     IData fc1 y _ (MkImpData fc2 n tycon opts datacons)
-        => tycon :: map getFromTy datacons
+        => maybe id (::) tycon $ map getFromTy datacons
     IData fc1 y _ (MkImpLater fc2 n tycon) => [tycon]
     IDef fc1 y ys => getFromClause !ys
     IParameters fc1 ys zs => rawImpFromDecl !zs ++ map getParamTy ys
@@ -131,7 +131,7 @@ findBindableNamesQuot env used (ILam fc x y z argTy lamTy)
     = findBindableNamesQuot env used ![argTy, lamTy]
 findBindableNamesQuot env used (ILet fc lhsfc x y nTy nVal scope)
     = findBindableNamesQuot env used ![nTy, nVal, scope]
-findBindableNamesQuot env used (ICase fc x ty xs)
+findBindableNamesQuot env used (ICase fc _ x ty xs)
     = findBindableNamesQuot env used !([x, ty] ++ getRawImp !xs)
   where getRawImp : ImpClause -> List RawImp
         getRawImp (PatClause fc1 lhs rhs) = [lhs, rhs]
@@ -187,7 +187,7 @@ findBindableNamesQuot env used (IUnifyLog fc k x)
 findBindableNamesQuot env used (IQuote fc x) = []
 findBindableNamesQuot env used (IQuoteName fc x) = []
 findBindableNamesQuot env used (IQuoteDecl fc xs) = []
-findBindableNamesQuot env used (IRunElab fc x) = []
+findBindableNamesQuot env used (IRunElab fc _ x) = []
 
 export
 findUniqueBindableNames :
@@ -319,9 +319,10 @@ mutual
             ILet fc lhsFC r n (substNames' bvar bound ps nTy)
                               (substNames' bvar bound ps nVal)
                               (substNames' bvar bound' ps scope)
-  substNames' bvar bound ps (ICase fc y ty xs)
-      = ICase fc (substNames' bvar bound ps y) (substNames' bvar bound ps ty)
-                 (map (substNamesClause' bvar bound ps) xs)
+  substNames' bvar bound ps (ICase fc opts y ty xs)
+      = ICase fc opts
+          (substNames' bvar bound ps y) (substNames' bvar bound ps ty)
+          (map (substNamesClause' bvar bound ps) xs)
   substNames' bvar bound ps (ILocal fc xs y)
       = let bound' = definedInBlock emptyNS xs ++ bound in
             ILocal fc (map (substNamesDecl' bvar bound ps) xs)
@@ -378,7 +379,7 @@ mutual
   substNamesData' : Bool -> List Name -> List (Name, RawImp) ->
                     ImpData -> ImpData
   substNamesData' bvar bound ps (MkImpData fc n con opts dcons)
-      = MkImpData fc n (substNames' bvar bound ps con) opts
+      = MkImpData fc n (map (substNames' bvar bound ps) con) opts
                   (map (substNamesTy' bvar bound ps) dcons)
   substNamesData' bvar bound ps (MkImpLater fc n con)
       = MkImpLater fc n (substNames' bvar bound ps con)
@@ -426,8 +427,8 @@ mutual
       = ILet fc' fc' r n (substLoc fc' nTy)
                      (substLoc fc' nVal)
                      (substLoc fc' scope)
-  substLoc fc' (ICase fc y ty xs)
-      = ICase fc' (substLoc fc' y) (substLoc fc' ty)
+  substLoc fc' (ICase fc opts y ty xs)
+      = ICase fc' opts (substLoc fc' y) (substLoc fc' ty)
                   (map (substLocClause fc') xs)
   substLoc fc' (ILocal fc xs y)
       = ILocal fc' (map (substLocDecl fc') xs)
@@ -479,7 +480,7 @@ mutual
 
   substLocData : FC -> ImpData -> ImpData
   substLocData fc' (MkImpData fc n con opts dcons)
-      = MkImpData fc' n (substLoc fc' con) opts
+      = MkImpData fc' n (map (substLoc fc') con) opts
                         (map (substLocTy fc') dcons)
   substLocData fc' (MkImpLater fc n con)
       = MkImpLater fc' n (substLoc fc' con)

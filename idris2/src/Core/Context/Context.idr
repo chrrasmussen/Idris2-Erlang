@@ -7,13 +7,18 @@ import public Core.Name
 import public Core.Options.Log
 import public Core.TT
 
+import public Algebra.SizeChange
+
 import Data.IORef
 import Data.String
+import Data.List1
 
 import Libraries.Data.IntMap
 import Libraries.Data.IOArray
 import Libraries.Data.NameMap
 import Libraries.Data.UserNameMap
+import Libraries.Data.WithDefault
+import Libraries.Data.SparseMatrix
 import Libraries.Utils.Binary
 import Libraries.Utils.Scheme
 
@@ -260,30 +265,15 @@ Show DefFlag where
   show (Identity x) = "identity " ++ show x
 
 public export
-data SizeChange = Smaller | Same | Unknown
-
-export
-Show SizeChange where
-  show Smaller = "Smaller"
-  show Same = "Same"
-  show Unknown = "Unknown"
-
-export
-Eq SizeChange where
-  Smaller == Smaller = True
-  Same == Same = True
-  Unknown == Unknown = True
-  _ == _ = False
-
-public export
 record SCCall where
      constructor MkSCCall
      fnCall : Name -- Function called
-     fnArgs : List (Maybe (Nat, SizeChange))
+     fnArgs : Matrix SizeChange
         -- relationship to arguments of calling function; argument position
         -- (in the calling function), and how its size changed in the call.
         -- 'Nothing' if it's not related to any of the calling function's
         -- arguments
+     fnLoc : FC
 
 export
 Show SCCall where
@@ -318,8 +308,9 @@ record GlobalDef where
   inferrable : List Nat -- arguments which can be inferred from elsewhere in the type
   multiplicity : RigCount
   localVars : List Name -- environment name is defined in
-  visibility : Visibility
+  visibility : WithDefault Visibility Private
   totality : Totality
+  isEscapeHatch : Bool
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)
   refersToRuntimeM : Maybe (NameMap Bool)

@@ -1,0 +1,4 @@
+. ../../testutils.sh
+
+run Main.idr
+rm tmp.bin

@@ -8,6 +8,8 @@ import Core.Context.TTC
 
 import TTImp.TTImp
 
+import Libraries.Data.WithDefault
+
 %default covering
 
 mutual
@@ -23,8 +25,8 @@ mutual
     toBuf b (ILet fc lhsFC r n nTy nVal scope)
         = do tag 3; toBuf b fc; toBuf b lhsFC; toBuf b r; toBuf b n;
              toBuf b nTy; toBuf b nVal; toBuf b scope
-    toBuf b (ICase fc y ty xs)
-        = do tag 4; toBuf b fc; toBuf b y; toBuf b ty; toBuf b xs
+    toBuf b (ICase fc opts y ty xs)
+        = do tag 4; toBuf b fc; toBuf b opts; toBuf b y; toBuf b ty; toBuf b xs
     toBuf b (ILocal fc xs sc)
         = do tag 5; toBuf b fc; toBuf b xs; toBuf b sc
     toBuf b (ICaseLocal fc _ _ _ sc)
@@ -72,8 +74,8 @@ mutual
         = do tag 23; toBuf b fc; toBuf b t
     toBuf b (IUnquote fc t)
         = do tag 24; toBuf b fc; toBuf b t
-    toBuf b (IRunElab fc t)
-        = do tag 25; toBuf b fc; toBuf b t
+    toBuf b (IRunElab fc re t)
+        = do tag 25; toBuf b fc; toBuf b re; toBuf b t
 
     toBuf b (IPrimVal fc y)
         = do tag 26; toBuf b fc; toBuf b y
@@ -109,9 +111,9 @@ mutual
                        nTy <- fromBuf b; nVal <- fromBuf b
                        scope <- fromBuf b
                        pure (ILet fc lhsFC r n nTy nVal scope)
-               4 => do fc <- fromBuf b; y <- fromBuf b;
+               4 => do fc <- fromBuf b; opts <- fromBuf b; y <- fromBuf b;
                        ty <- fromBuf b; xs <- fromBuf b
-                       pure (ICase fc y ty xs)
+                       pure (ICase fc opts y ty xs)
                5 => do fc <- fromBuf b;
                        xs <- fromBuf b; sc <- fromBuf b
                        pure (ILocal fc xs sc)
@@ -164,8 +166,8 @@ mutual
                         pure (IQuoteDecl fc y)
                24 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IUnquote fc y)
-               25 => do fc <- fromBuf b; y <- fromBuf b
-                        pure (IRunElab fc y)
+               25 => do fc <- fromBuf b; re <- fromBuf b; y <- fromBuf b
+                        pure (IRunElab fc re y)
 
                26 => do fc <- fromBuf b; y <- fromBuf b
                         pure (IPrimVal fc y)
@@ -330,20 +332,21 @@ mutual
   export
   TTC FnOpt where
     toBuf b Inline = tag 0
-    toBuf b NoInline = tag 12
-    toBuf b TCInline = tag 11
-    toBuf b Deprecate = tag 14
     toBuf b (Hint t) = do tag 1; toBuf b t
     toBuf b (GlobalHint t) = do tag 2; toBuf b t
     toBuf b ExternFn = tag 3
     toBuf b (ForeignFn cs) = do tag 4; toBuf b cs
-    toBuf b (ForeignExport cs) = do tag 15; toBuf b cs
     toBuf b Invertible = tag 5
     toBuf b (Totality Total) = tag 6
     toBuf b (Totality CoveringOnly) = tag 7
     toBuf b (Totality PartialOK) = tag 8
     toBuf b Macro = tag 9
     toBuf b (SpecArgs ns) = do tag 10; toBuf b ns
+    toBuf b TCInline = tag 11
+    toBuf b NoInline = tag 12
+    toBuf b Unsafe = tag 13
+    toBuf b Deprecate = tag 14
+    toBuf b (ForeignExport cs) = do tag 15; toBuf b cs
 
     fromBuf b
         = case !getTag of
@@ -360,6 +363,7 @@ mutual
                10 => do ns <- fromBuf b; pure (SpecArgs ns)
                11 => pure TCInline
                12 => pure NoInline
+               13 => pure Unsafe
                14 => pure Deprecate
                15 => do cs <- fromBuf b; pure (ForeignExport cs)
                _ => corrupt "FnOpt"

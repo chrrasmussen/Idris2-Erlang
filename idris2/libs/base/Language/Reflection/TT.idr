@@ -382,6 +382,75 @@ Eq Constant where
   WorldVal    == WorldVal    = True
   _ == _ = False
 
+public export
+Ord Namespace where
+    compare (MkNS ms) (MkNS ns) = compare ms ns
+
+public export
+Ord Count where
+  compare M0 M0 = EQ
+  compare M0 _  = LT
+  compare _  M0 = GT
+  compare M1 M1 = EQ
+  compare MW MW = EQ
+  compare MW M1 = GT
+  compare M1 MW = LT
+
+usernameTag : UserName -> Int
+usernameTag (Basic _)  = 0
+usernameTag (Field _)  = 1
+usernameTag Underscore = 2
+
+public export
+Ord UserName where
+  compare (Basic x) (Basic y)   = compare x y
+  compare (Field x) (Field y)   = compare x y
+  compare Underscore Underscore = EQ
+  compare x y                   = compare (usernameTag x) (usernameTag y)
+
+nameTag : Name -> Int
+nameTag (NS _ _)        = 0
+nameTag (UN _)          = 1
+nameTag (MN _ _)        = 2
+nameTag (DN _ _)        = 3
+nameTag (Nested _ _)    = 4
+nameTag (CaseBlock _ _) = 5
+nameTag (WithBlock _ _) = 6
+
+public export
+Ord Name where
+    compare (NS x y) (NS x' y')
+        = case compare y y' of -- Compare base name first (more likely to differ)
+               EQ => compare x x'
+               -- Because of the terrible way Idris 1 compiles 'case', this
+               -- is actually faster than just having 't => t'...
+               GT => GT
+               LT => LT
+    compare (UN x) (UN y) = compare x y
+    compare (MN x y) (MN x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (DN _ n) (DN _ n') = compare n n'
+    compare (Nested x y) (Nested x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (CaseBlock x y) (CaseBlock x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+    compare (WithBlock x y) (WithBlock x' y')
+        = case compare y y' of
+               EQ => compare x x'
+               GT => GT
+               LT => LT
+
+    compare x y = compare (nameTag x) (nameTag y)
+
 export Injective MkNS where injective Refl = Refl
 
 public export

@@ -11,6 +11,23 @@ import public Control.Monad.Trans
 --- Elaboration data structure ---
 ----------------------------------
 
+public export
+data LookupDir =
+  ||| The dir of the `ipkg`-file, or the current dir if there is no one
+  ProjectDir |
+  ||| The source dir set in the `ipkg`-file, or the current dir if there is no one
+  SourceDir |
+  ||| The dir where the current module is located
+  |||
+  ||| For the module `Language.Reflection` it would be `<source_dir>/Language/`
+  CurrentModuleDir |
+  ||| The dir where submodules of the current module are located
+  |||
+  ||| For the module `Language.Reflection` it would be `<source_dir>/Language/Reflection/`
+  SubmodulesDir |
+  ||| The dir where built files are located, set in the `ipkg`-file and defaulted to `build`
+  BuildDir
+
 ||| Elaboration scripts
 ||| Where types/terms are returned, binders will have unique, if not
 ||| necessarily human readabe, names
@@ -19,6 +36,7 @@ data Elab : Type -> Type where
      Pure : a -> Elab a
      Bind : Elab a -> (a -> Elab b) -> Elab b
      Fail : FC -> String -> Elab a
+     Warn : FC -> String -> Elab ()
 
      Try : Elab a -> Elab a -> Elab a
 
@@ -69,8 +87,19 @@ data Elab : Type -> Type where
      GetLocalType : Name -> Elab TTImp
      -- Get the constructors of a data type. The name must be fully resolved.
      GetCons : Name -> Elab (List Name)
+     -- Get all function definition names referred in a definition. The name must be fully resolved.
+     GetReferredFns : Name -> Elab (List Name)
+     -- Get the name of the current and outer functions, if it is applicable
+     GetCurrentFn : Elab (SnocList Name)
      -- Check a group of top level declarations
      Declare : List Decl -> Elab ()
+
+     -- Read the contents of a file, if it is present
+     ReadFile : LookupDir -> (path : String) -> Elab $ Maybe String
+     -- Writes to a file, replacing existing contents, if were present
+     WriteFile : LookupDir -> (path : String) -> (contents : String) -> Elab ()
+     -- Returns the specified type of dir related to the current idris project
+     IdrisDir : LookupDir -> Elab String
 
 export
 Functor Elab where
@@ -99,6 +128,9 @@ interface Monad m => Elaboration m where
 
   ||| Report an error in elaboration at some location
   failAt : FC -> String -> m a
+
+  ||| Report a warning in elaboration at some location
+  warnAt : FC -> String -> m ()
 
   ||| Try the first elaborator. If it fails, reset the elaborator state and
   ||| run the second
@@ -144,7 +176,7 @@ interface Monad m => Elaboration m where
   ||| Given a possibly ambiguous name, get all the matching names and their types
   getType : Name -> m (List (Name, TTImp))
 
-  ||| Get the metadata associated with a name. Returns all matching namea and their types
+  ||| Get the metadata associated with a name. Returns all matching names and their types
   getInfo : Name -> m (List (Name, NameInfo))
 
   ||| Get the type of a local variable
@@ -153,13 +185,33 @@ interface Monad m => Elaboration m where
   ||| Get the constructors of a fully qualified data type name
   getCons : Name -> m (List Name)
 
+  ||| Get all the name of function definitions that a given definition refers to (transitively)
+  getReferredFns : Name -> m (List Name)
+
+  ||| Get the name of the current and outer functions, if we are in a function
+  getCurrentFn : m (SnocList Name)
+
   ||| Make some top level declarations
   declare : List Decl -> m ()
+
+  ||| Read the contents of a file, if it is present
+  readFile : LookupDir -> (path : String) -> m $ Maybe String
+
+  ||| Writes to a file, replacing existing contents, if were present
+  writeFile : LookupDir -> (path : String) -> (contents : String) -> m ()
+
+  ||| Returns the specified type of dir related to the current idris project
+  idrisDir : LookupDir -> m String
 
 export %inline
 ||| Report an error in elaboration
 fail : Elaboration m => String -> m a
 fail = failAt EmptyFC
+
+export %inline
+||| Report an error in elaboration
+warn : Elaboration m => String -> m ()
+warn = warnAt EmptyFC
 
 ||| Log the current goal type, if the log level is >= the given level
 export %inline
@@ -169,6 +221,7 @@ logGoal str n msg = whenJust !goal $ logTerm str n msg
 export
 Elaboration Elab where
   failAt         = Fail
+  warnAt         = Warn
   try            = Try
   logMsg         = LogMsg
   logTerm        = LogTerm
@@ -184,11 +237,17 @@ Elaboration Elab where
   getInfo        = GetInfo
   getLocalType   = GetLocalType
   getCons        = GetCons
+  getReferredFns = GetReferredFns
+  getCurrentFn   = GetCurrentFn
   declare        = Declare
+  readFile       = ReadFile
+  writeFile      = WriteFile
+  idrisDir       = IdrisDir
 
 public export
 Elaboration m => MonadTrans t => Monad (t m) => Elaboration (t m) where
   failAt              = lift .: failAt
+  warnAt              = lift .: warnAt
   try                 = lift .: try
   logMsg s            = lift .: logMsg s
   logTerm s n         = lift .: logTerm s n
@@ -204,7 +263,12 @@ Elaboration m => MonadTrans t => Monad (t m) => Elaboration (t m) where
   getInfo             = lift . getInfo
   getLocalType        = lift . getLocalType
   getCons             = lift . getCons
+  getReferredFns      = lift . getReferredFns
+  getCurrentFn        = lift getCurrentFn
   declare             = lift . declare
+  readFile            = lift .: readFile
+  writeFile d         = lift .: writeFile d
+  idrisDir            = lift . idrisDir
 
 ||| Catch failures and use the `Maybe` monad instead
 export

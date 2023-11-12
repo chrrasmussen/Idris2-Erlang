@@ -8,6 +8,7 @@ import Core.TT
 import Core.Value
 
 import TTImp.TTImp
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -118,12 +119,13 @@ mutual
                           val' <- reify defs !(evalClosure defs val)
                           sc' <- reify defs !(evalClosure defs sc)
                           pure (ILet fc' lhsFC' c' n' ty' val' sc')
-               (UN (Basic "ICase"), [fc, sc, ty, cs])
+               (UN (Basic "ICase"), [fc, opts, sc, ty, cs])
                     => do fc' <- reify defs !(evalClosure defs fc)
+                          opts' <- reify defs !(evalClosure defs opts)
                           sc' <- reify defs !(evalClosure defs sc)
                           ty' <- reify defs !(evalClosure defs ty)
                           cs' <- reify defs !(evalClosure defs cs)
-                          pure (ICase fc' sc' ty' cs')
+                          pure (ICase fc' opts' sc' ty' cs')
                (UN (Basic "ILocal"), [fc, ds, sc])
                     => do fc' <- reify defs !(evalClosure defs fc)
                           ds' <- reify defs !(evalClosure defs ds)
@@ -276,6 +278,7 @@ mutual
     reify defs val@(NDCon _ n _ _ args)
         = case (dropAllNS !(full (gamma defs) n), args) of
                (UN (Basic "Inline"), _) => pure Inline
+               (UN (Basic "Unsafe"), _) => pure Unsafe
                (UN (Basic "NoInline"), _) => pure NoInline
                (UN (Basic "Deprecate"), _) => pure Deprecate
                (UN (Basic "TCInline"), _) => pure TCInline
@@ -501,12 +504,13 @@ mutual
              aval' <- reflect fc defs lhs env aval
              sc' <- reflect fc defs lhs env sc
              appCon fc defs (reflectionttimp "ILet") [fc', lhsFC', c', n', aty', aval', sc']
-    reflect fc defs lhs env (ICase tfc sc ty cs)
+    reflect fc defs lhs env (ICase tfc opts sc ty cs)
         = do fc' <- reflect fc defs lhs env tfc
+             opts' <- reflect fc defs lhs env opts
              sc' <- reflect fc defs lhs env sc
              ty' <- reflect fc defs lhs env ty
              cs' <- reflect fc defs lhs env cs
-             appCon fc defs (reflectionttimp "ICase") [fc', sc', ty', cs']
+             appCon fc defs (reflectionttimp "ICase") [fc', opts', sc', ty', cs']
     reflect fc defs lhs env (ILocal tfc ds sc)
         = do fc' <- reflect fc defs lhs env tfc
              ds' <- reflect fc defs lhs env ds
@@ -605,7 +609,7 @@ mutual
         = pure (Ref tfc Bound t)
     reflect fc defs lhs env (IUnquote tfc t)
         = throw (InternalError "Can't reflect an unquote: escapes should be lifted out")
-    reflect fc defs lhs env (IRunElab tfc t)
+    reflect fc defs lhs env (IRunElab tfc _ t)
         = throw (InternalError "Can't reflect a %runElab")
     reflect fc defs lhs env (IPrimVal tfc t)
         = do fc' <- reflect fc defs lhs env tfc
@@ -653,6 +657,7 @@ mutual
 
   export
   Reflect FnOpt where
+    reflect fc defs lhs env Unsafe = getCon fc defs (reflectionttimp "Unsafe")
     reflect fc defs lhs env Inline = getCon fc defs (reflectionttimp "Inline")
     reflect fc defs lhs env NoInline = getCon fc defs (reflectionttimp "NoInline")
     reflect fc defs lhs env Deprecate = getCon fc defs (reflectionttimp "Deprecate")

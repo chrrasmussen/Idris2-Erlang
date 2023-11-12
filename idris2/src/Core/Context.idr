@@ -28,6 +28,7 @@ import Data.Nat
 import Libraries.Data.NameMap
 import Libraries.Data.StringMap
 import Libraries.Data.UserNameMap
+import Libraries.Data.WithDefault
 import Libraries.Text.Distance.Levenshtein
 
 import System.Clock
@@ -317,9 +318,17 @@ commitCtxt ctxt
         = do writeArray arr idx val
              commitStaged rest arr
 
+||| Produce a new global definition with a lot of default values
+||| @fc   definition site
+||| @n    name
+||| @rig  quantity annotation
+||| @vars local variables
+||| @ty   (closed) type
+||| @vis  Visibility, defaulting to private
+||| @def  actual definition
 export
-newDef : FC -> Name -> RigCount -> List Name ->
-         ClosedTerm -> Visibility -> Def -> GlobalDef
+newDef : (fc : FC) -> (n : Name) -> (rig : RigCount) -> (vars : List Name) ->
+         (ty : ClosedTerm) -> (vis : WithDefault Visibility Private) -> (def : Def) -> GlobalDef
 newDef fc n rig vars ty vis def
     = MkGlobalDef
         { location = fc
@@ -333,6 +342,7 @@ newDef fc n rig vars ty vis def
         , localVars = vars
         , visibility = vis
         , totality = unchecked
+        , isEscapeHatch = False
         , flags = []
         , refersToM = Nothing
         , refersToRuntimeM = Nothing
@@ -651,11 +661,13 @@ export
 HasNames PartialReason where
   full gam NotStrictlyPositive = pure NotStrictlyPositive
   full gam (BadCall ns) = pure $ BadCall !(traverse (full gam) ns)
-  full gam (RecPath ns) = pure $ RecPath !(traverse (full gam) ns)
+  full gam (BadPath init n) = pure $ BadPath !(traverse (traversePair (full gam)) init) !(full gam n)
+  full gam (RecPath loop) = pure $ RecPath !(traverse (traversePair (full gam)) loop)
 
   resolved gam NotStrictlyPositive = pure NotStrictlyPositive
   resolved gam (BadCall ns) = pure $ BadCall !(traverse (resolved gam) ns)
-  resolved gam (RecPath ns) = pure $ RecPath !(traverse (resolved gam) ns)
+  resolved gam (BadPath init n) = pure $ BadPath !(traverse (traversePair (resolved gam)) init) !(resolved gam n)
+  resolved gam (RecPath loop) = pure $ RecPath !(traverse (traversePair (resolved gam)) loop)
 
 export
 HasNames Terminating where
@@ -706,17 +718,19 @@ HasNames Warning where
   full gam (UnreachableClause fc rho s) = UnreachableClause fc <$> full gam rho <*> full gam s
   full gam (ShadowingGlobalDefs fc xs)
     = ShadowingGlobalDefs fc <$> traverseList1 (traversePair (traverseList1 (full gam))) xs
+  full gam (IncompatibleVisibility fc x y n) = IncompatibleVisibility fc x y <$> full gam n
   full gam w@(ShadowingLocalBindings _ _) = pure w
-  full gam (Deprecated x y) = Deprecated x <$> traverseOpt (traversePair (full gam)) y
-  full gam (GenericWarn x) = pure (GenericWarn x)
+  full gam (Deprecated fc x y) = Deprecated fc x <$> traverseOpt (traversePair (full gam)) y
+  full gam (GenericWarn fc x) = pure (GenericWarn fc x)
 
   resolved gam (ParserWarning fc x) = pure (ParserWarning fc x)
   resolved gam (UnreachableClause fc rho s) = UnreachableClause fc <$> resolved gam rho <*> resolved gam s
   resolved gam (ShadowingGlobalDefs fc xs)
     = ShadowingGlobalDefs fc <$> traverseList1 (traversePair (traverseList1 (resolved gam))) xs
+  resolved gam (IncompatibleVisibility fc x y n) = IncompatibleVisibility fc x y <$> resolved gam n
   resolved gam w@(ShadowingLocalBindings _ _) = pure w
-  resolved gam (Deprecated x y) = Deprecated x <$> traverseOpt (traversePair (resolved gam)) y
-  resolved gam (GenericWarn x) = pure (GenericWarn x)
+  resolved gam (Deprecated fc x y) = Deprecated fc x <$> traverseOpt (traversePair (resolved gam)) y
+  resolved gam (GenericWarn fc x) = pure (GenericWarn fc x)
 
 export
 HasNames Error where
@@ -789,6 +803,8 @@ HasNames Error where
   full gam (TTCError x) = pure (TTCError x)
   full gam (FileErr x y) = pure (FileErr x y)
   full gam (CantFindPackage x) = pure (CantFindPackage x)
+  full gam (LazyImplicitFunction fc) = pure (LazyImplicitFunction fc)
+  full gam (LazyPatternVar fc) = pure (LazyPatternVar fc)
   full gam (LitFail fc) = pure (LitFail fc)
   full gam (LexFail fc x) = pure (LexFail fc x)
   full gam (ParseFail xs) = pure (ParseFail xs)
@@ -878,6 +894,8 @@ HasNames Error where
   resolved gam (TTCError x) = pure (TTCError x)
   resolved gam (FileErr x y) = pure (FileErr x y)
   resolved gam (CantFindPackage x) = pure (CantFindPackage x)
+  resolved gam (LazyImplicitFunction fc) = pure (LazyImplicitFunction fc)
+  resolved gam (LazyPatternVar fc) = pure (LazyPatternVar fc)
   resolved gam (LitFail fc) = pure (LitFail fc)
   resolved gam (LexFail fc x) = pure (LexFail fc x)
   resolved gam (ParseFail xs) = pure (ParseFail xs)
@@ -1030,6 +1048,7 @@ record Defs where
   foreignExports : NameMap (List (String, String))
        -- ^ For functions which are callable from a foreign language. This
        -- maps names to a pair of the back end and the exported function name
+  defsStack : SnocList Name -- stack of the definition names being processed
 
 -- Label for context references
 export
@@ -1079,6 +1098,7 @@ initDefs
            , warnings = []
            , schemeEvalLoaded = False
            , foreignExports = empty
+           , defsStack = [<]
            }
 
 -- Reset the context, except for the options
@@ -1121,7 +1141,7 @@ getSimilarNames nm = case show <$> userNameRoot nm of
                    | False => pure Nothing
                Just def <- lookupCtxtExact nm (gamma defs)
                    | Nothing => pure Nothing -- should be impossible
-               pure (Just (visibility def, dist))
+               pure (Just (collapseDefault $ visibility def, dist))
        kept <- NameMap.mapMaybeM @{CORE} test (resolvedAs (gamma defs))
        pure $ Just (str, toList kept)
 
@@ -1155,7 +1175,7 @@ showSimilarNames ns nm str kept
 
 
 getVisibility : {auto c : Ref Ctxt Defs} ->
-                FC -> Name -> Core Visibility
+                FC -> Name -> Core (WithDefault Visibility Private)
 getVisibility fc n
     = do defs <- get Ctxt
          Just def <- lookupCtxtExact n (gamma defs)
@@ -1190,7 +1210,7 @@ ambiguousName : {auto c : Ref Ctxt Defs} -> FC
              -> Name -> List Name
              -> Core a
 ambiguousName fc n ns = do
-  ns <- filterM (\x => pure $ !(getVisibility fc x) /= Private) ns
+  ns <- filterM (\x => pure $ !(collapseDefault <$> getVisibility fc x) /= Private) ns
   case ns of
     [] =>         undefinedName fc n
     ns => throw $ AmbiguousName fc ns
@@ -1318,8 +1338,9 @@ addBuiltin n ty tot op
          , inferrable = []
          , multiplicity = top
          , localVars = []
-         , visibility = Public
+         , visibility = specified Public
          , totality = tot
+         , isEscapeHatch = False
          , flags = [Inline]
          , refersToM = Nothing
          , refersToRuntimeM = Nothing
@@ -1544,6 +1565,15 @@ addHashWithNames : {auto c : Ref Ctxt Defs} ->
 addHashWithNames x = toFullNames x >>= addHash
 
 export
+setIsEscapeHatch : {auto c : Ref Ctxt Defs} ->
+  FC -> Name -> Core ()
+setIsEscapeHatch fc n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => undefinedName fc n
+         ignore $ addDef n ({ isEscapeHatch := True } def)
+
+export
 setFlag : {auto c : Ref Ctxt Defs} ->
         FC -> Name -> DefFlag -> Core ()
 setFlag fc n fl
@@ -1643,7 +1673,16 @@ setVisibility fc n vis
     = do defs <- get Ctxt
          Just def <- lookupCtxtExact n (gamma defs)
               | Nothing => undefinedName fc n
-         ignore $ addDef n ({ visibility := vis } def)
+         ignore $ addDef n ({ visibility := specified vis } def)
+
+export
+withDefStacked : {auto c : Ref Ctxt Defs} ->
+                 Name -> Core a -> Core a
+withDefStacked n act
+    = do defs <- get Ctxt
+         let ds = defs.defsStack
+         put Ctxt $ {defsStack $= (:< n)} defs
+         act <* update Ctxt {defsStack := ds}
 
 public export
 record SearchData where
@@ -2296,6 +2335,21 @@ setFromDouble : {auto c : Ref Ctxt Defs} ->
 setFromDouble n = update Ctxt { options $= setFromDouble n }
 
 export
+setFromTTImp : {auto c : Ref Ctxt Defs} ->
+               Name -> Core ()
+setFromTTImp n = update Ctxt { options $= setFromTTImp n }
+
+export
+setFromName : {auto c : Ref Ctxt Defs} ->
+              Name -> Core ()
+setFromName n = update Ctxt { options $= setFromName n }
+
+export
+setFromDecls : {auto c : Ref Ctxt Defs} ->
+               Name -> Core ()
+setFromDecls n = update Ctxt { options $= setFromDecls n }
+
+export
 addNameDirective : {auto c : Ref Ctxt Defs} ->
                    FC -> Name -> List String -> Core ()
 addNameDirective fc n ns
@@ -2372,8 +2426,35 @@ fromDoubleName
          pure $ fromDoubleName (primnames (options defs))
 
 export
+fromTTImpName : {auto c : Ref Ctxt Defs} ->
+                Core (Maybe Name)
+fromTTImpName
+    = do defs <- get Ctxt
+         pure $ fromTTImpName (primnames (options defs))
+
+export
+fromNameName : {auto c : Ref Ctxt Defs} ->
+               Core (Maybe Name)
+fromNameName
+    = do defs <- get Ctxt
+         pure $ fromNameName (primnames (options defs))
+
+export
+fromDeclsName : {auto c : Ref Ctxt Defs} ->
+                Core (Maybe Name)
+fromDeclsName
+    = do defs <- get Ctxt
+         pure $ fromDeclsName (primnames (options defs))
+
+export
 getPrimNames : {auto c : Ref Ctxt Defs} -> Core PrimNames
-getPrimNames = [| MkPrimNs fromIntegerName fromStringName fromCharName fromDoubleName |]
+getPrimNames = [| MkPrimNs fromIntegerName
+                           fromStringName
+                           fromCharName
+                           fromDoubleName
+                           fromTTImpName
+                           fromNameName
+                           fromDeclsName |]
 
 export
 getPrimitiveNames : {auto c : Ref Ctxt Defs} -> Core (List Name)
@@ -2395,6 +2476,15 @@ addLogLevel : {auto c : Ref Ctxt Defs} ->
               Maybe LogLevel -> Core ()
 addLogLevel Nothing  = update Ctxt { options->session->logEnabled := False, options->session->logLevel := defaultLogLevel }
 addLogLevel (Just l) = update Ctxt { options->session->logEnabled := True, options->session->logLevel $= insertLogLevel l }
+
+export
+setLogLevel : {auto c : Ref Ctxt Defs} ->
+              LogLevel -> Core ()
+setLogLevel = addLogLevel . Just
+
+export
+stopLogging : {auto c : Ref Ctxt Defs} -> Core ()
+stopLogging = addLogLevel Nothing
 
 export
 withLogLevel : {auto c : Ref Ctxt Defs} ->
@@ -2493,7 +2583,7 @@ addImportedInc modNS inc
                 Nothing =>
                   -- No incremental compile data for current CG, so we can't
                   -- compile incrementally
-                  do recordWarning (GenericWarn ("No incremental compile data for " ++ show modNS))
+                  do recordWarning (GenericWarn emptyFC ("No incremental compile data for " ++ show modNS))
                      defs <- get Ctxt
                      put Ctxt ({ allIncData $= drop cg } defs)
                      -- Tell session that the codegen is no longer incremental
@@ -2546,5 +2636,5 @@ unhide fc n
               | res => ambiguousName fc n (map fst res)
          put Ctxt ({ gamma $= unhideName nsn } defs)
          unless (isHidden nsn (gamma defs)) $ do
-           recordWarning $ GenericWarn $
+           recordWarning $ GenericWarn fc $
              "Trying to %unhide `" ++ show nsn ++ "`, which was not hidden in the first place"

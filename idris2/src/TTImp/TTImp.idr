@@ -13,6 +13,9 @@ import Data.List
 import Data.List1
 import Data.Maybe
 
+import Libraries.Data.SortedSet
+import Libraries.Data.WithDefault
+
 %default covering
 
 -- Information about names in nested blocks
@@ -35,6 +38,13 @@ Weaken NestedNames where
                 (Name, (Maybe Name, List (Var (n :: vars)), FC -> NameType -> Term (n :: vars)))
       wknName (n, (mn, vars, rep))
           = (n, (mn, map weaken vars, \fc, nt => weaken (rep fc nt)))
+
+-- replace nested name with full name
+export
+mapNestedName : NestedNames vars -> Name -> Name
+mapNestedName nest n = case lookup n (names nest) of
+                               (Just (Just n', _)) => n'
+                               _ => n
 
 -- Unchecked terms, with implicit arguments
 -- This is the raw, elaboratable form.
@@ -66,7 +76,7 @@ mutual
        ILet : FC -> (lhsFC : FC) -> RigCount -> Name ->
               (nTy : RawImp' nm) -> (nVal : RawImp' nm) ->
               (scope : RawImp' nm) -> RawImp' nm
-       ICase : FC -> RawImp' nm -> (ty : RawImp' nm) ->
+       ICase : FC -> List (FnOpt' nm) -> RawImp' nm -> (ty : RawImp' nm) ->
                List (ImpClause' nm) -> RawImp' nm
        ILocal : FC -> List (ImpDecl' nm) -> RawImp' nm -> RawImp' nm
        -- Local definitions made elsewhere, but that we're pushing
@@ -110,7 +120,7 @@ mutual
        IQuoteName : FC -> Name -> RawImp' nm
        IQuoteDecl : FC -> List (ImpDecl' nm) -> RawImp' nm
        IUnquote : FC -> RawImp' nm -> RawImp' nm
-       IRunElab : FC -> RawImp' nm -> RawImp' nm
+       IRunElab : FC -> (requireExtension : Bool) -> RawImp' nm -> RawImp' nm
 
        IPrimVal : FC -> (c : Constant) -> RawImp' nm
        IType : FC -> RawImp' nm
@@ -161,7 +171,7 @@ mutual
       show (ILet fc lhsFC c n ty val sc)
          = "(%let " ++ show c ++ " " ++ " " ++ show n ++ " " ++ show ty ++
            " " ++ show val ++ " " ++ show sc ++ ")"
-      show (ICase _ scr scrty alts)
+      show (ICase _ _ scr scrty alts)
          = "(%case (" ++ show scr ++ " : " ++ show scrty ++ ") " ++ show alts ++ ")"
       show (ILocal _ def scope)
          = "(%local (" ++ show def ++ ") " ++ show scope ++ ")"
@@ -198,7 +208,7 @@ mutual
       show (IQuoteName fc tm) = "(%quotename " ++ show tm ++ ")"
       show (IQuoteDecl fc tm) = "(%quotedecl " ++ show tm ++ ")"
       show (IUnquote fc tm) = "(%unquote " ++ show tm ++ ")"
-      show (IRunElab fc tm) = "(%runelab " ++ show tm ++ ")"
+      show (IRunElab fc _ tm) = "(%runelab " ++ show tm ++ ")"
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
       show (IUnifyLog _ lvl x) = "(%logging " ++ show lvl ++ " " ++ show x ++ ")"
@@ -219,6 +229,7 @@ mutual
 
   public export
   data FnOpt' : Type -> Type where
+       Unsafe : FnOpt' nm
        Inline : FnOpt' nm
        NoInline : FnOpt' nm
        ||| Mark a function as deprecated.
@@ -249,6 +260,7 @@ mutual
   export
   covering
   Show nm => Show (FnOpt' nm) where
+    show Unsafe = "%unsafe"
     show Inline = "%inline"
     show NoInline = "%noinline"
     show Deprecate = "%deprecate"
@@ -323,7 +335,10 @@ mutual
 
   public export
   data ImpData' : Type -> Type where
-       MkImpData : FC -> (n : Name) -> (tycon : RawImp' nm) ->
+       MkImpData : FC -> (n : Name) ->
+                   -- if we have already declared the type using `MkImpLater`,
+                   -- we are allowed to leave the telescope out here.
+                   (tycon : Maybe (RawImp' nm)) ->
                    (opts : List DataOpt) ->
                    (datacons : List (ImpTy' nm)) -> ImpData' nm
        MkImpLater : FC -> (n : Name) -> (tycon : RawImp' nm) -> ImpData' nm
@@ -333,9 +348,10 @@ mutual
   export
   covering
   Show nm => Show (ImpData' nm) where
-    show (MkImpData fc n tycon _ cons)
-        = "(%data " ++ show n ++ " " ++ show tycon ++ " " ++
-           show cons ++ ")"
+    show (MkImpData fc n (Just tycon) _ cons)
+        = "(%data " ++ show n ++ " " ++ show tycon ++ " " ++ show cons ++ ")"
+    show (MkImpData fc n Nothing _ cons)
+        = "(%data " ++ show n ++ " " ++ show cons ++ ")"
     show (MkImpLater fc n tycon)
         = "(%datadecl " ++ show n ++ " " ++ show tycon ++ ")"
 
@@ -437,14 +453,16 @@ mutual
   data ImpDecl' : Type -> Type where
        IClaim : FC -> RigCount -> Visibility -> List (FnOpt' nm) ->
                 ImpTy' nm -> ImpDecl' nm
-       IData : FC -> Visibility -> Maybe TotalReq -> ImpData' nm -> ImpDecl' nm
+       IData : FC -> WithDefault Visibility Private ->
+               Maybe TotalReq -> ImpData' nm -> ImpDecl' nm
        IDef : FC -> Name -> List (ImpClause' nm) -> ImpDecl' nm
        IParameters : FC ->
                      List (ImpParameter' nm) ->
                      List (ImpDecl' nm) -> ImpDecl' nm
        IRecord : FC ->
                  Maybe String -> -- nested namespace
-                 Visibility -> Maybe TotalReq ->
+                 WithDefault Visibility Private ->
+                 Maybe TotalReq ->
                  ImpRecord' nm -> ImpDecl' nm
        IFail : FC -> Maybe String -> List (ImpDecl' nm) -> ImpDecl' nm
        INamespace : FC -> Namespace -> List (ImpDecl' nm) -> ImpDecl' nm
@@ -595,7 +613,7 @@ findIBinds (IDelay fc tm) = findIBinds tm
 findIBinds (IForce fc tm) = findIBinds tm
 findIBinds (IQuote fc tm) = findIBinds tm
 findIBinds (IUnquote fc tm) = findIBinds tm
-findIBinds (IRunElab fc tm) = findIBinds tm
+findIBinds (IRunElab fc _ tm) = findIBinds tm
 findIBinds (IBindHere _ _ tm) = findIBinds tm
 findIBinds (IBindVar _ n) = [n]
 findIBinds (IUpdate fc updates tm)
@@ -631,7 +649,7 @@ findImplicits (IDelay fc tm) = findImplicits tm
 findImplicits (IForce fc tm) = findImplicits tm
 findImplicits (IQuote fc tm) = findImplicits tm
 findImplicits (IUnquote fc tm) = findImplicits tm
-findImplicits (IRunElab fc tm) = findImplicits tm
+findImplicits (IRunElab fc _ tm) = findImplicits tm
 findImplicits (IBindVar _ n) = [n]
 findImplicits (IUpdate fc updates tm)
     = findImplicits tm ++ concatMap (findImplicits . getFieldUpdateTerm) updates
@@ -768,7 +786,7 @@ export
 definedInBlock : Namespace -> -- namespace to resolve names
                  List ImpDecl -> List Name
 definedInBlock ns decls =
-    concatMap (defName ns) decls
+    SortedSet.toList $ foldl (defName ns) empty decls
   where
     getName : ImpTy -> Name
     getName (MkImpTy _ _ n _) = n
@@ -784,16 +802,17 @@ definedInBlock ns decls =
            DN _ _ => NS ns n
            _ => n
 
-    defName : Namespace -> ImpDecl -> List Name
-    defName ns (IClaim _ _ _ _ ty) = [expandNS ns (getName ty)]
-    defName ns (IData _ _ _ (MkImpData _ n _ _ cons))
-        = expandNS ns n :: map (expandNS ns) (map getName cons)
-    defName ns (IData _ _ _ (MkImpLater _ n _)) = [expandNS ns n]
-    defName ns (IParameters _ _ pds) = concatMap (defName ns) pds
-    defName ns (IFail _ _ nds) = concatMap (defName ns) nds
-    defName ns (INamespace _ n nds) = concatMap (defName (ns <.> n)) nds
-    defName ns (IRecord _ fldns _ _ (MkImpRecord _ n _ opts con flds))
-        = expandNS ns con :: all
+    defName : Namespace -> SortedSet Name -> ImpDecl -> SortedSet Name
+    defName ns acc (IClaim _ _ _ _ ty) = insert (expandNS ns (getName ty)) acc
+    defName ns acc (IDef _ nm _) = insert (expandNS ns nm) acc
+    defName ns acc (IData _ _ _ (MkImpData _ n _ _ cons))
+        = foldl (flip insert) acc $ expandNS ns n :: map (expandNS ns . getName) cons
+    defName ns acc (IData _ _ _ (MkImpLater _ n _)) = insert (expandNS ns n) acc
+    defName ns acc (IParameters _ _ pds) = foldl (defName ns) acc pds
+    defName ns acc (IFail _ _ nds) = foldl (defName ns) acc nds
+    defName ns acc (INamespace _ n nds) = foldl (defName (ns <.> n)) acc nds
+    defName ns acc (IRecord _ fldns _ _ (MkImpRecord _ n _ opts con flds))
+        = foldl (flip insert) acc $ expandNS ns con :: all
       where
         fldns' : Namespace
         fldns' = maybe ns (\ f => ns <.> mkNamespace f) fldns
@@ -818,8 +837,8 @@ definedInBlock ns decls =
         all : List Name
         all = expandNS ns n :: map (expandNS fldns') (fnsRF ++ fnsUN)
 
-    defName ns (IPragma _ pns _) = map (expandNS ns) pns
-    defName _ _ = []
+    defName ns acc (IPragma _ pns _) = foldl (flip insert) acc $ map (expandNS ns) pns
+    defName _ acc _ = acc
 
 export
 isIVar : RawImp' nm -> Maybe (FC, nm)
@@ -837,7 +856,7 @@ getFC (IVar x _) = x
 getFC (IPi x _ _ _ _ _) = x
 getFC (ILam x _ _ _ _ _) = x
 getFC (ILet x _ _ _ _ _ _) = x
-getFC (ICase x _ _ _) = x
+getFC (ICase x _ _ _ _) = x
 getFC (ILocal x _ _) = x
 getFC (ICaseLocal x _ _ _ _) = x
 getFC (IUpdate x _ _) = x
@@ -863,7 +882,7 @@ getFC (IQuote x _) = x
 getFC (IQuoteName x _) = x
 getFC (IQuoteDecl x _) = x
 getFC (IUnquote x _) = x
-getFC (IRunElab x _) = x
+getFC (IRunElab x _ _) = x
 getFC (IAs x _ _ _ _) = x
 getFC (Implicit x _) = x
 getFC (IWithUnambigNames x _ _) = x

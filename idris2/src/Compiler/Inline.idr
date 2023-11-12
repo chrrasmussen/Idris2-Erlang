@@ -14,11 +14,12 @@ import Core.Hash
 import Core.Options
 import Core.TT
 
-import Libraries.Data.LengthMatch
 import Data.Maybe
-import Libraries.Data.NameMap
 import Data.List
 import Data.Vect
+import Libraries.Data.LengthMatch
+import Libraries.Data.NameMap
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -496,8 +497,8 @@ mutual
 
   addRefsConAlts : NameMap Bool -> List (CConAlt vars) -> NameMap Bool
   addRefsConAlts ds [] = ds
-  addRefsConAlts ds (MkConAlt _ _ _ _ sc :: rest)
-      = addRefsConAlts (addRefs ds sc) rest
+  addRefsConAlts ds (MkConAlt n _ _ _ sc :: rest)
+      = addRefsConAlts (addRefs (insert n False ds) sc) rest
 
   addRefsConstAlts : NameMap Bool -> List (CConstAlt vars) -> NameMap Bool
   addRefsConstAlts ds [] = ds
@@ -561,7 +562,7 @@ addArityHash n
          Just def <- lookupCtxtExact n (gamma defs) | Nothing => pure ()
          let Just cexpr =  compexpr def             | Nothing => pure ()
          let MkFun args _ = cexpr                   | _ => pure ()
-         case visibility def of
+         case collapseDefault $ visibility def of
               Private => pure ()
               _ => addHash (n, length args)
 

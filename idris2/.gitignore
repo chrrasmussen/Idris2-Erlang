@@ -15,8 +15,10 @@ idris2docs_venv
 /docs/build
 
 /libs/**/build
+/ipkg/build
 
 /tests/**/build
+/tests/**/prefix
 /tests/**/output*
 /tests/**/*.so
 /tests/**/*.dylib

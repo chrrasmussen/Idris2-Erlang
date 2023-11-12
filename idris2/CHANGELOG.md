@@ -2,9 +2,41 @@
 
 ## [Next version]
 
+### Language changes
+
+* New magic constants `__LOC__`, `__FILE__`, `__LINE__`, `__COL__`
+  substituted at parsing time with a string corresponding to the
+  location, filename, line or column number associated to the
+  magic constant's position.
+* The termination checker is now a faithful implementation of the 2001 paper on
+  size-change termination by Lee, Jones and Ben-Amram.
+* New function option `%unsafe` to mark definitions that are escape hatches
+  similar to the builtins `believe_me`, `assert_total`, etc.
+* Elaborator scripts were made be able to record warnings.
+* Rudimentary support for defining lazy functions (addressing issue
+  [#1066](https://github.com/idris-lang/idris2/issues/1066)).
+* `%hide` directives can now hide conflicting fixities from other modules.
+* Fixity declarations can now be kept private with export modifiers.
+* Forward-declarations whose visibility differ from their
+  actual definition now emit a warning, unless the definition
+  has no specified visibility
+  (addressing Issue [#1236](https://github.com/idris-lang/Idris2/issues/1236)).
+* New `fromTTImp`, `fromName`, and `fromDecls` names for custom `TTImp`,
+  `Name`, and `Decls` literals.
+* Call to `%macro`-functions do not require the `ElabReflection` extension.
+* Default implicits are supported for named implementations.
+* Elaborator scripts were made to be able to access project files,
+  allowing the support for type providers and similar stuff.
+* Elaborator scripts were made to be able to inspect which definitions are
+  referred to by another definitions, and in which function currently elaborator is.
+  These features together give an ability to inspect whether particular expressions
+  are recursive (including mutual recursion).
+
 ### REPL changes
 
 * Adds documentation for unquotes `~( )`.
+* Adds documentation for laziness and codata primitives: `Lazy`, `Inf`, `Delay`,
+  and `Force`.
 
 ### Backend changes
 
@@ -15,12 +47,102 @@
   Versions of the flags with the `IDRIS2_` prefix can also be used and take
   precedence.
 
+#### Chez
+
+* Non-recursive top-level constants are compiled to eagerly evaluated
+  constants in Chez Scheme.
+
+#### Racket
+
+* FFI declarations can now specify which `require` to perform, i.e. which
+  library to load before executing the FFI.
+  The syntax is `scheme,racket:my-function,my-library`.
+
+#### Node.js/Browser
+
+* Generated JavaScript files now include a shebang when using the Node.js backend
+* NodeJS now supports `popen`/`pclose` for the `Read` mode.
+* `getChar` is now supported on Node.js and `putChar` is supported on both
+  JavaScript backends.
+* Integer-indexed arrays are now supported.
+
 ### Compiler changes
 
 * If `IAlternative` expression with `FirstSuccess` rule fails to typecheck,
   compiler now prints all tried alternatives, not only the last one.
 
+* The elaboration of records has been changed so that the unbound implicits in
+  the parameters' types become additional parameters e.g.
+  ```idris2
+  record HasLength (xs : List a) (n : Nat) where
+    constructor MkHasLength
+    0 prf : length xs === n
+  ```
+  is now correctly elaborated to
+  ```idris2
+  record HasLength {0 a : Type} (xs : List a) (n : Nat) where
+    constructor MkHasLength
+    0 prf : length xs === n
+  ```
+  instead of failing with a strange error about (a) vs (a .rec).
+
+* Elaboration of datatypes now respects the totality annotations:
+  defining a `covering` or `partial` datatype in a `%default total`
+  file will not lead to a positivity error anymore.
+
+* Fixed a bug in the positivity checker that meant `Lazy` could be used
+  to hide negative occurrences.
+
+* Made sure that the positivity checker now respects `assert_total` annotations.
+
+* We now raise a warning for conflicting fixity declarations. They are
+  dangerous as Idris will pick an arbitrary one and so the meaning of an
+  expression can depend e.g. on the order in which modules are imported.
+
+  * Additionally some conflicting fixity declarations in the Idris 2 compiler
+    and libraries have been removed.
+
+* Constructors mentioned on the left hand side of functions/case alternatives
+  are now included in the `Refers to (runtime)` section of functions debug info.
+
+* The Lifted IR Representation now has a `HasNamespaces` implementation
+  in `Compiler.Separate` so Compilation Units at that stage can be generated.
+
+* Added the `compile.casetree.missing` log topic, along with its use in
+  `TTImp.ProcessDef.genRunTime`. This allows us to track when incomplete `case`
+  blocks get the runtime error added.
+
+* Constant folding of trivial let statements and `believe_me`.
+
+* Fixed a bug that caused holes to appear unexpectedly during quotation of
+  dependent pairs.
+
+* Fixed a bug that caused `f` to sometimes be replaced by `fx` after matching `fx = f x`.
+
+* Fixed a bug in the totality checker that missed indirect references to
+  partial data.
+
+* Refactor the idris2protocols package to depend on fewer Idris2 modules.
+  We can now export the package independently.
+  To avoid confusing tooling about which `.ipkg` to use, the
+  package file is under the newly added `ipkg` sub-directory.
+
+* Added `Libraries.Data.WithDefault` to facilitate consistent use
+  of a default-if-unspecified value, currently for `private` visibility.
+
 ### Library changes
+
+#### Prelude
+
+* Improved performance of functions `isNL`, `isSpace`, and `isHexDigit`.
+
+* Implements `Foldable` and `Traversable` for pairs, right-biased as `Functor`.
+
+* Added a constructor (`MkInterpolation`) to `Interpolation`.
+
+* Added an `Interpolation` implementation for `Void`.
+
+* Added `Compose` instances for `Bifunctor`, `Bifoldable` and `Bitraversable`.
 
 #### Base
 
@@ -28,12 +150,164 @@
   release. Use `setBits8` and `getBits8` instead (with `cast` if you need to
   convert a `Bits8` to an `Int`), as their values are limited, as opposed to the
   assumption in `setByte` that the value is between 0 and 255.
+
 * Adds RefC support for 16- and 32-bit access in `Data.Buffer`.
+* Add `Show` instance to `Data.Vect.Quantifiers.All` and add a few helpers for listy
+  computations on the `All` type.
+* Add an alias for `HVect` to `All id` in `Data.Vect.Quantifiers.All`. This is the
+  approach to getting a heterogeneous `Vect` of elements that is general
+  preferred by the community vs. a standalone type as seen in `contrib`.
+* Add `Data.List.HasLength` from the compiler codebase slash contrib library but
+  adopt the type signature from the compiler codebase and some of the naming
+  from the contrib library. The type ended up being `HasLength n xs` rather than
+  `HasLength xs n`.
+
+* `System`'s `die` now prints the error message on stderr rather than stdout
+
+* Moved `Data.SortedMap` and `Data.SortedSet` from contrib to base.
+
+* Added missing buffer primitives (chezscheme only):
+  `setInt8`, `getInt8`, `getInt16`, `setInt64`, `getInt64`
+
+* Added new buffer (set/get) functions for built-in types `Bool`, `Nat`, `Integer`.
+
+* Tightened the types of:
+  `setInt16` (now takes an `Int16` instead of an `Int`),
+  `setInt32` (now takes an `Int32` instead of an `Int`),
+  `getInt32` (now returns an `Int32` instead of an `Int`)
+
+* Adds left- and right-rotation for `FiniteBits`.
+
+* Adds `Vect.permute` for applying permutations to `Vect`s.
+* Adds `Vect.kSplits` and `Vect.nSplits` for splitting a `Vect` whose length is
+  a known multiple of two `Nat`s (k * n) into k vectors of length n (and
+  vice-versa).
+* Adds `Vect.allFins` for generating all the `Fin` elements as a `Vect` with
+  matching length to the number of elements.
+
+* Add `withRawMode`, `enableRawMode`, `resetRawMode` for character at a time
+  input on stdin.
+
+* Adds extraction functions to `Data.Singleton`.
+
+* `TTImp` reflection functions are now `public export`, enabling use at the
+  type-level.
+
+* Implemented `Eq`, `Ord`, `Semigroup`, and `Monoid` for `Data.List.Quantifiers.All.All`
+  and `Data.Vect.Quantifiers.All.All`.
+
+* Generalized `imapProperty` in `Data.List.Quantifiers.All.All`
+  and `Data.Vect.Quantifiers.All.All`.
+
+* Add `zipPropertyWith`, `traverseProperty`, `traversePropertyRelevant` and `remember`
+  to `Data.Vect.Quantifiers.All.All`.
+
+* Add `anyToFin` to `Data.Vect.Quantifiers.Any`,
+  converting the `Any` witness to the index into the corresponding element.
+
+* Implemented `Ord` for `Language.Reflection.TT.Name`, `Language.Reflection.TT.Namespace`
+  and `Language.Reflection.TT.UserName`.
+
+* Adds `leftmost` and `rightmost` to `Control.Order`, a generalisation of `min` and `max`.
+
+* Adds `even` and `odd` to `Data.Integral`.
+* `Eq` and `Ord` implementations for `Fin n` now run in constant time.
+
+* Adds `getTermCols` and `getTermLines` to the base library. They return the
+  size of the terminal if either stdin or stdout is a tty.
+
+* The `Data.List1` functions `foldr1` and `foldr1By` are now `public export`.
+
+* Added `uncons' : List a -> Maybe (a, List a)` to `base`.
+
+* Adds `infixOfBy` and `isInfixOfBy` into `Data.List`.
+
+* Adds `WithDefault` into `Language.Reflection.TTImp`, mirroring compiler addition.
+
+* Adds updating functions to `SortedMap` and `SortedDMap`.
+
+* Adds `grouped` function to `Data.List` for splitting a list into equal-sized slices.
+
+* Implements `Ord` for `Count` from `Language.Reflection`.
+
+* Implements `MonadState` for `Data.Ref` with a named implementation requiring
+  a particular reference.
+
+* Adds implementations of `Zippable` to `Either`, `Pair`, `Maybe`, `SortedMap`.
+
+* Adds a `Compose` and `FromApplicative` named implementations for `Zippable`.
+
+* Adds `Semigroup`, `Applicative`, `Traversable` and `Zippable` for `Data.These`.
+
+* Adds bindings for IEEE floating point constants NaN and (+/-) Inf, as well as
+  machine epsilon and unit roundoff. Speeds vary depending on backend.
+
+* A more generalised way of applicative mapping of `TTImp` expression was added,
+  called `mapATTImp`; the original `mapMTTimp` was implemented through the new one.
 
 #### System
 
 * Changes `getNProcessors` to return the number of online processors rather than
   the number of configured processors.
+
+* Adds `popen2` to run a subprocess with bi-directional pipes.
+
+### Contrib
+
+* Adds `Data.List.Sufficient`, a small library defining a structurally inductive
+  view of lists.
+
+* Remove `Data.List.HasLength` from `contrib` library but add it to the `base`
+  library with the type signature from the compiler codebase and some of the
+  naming from the `contrib` library. The type ended up being `HasLength n xs`
+  rather than `HasLength xs n`.
+
+* Adds an implementation for `Functor Text.Lexer.Tokenizer.Tokenizer`.
+
+* Adds `modFin` and `strengthenMod` to `Data.Fin.Extra`. These functions reason
+  about the modulo operator's upper bound, which can be useful when working with
+  indices (for example).
+
+* Existing specialised variants of functions from the `Traversable` for `LazyList`
+  were made to be indeed lazy by the effect, but their requirements were strengthened
+  from `Applicative` to `Monad`.
+
+* Implements `Sized` for `Data.Seq.Sized` and `Data.Seq.Unsized`.
+
+#### Papers
+
+* In `Control.DivideAndConquer`: a port of the paper
+  "A Type-Based Approach to Divide-And-Conquer Recursion in Coq"
+  by Pedro Abreu, Benjamin Delaware, Alex Hubers, Christa Jenkins,
+  J. Garret Morris, and Aaron Stump.
+  [https://doi.org/10.1145/3571196](https://doi.org/10.1145/3571196)
+
+* Ports the first half of "Deferring the Details and Deriving Programs" by Liam
+  O'Connor as `Data.ProofDelay`.
+  [https://doi.org/10.1145/3331554.3342605](https://doi.org/10.1145/3331554.3342605)
+  [http://liamoc.net/images/deferring.pdf](http://liamoc.net/images/deferring.pdf)
+
+### Other Changes
+
+* The `data` subfolder of an installed or local dependency package is now automatically
+  recognized as a "data" directory by Idris 2. See the
+  [documentation on Packages](https://idris2.readthedocs.io/en/latest/reference/packages.html)
+  for details.
+* The compiler no longer installs its own C support library into
+  `${PREFIX}/lib`. This folder's contents were always duplicates of files
+  installed into `${PREFIX}/idris2-${IDRIS2_VERSION}/lib`. If you need to adjust
+  any tooling or scripts, point them to the latter location which still contains
+  these installed library files.
+* Renamed `support-clean` Makefile target to `clean-support`. This is in line
+  with most of the `install-<something>` and `clean-<something>` naming.
+* Fixes an error in the `Makefile` where setting `IDRIS2_PREFIX` caused
+  bootstrapping to fail.
+* Updates the docs for `envvars` to match the changes introduced in #2649.
+* Both `make install` and `idris2 --install...` now respect `DESTDIR` which
+  can be set to install into a staging directory for distro packaging.
+* Updates the docs for `envvars` to categorise when environment variables are
+  used (runtime, build-time, or both).
+* Fixed build failure occuring when `make -j` is in effect.
 
 ## v0.6.0
 
@@ -425,7 +699,7 @@ Changed
   some non-deterministic properties (see issue
   [#1552](https://github.com/idris-lang/idris2/issues/1552)).
   NOTE: Due to complications with race-conditions, Chez not having channels
-  built in, etc, the reimplementation changes the semantics slightly:
+  built-in, etc, the reimplementation changes the semantics slightly:
   `channelPut` no longer blocks until the value has been received under the
   `chez` backend, but instead only blocks if there is already a value in the
   channel that has not been received.

@@ -94,7 +94,7 @@ genShl : {auto lv : Ref LV LocalVars} -> Line -> Maybe IntKind -> ErlExpr -> Erl
 genShl l (Just ty) x y = genBoundedInt l ty (EOp l "bsl" x y)
 genShl l _         x y = pure $ EOp l "bsl" x y
 
-constPrimitives : {auto lv : Ref LV LocalVars} -> Line -> ConstantPrimitives ErlExpr
+constPrimitives : {auto lv : Ref LV LocalVars} -> Line -> ConstantPrimitives' ErlExpr
 constPrimitives l = MkConstantPrimitives {
     charToInt    = \k, x => pure $ genCharToInt l x
   , intToChar    = \_, x => pure $ genIntToChar l x

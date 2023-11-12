@@ -34,11 +34,11 @@ IDRIS2_LIB_IPKG := idris2api.ipkg
 
 ifeq ($(OS), windows)
 	# This produces D:/../.. style paths
-	IDRIS2_PREFIX := $(shell cygpath -m ${PREFIX})
+	IDRIS2_PREFIX ?= $(shell cygpath -m ${PREFIX})
 	IDRIS2_CURDIR := $(shell cygpath -m ${CURDIR})
 	SEP := ;
 else
-	IDRIS2_PREFIX := ${PREFIX}
+	IDRIS2_PREFIX ?= ${PREFIX}
 	IDRIS2_CURDIR := ${CURDIR}
 	SEP := :
 endif
@@ -57,14 +57,17 @@ export IDRIS2_BOOT_PATH := "$(IDRIS2_BOOT_PATH)"
 
 export SCHEME
 
-.PHONY: all idris2-exec libdocs testenv testenv-clean support support-clean clean FORCE
+.PHONY: all idris2-exec libdocs testenv testenv-clean support clean-support clean FORCE
 
-all: support ${TARGET} libs
+all:
+	${MAKE} ${TARGET}
+	${MAKE} libs
 
 idris2-exec: ${TARGET}
 
-${TARGET}: src/IdrisPaths.idr
+${TARGET}: support src/IdrisPaths.idr
 	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
+	cp ${IDRIS2_CURDIR}/support/c/${IDRIS2_SUPPORT} ${TARGETDIR}/${NAME}_app/${IDRIS2_SUPPORT}
 
 # We use FORCE to always rebuild IdrisPath so that the git SHA1 info is always up to date
 src/IdrisPaths.idr: FORCE
@@ -90,7 +93,7 @@ contrib: base
 test-lib: contrib
 	${MAKE} -C libs/test IDRIS2=${TARGET} IDRIS2_INC_CGS=${IDRIS2_CG} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
-linear: prelude
+linear: prelude base
 	${MAKE} -C libs/linear IDRIS2=${TARGET} IDRIS2_INC_CGS=${IDRIS2_CG} IDRIS2_PATH=${IDRIS2_BOOT_PATH}
 
 papers: contrib linear
@@ -167,14 +170,10 @@ test-installed:
 	@${MAKE} -C tests only=$(only) IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
 
 support:
-	@${MAKE} -C support/c
-	@${MAKE} -C support/refc
-	@${MAKE} -C support/chez
+	@${MAKE} -C support
 
-support-clean:
-	@${MAKE} -C support/c cleandep
-	@${MAKE} -C support/refc cleandep
-	@${MAKE} -C support/chez clean
+clean-support:
+	@${MAKE} -C support clean
 
 clean-libs:
 	${MAKE} -C libs/prelude clean
@@ -186,7 +185,7 @@ clean-libs:
 	${MAKE} -C libs/papers clean
 	${MAKE} -C libs/erlang clean
 
-clean: clean-libs support-clean testenv-clean
+clean: clean-libs clean-support testenv-clean
 	-${IDRIS2_BOOT} --clean ${IDRIS2_APP_IPKG}
 	$(RM) src/IdrisPaths.idr
 	${MAKE} -C tests clean
@@ -202,28 +201,16 @@ install-with-src-api: src/IdrisPaths.idr
 	${IDRIS2_BOOT} --install-with-src ${IDRIS2_LIB_IPKG}
 
 install-idris2:
-	mkdir -p ${PREFIX}/bin/
-	install ${TARGET} ${PREFIX}/bin
+	mkdir -p ${DESTDIR}${PREFIX}/bin/
+	install ${TARGET} ${DESTDIR}${PREFIX}/bin
 ifeq ($(OS), windows)
-	-install ${TARGET}.cmd ${PREFIX}/bin
+	-install ${TARGET}.cmd ${DESTDIR}${PREFIX}/bin
 endif
-	mkdir -p ${PREFIX}/lib/
-	install support/c/${IDRIS2_SUPPORT} ${PREFIX}/lib
-	mkdir -p ${PREFIX}/bin/${NAME}_app
-	install ${TARGETDIR}/${NAME}_app/* ${PREFIX}/bin/${NAME}_app
+	mkdir -p ${DESTDIR}${PREFIX}/bin/${NAME}_app
+	install ${TARGETDIR}/${NAME}_app/* ${DESTDIR}${PREFIX}/bin/${NAME}_app
 
 install-support:
-	mkdir -p ${PREFIX}/${NAME_VERSION}/support/docs
-	mkdir -p ${PREFIX}/${NAME_VERSION}/support/racket
-	mkdir -p ${PREFIX}/${NAME_VERSION}/support/gambit
-	mkdir -p ${PREFIX}/${NAME_VERSION}/support/js
-	install -m 644 support/docs/*.css ${PREFIX}/${NAME_VERSION}/support/docs
-	install -m 644 support/racket/* ${PREFIX}/${NAME_VERSION}/support/racket
-	install -m 644 support/gambit/* ${PREFIX}/${NAME_VERSION}/support/gambit
-	install -m 644 support/js/* ${PREFIX}/${NAME_VERSION}/support/js
-	@${MAKE} -C support/c install
-	@${MAKE} -C support/refc install
-	@${MAKE} -C support/chez install
+	@${MAKE} -C support install
 
 install-bootstrap-libs:
 	${MAKE} -C libs/prelude install IDRIS2=${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH} IDRIS2_INC_CGS=${IDRIS2_CG}
@@ -245,19 +232,19 @@ install-with-src-libs:
 	${MAKE} -C libs/linear install-with-src  IDRIS2=${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH} IDRIS2_INC_CGS=${IDRIS2_CG}
 
 install-libdocs: libdocs
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/prelude
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/base
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/contrib
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/network
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/test
-	mkdir -p ${PREFIX}/${NAME_VERSION}/docs/linear
-	cp -r libs/prelude/build/docs/* ${PREFIX}/${NAME_VERSION}/docs/prelude
-	cp -r libs/base/build/docs/*    ${PREFIX}/${NAME_VERSION}/docs/base
-	cp -r libs/contrib/build/docs/* ${PREFIX}/${NAME_VERSION}/docs/contrib
-	cp -r libs/network/build/docs/* ${PREFIX}/${NAME_VERSION}/docs/network
-	cp -r libs/test/build/docs/*    ${PREFIX}/${NAME_VERSION}/docs/test
-	cp -r libs/linear/build/docs/*  ${PREFIX}/${NAME_VERSION}/docs/linear
-	install -m 644 support/docs/*   ${PREFIX}/${NAME_VERSION}/docs
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/prelude
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/base
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/contrib
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/network
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/test
+	mkdir -p ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/linear
+	cp -r libs/prelude/build/docs/* ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/prelude
+	cp -r libs/base/build/docs/*    ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/base
+	cp -r libs/contrib/build/docs/* ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/contrib
+	cp -r libs/network/build/docs/* ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/network
+	cp -r libs/test/build/docs/*    ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/test
+	cp -r libs/linear/build/docs/*  ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/linear
+	install -m 644 support/docs/*   ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs
 
 
 .PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean

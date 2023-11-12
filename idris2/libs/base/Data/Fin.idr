@@ -51,17 +51,15 @@ export
 Injective FS where
   injective Refl = Refl
 
-export
-Eq (Fin n) where
-    (==) FZ FZ = True
-    (==) (FS k) (FS k') = k == k'
-    (==) _ _ = False
-
 ||| Convert a Fin to a Nat
 public export
 finToNat : Fin n -> Nat
 finToNat FZ = Z
 finToNat (FS k) = S $ finToNat k
+
+export
+Eq (Fin n) where
+  x == y = finToNat x == finToNat y
 
 finToNatInjective : (fm : Fin k) -> (fn : Fin k) -> (finToNat fm) = (finToNat fn) -> fm = fn
 finToNatInjective FZ     FZ     _    = Refl
@@ -153,18 +151,26 @@ complement : {n : Nat} -> Fin n -> Fin n
 complement {n = S _} FZ = last
 complement {n = S _} (FS x) = weaken $ complement x
 
-||| All of the Fin elements
-public export
-allFins : (n : Nat) -> List1 (Fin (S n))
-allFins Z = FZ ::: []
-allFins (S n) = FZ ::: map FS (forget (allFins n))
+namespace List
+
+  ||| All of the Fin elements
+  public export
+  allFins : (n : Nat) -> List (Fin n)
+  allFins Z = []
+  allFins (S n) = FZ :: map FS (allFins n)
+
+namespace List1
+
+  ||| All of the Fin elements
+  public export
+  allFins : (n : Nat) -> List1 (Fin (S n))
+  allFins Z = FZ ::: []
+  allFins (S n) = FZ ::: map FS (forget (allFins n))
+
 
 export
 Ord (Fin n) where
-  compare  FZ     FZ    = EQ
-  compare  FZ    (FS _) = LT
-  compare (FS _)  FZ    = GT
-  compare (FS x) (FS y) = compare x y
+  compare x y = compare (finToNat x) (finToNat y)
 
 namespace Monoid
 

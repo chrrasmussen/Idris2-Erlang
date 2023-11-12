@@ -13,6 +13,7 @@ import Core.LinearCheck
 import Core.Metadata
 import Core.Normalise
 import Core.Termination
+import Core.Termination.CallGraph
 import Core.Transform
 import Core.Value
 import Core.UnifyState
@@ -35,9 +36,10 @@ import TTImp.WithClause
 
 import Data.Either
 import Data.List
-import Libraries.Data.NameMap
 import Data.String
 import Data.Maybe
+import Libraries.Data.NameMap
+import Libraries.Data.WithDefault
 import Libraries.Text.PrettyPrint.Prettyprinter
 
 %default covering
@@ -284,10 +286,12 @@ findLinear top bound rig tm
       findLinArg : {vars : _} ->
                    RigCount -> NF [] -> List (Term vars) ->
                    Core (List (Name, RigCount))
-      findLinArg rig ty (As fc UseLeft _ p :: as)
-          = findLinArg rig ty (p :: as)
-      findLinArg rig ty (As fc UseRight p _ :: as)
-          = findLinArg rig ty (p :: as)
+      findLinArg rig ty@(NBind _ _ (Pi _ c _ _) _) (As fc u a p :: as)
+          = if isLinear c
+               then case u of
+                         UseLeft => findLinArg rig ty (p :: as)
+                         UseRight => findLinArg rig ty (a :: as)
+               else pure $ !(findLinArg rig ty [a]) ++ !(findLinArg rig ty (p :: as))
       findLinArg rig (NBind _ x (Pi _ c _ _) sc) (Local {name=a} fc _ idx prf :: as)
           = do defs <- get Ctxt
                let a = nameAt prf
@@ -584,7 +588,7 @@ checkClause {vars} mult vis totreq hashit n opts nest env
          wname <- genWithName !(prettyName !(toFullNames (Resolved n)))
          widx <- addDef wname ({flags $= (SetTotal totreq ::)}
                                     (newDef vfc wname (if isErased mult then erased else top)
-                                      vars wtype vis None))
+                                      vars wtype (specified vis) None))
 
          let toWarg : Maybe (PiInfo RawImp, Name) -> List (Maybe Name, RawImp)
                := flip maybe (\pn => [(Nothing, IVar vfc (snd pn))]) $
@@ -784,7 +788,7 @@ mkRunTime : {auto c : Ref Ctxt Defs} ->
             {auto o : Ref ROpts REPLOpts} ->
             FC -> Name -> Core ()
 mkRunTime fc n
-    = do log "compile.casetree" 5 $ "Making run time definition for " ++ show !(toFullNames n)
+    = do logC "compile.casetree" 5 $ do pure $ "Making run time definition for " ++ show !(toFullNames n)
          defs <- get Ctxt
          Just gdef <- lookupCtxtExact n (gamma defs)
               | _ => pure ()
@@ -800,9 +804,10 @@ mkRunTime fc n
                              pats
 
            let clauses_init = map (toClause (location gdef)) pats'
-           let clauses = case cov of
-                              MissingCases _ => addErrorCase clauses_init
-                              _ => clauses_init
+           clauses <- case cov of
+                           MissingCases _ => do log "compile.casetree.missing" 5 $ "Adding uncovered error to \{show clauses_init}"
+                                                pure $ addErrorCase clauses_init
+                           _ => pure clauses_init
 
            (rargs ** (tree_rt, _)) <- getPMDef (location gdef) RunTime n ty clauses
            logC "compile.casetree" 5 $ do
@@ -825,7 +830,7 @@ mkRunTime fc n
            when (caseName !(toFullNames n) && noInline (flags gdef)) $
              do inl <- canInlineCaseBlock n
                 when inl $ do
-                  log "compiler.inline.eval" 5 "Marking \{show !(toFullNames n)} for inlining in runtime case tree."
+                  logC "compiler.inline.eval" 5 $ do pure "Marking \{show !(toFullNames n)} for inlining in runtime case tree."
                   setFlag fc n Inline
   where
     -- check if the flags contain explicit inline or noinline directives:
@@ -842,7 +847,7 @@ mkRunTime fc n
 
     mkCrash : {vars : _} -> String -> Term vars
     mkCrash msg
-       = apply fc (Ref fc Func (NS builtinNS (UN $ Basic "idris_crash")))
+       = apply fc (Ref fc Func (UN $ Basic "prim__crash"))
                [Erased fc Placeholder, PrimVal fc (Str msg)]
 
     matchAny : Term vars -> Term vars
@@ -936,12 +941,12 @@ lookupOrAddAlias eopts nest env fc n [cl@(PatClause _ lhs _)]
                 Just (str, kept) <- getSimilarNames n
                    | Nothing => pure []
                 -- only keep the ones that haven't been defined yet
-                decls <- for kept $ \ (cand, weight) => do
+                decls <- for kept $ \ (cand, vis, weight) => do
                     Just gdef <- lookupCtxtExact cand (gamma defs)
                       | Nothing => pure Nothing -- should be impossible
                     let None = definition gdef
                       | _ => pure Nothing
-                    pure (Just (cand, weight))
+                    pure (Just (cand, vis, weight))
                 pure $ showSimilarNames (currentNS defs) n str $ catMaybes decls
           | (x :: xs) => throw (MaybeMisspelling (NoDeclaration fc n) (x ::: xs))
        --   3) declare an alias
@@ -973,7 +978,8 @@ processDef : {vars : _} ->
              List ElabOpt -> NestedNames vars -> Env Term vars -> FC ->
              Name -> List ImpClause -> Core ()
 processDef opts nest env fc n_in cs_in
-    = do n <- inCurrentNS n_in
+  = do n <- inCurrentNS n_in
+       withDefStacked n $ do
          defs <- get Ctxt
          Just gdef <- lookupOrAddAlias opts nest env fc n cs_in
            | Nothing => noDeclaration fc n
@@ -984,7 +990,7 @@ processDef opts nest env fc n_in cs_in
          -- should include the definition (RHS) of anything that is public (available
          -- at compile time for elaboration) _or_ inlined (dropped into destination definitions
          -- during compilation).
-         let hashit = visibility gdef == Public || (Inline `elem` gdef.flags)
+         let hashit = (collapseDefault $ visibility gdef) == Public || (Inline `elem` gdef.flags)
          let mult = if isErased (multiplicity gdef)
                        then erased
                        else linear
@@ -995,7 +1001,7 @@ processDef opts nest env fc n_in cs_in
          log "declare.def" 5 $ "Traversing clauses of " ++ show n ++ " with mult " ++ show mult
          let treq = fromMaybe !getDefaultTotalityOption (findSetTotal (flags gdef))
          cs <- withTotality treq $
-               traverse (checkClause mult (visibility gdef) treq
+               traverse (checkClause mult (collapseDefault $ visibility gdef) treq
                                      hashit nidx opts nest env) cs_in
 
          let pats = map toPats (rights cs)
@@ -1022,11 +1028,11 @@ processDef opts nest env fc n_in cs_in
                   ({ definition := PMDef pi cargs tree_ct tree_ct pats
                    } gdef)
 
-         when (visibility gdef == Public) $
+         when (collapseDefault (visibility gdef) == Public) $
              do let rmetas = getMetas tree_ct
                 log "declare.def" 10 $ "Saving from " ++ show n ++ ": " ++ show (keys rmetas)
                 traverse_ addToSave (keys rmetas)
-         when (isUserName n && visibility gdef /= Private) $
+         when (isUserName n && collapseDefault (visibility gdef) /= Private) $
              do let tymetas = getMetas (type gdef)
                 traverse_ addToSave (keys tymetas)
          addToSave n
@@ -1136,7 +1142,7 @@ processDef opts nest env fc n_in cs_in
              let covcs = mapMaybe id covcs'
              (_ ** (ctree, _)) <-
                  getPMDef fc (CompileTime mult) (Resolved n) ty covcs
-             log "declare.def" 3 $ "Working from " ++ show !(toFullNames ctree)
+             logC "declare.def" 3 $ do pure $ "Working from " ++ show !(toFullNames ctree)
              missCase <- if any catchAll covcs
                             then do log "declare.def" 3 $ "Catch all case in " ++ show n
                                     pure []

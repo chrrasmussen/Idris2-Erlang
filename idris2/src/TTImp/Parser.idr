@@ -8,6 +8,7 @@ import TTImp.TTImp
 import public Libraries.Text.Parser
 import Data.List
 import Data.List1
+import Libraries.Data.WithDefault
 
 topDecl : OriginDesc -> IndentInfo -> Rule ImpDecl
 -- All the clauses get parsed as one-clause definitions. Collect any
@@ -76,10 +77,10 @@ visOption
   <|> do keyword "private"
          pure Private
 
-visibility : EmptyRule Visibility
+visibility : EmptyRule (WithDefault Visibility Private)
 visibility
-    = visOption
-  <|> pure Private
+    = (specified <$> visOption)
+  <|> pure defaulted
 
 totalityOpt : Rule TotalReq
 totalityOpt
@@ -90,11 +91,11 @@ totalityOpt
   <|> do keyword "covering"
          pure CoveringOnly
 
-dataVisOpt : EmptyRule (Visibility, Maybe TotalReq)
+dataVisOpt : EmptyRule (WithDefault Visibility Private, Maybe TotalReq)
 dataVisOpt
-    = do { vis <- visOption   ; mbtot <- optional totalityOpt ; pure (vis, mbtot) }
+    = do { vis <- visOption   ; mbtot <- optional totalityOpt ; pure (specified vis, mbtot) }
   <|> do { tot <- totalityOpt ; vis <- visibility ; pure (vis, Just tot) }
-  <|> pure (Private, Nothing)
+  <|> pure (defaulted, Nothing)
 
 fnOpt : Rule FnOpt
 fnOpt = do x <- totalityOpt
@@ -376,13 +377,14 @@ mutual
   case_ : OriginDesc -> IndentInfo -> Rule RawImp
   case_ fname indents
       = do start <- location
+           opts <- many fnOpt
            keyword "case"
            scr <- expr fname indents
            keyword "of"
            alts <- block (caseAlt fname)
            end <- location
            pure (let fc = MkFC fname start end in
-                     ICase fc scr (Implicit fc False) alts)
+                     ICase fc opts scr (Implicit fc False) alts)
 
   caseAlt : OriginDesc -> IndentInfo -> Rule ImpClause
   caseAlt fname indents
@@ -595,7 +597,7 @@ dataDecl fname indents
          opts <- dataOpts
          cs <- block (tyDecl fname)
          end <- location
-         pure (MkImpData (MkFC fname start end) n ty opts cs)
+         pure (MkImpData (MkFC fname start end) n (Just ty) opts cs)
 
 recordParam : OriginDesc -> IndentInfo -> Rule (List (Name, RigCount, PiInfo RawImp, RawImp))
 recordParam fname indents

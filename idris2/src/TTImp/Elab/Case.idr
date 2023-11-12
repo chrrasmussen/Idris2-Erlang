@@ -13,10 +13,12 @@ import Core.Value
 import Idris.Syntax
 import Idris.REPL.Opts
 
+import TTImp.Elab.App
 import TTImp.Elab.Check
 import TTImp.Elab.Delayed
 import TTImp.Elab.ImplicitBind
 import TTImp.Elab.Utils
+import TTImp.ProcessFnOpt
 import TTImp.TTImp
 import TTImp.Utils
 
@@ -24,6 +26,7 @@ import Data.List
 import Data.Maybe
 import Data.String
 import Libraries.Data.NameMap
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -165,13 +168,14 @@ caseBlock : {vars : _} ->
             ElabInfo -> FC ->
             NestedNames vars ->
             Env Term vars ->
+            List FnOpt ->
             RawImp -> -- original scrutinee
             Term vars -> -- checked scrutinee
             Term vars -> -- its type
             RigCount -> -- its multiplicity
             List ImpClause -> Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
+caseBlock {vars} rigc elabinfo fc nest env opts scr scrtm scrty caseRig alts expected
     = do -- TODO (or to decide): Blodwen allowed ambiguities in the scrutinee
          -- to be delayed, but now I think it's better to have simpler
          -- resolution rules, and not delay
@@ -189,9 +193,9 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          let env = updateMults (linearUsed est) env
          defs <- get Ctxt
          parentDef <- lookupCtxtExact (Resolved (defining est)) (gamma defs)
-         let vis = case parentDef of
+         let vis = specified $ case parentDef of
                         Just gdef =>
-                             if visibility gdef == Public
+                             if collapseDefault (visibility gdef) == Public
                                 then Public
                                 else Private
                         Nothing => Public
@@ -234,6 +238,8 @@ caseBlock {vars} rigc elabinfo fc nest env scr scrtm scrty caseRig alts expected
          cidx <- addDef casen ({ eraseArgs := erasedargs }
                                 (newDef fc casen (if isErased rigc then erased else top)
                                       [] casefnty vis None))
+
+         traverse_ (processFnOpt fc False casen) opts
 
          -- set the totality of the case block to be the same as that
          -- of the parent function
@@ -384,10 +390,10 @@ checkCase : {vars : _} ->
             {auto o : Ref ROpts REPLOpts} ->
             RigCount -> ElabInfo ->
             NestedNames vars -> Env Term vars ->
-            FC -> (scr : RawImp) -> (ty : RawImp) -> List ImpClause ->
+            FC -> List FnOpt -> (scr : RawImp) -> (ty : RawImp) -> List ImpClause ->
             Maybe (Glued vars) ->
             Core (Term vars, Glued vars)
-checkCase rig elabinfo nest env fc scr scrty_in alts exp
+checkCase rig elabinfo nest env fc opts scr scrty_in alts exp
     = delayElab fc rig env exp CaseBlock $
         do scrty_exp <- case scrty_in of
                              Implicit _ _ => guessScrType alts
@@ -419,7 +425,7 @@ checkCase rig elabinfo nest env fc scr scrty_in alts exp
            logTermNF "elab.case" 5 "Scrutinee type" env scrty
            defs <- get Ctxt
            checkConcrete !(nf defs env scrty)
-           caseBlock rig elabinfo fc nest env scr scrtm_in scrty caseRig alts exp
+           caseBlock rig elabinfo fc nest env opts scr scrtm_in scrty caseRig alts exp
   where
     -- For the moment, throw an error if we haven't been able to work out
     -- the type of the case scrutinee, because we'll need it to build the
@@ -456,7 +462,7 @@ checkCase rig elabinfo nest env fc scr scrty_in alts exp
         = case getFn x of
                IVar _ n =>
                   do defs <- get Ctxt
-                     [(n', (_, ty))] <- lookupTyName n (gamma defs)
+                     [(_, (_, ty))] <- lookupTyName (mapNestedName nest n) (gamma defs)
                          | _ => guessScrType xs
                      Just (tyn, tyty) <- getRetTy defs !(nf defs [] ty)
                          | _ => guessScrType xs

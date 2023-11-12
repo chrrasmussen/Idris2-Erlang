@@ -8,7 +8,7 @@ import TTImp.TTImp
 parameters (f : RawImp' nm -> RawImp' nm)
 
   export
-  mapTTImp :RawImp' nm -> RawImp' nm
+  mapTTImp : RawImp' nm -> RawImp' nm
 
   export
   mapPiInfo : PiInfo (RawImp' nm) -> PiInfo (RawImp' nm)
@@ -30,6 +30,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
 
   export
   mapFnOpt : FnOpt' nm -> FnOpt' nm
+  mapFnOpt Unsafe = Unsafe
   mapFnOpt Inline = Inline
   mapFnOpt NoInline = NoInline
   mapFnOpt Deprecate = Deprecate
@@ -47,7 +48,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   export
   mapImpData : ImpData' nm -> ImpData' nm
   mapImpData (MkImpData fc n tycon opts datacons)
-    = MkImpData fc n (mapTTImp tycon) opts (map mapImpTy datacons)
+    = MkImpData fc n (map mapTTImp tycon) opts (map mapImpTy datacons)
   mapImpData (MkImpLater fc n tycon) = MkImpLater fc n (mapTTImp tycon)
 
   export
@@ -93,8 +94,8 @@ parameters (f : RawImp' nm -> RawImp' nm)
     = f $ ILam fc rig (mapPiInfo pinfo) x (mapTTImp argTy) (mapTTImp lamTy)
   mapTTImp (ILet fc lhsFC rig n nTy nVal scope)
     = f $ ILet fc lhsFC rig n (mapTTImp nTy) (mapTTImp nVal) (mapTTImp scope)
-  mapTTImp (ICase fc t ty cls)
-    = f $ ICase fc (mapTTImp t) (mapTTImp ty) (assert_total $ map mapImpClause cls)
+  mapTTImp (ICase fc opts t ty cls)
+    = f $ ICase fc opts (mapTTImp t) (mapTTImp ty) (assert_total $ map mapImpClause cls)
   mapTTImp (ILocal fc xs t)
     = f $ ILocal fc (assert_total $ map mapImpDecl xs) (mapTTImp t)
   mapTTImp (ICaseLocal fc unm inm args t) = f $ ICaseLocal fc unm inm args (mapTTImp t)
@@ -118,7 +119,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapTTImp (IQuoteName fc n) = f $ IQuoteName fc n
   mapTTImp (IQuoteDecl fc xs) = f $ IQuoteDecl fc (assert_total $ map mapImpDecl xs)
   mapTTImp (IUnquote fc t) = f $ IUnquote fc (mapTTImp t)
-  mapTTImp (IRunElab fc t) = f $ IRunElab fc (mapTTImp t)
+  mapTTImp (IRunElab fc re t) = f $ IRunElab fc re (mapTTImp t)
   mapTTImp (IPrimVal fc c) = f $ IPrimVal fc c
   mapTTImp (IType fc) = f $ IType fc
   mapTTImp (IHole fc str) = f $ IHole fc str

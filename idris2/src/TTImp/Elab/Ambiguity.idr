@@ -23,6 +23,7 @@ import Data.String
 import Data.Vect
 
 import Libraries.Data.UserNameMap
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -85,20 +86,28 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                  | _ => pure True
              if !(isVisible ns)
                 then pure $ visibleInAny (!getNS :: !getNestedNS) (NS ns x)
-                                         (visibility def)
+                                         (collapseDefault $ visibility def)
                 else pure False
 
     -- If there's multiple alternatives and all else fails, resort to using
     -- the primitive directly
     uniqType : PrimNames -> Name -> List (FC, Maybe (Maybe Name), RawImp) -> AltType
-    uniqType (MkPrimNs (Just fi) _ _ _) n [(_, _, IPrimVal fc (BI x))]
+    uniqType (MkPrimNs (Just fi) _ _ _ _ _ _) n [(_, _, IPrimVal fc (BI x))]
         = UniqueDefault (IPrimVal fc (BI x))
-    uniqType (MkPrimNs _ (Just si) _ _) n [(_, _, IPrimVal fc (Str x))]
+    uniqType (MkPrimNs _ (Just si) _ _ _ _ _) n [(_, _, IPrimVal fc (Str x))]
         = UniqueDefault (IPrimVal fc (Str x))
-    uniqType (MkPrimNs _ _ (Just ci) _) n [(_, _, IPrimVal fc (Ch x))]
+    uniqType (MkPrimNs _ _ (Just ci) _ _ _ _) n [(_, _, IPrimVal fc (Ch x))]
         = UniqueDefault (IPrimVal fc (Ch x))
-    uniqType (MkPrimNs _ _ _ (Just di)) n [(_, _, IPrimVal fc (Db x))]
+    uniqType (MkPrimNs _ _ _ (Just di) _ _ _) n [(_, _, IPrimVal fc (Db x))]
         = UniqueDefault (IPrimVal fc (Db x))
+    uniqType (MkPrimNs _ _ _ _ (Just dt) _ _) n [(_, _, IQuote fc tm)]
+        = UniqueDefault (IQuote fc tm)
+        {-
+    uniqType (MkPrimNs _ _ _ _ _ (Just dn) _) n [(_, _, IQuoteName fc tm)]
+        = UniqueDefault (IQuoteName fc tm)
+    uniqType (MkPrimNs _ _ _ _ _ _ (Just ddl)) n [(_, _, IQuoteDecl fc tm)]
+        = UniqueDefault (IQuoteDecl fc tm)
+        -}
     uniqType _ _ _ = Unique
 
     buildAlt : RawImp -> List (FC, Maybe (Maybe Name), RawImp) ->
@@ -137,7 +146,7 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
         = if (Context.Macro `elem` flags def) && notLHS mode
              then alternativeFirstSuccess $ reverse $
                     allSplits args <&> \(macroArgs, extArgs) =>
-                      (IRunElab fc $ ICoerced fc $ IVar fc n `buildAlt` macroArgs) `buildAlt` extArgs
+                      (IRunElab fc False $ ICoerced fc $ IVar fc n `buildAlt` macroArgs) `buildAlt` extArgs
              else wrapDot prim est mode n (map (snd . snd) args)
                     (definition def) (buildAlt (IVar fc n) args)
       where

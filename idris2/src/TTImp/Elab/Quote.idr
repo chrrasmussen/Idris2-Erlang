@@ -35,9 +35,10 @@ mutual
       = pure $ ILam fc c p n !(getUnquote arg) !(getUnquote sc)
   getUnquote (ILet fc lhsFC c n ty val sc)
       = pure $ ILet fc lhsFC c n !(getUnquote ty) !(getUnquote val) !(getUnquote sc)
-  getUnquote (ICase fc sc ty cs)
-      = pure $ ICase fc !(getUnquote sc) !(getUnquote ty)
-                        !(traverse getUnquoteClause cs)
+  getUnquote (ICase fc opts sc ty cs)
+      = pure $ ICase fc opts
+                !(getUnquote sc) !(getUnquote ty)
+                !(traverse getUnquoteClause cs)
   getUnquote (ILocal fc ds sc)
       = pure $ ILocal fc !(traverse getUnquoteDecl ds) !(getUnquote sc)
   getUnquote (IUpdate fc ds sc)
@@ -137,7 +138,7 @@ mutual
                    ImpData ->
                    Core ImpData
   getUnquoteData (MkImpData fc n tc opts cs)
-      = pure $ MkImpData fc n !(getUnquote tc) opts
+      = pure $ MkImpData fc n !(traverseOpt getUnquote tc) opts
                          !(traverse getUnquoteTy cs)
   getUnquoteData (MkImpLater fc n tc)
       = pure $ MkImpLater fc n !(getUnquote tc)

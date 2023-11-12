@@ -1,11 +1,11 @@
 (define (blodwen-os)
   (case (machine-type)
-    [(i3le ti3le a6le ta6le) "unix"]  ; GNU/Linux
-    [(i3ob ti3ob a6ob ta6ob) "unix"]  ; OpenBSD
-    [(i3fb ti3fb a6fb ta6fb) "unix"]  ; FreeBSD
-    [(i3nb ti3nb a6nb ta6nb) "unix"]  ; NetBSD
+    [(i3le ti3le a6le ta6le tarm64le) "unix"]  ; GNU/Linux
+    [(i3ob ti3ob a6ob ta6ob tarm64ob) "unix"]  ; OpenBSD
+    [(i3fb ti3fb a6fb ta6fb tarm64fb) "unix"]  ; FreeBSD
+    [(i3nb ti3nb a6nb ta6nb tarm64nb) "unix"]  ; NetBSD
     [(i3osx ti3osx a6osx ta6osx tarm64osx) "darwin"]
-    [(i3nt ti3nt a6nt ta6nt) "windows"]
+    [(i3nt ti3nt a6nt ta6nt tarm64nt) "windows"]
     [else "unknown"]))
 
 (define blodwen-lazy
@@ -39,6 +39,25 @@
     (if (< r 0)
       (if (> b 0) (+ r b) (- r b))
       r)))
+
+; flonum constants
+
+(define (blodwen-calcFlonumUnitRoundoff)
+  (let loop [(uro 1.0)]
+    (if (fl= 1.0 (fl+ 1.0 uro))
+      uro
+      (loop (fl/ uro 2.0)))))
+
+(define (blodwen-calcFlonumEpsilon)
+  (fl* (blodwen-calcFlonumUnitRoundoff) 2.0))
+
+(define (blodwen-flonumNaN)
+  +nan.0)
+
+(define (blodwen-flonumInf)
+  +inf.0)
+
+; Bits
 
 (define bu+ (lambda (x y bits) (blodwen-toUnsignedInt (+ x y) bits)))
 (define bu- (lambda (x y bits) (blodwen-toUnsignedInt (- x y) bits)))
@@ -220,6 +239,18 @@
 (define (blodwen-buffer-getbits64 buf loc)
   (bytevector-u64-ref buf loc (native-endianness)))
 
+(define (blodwen-buffer-setint8 buf loc val)
+  (bytevector-s8-set! buf loc val))
+
+(define (blodwen-buffer-getint8 buf loc)
+  (bytevector-s8-ref buf loc))
+
+(define (blodwen-buffer-setint16 buf loc val)
+  (bytevector-s16-set! buf loc val (native-endianness)))
+
+(define (blodwen-buffer-getint16 buf loc)
+  (bytevector-s16-ref buf loc (native-endianness)))
+
 (define (blodwen-buffer-setint32 buf loc val)
   (bytevector-s32-set! buf loc val (native-endianness)))
 
@@ -230,6 +261,12 @@
   (bytevector-s64-set! buf loc val (native-endianness)))
 
 (define (blodwen-buffer-getint buf loc)
+  (bytevector-s64-ref buf loc (native-endianness)))
+
+(define (blodwen-buffer-setint64 buf loc val)
+  (bytevector-s64-set! buf loc val (native-endianness)))
+
+(define (blodwen-buffer-getint64 buf loc)
   (bytevector-s64-ref buf loc (native-endianness)))
 
 (define (blodwen-buffer-setdouble buf loc val)

@@ -33,8 +33,10 @@ Eq Warning where
   ParserWarning fc1 x1 == ParserWarning fc2 x2 = fc1 == fc2 && x1 == x2
   UnreachableClause fc1 rho1 s1 == UnreachableClause fc2 rho2 s2 = fc1 == fc2
   ShadowingGlobalDefs fc1 xs1 == ShadowingGlobalDefs fc2 xs2 = fc1 == fc2 && xs1 == xs2
-  Deprecated x1 y1 == Deprecated x2 y2 = x1 == x2 && y1 == y2
-  GenericWarn x1 == GenericWarn x2 = x1 == x2
+  IncompatibleVisibility fc1 x1 y1 n1 == IncompatibleVisibility fc2 x2 y2 n2
+    = fc1 == fc2 && x1 == x2 && y1 == y2 && n1 == n2
+  Deprecated fc1 x1 y1 == Deprecated fc2 x2 y2 = fc1 == fc2 && x1 == x2 && y1 == y2
+  GenericWarn fc1 x1 == GenericWarn fc2 x2 = fc1 == fc2 && x1 == x2
   _ == _ = False
 
 export
@@ -274,6 +276,13 @@ pwarningRaw (ShadowingGlobalDefs fc ns)
                         :: reflow "is shadowing"
                         :: punctuate comma (map pretty0 (forget ns))
 
+pwarningRaw (IncompatibleVisibility fc vx vy n)
+    = pure $ warning (code (pretty0 (sugarName n))
+        <++> reflow "has been forward-declared with"
+        <++> keyword (pretty0 vx) <++> reflow "visibility, cannot change to"
+        <++> keyword (pretty0 vy) <+> reflow ". This will be an error in a later release.")
+        <+> line <+> !(ploc fc)
+
 pwarningRaw (ShadowingLocalBindings fc ns)
     = pure $ vcat
     [ reflow "You may be unintentionally shadowing the following local bindings:"
@@ -281,13 +290,13 @@ pwarningRaw (ShadowingLocalBindings fc ns)
     , !(ploc fc)
     ]
 
-pwarningRaw (Deprecated s fcAndName)
+pwarningRaw (Deprecated fc s fcAndName)
     = do docs <- traverseOpt (\(fc, name) => getDocsForName fc name justUserDoc) fcAndName
          pure . vsep $ catMaybes [ Just $ "Deprecation warning:" <++> pretty0 s
                                  , reAnnotate (const Pretty.UserDocString) <$> docs
                                  ]
-pwarningRaw (GenericWarn s)
-    = pure $ pretty0 s
+pwarningRaw (GenericWarn fc s)
+    = pure $ vcat [pretty0 s, !(ploc fc)]
 
 export
 pwarning : {auto c : Ref Ctxt Defs} ->
@@ -603,6 +612,10 @@ perrorRaw (BadRunElab fc env script desc)
     = pure $ errorDesc (reflow "Bad elaborator script" <++> code !(pshow env script)
        <++> parens (pretty0 desc) <+> dot)
         <+> line <+> !(ploc fc)
+        <+> !(let scriptFC = getLoc script in
+          if isJust (isNonEmptyFC scriptFC)
+            then pure $ line <+> reflow "Stuck place in the script:" <+> line <+> !(ploc scriptFC)
+            else pure emptyDoc)
 perrorRaw (RunElabFail e)
     = pure $ reflow "Error during reflection" <+> colon <++> !(perrorRaw e)
 perrorRaw (GenericMsg fc str) = pure $ pretty0 str <+> line <+> !(ploc fc)
@@ -614,6 +627,10 @@ perrorRaw (FileErr fname err)
        <++> byShow err
 perrorRaw (CantFindPackage fname)
     = pure $ errorDesc (reflow "Can't find package " <++> pretty0 fname)
+perrorRaw (LazyImplicitFunction fc)
+    = pure $ errorDesc (reflow "Implicit lazy functions are not yet supported.") <+> line <+> !(ploc fc)
+perrorRaw (LazyPatternVar fc)
+    = pure $ errorDesc (reflow "Defining lazy functions via pattern matching is not yet supported.") <+> line <+> !(ploc fc)
 perrorRaw (LitFail fc)
     = pure $ errorDesc (reflow "Can't parse literate.")
         <+> line <+> !(ploc fc)

@@ -24,6 +24,18 @@ data Tokenizer : (tokenType : Type) -> Type where
                Tokenizer tokenType
      Alt : Tokenizer tokenType -> Lazy (Tokenizer tokenType) -> Tokenizer tokenType
 
+export
+Functor Tokenizer where
+  map f (Match lex fn) = Match lex (f . fn)
+  map f (Compose {begin, mapBegin, tagger, middle, end, mapEnd})
+    = Compose {
+        mapBegin = f . mapBegin,
+        middle   = map f . middle,
+        mapEnd   = f . mapEnd,
+        begin, tagger, end
+      }
+  map f (Alt t1 t2) = map f t1 `Alt` map f t2
+
 ||| Alternative tokenizer rules.
 export
 (<|>) : Tokenizer t -> Lazy (Tokenizer t) -> Tokenizer t
@@ -98,7 +110,7 @@ tokenise reject tokenizer line col acc str
             | _ => Nothing
           line' = line + cast (countNLs token)
           col' = getCols token col
-          tokenStr = fastPack $ reverse token
+          tokenStr = pack $ reverse token
        in pure (tokenStr, line', col', rest)
 
     getFirstMatch : Tokenizer a -> List Char ->
@@ -137,8 +149,8 @@ lexTo : Lexer ->
         (List (WithBounds a), (StopReason, Int, Int, String))
 lexTo reject tokenizer str
     = let (ts, reason, (l, c, str')) =
-              tokenise reject tokenizer 0 0 [] (fastUnpack str) in
-          (ts, reason, (l, c, fastPack str'))
+              tokenise reject tokenizer 0 0 [] (unpack str) in
+          (ts, reason, (l, c, pack str'))
 
 ||| Given a tokenizer and an input string, return a list of recognised tokens,
 ||| and the line, column, and remainder of the input at the first point in the string

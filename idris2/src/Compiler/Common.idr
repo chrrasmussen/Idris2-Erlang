@@ -16,13 +16,14 @@ import Core.Directory
 import Core.Options
 import Core.TT
 import Core.TTC
-import Libraries.Data.IOArray
-import Libraries.Utils.Scheme
 
 import Data.List
 import Data.List1
-import Libraries.Data.NameMap
 import Data.String as String
+import Libraries.Data.NameMap
+import Libraries.Data.IOArray
+import Libraries.Data.WithDefault
+import Libraries.Utils.Scheme
 
 import Idris.Syntax
 import Idris.Env
@@ -172,7 +173,7 @@ getMinimalDef (Coded ns bin)
          name <- fromBuf b
          let def
              = MkGlobalDef fc name (Erased fc Placeholder) [] [] [] [] mul
-                           [] Public (MkTotality Unchecked IsCovering)
+                           [] (specified Public) (MkTotality Unchecked IsCovering) False
                            [] Nothing refsR False False True
                            None cdef Nothing [] Nothing
          pure (def, Just (ns, bin))
@@ -552,7 +553,7 @@ copyLib (lib, fullname)
 export
 getExtraRuntime : List String -> Core String
 getExtraRuntime directives
-    = do fileContents <- traverse readPath paths
+    = do fileContents <- traverse Core.readFile paths
          pure $ concat $ intersperse "\n" fileContents
   where
     getArg : String -> Maybe String
@@ -566,35 +567,33 @@ getExtraRuntime directives
     paths : List String
     paths = nub $ mapMaybe getArg $ reverse directives
 
-    readPath : String -> Core String
-    readPath p = do
-      Right contents <- coreLift $ readFile p
-        | Left err => throw (FileErr p err)
-      pure contents
-
 ||| Cast implementations. Values of `ConstantPrimitives` can
 ||| be used in a call to `castInt`, which then determines
 ||| the cast implementation based on the given pair of
 ||| constants.
 public export
-record ConstantPrimitives a where
+record ConstantPrimitives' str where
   constructor MkConstantPrimitives
-  charToInt    : IntKind -> a -> Core a
-  intToChar    : IntKind -> a -> Core a
-  stringToInt  : IntKind -> a -> Core a
-  intToString  : IntKind -> a -> Core a
-  doubleToInt  : IntKind -> a -> Core a
-  intToDouble  : IntKind -> a -> Core a
-  intToInt     : IntKind -> IntKind -> a -> Core a
+  charToInt    : IntKind -> str -> Core str
+  intToChar    : IntKind -> str -> Core str
+  stringToInt  : IntKind -> str -> Core str
+  intToString  : IntKind -> str -> Core str
+  doubleToInt  : IntKind -> str -> Core str
+  intToDouble  : IntKind -> str -> Core str
+  intToInt     : IntKind -> IntKind -> str -> Core str
+
+public export
+ConstantPrimitives : Type
+ConstantPrimitives = ConstantPrimitives' String
 
 ||| Implements casts from and to integral types by using
 ||| the implementations from the provided `ConstantPrimitives`.
 export
-castInt :  ConstantPrimitives a
+castInt :  ConstantPrimitives' str
         -> PrimType
         -> PrimType
-        -> a
-        -> Core a
+        -> str
+        -> Core str
 castInt p from to x =
   case ((from, intKind from), (to, intKind to)) of
        ((CharType, _)  , (_, Just k)) => p.charToInt k x
